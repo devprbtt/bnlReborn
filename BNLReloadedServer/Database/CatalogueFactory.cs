@@ -30,6 +30,7 @@ public static class CatalogueFactory
             HeroSwitch = false,
             SuperSupply = false,
             AllowBackfilling = true,
+            ForceThirdPerson = false,
             ResourceCap = customLogic?.DefaultResourceCap ?? 7500f,
             InitResource = customLogic?.DefaultInitResource ?? 4000f,
             Status = CustomGameStatus.Preparing,

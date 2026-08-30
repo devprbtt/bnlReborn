@@ -36,6 +36,7 @@ public interface IRegionServerDatabase
     public bool KickFromCustomGame(uint playerId, uint kickerId);
     public bool SwitchTeam(uint playerId);
     public bool UpdateCustomSettings(uint playerId, CustomGameSettings settings);
+    public bool UpdateCustomThirdPerson(uint playerId, bool enabled);
     public CustomGameUpdate? GetFullCustomGameUpdate(uint playerId);
     public bool StartCustomGame(uint playerId, string? signedMap);
     public bool StartMapEditorGame(uint playerId, MapData map, Key heroKey, TeamType team);

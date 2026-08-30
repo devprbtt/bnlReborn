@@ -220,6 +220,7 @@ public partial class GameZone : Updater
             BlocksData = new MapBinary(mapData.Schema, mapData.BlocksData ?? [],
                 mapData.Size, mapData.Properties?.PlanePosition ?? 0, new MapUpdater(OnCut, OnMined, OnDetached, EnqueueAction)),
             CanSwitchHero = gameInitiator.CanSwitchHero(),
+            ForceThirdPerson = gameInitiator.IsThirdPersonForced(),
             Phase = new ZonePhase
             {
                 PhaseType = startingPhase,

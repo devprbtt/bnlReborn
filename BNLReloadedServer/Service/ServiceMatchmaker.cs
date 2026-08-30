@@ -33,7 +33,8 @@ public class ServiceMatchmaker(ISender sender) : IServiceMatchmaker
         MessageCustomGamePlayerKicked = 20,
         MessageExitCustomGame = 21,
         MessageRegisterCustomGame = 22,
-        MessageJoinCustomGameBySteam = 23
+        MessageJoinCustomGameBySteam = 23,
+        MessageSetCustomGameThirdPerson = 24
     }
 
     private readonly IRegionServerDatabase _serverDatabase = Databases.RegionServerDatabase;
@@ -232,6 +233,13 @@ public class ServiceMatchmaker(ISender sender) : IServiceMatchmaker
             _serverDatabase.UpdateCustomSettings(sender.AssociatedPlayerId.Value, customGameSettings);
     }
 
+    private void ReceiveSetCustomGameThirdPerson(BinaryReader reader)
+    {
+        var enabled = reader.ReadBoolean();
+        if (sender.AssociatedPlayerId.HasValue)
+            _serverDatabase.UpdateCustomThirdPerson(sender.AssociatedPlayerId.Value, enabled);
+    }
+
     private void ReceiveSwitchTeam(BinaryReader reader)
     {
         if (sender.AssociatedPlayerId.HasValue)
@@ -381,6 +389,9 @@ public class ServiceMatchmaker(ISender sender) : IServiceMatchmaker
                 break;
             case ServiceMatchmakerId.MessageJoinCustomGameBySteam:
                 ReceiveJoinCustomGameBySteam(reader);
+                break;
+            case ServiceMatchmakerId.MessageSetCustomGameThirdPerson:
+                ReceiveSetCustomGameThirdPerson(reader);
                 break;
             default:
                 Log.Warn(LogCat.Net, $"Unknown service matchmaker id {Log.EnumName(matchEnum, serviceMatchmakerId)}");

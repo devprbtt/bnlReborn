@@ -35,6 +35,7 @@ public class ZoneData(ZoneUpdater updater)
     public bool? SurrenderResult;
     public TeamType SurrenderTeam;
     public bool CanSwitchHero;
+    public bool ForceThirdPerson;
     public SupplyInfo SupplyInfo;
 
     public bool IsTimeTrial { get; private set; }
@@ -83,7 +84,8 @@ public class ZoneData(ZoneUpdater updater)
             ColorData = MapData.ColorsData ?? [],
             Updates = new Dictionary<Vector3s, BlockUpdate>(),
             CanSwitchHero = CanSwitchHero,
-            IsCustomGame = GameModeKey == CatalogueHelper.ModeCustom.Key
+            IsCustomGame = GameModeKey == CatalogueHelper.ModeCustom.Key,
+            ForceThirdPerson = ForceThirdPerson
         };
 
     public void UpdateData(ZoneUpdate update)

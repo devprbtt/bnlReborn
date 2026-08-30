@@ -14,6 +14,7 @@ public interface IGameInitiator
     public bool IsPlayerBackfill(uint playerId);
     public Key GetGameMode();
     public bool CanSwitchHero();
+    public bool IsThirdPersonForced();
     public bool IsMapEditor();
     public float GetResourceCap();
     public float GetResourceAmount();

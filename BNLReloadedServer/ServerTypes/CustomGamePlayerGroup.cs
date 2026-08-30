@@ -28,7 +28,7 @@ public class CustomGamePlayerGroup(IServiceMatchmaker matchService) : IGameIniti
             Send(BuildUpdate(gameName: value.GameName, pass: Password, mapInfo: value.MapInfo, buildTime: value.BuildTime,
                 respawnMod: value.RespawnTimeMod, heroSwitch: value.HeroSwitch, superSupply: value.SuperSupply,
                 allowBackfilling: value.AllowBackfilling, resourceCap: value.ResourceCap, initResources: value.InitResource,
-                players: [], status: value.Status));
+                players: [], status: value.Status, forceThirdPerson: value.ForceThirdPerson));
         }
     }
 
@@ -262,6 +262,19 @@ public class CustomGamePlayerGroup(IServiceMatchmaker matchService) : IGameIniti
         }
     }
 
+    public void UpdateThirdPerson(uint playerId, bool enabled)
+    {
+        lock (_lock)
+        {
+            var player = _players.FirstOrDefault(p => p.Id == playerId);
+            if (player is not { Owner: true })
+                return;
+
+            GameInfo.ForceThirdPerson = enabled;
+            Send(BuildUpdate(forceThirdPerson: enabled));
+        }
+    }
+
     public bool IsMaxSpectators()
     {
         lock (_lock) return _spectators.Count >= _customLogic.MaxSpectatorsPerMatch;
@@ -333,6 +346,8 @@ public class CustomGamePlayerGroup(IServiceMatchmaker matchService) : IGameIniti
 
     public bool CanSwitchHero() => GameInfo.HeroSwitch;
 
+    public bool IsThirdPersonForced() => GameInfo.ForceThirdPerson;
+
     public bool IsMapEditor() => false;
 
     public float GetResourceCap() => GameInfo.ResourceCap;
@@ -376,7 +391,8 @@ public class CustomGamePlayerGroup(IServiceMatchmaker matchService) : IGameIniti
                 Password = Password,
                 Settings = settings,
                 Players = [.. _players],
-                Status = GameInfo.Status
+                Status = GameInfo.Status,
+                ForceThirdPerson = GameInfo.ForceThirdPerson
             };
         }
     }
@@ -385,7 +401,7 @@ public class CustomGamePlayerGroup(IServiceMatchmaker matchService) : IGameIniti
     private static CustomGameUpdate BuildUpdate(string? gameName = null, string? pass = null,
         MapInfo? mapInfo = null, float? buildTime = null, float? respawnMod = null, bool? heroSwitch = null,
         bool? superSupply = null, bool? allowBackfilling = null, float? resourceCap = null, float? initResources = null,
-        List<CustomGamePlayer>? players = null, CustomGameStatus? status = null)
+        List<CustomGamePlayer>? players = null, CustomGameStatus? status = null, bool? forceThirdPerson = null)
     {
         CustomGameSettings? settings = null;
         if (mapInfo != null || buildTime != null || respawnMod != null || heroSwitch != null || superSupply != null ||
@@ -408,7 +424,8 @@ public class CustomGamePlayerGroup(IServiceMatchmaker matchService) : IGameIniti
             Password = pass,
             Settings = settings,
             Players = players,
-            Status = status
+            Status = status,
+            ForceThirdPerson = forceThirdPerson
         };
     }
 

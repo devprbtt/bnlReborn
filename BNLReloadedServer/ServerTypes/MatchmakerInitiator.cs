@@ -109,6 +109,8 @@ public class MatchmakerInitiator(CardGameMode gameMode, List<PlayerQueueData> te
 
     public bool CanSwitchHero() => false;
 
+    public bool IsThirdPersonForced() => false;
+
     public bool IsMapEditor() => false;
 
     public float GetResourceCap() => gameMode.MatchMode.GetCard<CardMatch>()?.ResourceCap ?? 7500;

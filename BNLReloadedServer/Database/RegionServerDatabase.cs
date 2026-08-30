@@ -509,6 +509,7 @@ public class RegionServerDatabase(AsyncTaskTcpServer server, AsyncTaskTcpServer 
                 HeroSwitch = false,
                 SuperSupply = false,
                 AllowBackfilling = false,
+                ForceThirdPerson = false,
                 ResourceCap = match?.ResourceCap ?? 7500,
                 InitResource = match?.InitResource ?? 2000,
                 Status = CustomGameStatus.Match
@@ -743,6 +744,16 @@ public class RegionServerDatabase(AsyncTaskTcpServer server, AsyncTaskTcpServer 
         var gameId = customId.Value;
         if (!TryGetCustomGame(gameId, out var customGame)) return false;
         customGame.custom.UpdateSettings(playerId, settings);
+        return true;
+    }
+
+    public bool UpdateCustomThirdPerson(uint playerId, bool enabled)
+    {
+        if (!UserConnected(playerId, out var playerInfo)) return false;
+        var customId = playerInfo.CustomGameId;
+        if (!customId.HasValue) return false;
+        if (!TryGetCustomGame(customId.Value, out var customGame)) return false;
+        customGame.custom.UpdateThirdPerson(playerId, enabled);
         return true;
     }
 

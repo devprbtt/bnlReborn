@@ -28,6 +28,8 @@ public class DummyGameInitiator(CardGameMode gameMode, MapData map, TeamType tea
 
     public bool CanSwitchHero() => false;
 
+    public bool IsThirdPersonForced() => false;
+
     public bool IsMapEditor() => mapEditor;
 
     public float GetResourceCap() => MatchCard.ResourceCap ?? 7500f;

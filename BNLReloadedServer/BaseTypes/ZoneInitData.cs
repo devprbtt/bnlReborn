@@ -18,9 +18,12 @@ public class ZoneInitData
 
     public bool IsCustomGame { get; set; }
 
+    public bool ForceThirdPerson { get; set; }
+
     public void Write(BinaryWriter writer)
     {
-        new BitField(MapKey.HasValue, Map != null, MapData != null, ColorData != null, Updates != null, true, true).Write(writer);
+        new BitField(MapKey.HasValue, Map != null, MapData != null, ColorData != null, Updates != null, true, true,
+            ForceThirdPerson).Write(writer);
         if (MapKey.HasValue)
             Key.WriteRecord(writer, MapKey.Value);
         if (Map != null)
@@ -37,7 +40,7 @@ public class ZoneInitData
 
     public void Read(BinaryReader reader)
     {
-        var bitField = new BitField(7);
+        var bitField = new BitField(8);
         bitField.Read(reader);
         MapKey = bitField[0] ? Key.ReadRecord(reader) : null;
         Map = bitField[1] ? BaseTypes.MapData.ReadRecord(reader) : null;
@@ -46,9 +49,9 @@ public class ZoneInitData
         Updates = bitField[4] ? reader.ReadMap<Vector3s, BlockUpdate, Dictionary<Vector3s, BlockUpdate>>(reader.ReadVector3s, BlockUpdate.ReadRecord) : null;
         if (bitField[5])
             CanSwitchHero = reader.ReadBoolean();
-        if (!bitField[6])
-            return;
-        IsCustomGame = reader.ReadBoolean();
+        if (bitField[6])
+            IsCustomGame = reader.ReadBoolean();
+        ForceThirdPerson = bitField[7];
     }
 
     public static void WriteRecord(BinaryWriter writer, ZoneInitData value) => value.Write(writer);

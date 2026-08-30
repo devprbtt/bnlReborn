@@ -34,10 +34,12 @@ public class CustomGameInfo
 
     public CustomGameStatus Status { get; set; }
 
+    public bool ForceThirdPerson { get; set; }
+
     public void Write(BinaryWriter writer)
     {
         new BitField(true, GameName != null, StarterNickname != null, true, true, true, MapInfo != null, true, true, true,
-          true, true, true, true, true).Write(writer);
+          true, true, true, true, true, ForceThirdPerson).Write(writer);
         writer.Write(Id);
         if (GameName != null)
             writer.Write(GameName);
@@ -60,7 +62,7 @@ public class CustomGameInfo
 
     public void Read(BinaryReader reader)
     {
-        var bitField = new BitField(15);
+        var bitField = new BitField(16);
         bitField.Read(reader);
         if (bitField[0])
             Id = reader.ReadUInt64();
@@ -87,9 +89,9 @@ public class CustomGameInfo
             ResourceCap = reader.ReadSingle();
         if (bitField[13])
             InitResource = reader.ReadSingle();
-        if (!bitField[14])
-            return;
-        Status = reader.ReadByteEnum<CustomGameStatus>();
+        if (bitField[14])
+            Status = reader.ReadByteEnum<CustomGameStatus>();
+        ForceThirdPerson = bitField[15];
     }
 
     public static void WriteRecord(BinaryWriter writer, CustomGameInfo value)

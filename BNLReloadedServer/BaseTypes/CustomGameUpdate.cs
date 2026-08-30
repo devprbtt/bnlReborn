@@ -14,9 +14,12 @@ public class CustomGameUpdate
 
     public CustomGameStatus? Status { get; set; }
 
+    public bool? ForceThirdPerson { get; set; }
+
     public void Write(BinaryWriter writer)
     {
-        new BitField(GameName != null, Password != null, Settings != null, Players != null, Status.HasValue).Write(writer);
+        new BitField(GameName != null, Password != null, Settings != null, Players != null, Status.HasValue,
+            ForceThirdPerson.HasValue, ForceThirdPerson.GetValueOrDefault()).Write(writer);
         if (GameName != null)
             writer.Write(GameName);
         if (Password != null)
@@ -32,13 +35,14 @@ public class CustomGameUpdate
 
     public void Read(BinaryReader reader)
     {
-        var bitField = new BitField(5);
+        var bitField = new BitField(7);
         bitField.Read(reader);
         GameName = bitField[0] ? reader.ReadString() : null;
         Password = bitField[1] ? reader.ReadString() : null;
         Settings = bitField[2] ? CustomGameSettings.ReadRecord(reader) : null;
         Players = bitField[3] ? reader.ReadList<CustomGamePlayer, List<CustomGamePlayer>>(CustomGamePlayer.ReadRecord) : null;
         Status = bitField[4] ? reader.ReadByteEnum<CustomGameStatus>() : null;
+        ForceThirdPerson = bitField[5] ? bitField[6] : null;
     }
 
     public static void WriteRecord(BinaryWriter writer, CustomGameUpdate value)
