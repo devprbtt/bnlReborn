@@ -752,6 +752,9 @@ public class GameInstance : IGameInstance
     public void DebugSpawnSupply(string? blockbusterCardId) =>
         Zone?.EnqueueAction(() => Zone?.ReceivedDebugSpawnSupply(blockbusterCardId));
 
+    public void DebugZoneCommand(uint playerId, string command, IReadOnlyList<string> args) =>
+        Zone?.EnqueueAction(() => Zone?.ReceivedDebugCommand(playerId, command, args));
+
     private void OnLoadTimerElapsed(object? sender, ElapsedEventArgs e)
     {
         if (_startGameTimer == null) return;

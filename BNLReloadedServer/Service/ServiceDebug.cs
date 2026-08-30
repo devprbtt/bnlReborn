@@ -65,11 +65,15 @@ public class ServiceDebug(ISender sender) : IServiceDebug
         if (!sender.AssociatedPlayerId.HasValue || Databases.PlayerDatabase.GetPlayerDataNoWait(sender.AssociatedPlayerId.Value)?.Role is not (PlayerRole.Core
                 or PlayerRole.Admin))
         {
-            SendExecuteArgs(rpcId, "fail");
+            SendExecute(rpcId, null, "Admin role required");
             return;
         }
 
-        switch (cmd)
+        var commandParts = cmd.Split(' ', 2, StringSplitOptions.RemoveEmptyEntries);
+        var command = commandParts.Length > 0 ? commandParts[0] : string.Empty;
+        IReadOnlyList<string> inlineArgs = commandParts.Length > 1 ? [commandParts[1]] : [];
+
+        switch (command)
         {
             case "force_start_match":
                 SendExecute(rpcId, "success");
@@ -107,12 +111,27 @@ public class ServiceDebug(ISender sender) : IServiceDebug
                 GameInstance?.DebugSpawnSupply(null);
                 break;
 
+            case "add_ammo":
+            case "add_resource":
+            case "cancel_afk_check":
+                SendExecute(rpcId, "success");
+                GameInstance?.DebugZoneCommand(sender.AssociatedPlayerId.Value, command, inlineArgs);
+                break;
+
+            case "switch_hero":
+                SendExecute(rpcId, null, "Hero switching is not available after the match has started");
+                break;
+
             case "exit_match":
                 SendExecute(rpcId, "success");
                 var playerId = sender.AssociatedPlayerId.Value;
                 var gameInstance = GameInstance;
                 gameInstance?.PlayerLeftInstance(playerId, KickReason.MatchQuit);
                 Databases.RegionServerDatabase.RemoveFromCustomGame(playerId);
+                break;
+
+            default:
+                SendExecute(rpcId, null, $"Unsupported debug command: {cmd}");
                 break;
         }
     }
@@ -144,7 +163,7 @@ public class ServiceDebug(ISender sender) : IServiceDebug
         if (!sender.AssociatedPlayerId.HasValue || Databases.PlayerDatabase.GetPlayerDataNoWait(sender.AssociatedPlayerId.Value)?.Role is not (PlayerRole.Core
                 or PlayerRole.Admin))
         {
-            SendExecuteArgs(rpcId, "fail");
+            SendExecuteArgs(rpcId, null, "Admin role required");
             return;
         }
 
@@ -153,6 +172,16 @@ public class ServiceDebug(ISender sender) : IServiceDebug
             case "spawn_blockbuster":
                 SendExecuteArgs(rpcId, "success");
                 GameInstance?.DebugSpawnSupply(args.Count > 0 ? args[0] : null);
+                break;
+
+            case "kill_target":
+            case "kill_block":
+                SendExecuteArgs(rpcId, "success");
+                GameInstance?.DebugZoneCommand(sender.AssociatedPlayerId.Value, cmd, args);
+                break;
+
+            default:
+                SendExecuteArgs(rpcId, null, $"Unsupported debug command: {cmd}");
                 break;
         }
     }

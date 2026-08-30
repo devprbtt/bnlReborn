@@ -1,4 +1,5 @@
 ﻿using System.Numerics;
+using System.Globalization;
 using BNLReloadedServer.BaseTypes;
 using BNLReloadedServer.Database;
 using BNLReloadedServer.Logging;
@@ -1553,6 +1554,52 @@ public partial class GameZone
         if (bbPosition is not null)
         {
             CreateSupplyUnit(blockbusterKey, bbPosition.Value);
+        }
+    }
+
+    public void ReceivedDebugCommand(uint playerId, string command, IReadOnlyList<string> args)
+    {
+        if (!_playerIdToUnitId.TryGetValue(playerId, out var playerUnitId) ||
+            !_playerUnits.TryGetValue(playerUnitId, out var player))
+        {
+            return;
+        }
+
+        switch (command)
+        {
+            case "add_ammo" when args.Count == 1 &&
+                                 float.TryParse(args[0], NumberStyles.Float, CultureInfo.InvariantCulture, out var ammo):
+                player.AddAmmo(ammo);
+                break;
+            case "add_resource" when args.Count == 1 &&
+                                     float.TryParse(args[0], NumberStyles.Float, CultureInfo.InvariantCulture, out var resource):
+                player.AddResource(resource, ResourceType.General);
+                break;
+            case "cancel_afk_check":
+                player.LastMoveTime = DateTimeOffset.Now;
+                player.WasAfkWarned = false;
+                break;
+            case "kill_target" when args.Count == 1 && uint.TryParse(args[0], out var targetId):
+                if (_units.TryGetValue(targetId, out var target))
+                {
+                    target.Killed(target.CreateBlankImpactData());
+                }
+                break;
+            case "kill_block" when args.Count == 3 &&
+                                  short.TryParse(args[0], out var x) &&
+                                  short.TryParse(args[1], out var y) &&
+                                  short.TryParse(args[2], out var z):
+                var blockPosition = new Vector3s(x, y, z);
+                if (MapBinary.ContainsBlock(blockPosition))
+                {
+                    var damage = DamageData.ZeroDamage with
+                    {
+                        BlockDamage = float.MaxValue,
+                        IgnoreInvincibility = true
+                    };
+                    DoBlockUpdate(MapBinary.DamageBlock(blockPosition, damage, player, true));
+                }
+                break;
         }
     }
 }

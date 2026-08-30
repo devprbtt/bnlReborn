@@ -89,4 +89,5 @@ public interface IGameInstance
     public void SurrenderVote(uint playerId, bool accept);
     public void EditorCommand(uint playerId, MapEditorCommand command, bool force);
     public void DebugSpawnSupply(string? blockbusterCardId);
+    public void DebugZoneCommand(uint playerId, string command, IReadOnlyList<string> args);
 }
