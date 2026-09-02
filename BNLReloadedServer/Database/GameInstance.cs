@@ -737,6 +737,42 @@ public class GameInstance : IGameInstance
     public void PlayerCommand(uint playerId, Key command) =>
         Zone?.EnqueueAction(() => Zone?.ReceivedPlayerCommand(playerId, command));
 
+    public void TeamPing(uint playerId, Vector3 position, Vector3 normal) =>
+        Zone?.EnqueueAction(() =>
+        {
+            if (Zone == null || !Zone.TryAcceptTeamPing(playerId, position, normal, out var team, out var safeNormal))
+                return;
+
+            foreach (var (_, player) in _connectedUsers)
+            {
+                if (player.Team != team || player.LoadStage != ZoneLoadStage.Finished ||
+                    !_services.TryGetValue(player.Guid, out var services) ||
+                    !services.TryGetValue(ServiceId.ServiceZone, out var service) ||
+                    service is not IServiceZone zoneService || !zoneService.SupportsTeamPing)
+                    continue;
+
+                zoneService.SendTeamPing(playerId, position, safeNormal);
+            }
+        });
+
+    public void HeroEmote(uint playerId, bool active, int emoteIndex) =>
+        Zone?.EnqueueAction(() =>
+        {
+            if (Zone == null || !Zone.TryAcceptHeroEmote(playerId, active, emoteIndex, out var safeIndex))
+                return;
+
+            foreach (var (_, player) in _connectedUsers)
+            {
+                if (player.LoadStage != ZoneLoadStage.Finished ||
+                    !_services.TryGetValue(player.Guid, out var services) ||
+                    !services.TryGetValue(ServiceId.ServiceZone, out var service) ||
+                    service is not IServiceZone zoneService || !zoneService.SupportsHeroEmote)
+                    continue;
+
+                zoneService.SendHeroEmote(playerId, active, safeIndex);
+            }
+        });
+
     public void StartRecall(uint playerId) =>
         Zone?.EnqueueAction(() => Zone?.ReceivedStartRecallRequest(playerId));
 

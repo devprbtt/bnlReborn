@@ -5,6 +5,8 @@ namespace BNLReloadedServer.Service;
 
 public interface IServiceZone : IService
 {
+    public bool SupportsTeamPing { get; }
+    public bool SupportsHeroEmote { get; }
     public void SendInitZone(ZoneInitData data);
     public void SendEndMatch(TeamType winner);
     public void SendEndMatchResult(EndMatchData data);
@@ -68,4 +70,7 @@ public interface IServiceZone : IService
     public void SendMortarAttack(uint mortarId, Vector3 shotPos, List<ShotData> shots);
     public void SendTeslaAttack(uint teslaId, uint targetId, List<uint> chargePath);
     public void SendDrillAttack(uint drillId, Vector3 shotPos, List<ShotData> shots);
+    public void SendTeamPingCapability(int version);
+    public void SendTeamPing(uint playerId, Vector3 position, Vector3 normal);
+    public void SendHeroEmote(uint playerId, bool active, int emoteIndex);
 }

@@ -68,6 +68,9 @@ public partial class GameZone : Updater
     private readonly int[] _initialCubeCounts = new int[Enum.GetValues<TeamType>().Length];
     private readonly MatchParticipationTracker _matchParticipation = new();
     private readonly DateTimeOffset?[] _lastSurrenderTime = new DateTimeOffset?[Enum.GetValues<TeamType>().Length];
+    private readonly Dictionary<uint, DateTimeOffset> _lastTeamPing = new();
+    private readonly Dictionary<uint, DateTimeOffset> _lastHeroEmote = new();
+    private readonly HashSet<uint> _activeHeroEmotes = [];
     private TeamType _winningTeam = TeamType.Neutral;
     private readonly List<(uint, UnitInit, Func<IServiceZone?>)> _createOnStart = [];
     private readonly List<(uint, UnitUpdate, Func<IServiceZone?>)> _updateOnStart = [];
@@ -994,9 +997,80 @@ public partial class GameZone : Updater
         }
     }
 
+    public bool TryAcceptTeamPing(uint playerId, Vector3 position, Vector3 normal, out TeamType team,
+        out Vector3 safeNormal)
+    {
+        team = TeamType.Neutral;
+        safeNormal = Vector3.UnitY;
+
+        if (!_playerIdToUnitId.TryGetValue(playerId, out var unitId) ||
+            !_playerUnits.TryGetValue(unitId, out var player) || player.IsDead || !player.IsActive ||
+            player.Team is not (TeamType.Team1 or TeamType.Team2) ||
+            !float.IsFinite(position.X) || !float.IsFinite(position.Y) || !float.IsFinite(position.Z) ||
+            !float.IsFinite(normal.X) || !float.IsFinite(normal.Y) || !float.IsFinite(normal.Z))
+            return false;
+
+        var mapSize = _zoneData.MapData.Size;
+        const float mapMargin = 2f;
+        if (position.X < -mapMargin || position.Y < -mapMargin || position.Z < -mapMargin ||
+            position.X > mapSize.x + mapMargin || position.Y > mapSize.y + mapMargin ||
+            position.Z > mapSize.z + mapMargin ||
+            Vector3.DistanceSquared(player.Transform.Position, position) > 250f * 250f)
+            return false;
+
+        var normalLengthSquared = normal.LengthSquared();
+        if (normalLengthSquared < 0.25f || normalLengthSquared > 2.25f)
+            return false;
+
+        var now = DateTimeOffset.UtcNow;
+        if (_lastTeamPing.TryGetValue(playerId, out var previous) &&
+            now - previous < TimeSpan.FromSeconds(1.25))
+            return false;
+
+        _lastTeamPing[playerId] = now;
+        team = player.Team;
+        safeNormal = Vector3.Normalize(normal);
+        return true;
+    }
+
+    public bool TryAcceptHeroEmote(uint playerId, bool active, int emoteIndex, out int safeIndex)
+    {
+        safeIndex = active ? emoteIndex : -1;
+        if (!_playerIdToUnitId.TryGetValue(playerId, out var unitId) ||
+            !_playerUnits.TryGetValue(unitId, out var player))
+            return false;
+
+        if (!active)
+            return _activeHeroEmotes.Remove(playerId);
+
+        if (emoteIndex is < 0 or > 15 || player.IsDead || !player.IsActive || player.IsRecall ||
+            player.Team is not (TeamType.Team1 or TeamType.Team2) ||
+            player.CurrentBuildInfo is not null || player.CurrentChannelData is not null ||
+            player.AbilityTriggered || player.StartChargeTime is not null ||
+            player.Transform.IsCrouch || player.Transform.IsJump || player.Transform.IsWallClimb ||
+            player.Transform.IsDash || player.Transform.IsGroundSlam ||
+            HorizontalVelocitySquared(player.Transform.GetLocalVelocity()) > 0.01f)
+            return false;
+
+        var now = DateTimeOffset.UtcNow;
+        if (_lastHeroEmote.TryGetValue(playerId, out var previous) &&
+            now - previous < TimeSpan.FromSeconds(0.75))
+            return false;
+
+        _lastHeroEmote[playerId] = now;
+        _activeHeroEmotes.Add(playerId);
+        return true;
+    }
+
+    private static float HorizontalVelocitySquared(Vector3 velocity) =>
+        velocity.X * velocity.X + velocity.Z * velocity.Z;
+
     public void PlayerDisconnected(uint playerId)
     {
         _matchParticipation.Leave(playerId, DateTimeOffset.Now, MatchLeaveKind.Disconnect);
+        _activeHeroEmotes.Remove(playerId);
+        _lastHeroEmote.Remove(playerId);
+        _lastTeamPing.Remove(playerId);
         if (!_playerIdToUnitId.TryGetValue(playerId, out var unitId) ||
             !_playerUnits.TryGetValue(unitId, out var player))
         {
@@ -1019,6 +1093,9 @@ public partial class GameZone : Updater
 
     public bool PlayerLeft(uint playerId, KickReason reason)
     {
+        _activeHeroEmotes.Remove(playerId);
+        _lastHeroEmote.Remove(playerId);
+        _lastTeamPing.Remove(playerId);
         _matchParticipation.Leave(playerId, DateTimeOffset.Now, reason switch
         {
             KickReason.MatchInactivity => MatchLeaveKind.Inactivity,

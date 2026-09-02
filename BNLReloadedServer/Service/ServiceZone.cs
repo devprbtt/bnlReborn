@@ -108,11 +108,23 @@ public class ServiceZone(ISender sender) : IServiceZone
         MessageDrillAttack = 94,
         MessageUnitProjectileHit = 95,
         MessageSkybeamHit = 96,
-        MessageExecuteMapEditorCommand = 97
+        MessageExecuteMapEditorCommand = 97,
+        MessageTeamPingCapability = 98,
+        MessageReceiveTeamPing = 99,
+        MessageTeamPing = 100,
+        MessageReceiveHeroEmote = 101,
+        MessageHeroEmote = 102
     }
 
-    private readonly IRegionServerDatabase _serverDatabase = Databases.RegionServerDatabase;
+    private IRegionServerDatabase ServerDatabase => Databases.RegionServerDatabase;
     private IGameInstance? GameInstance => Databases.RegionServerDatabase.GetGameInstance(sender.AssociatedPlayerId);
+
+    private const uint TeamPingCapabilityMagic = 0x42504E47u;
+    private const int TeamPingProtocolVersion = 2;
+    private const int TeamPingMinimumProtocolVersion = 1;
+
+    public bool SupportsTeamPing { get; private set; }
+    public bool SupportsHeroEmote { get; private set; }
 
     private static BinaryWriter CreateWriter()
     {
@@ -132,10 +144,70 @@ public class ServiceZone(ISender sender) : IServiceZone
 
     private void ReceiveZoneReady(BinaryReader reader)
     {
+        if (reader.BaseStream.Length - reader.BaseStream.Position >= sizeof(uint) + sizeof(int))
+        {
+            var magic = reader.ReadUInt32();
+            var version = reader.ReadInt32();
+            if (magic == TeamPingCapabilityMagic && version >= TeamPingMinimumProtocolVersion)
+            {
+                SupportsTeamPing = true;
+                SupportsHeroEmote = version >= TeamPingProtocolVersion;
+                SendTeamPingCapability(TeamPingProtocolVersion);
+            }
+        }
+
         if (sender.AssociatedPlayerId.HasValue)
         {
             GameInstance?.PlayerZoneReady(sender.AssociatedPlayerId.Value);
         }
+    }
+
+    public void SendTeamPingCapability(int version)
+    {
+        using var writer = CreateWriter();
+        writer.Write((byte)ServiceZoneId.MessageTeamPingCapability);
+        writer.Write(version);
+        sender.Send(writer);
+    }
+
+    private void ReceiveTeamPing(BinaryReader reader)
+    {
+        var position = reader.ReadVector3();
+        var normal = reader.ReadVector3();
+        if (SupportsTeamPing && sender.AssociatedPlayerId.HasValue)
+            GameInstance?.TeamPing(sender.AssociatedPlayerId.Value, position, normal);
+    }
+
+    public void SendTeamPing(uint playerId, Vector3 position, Vector3 normal)
+    {
+        if (!SupportsTeamPing) return;
+
+        using var writer = CreateWriter();
+        writer.Write((byte)ServiceZoneId.MessageTeamPing);
+        writer.Write(playerId);
+        writer.Write(position);
+        writer.Write(normal);
+        sender.Send(writer);
+    }
+
+    private void ReceiveHeroEmote(BinaryReader reader)
+    {
+        var active = reader.ReadBoolean();
+        var emoteIndex = reader.ReadInt32();
+        if (SupportsHeroEmote && sender.AssociatedPlayerId.HasValue)
+            GameInstance?.HeroEmote(sender.AssociatedPlayerId.Value, active, emoteIndex);
+    }
+
+    public void SendHeroEmote(uint playerId, bool active, int emoteIndex)
+    {
+        if (!SupportsHeroEmote) return;
+
+        using var writer = CreateWriter();
+        writer.Write((byte)ServiceZoneId.MessageHeroEmote);
+        writer.Write(playerId);
+        writer.Write(active);
+        writer.Write(emoteIndex);
+        sender.Send(writer);
     }
 
     private void ReceiveZoneLeave(BinaryReader reader)
@@ -145,7 +217,7 @@ public class ServiceZone(ISender sender) : IServiceZone
             var playerId = sender.AssociatedPlayerId.Value;
             var gameInstance = GameInstance;
             gameInstance?.PlayerLeftInstance(playerId, KickReason.MatchQuit);
-            _serverDatabase.RemoveFromCustomGame(playerId);
+            ServerDatabase.RemoveFromCustomGame(playerId);
         }
     }
 
@@ -172,7 +244,7 @@ public class ServiceZone(ISender sender) : IServiceZone
             var playerId = sender.AssociatedPlayerId.Value;
             var gameInstance = GameInstance;
             gameInstance?.PlayerLeftInstance(playerId, KickReason.MatchQuit);
-            _serverDatabase.RemoveFromCustomGame(playerId);
+            ServerDatabase.RemoveFromCustomGame(playerId);
         }
     }
 
@@ -1314,6 +1386,12 @@ public class ServiceZone(ISender sender) : IServiceZone
                 break;
             case ServiceZoneId.MessageExecuteMapEditorCommand:
                 ReceiveExecuteMapEditorCommand(reader);
+                break;
+            case ServiceZoneId.MessageReceiveTeamPing:
+                ReceiveTeamPing(reader);
+                break;
+            case ServiceZoneId.MessageReceiveHeroEmote:
+                ReceiveHeroEmote(reader);
                 break;
             default:
                 Log.Warn(LogCat.Net, $"Zone service received unsupported serviceId: {Log.EnumName(zoneEnum, serviceZoneId)}");
