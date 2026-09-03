@@ -2005,42 +2005,17 @@ public partial class GameZone : Updater
                 var unitSource = unit.GetSelfSource(unit.CreateImpactData());
 
                 if (unit is { CurrentChannelData: { } channelData, TicksPerChannel: > 0 } &&
-                    tickNumber % unit.TicksPerChannel == 0)
+                    IsChannelPulseDue(tickNumber, unit.NextChannelPulseTick))
                 {
                     if (unit.CurrentGear?.Tools[channelData.ToolIndex] is { Tool: ToolChannel channel } currToolLogic)
                     {
                         if (currToolLogic.IsEnoughAmmoToUse())
                         {
-                            if (channel.IntervalEffects is { Count: > 0 })
+                            if (!ApplyChannelIntervalEffects(unit, channelData, channel))
                             {
-                                var channelImpact = unit.CreateImpactData(insidePoint: channelData.HitPos, sourceKey: unit.CurrentGear.Key);
-                                Unit[] targets = [];
-                                if (channelData.TargetUnit is { } targetId)
-                                {
-                                    if (!_units.TryGetValue(targetId, out var target))
-                                    {
-                                        var targetHistory = _removedUnitDiagnostics.TryGetValue(targetId, out var removed)
-                                            ? $"key={removed.Key}, type={removed.UnitType}, playerId={removed.PlayerId}, " +
-                                              $"ownerPlayerId={removed.OwnerPlayerId}, position={removed.Position}, " +
-                                              $"removedAtTick={removed.RemovedAtTick}, reason={removed.Reason}"
-                                            : "no removal record; the target ID may never have been valid";
-
-                                        Log.Error(LogCat.Server,
-                                            $"Channel references missing target {targetId}: casterUnit={unit.Id}, " +
-                                            $"casterPlayer={unit.PlayerId}, casterKey={unit.Key}, " +
-                                            $"gear={unit.CurrentGear.Key}, toolIndex={channelData.ToolIndex}, " +
-                                            $"currentTick={_tickNumber}; targetHistory=[{targetHistory}]");
-
-                                        if (unit.PlayerId is { } playerId)
-                                            ReceivedEndChannelRequest(playerId);
-                                        continue;
-                                    }
-
-                                    targets = [target];
-                                }
-
-                                channel.IntervalEffects.ForEach(inst =>
-                                    ApplyInstEffect(unitSource, targets, inst, channelImpact));
+                                if (unit.PlayerId is { } playerId)
+                                    ReceivedEndChannelRequest(playerId);
+                                continue;
                             }
 
                             var ammoUpdate = currToolLogic.TakeAmmoUpdate();
@@ -2051,6 +2026,7 @@ public partial class GameZone : Updater
                                     Ammo = new Dictionary<Key, List<Ammo>> { { unit.CurrentGear.Key, [ammoUpdate] } }
                                 });
                             }
+                            unit.NextChannelPulseTick = GetNextChannelPulseTick(tickNumber, unit.TicksPerChannel);
                         }
                         else if (unit.PlayerId.HasValue)
                         {

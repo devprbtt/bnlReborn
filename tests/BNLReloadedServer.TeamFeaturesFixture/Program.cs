@@ -1,6 +1,7 @@
 using System.Numerics;
 using BNLReloadedServer.Servers;
 using BNLReloadedServer.Service;
+using BNLReloadedServer.ServerTypes;
 
 const byte serviceZoneId = 6;
 const byte zoneReadyId = 1;
@@ -49,6 +50,21 @@ v2Zone.SendHeroEmote(99, true, 3);
 AssertHeroEmote(v2Sender.TakeSingle(), 99, true, 3);
 v2Zone.SendHeroEmote(99, false, -1);
 AssertHeroEmote(v2Sender.TakeSingle(), 99, false, -1);
+
+const float serverSecondsPerTick = 0.05f;
+var primaryCaulkTicks = GameZone.GetChannelIntervalTicks(0.3f, serverSecondsPerTick);
+var alternateCaulkTicks = GameZone.GetChannelIntervalTicks(0.15f, serverSecondsPerTick);
+Assert(primaryCaulkTicks == 6, "primary caulk repeats every six server ticks");
+Assert(alternateCaulkTicks == 3, "alternate caulk repeats every three server ticks");
+Assert(GameZone.GetChannelIntervalTicks(0f, serverSecondsPerTick) == 1,
+    "zero-length catalogue intervals are clamped to one tick");
+
+var nextPulseTick = GameZone.GetNextChannelPulseTick(100, primaryCaulkTicks);
+Assert(nextPulseTick == 106, "a repeat pulse is scheduled relative to channel start");
+Assert(!GameZone.IsChannelPulseDue(105, nextPulseTick), "a channel does not pulse early");
+Assert(GameZone.IsChannelPulseDue(106, nextPulseTick), "a channel pulses at its due tick");
+Assert(GameZone.GetNextChannelPulseTick(108, primaryCaulkTicks) == 114,
+    "a delayed tick schedules from now instead of issuing catch-up pulses");
 
 Console.WriteLine($"Server team-feature protocol fixture passed ({assertions} assertions).");
 return;

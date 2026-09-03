@@ -70,6 +70,7 @@ public partial class Unit
     public DateTimeOffset? LastMoveTime;
 
     public ulong TicksPerChannel = 0;
+    public ulong NextChannelPulseTick = 0;
     public ChannelData? CurrentChannelData;
 
     public InstEffect? OnMortarHit;

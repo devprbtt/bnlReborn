@@ -12,6 +12,15 @@ public partial class GameZone
 {
     private const ulong StaleRequestTimeout = 3000;
 
+    internal static ulong GetChannelIntervalTicks(float interval, float secondsPerTick) =>
+        Math.Max((ulong)MathF.Round(interval / secondsPerTick), 1UL);
+
+    internal static ulong GetNextChannelPulseTick(ulong currentTick, ulong intervalTicks) =>
+        currentTick + intervalTicks;
+
+    internal static bool IsChannelPulseDue(ulong currentTick, ulong nextPulseTick) =>
+        currentTick >= nextPulseTick;
+
     public void ReceivedMoveRequest(uint unitId, ulong time, ZoneTransform transform)
     {
         if (!_units.TryGetValue(unitId, out var unit))
@@ -419,7 +428,8 @@ public partial class GameZone
             }
 
             player.CurrentChannelData = channelData;
-            player.TicksPerChannel = (ulong)MathF.Max(float.Round(channel.Interval / SecondsPerTick), 0.0f);
+            player.TicksPerChannel = GetChannelIntervalTicks(channel.Interval, SecondsPerTick);
+            player.NextChannelPulseTick = GetNextChannelPulseTick(_tickNumber, player.TicksPerChannel);
             if (player.IsRecall)
             {
                 player.EndRecall();
@@ -431,6 +441,7 @@ public partial class GameZone
             }
             channelService.SendStartChannel(rpcId, true);
             _unbufferedZone.SendDoStartChannel(playerUnitId, channelData);
+            ApplyChannelIntervalEffects(player, channelData, channel);
             var ammoUpdate = toolLogic.TakeAmmoUpdate();
             if (ammoUpdate is not null)
             {
@@ -473,6 +484,44 @@ public partial class GameZone
         }
 
         player.CurrentChannelData = null;
+        player.TicksPerChannel = 0;
+        player.NextChannelPulseTick = 0;
+    }
+
+    private bool ApplyChannelIntervalEffects(Unit caster, ChannelData channelData, ToolChannel channel)
+    {
+        if (channel.IntervalEffects is not { Count: > 0 })
+        {
+            return true;
+        }
+
+        var channelImpact = caster.CreateImpactData(insidePoint: channelData.HitPos,
+            sourceKey: caster.CurrentGear!.Key);
+        Unit[] targets = [];
+        if (channelData.TargetUnit is { } targetId)
+        {
+            if (!_units.TryGetValue(targetId, out var target))
+            {
+                var targetHistory = _removedUnitDiagnostics.TryGetValue(targetId, out var removed)
+                    ? $"key={removed.Key}, type={removed.UnitType}, playerId={removed.PlayerId}, " +
+                      $"ownerPlayerId={removed.OwnerPlayerId}, position={removed.Position}, " +
+                      $"removedAtTick={removed.RemovedAtTick}, reason={removed.Reason}"
+                    : "no removal record; the target ID may never have been valid";
+
+                Log.Error(LogCat.Server,
+                    $"Channel references missing target {targetId}: casterUnit={caster.Id}, " +
+                    $"casterPlayer={caster.PlayerId}, casterKey={caster.Key}, " +
+                    $"gear={caster.CurrentGear.Key}, toolIndex={channelData.ToolIndex}, " +
+                    $"currentTick={_tickNumber}; targetHistory=[{targetHistory}]");
+                return false;
+            }
+
+            targets = [target];
+        }
+
+        var casterSource = caster.GetSelfSource(caster.CreateImpactData());
+        channel.IntervalEffects.ForEach(inst => ApplyInstEffect(casterSource, targets, inst, channelImpact));
+        return true;
     }
 
     public void ReceivedToolChargeStartRequest(uint playerId, byte toolIndex)
