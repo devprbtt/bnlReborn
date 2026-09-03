@@ -743,15 +743,24 @@ public class GameInstance : IGameInstance
             if (Zone == null || !Zone.TryAcceptTeamPing(playerId, position, normal, out var team, out var safeNormal))
                 return;
 
+            // A ping is an incompatible gameplay action for an emote. Clear
+            // authoritative presentation state before broadcasting the ping,
+            // even if the client's cancellation arrived late or was lost.
+            var cancelledEmote = Zone.TryAcceptHeroEmote(playerId, false, -1, out _);
+
             foreach (var (_, player) in _connectedUsers)
             {
-                if (player.Team != team || player.LoadStage != ZoneLoadStage.Finished ||
+                if (player.LoadStage != ZoneLoadStage.Finished ||
                     !_services.TryGetValue(player.Guid, out var services) ||
                     !services.TryGetValue(ServiceId.ServiceZone, out var service) ||
-                    service is not IServiceZone zoneService || !zoneService.SupportsTeamPing)
+                    service is not IServiceZone zoneService)
                     continue;
 
-                zoneService.SendTeamPing(playerId, position, safeNormal);
+                if (cancelledEmote && zoneService.SupportsHeroEmote)
+                    zoneService.SendHeroEmote(playerId, false, -1);
+
+                if (player.Team == team && zoneService.SupportsTeamPing)
+                    zoneService.SendTeamPing(playerId, position, safeNormal);
             }
         });
 
