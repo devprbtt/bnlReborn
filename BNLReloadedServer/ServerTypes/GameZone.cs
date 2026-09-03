@@ -1895,6 +1895,19 @@ public partial class GameZone : Updater
             var blockImpact = MapBinary.CreateImpactForBlock(blk,
                 Vector3.Clamp(Vector3.Clamp(CoordsHelper.BlockBottom(blk), min, max), blockPos + UnitSizeHelper.ImprecisionVector,
                     blockPos + Vector3.One - UnitSizeHelper.ImprecisionVector));
+
+            // Glue and Caltrops have constant/interval effects without an impact card,
+            // so the recovered client otherwise receives no authoritative hit event.
+            // Send one source-only impact when a player first enters an owned trap;
+            // CasterPlayerId lets the client identify the placing player's hero.
+            if (blockImpact.CasterPlayerId.HasValue && unit.PlayerId.HasValue &&
+                block.Card?.Id is { } blockCardId &&
+                (blockCardId.StartsWith("block_glue", StringComparison.Ordinal) ||
+                 blockCardId.StartsWith("block_caltrops", StringComparison.Ordinal)))
+            {
+                blockImpact.HitUnits = [unit.Id];
+                _serviceZone.SendImpact(blockImpact);
+            }
             var blockSource = new BlockSource(blk, MapBinary[blk].ToBlock(), blockImpact);
 
             if (insideEffect.InsideEffects is { Count: > 0 } effects)
