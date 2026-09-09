@@ -34,6 +34,7 @@ public class RegionServerDatabase(AsyncTaskTcpServer server, AsyncTaskTcpServer 
         public ulong? SquadId { get; set; }
         public Key? GameModeForSquadInvite { get; set; }
         public bool Online { get; set; } = true;
+        public long LastGlobalMessage;
         public bool IsAdmin { get; } = isAdmin;
 
         // Chat mutes last for one match only, so they live here rather than in the player database.
@@ -965,8 +966,22 @@ public class RegionServerDatabase(AsyncTaskTcpServer server, AsyncTaskTcpServer 
         };
     }
 
+    private static bool CanUseGlobalChat(ConnectionInfo info) => info.Online &&
+        info.ActiveScene?.Type == SceneType.MainMenu && info.GameInstanceId == null;
+
     public bool SendMessage(uint playerId, RoomId roomId, string message)
     {
+        if (roomId is RoomIdGlobal)
+        {
+            if (!UserConnected(playerId, out var speaker) || !CanUseGlobalChat(speaker) || string.IsNullOrWhiteSpace(message) || message.Length > 500) return false;
+            long now = Environment.TickCount64;
+            long last = Interlocked.Read(ref speaker.LastGlobalMessage);
+            if (now - last < 750 || Interlocked.CompareExchange(ref speaker.LastGlobalMessage, now, last) != last) return false;
+            foreach (var (id, recipient) in _connectedUsers.ToArray())
+                if (CanUseGlobalChat(recipient) && !recipient.Ignored.ContainsKey(playerId))
+                    GetChatService(id)?.SendRoomMessage(roomId, speaker.ChatInfo, message);
+            return true;
+        }
         var chatRoom = GetChatRoom(playerId, roomId);
         if (chatRoom == null || !UserConnected(playerId, out var playerInfo)) return false;
         chatRoom.SendMessage(playerInfo.ChatInfo, message, IgnorersOf(playerId));
@@ -1131,7 +1146,31 @@ public class RegionServerDatabase(AsyncTaskTcpServer server, AsyncTaskTcpServer 
             players.Add(new PublicHomePlayer(id, info.ChatInfo.Nickname ?? $"Player {id}", activity));
         }
         return new PublicHomeSnapshot(1, "region", DateTimeOffset.UtcNow.ToString("O"),
-            players.OrderBy(p => p.Name, StringComparer.OrdinalIgnoreCase).ThenBy(p => p.Id).ToArray());
+            players.OrderBy(p => p.Name, StringComparer.OrdinalIgnoreCase).ThenBy(p => p.Id).ToArray()) { Play = GetPublicPlaySnapshot(queues) };
+    }
+
+    private PublicPlaySnapshot GetPublicPlaySnapshot(List<QueueSnapshot> queues)
+    {
+        var matches = new List<PublicMatch>();
+        foreach (var game in GetCustomGames().Where(g => !g.Private && g.Status == CustomGameStatus.Match))
+        {
+            IGameInstance? instance = null;
+            if (_spectatableMatchIds.TryGetValue(game.Id, out var instanceId)) _gameInstances.TryGetValue(instanceId, out instance);
+            else if (TryGetCustomGame(game.Id, out var custom) && custom.custom.GameInstanceId != null)
+                _gameInstances.TryGetValue(custom.custom.GameInstanceId, out instance);
+            if (instance == null || instance.IsOver()) continue;
+            var ratings = instance.GetTeamRatings();
+            PublicMatchPlayer[] Team(Dictionary<uint, Rating> team) => team.Select(p =>
+                new PublicMatchPlayer(p.Key, _playerDatabase.GetPlayerName(p.Key) ?? $"Player {p.Key}", (int)Math.Round(p.Value.Mean))).ToArray();
+            string mapId = game.MapInfo is MapInfoCard card ? card.MapKey.GetCard<CardMap>()?.Id ?? "" : "";
+            matches.Add(new PublicMatch(game.Id.ToString(), game.GameName ?? "Match", mapId, instance.StartedAt, Team(ratings.team1), Team(ratings.team2)));
+        }
+        PublicMap[] Maps(IEnumerable<Key>? keys) => (keys ?? []).Select(k => k.GetCard<CardMap>()).Where(c => c != null)
+            .Select(c => new PublicMap(c!.Id ?? "", c.Name?.Text ?? c.Id ?? "Map")).ToArray();
+        var pool = CatalogueHelper.MapList;
+        return new PublicPlaySnapshot(DateTimeOffset.UtcNow.ToUnixTimeSeconds(),
+            queues.SelectMany(q => q.Players.Select(p => new PublicQueuePlayer(p.PlayerId, p.Nickname ?? $"Player {p.PlayerId}", p.JoinTime / 1000, q.ModeName ?? q.ModeId))).ToArray(),
+            matches.ToArray(), Maps(pool?.Friendly), Maps(pool?.Ranked));
     }
 
     public PlayerActivity GetPlayerActivity()

@@ -1421,6 +1421,7 @@ public partial class GameZone : Updater
         {
             _gameInitiator.SetBackfillReady(false);
             _zoneData.EndMatch(winner);
+            BNLReloadedServer.ControlPanel.ControlPanelEvents.Publish(BNLReloadedServer.ControlPanel.ControlPanelEvent.Activity);
         });
 
         if (doWait)

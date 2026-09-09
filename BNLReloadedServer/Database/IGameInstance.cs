@@ -10,6 +10,7 @@ public interface IGameInstance
 {
     public bool HasLobby();
     public bool IsStarted { get; }
+    public long StartedAt => 0;
     public bool IsOver();
     public MapInfo? GetMapInfo();
     public void LinkGuidToPlayer(uint userId, Guid guid, Guid regionGuid);

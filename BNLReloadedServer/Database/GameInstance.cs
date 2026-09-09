@@ -29,6 +29,7 @@ public partial class GameInstance : IGameInstance
     private IGameInitiator GameInitiator { get; }
 
     public bool IsStarted { get; private set; }
+    public long StartedAt { get; private set; }
     public bool? HasEnded => Zone?.HasEnded;
 
     private Key MatchKey { get; set; }
@@ -532,7 +533,9 @@ public partial class GameInstance : IGameInstance
     {
         Zone?.BeginBuildPhase();
         Lobby?.StartGame();
+        StartedAt = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
         IsStarted = true;
+        BNLReloadedServer.ControlPanel.ControlPanelEvents.Publish(BNLReloadedServer.ControlPanel.ControlPanelEvent.Activity);
     }
 
     public void SendUserToZone(uint playerId)

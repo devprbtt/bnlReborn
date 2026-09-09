@@ -1393,6 +1393,7 @@ public sealed class ControlPanelServer : IDisposable
         }
 
         await _catalogueStore.UpdateMapPoolAsync(pool, ids);
+        ControlPanelEvents.Publish(ControlPanelEvent.Activity);
         var cards = _catalogueStore.Load();
         _serverCatalogue.Replicate(cards);
         new Service.ServiceCatalogue(new ServerSender(_regionServer)).SendReplicate(cards);
