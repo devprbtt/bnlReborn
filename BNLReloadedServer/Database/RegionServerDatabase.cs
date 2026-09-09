@@ -1101,6 +1101,39 @@ public class RegionServerDatabase(AsyncTaskTcpServer server, AsyncTaskTcpServer 
     private static void LiveStateChanged() => ControlPanelEvents.Publish(
         ControlPanelEvent.Status | ControlPanelEvent.Activity | ControlPanelEvent.Players);
 
+    // This roster is region-scoped, matching the client connection. Every row gets
+    // exactly one activity; totals are derived from these same rows by the client.
+    public PublicHomeSnapshot GetPublicHomeSnapshot()
+    {
+        var queues = GetQueueSnapshot();
+        if (queues.Any(q => q.State == "unavailable"))
+            throw new InvalidOperationException("Presence snapshot is temporarily unavailable");
+        var queued = queues.SelectMany(q => q.Players).Select(p => p.PlayerId).ToHashSet();
+        var players = new List<PublicHomePlayer>();
+        foreach (var (id, info) in _connectedUsers.ToArray())
+        {
+            if (!info.Online) continue;
+            var instanceId = info.GameInstanceId;
+            var customId = info.CustomGameId;
+            var inGame = instanceId != null && _gameInstances.TryGetValue(instanceId, out _);
+            var spectator = instanceId != null && _gameInstances.TryGetValue(instanceId, out var instance)
+                && instance.IsPlayerSpectator(id);
+            if (!spectator && customId.HasValue)
+            {
+                CustomGamePlayerGroup? custom = null;
+                lock (_customGamesLock)
+                {
+                    if (_customGamePlayerLists.TryGetValue(customId.Value, out var group)) custom = group.custom;
+                }
+                spectator = custom?.IsPlayerSpectator(id) ?? false;
+            }
+            var activity = PublicHomeSnapshot.Classify(spectator, customId.HasValue, inGame, queued.Contains(id));
+            players.Add(new PublicHomePlayer(id, info.ChatInfo.Nickname ?? $"Player {id}", activity));
+        }
+        return new PublicHomeSnapshot(1, "region", DateTimeOffset.UtcNow.ToString("O"),
+            players.OrderBy(p => p.Name, StringComparer.OrdinalIgnoreCase).ThenBy(p => p.Id).ToArray());
+    }
+
     public PlayerActivity GetPlayerActivity()
     {
         var byMode = new Dictionary<string, (string? Name, int Players)>();

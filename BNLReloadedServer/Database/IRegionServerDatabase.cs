@@ -7,6 +7,7 @@ namespace BNLReloadedServer.Database;
 
 public interface IRegionServerDatabase
 {
+    public PublicHomeSnapshot GetPublicHomeSnapshot();
     public bool UserConnected(uint userId);
     public void UserUiChanged(uint userId, UiId uiId, float duration);
     public UiId? GetUiId(uint userId);

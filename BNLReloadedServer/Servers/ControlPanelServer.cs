@@ -171,6 +171,12 @@ public sealed class ControlPanelServer : IDisposable
                 return;
             }
 
+            if (method == "GET" && path == "/api/public/home")
+            {
+                await ServePublicHome(ctx);
+                return;
+            }
+
             if (method == "GET" && path == "/api/public/status")
             {
                 await ServePublicStatus(ctx);
@@ -825,6 +831,34 @@ public sealed class ControlPanelServer : IDisposable
 
     private static object GetActivity() => Databases.RegionServerDatabase?.GetPlayerActivity()
         ?? new ServerTypes.PlayerActivity(0, 0, [], 0);
+
+    private static readonly object HomeSnapshotLock = new();
+    private static ServerTypes.PublicHomeSnapshot? _homeSnapshot;
+    private static DateTimeOffset _homeSnapshotExpires;
+
+    private static async Task ServePublicHome(HttpListenerContext ctx)
+    {
+        ctx.Response.Headers["Cache-Control"] = "no-store";
+        try
+        {
+            ServerTypes.PublicHomeSnapshot snapshot;
+            lock (HomeSnapshotLock)
+            {
+                if (_homeSnapshot == null || DateTimeOffset.UtcNow >= _homeSnapshotExpires)
+                {
+                    _homeSnapshot = Databases.RegionServerDatabase.GetPublicHomeSnapshot();
+                    _homeSnapshotExpires = DateTimeOffset.UtcNow.AddSeconds(5);
+                }
+                snapshot = _homeSnapshot;
+            }
+            await WriteJson(ctx, snapshot);
+        }
+        catch (Exception)
+        {
+            ctx.Response.StatusCode = 503;
+            await WriteJson(ctx, new { error = "Presence temporarily unavailable" });
+        }
+    }
 
     private static async Task ServePublicStatus(HttpListenerContext ctx)
     {
