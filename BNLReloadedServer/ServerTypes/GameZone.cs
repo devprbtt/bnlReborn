@@ -1751,6 +1751,7 @@ public partial class GameZone : Updater
             unit.Killed(unit.CreateBlankImpactData());
         }
 
+        if (_instanceId != null) Databases.RegionServerDatabase.ReturnSpectatorsToMenu(_instanceId);
         _gameInitiator.ClearInstance(_instanceId);
 
         foreach (var player in inactivePlayers)

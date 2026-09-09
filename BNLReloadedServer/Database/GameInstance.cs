@@ -304,6 +304,7 @@ public partial class GameInstance : IGameInstance
             }
         });
 
+        if (wasSpectator) _serverDatabase.RemoveFromCustomGame(userId);
         _serverDatabase.RemoveFromGameInstance(userId, GameInstanceId);
 
         if (!_connectedUsers.IsEmpty) return;
@@ -540,7 +541,7 @@ public partial class GameInstance : IGameInstance
 
     public void SendUserToZone(uint playerId)
     {
-        if (HasEnded is true && !GameInitiator.IsPlayerSpectator(playerId))
+        if (HasEnded is true)
         {
             _serverDatabase.FreeMatchmakerSlot(playerId, GameInstanceId);
             PlayerLeftInstance(playerId, KickReason.MatchQuit);

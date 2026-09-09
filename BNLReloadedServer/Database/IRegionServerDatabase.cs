@@ -52,6 +52,7 @@ public interface IRegionServerDatabase
     public IGameInstance? GetGameInstance(uint? playerId);
     public string? GetOnlinePlayerLocation(uint playerId);
     public bool RemoveGameInstance(string gameInstanceId);
+    public void ReturnSpectatorsToMenu(string gameInstanceId);
     public bool RemoveFromGameInstance(uint playerId, string gameInstanceId);
     public IEnumerable<(Dictionary<uint, Rating> team1, Dictionary<uint, Rating> team2, string instanceId)> GetBackfillNeeded(Key gameModeKey);
     public int GetActiveGamesCount(Key gameModeKey);

@@ -419,6 +419,10 @@ public class RegionServerDatabase(AsyncTaskTcpServer server, AsyncTaskTcpServer 
     public Scene GetLastScene(uint userId)
     {
         if (!UserConnected(userId, out var playerInfo)) return new SceneMainMenu();
+        if (playerInfo.GameInstanceId is { } instanceId &&
+            _gameInstances.TryGetValue(instanceId, out var instance) &&
+            instance.IsOver() && instance.IsPlayerSpectator(userId))
+            instance.PlayerLeftInstance(userId, KickReason.MatchQuit);
         return playerInfo.GameInstanceId != null ? playerInfo.ActiveScene ?? new SceneMainMenu() : new SceneMainMenu();
     }
 
@@ -673,7 +677,8 @@ public class RegionServerDatabase(AsyncTaskTcpServer server, AsyncTaskTcpServer 
 
         if (!UserConnected(playerId, out var playerInfo) || !TryGetCustomGame(gameId, out var customGame) ||
             customGame.custom.GameInstanceId is null ||
-            !_gameInstances.TryGetValue(customGame.custom.GameInstanceId, out var instance)) return false;
+            !_gameInstances.TryGetValue(customGame.custom.GameInstanceId, out var instance) ||
+            !instance.IsStarted || instance.IsOver()) return false;
 
         if (!customGame.custom.AddSpectator(playerId)) return false;
         playerInfo.CustomGameId = gameId;
@@ -688,8 +693,15 @@ public class RegionServerDatabase(AsyncTaskTcpServer server, AsyncTaskTcpServer 
         var customId = playerInfo.CustomGameId;
         if (!customId.HasValue) return false;
         var gameId = customId.Value;
-        if (!TryGetCustomGame(gameId, out var customGame)) return false;
         var playerGuid = playerInfo.Guid;
+        if (!TryGetCustomGame(gameId, out var customGame))
+        {
+            playerInfo.CustomGameId = null;
+            GetService<IServiceMatchmaker>(playerGuid, ServiceId.ServiceMatchmaker, out var staleMatchService);
+            staleMatchService?.SendExitCustomGame();
+            LiveStateChanged();
+            return true;
+        }
         if (GetService<IServiceChat>(playerGuid, ServiceId.ServiceChat, out var chatService))
         {
             customGame.custom.ChatRoom.RemoveFromRoom(playerGuid, chatService);
@@ -1065,6 +1077,15 @@ public class RegionServerDatabase(AsyncTaskTcpServer server, AsyncTaskTcpServer 
         }
 
         return playerInfo.CustomGameId.HasValue ? "Custom game" : "Menu";
+    }
+
+    public void ReturnSpectatorsToMenu(string gameInstanceId)
+    {
+        if (!_gameInstances.TryGetValue(gameInstanceId, out var instance)) return;
+        // Include loading and temporarily disconnected viewers, not just zone connections.
+        foreach (var (id, info) in _connectedUsers.ToArray())
+            if (info.GameInstanceId == gameInstanceId && instance.IsPlayerSpectator(id))
+                instance.PlayerLeftInstance(id, KickReason.MatchQuit);
     }
 
     public bool RemoveGameInstance(string gameInstanceId)
