@@ -11,7 +11,7 @@ using Timer = System.Timers.Timer;
 
 namespace BNLReloadedServer.Database;
 
-public class GameInstance : IGameInstance
+public partial class GameInstance : IGameInstance
 {
     private class MatchConnectionInfo(Guid guid, Guid regionGuid, TeamType team, ulong? squadId)
     {
@@ -634,7 +634,12 @@ public class GameInstance : IGameInstance
         Zone?.EnqueueAction(() => Zone?.ReceivedMoveRequest(unitId, moveTime, transform));
 
     public void BuildRequest(ushort rpcId, uint playerId, BuildInfo buildInfo, IServiceZone builderService) =>
-        Zone?.EnqueueAction(() => Zone?.ReceivedBuildRequest(rpcId, playerId, buildInfo, builderService));
+        Zone?.EnqueueAction(() =>
+        {
+            Zone?.ReceivedBuildRequest(rpcId, playerId, buildInfo, builderService);
+            if (Zone != null && Zone.TryBeginBuildPreview(playerId, buildInfo, out var unitId, out var generation))
+                BroadcastBuildPreview(unitId, generation, true, buildInfo);
+        });
 
     public void CancelBuildRequest(uint playerId) => Zone?.EnqueueAction(() => Zone?.ReceivedCancelBuildRequest(playerId));
 

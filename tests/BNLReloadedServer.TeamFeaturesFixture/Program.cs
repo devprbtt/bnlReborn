@@ -2,6 +2,7 @@ using System.Numerics;
 using BNLReloadedServer.Servers;
 using BNLReloadedServer.Service;
 using BNLReloadedServer.ServerTypes;
+using BNLReloadedServer.BaseTypes;
 
 const byte serviceZoneId = 6;
 const byte zoneReadyId = 1;
@@ -30,7 +31,7 @@ Receive(v1Zone, zoneReadyId, writer =>
 });
 Assert(v1Zone.SupportsTeamPing && !v1Zone.SupportsHeroEmote,
     "protocol v1 negotiates team pings without emotes");
-AssertCapability(v1Sender.TakeSingle(), 2);
+AssertCapability(v1Sender.TakeSingle(), 1);
 v1Zone.SendTeamPing(42, new Vector3(1.5f, 2.5f, 3.5f), Vector3.UnitZ);
 AssertTeamPing(v1Sender.TakeSingle(), 42, new Vector3(1.5f, 2.5f, 3.5f), Vector3.UnitZ);
 v1Zone.SendHeroEmote(42, true, 4);
@@ -50,6 +51,34 @@ v2Zone.SendHeroEmote(99, true, 3);
 AssertHeroEmote(v2Sender.TakeSingle(), 99, true, 3);
 v2Zone.SendHeroEmote(99, false, -1);
 AssertHeroEmote(v2Sender.TakeSingle(), 99, false, -1);
+
+var preview = new BuildInfo();
+legacyZone.SendBuildPreview(8, 9, true, preview);
+v1Zone.SendBuildPreview(8, 9, true, preview);
+v2Zone.SendBuildPreview(8, 9, true, preview);
+Assert(legacySender.Messages.Count == 0 && v1Sender.Messages.Count == 0 && v2Sender.Messages.Count == 0,
+    "old clients never receive build preview packets");
+Assert(!v2Zone.SupportsBuildPreview, "v2 keeps emotes but has no preview extension");
+var v3Sender = new FixtureSender();
+var v3Zone = new ServiceZone(v3Sender);
+Receive(v3Zone, zoneReadyId, writer => { writer.Write(capabilityMagic); writer.Write(3); });
+AssertCapability(v3Sender.TakeSingle(), 3);
+Assert(v3Zone.SupportsBuildPreview && v3Zone.SupportsHeroEmote && v3Zone.SupportsTeamPing,
+    "v3 supports all three extensions");
+foreach (bool initial in new[] { true, false })
+{
+    v3Zone.SendBuildPreview(8, 9, initial, preview);
+    using var packet = Reader(v3Sender.TakeSingle());
+    Assert(packet.ReadByte() == serviceZoneId && packet.ReadByte() == 104, "preview uses zone message 104");
+    Assert(packet.ReadUInt32() == 8 && packet.ReadUInt32() == 9 && packet.ReadBoolean() == initial,
+        "preview preserves unit, generation and initial flag");
+    var decoded = BuildInfo.ReadRecord(packet);
+    Assert(decoded.ShowGhost == preview.ShowGhost && decoded.ToolIndex == preview.ToolIndex,
+        "preview record round trips");
+    Assert(packet.BaseStream.Position == packet.BaseStream.Length, "preview has no trailing bytes");
+}
+Receive(v3Zone, 103, writer => { writer.Write(9u); BuildInfo.WriteRecord(writer, preview); });
+Assert(v3Sender.Messages.Count == 0, "unassociated sender cannot relay a build preview");
 
 const float serverSecondsPerTick = 0.05f;
 var primaryCaulkTicks = GameZone.GetChannelIntervalTicks(0.3f, serverSecondsPerTick);
@@ -87,7 +116,7 @@ void AssertCapability(byte[] message, int version)
     using var reader = Reader(message);
     Assert(reader.ReadByte() == serviceZoneId, "capability uses the zone service");
     Assert(reader.ReadByte() == capabilityId, "capability uses message 98");
-    Assert(reader.ReadInt32() == version, "server advertises protocol v2");
+    Assert(reader.ReadInt32() == version, "server advertises negotiated protocol version");
     Assert(reader.BaseStream.Position == reader.BaseStream.Length, "capability has no trailing payload");
 }
 

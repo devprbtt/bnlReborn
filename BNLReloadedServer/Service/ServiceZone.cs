@@ -7,7 +7,7 @@ using BNLReloadedServer.Logging;
 
 namespace BNLReloadedServer.Service;
 
-public class ServiceZone(ISender sender) : IServiceZone
+public partial class ServiceZone(ISender sender) : IServiceZone
 {
     private enum ServiceZoneId : byte
     {
@@ -113,14 +113,16 @@ public class ServiceZone(ISender sender) : IServiceZone
         MessageReceiveTeamPing = 99,
         MessageTeamPing = 100,
         MessageReceiveHeroEmote = 101,
-        MessageHeroEmote = 102
+        MessageHeroEmote = 102,
+        MessageReceiveBuildPreview = 103,
+        MessageBuildPreview = 104
     }
 
     private IRegionServerDatabase ServerDatabase => Databases.RegionServerDatabase;
     private IGameInstance? GameInstance => Databases.RegionServerDatabase.GetGameInstance(sender.AssociatedPlayerId);
 
     private const uint TeamPingCapabilityMagic = 0x42504E47u;
-    private const int TeamPingProtocolVersion = 2;
+    private const int TeamPingProtocolVersion = 3;
     private const int TeamPingMinimumProtocolVersion = 1;
 
     public bool SupportsTeamPing { get; private set; }
@@ -151,8 +153,9 @@ public class ServiceZone(ISender sender) : IServiceZone
             if (magic == TeamPingCapabilityMagic && version >= TeamPingMinimumProtocolVersion)
             {
                 SupportsTeamPing = true;
-                SupportsHeroEmote = version >= TeamPingProtocolVersion;
-                SendTeamPingCapability(TeamPingProtocolVersion);
+                SupportsHeroEmote = version >= 2;
+                SupportsBuildPreview = version >= 3;
+                SendTeamPingCapability(Math.Min(version, TeamPingProtocolVersion));
             }
         }
 
@@ -1392,6 +1395,9 @@ public class ServiceZone(ISender sender) : IServiceZone
                 break;
             case ServiceZoneId.MessageReceiveHeroEmote:
                 ReceiveHeroEmote(reader);
+                break;
+            case ServiceZoneId.MessageReceiveBuildPreview:
+                ReceiveBuildPreview(reader);
                 break;
             default:
                 Log.Warn(LogCat.Net, $"Zone service received unsupported serviceId: {Log.EnumName(zoneEnum, serviceZoneId)}");
