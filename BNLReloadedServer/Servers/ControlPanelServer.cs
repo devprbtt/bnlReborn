@@ -171,6 +171,11 @@ public sealed class ControlPanelServer : IDisposable
                 return;
             }
 
+            if (method == "GET" && path == "/api/public/home/live")
+            {
+                await PublicHomeStream.Serve(ctx, GetHomeSnapshot, _cts.Token);
+                return;
+            }
             if (method == "GET" && path == "/api/public/home")
             {
                 await ServePublicHome(ctx);
@@ -836,21 +841,28 @@ public sealed class ControlPanelServer : IDisposable
     private static ServerTypes.PublicHomeSnapshot? _homeSnapshot;
     private static DateTimeOffset _homeSnapshotExpires;
 
+    private static long _homeSnapshotRevision = -1;
+    private static ServerTypes.PublicHomeSnapshot GetHomeSnapshot()
+    {
+        lock (HomeSnapshotLock)
+        {
+            long revision = ControlPanelEvents.PresenceRevision;
+            if (_homeSnapshot == null || revision != _homeSnapshotRevision || DateTimeOffset.UtcNow >= _homeSnapshotExpires)
+            {
+                _homeSnapshot = Databases.RegionServerDatabase.GetPublicHomeSnapshot();
+                _homeSnapshotRevision = revision;
+                _homeSnapshotExpires = DateTimeOffset.UtcNow.AddSeconds(5);
+            }
+            return _homeSnapshot;
+        }
+    }
+
     private static async Task ServePublicHome(HttpListenerContext ctx)
     {
         ctx.Response.Headers["Cache-Control"] = "no-store";
         try
         {
-            ServerTypes.PublicHomeSnapshot snapshot;
-            lock (HomeSnapshotLock)
-            {
-                if (_homeSnapshot == null || DateTimeOffset.UtcNow >= _homeSnapshotExpires)
-                {
-                    _homeSnapshot = Databases.RegionServerDatabase.GetPublicHomeSnapshot();
-                    _homeSnapshotExpires = DateTimeOffset.UtcNow.AddSeconds(5);
-                }
-                snapshot = _homeSnapshot;
-            }
+            var snapshot = GetHomeSnapshot();
             await WriteJson(ctx, snapshot);
         }
         catch (Exception)

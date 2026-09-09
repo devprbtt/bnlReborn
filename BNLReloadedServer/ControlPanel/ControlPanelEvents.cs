@@ -15,6 +15,9 @@ public enum ControlPanelEvent
 
 public static class ControlPanelEvents
 {
+    public const ControlPanelEvent PresenceEvents = ControlPanelEvent.Status | ControlPanelEvent.Activity | ControlPanelEvent.Queues | ControlPanelEvent.Players;
+    private static long _presenceRevision;
+    public static long PresenceRevision => Interlocked.Read(ref _presenceRevision);
     private static long _nextId;
     private static readonly ConcurrentDictionary<long, Subscription> Subscriptions = new();
 
@@ -27,6 +30,7 @@ public static class ControlPanelEvents
 
     public static void Publish(ControlPanelEvent events)
     {
+        if ((events & PresenceEvents) != 0) Interlocked.Increment(ref _presenceRevision);
         foreach (var subscription in Subscriptions.Values)
             subscription.Signal(events);
     }
