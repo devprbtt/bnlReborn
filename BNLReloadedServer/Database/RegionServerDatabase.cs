@@ -1175,11 +1175,14 @@ public class RegionServerDatabase(AsyncTaskTcpServer server, AsyncTaskTcpServer 
         var matches = new List<PublicMatch>();
         foreach (var game in GetCustomGames().Where(g => !g.Private && g.Status == CustomGameStatus.Match))
         {
-            IGameInstance? instance = null;
-            if (_spectatableMatchIds.TryGetValue(game.Id, out var instanceId)) _gameInstances.TryGetValue(instanceId, out instance);
-            else if (TryGetCustomGame(game.Id, out var custom) && custom.custom.GameInstanceId != null)
-                _gameInstances.TryGetValue(custom.custom.GameInstanceId, out instance);
-            if (instance == null || instance.IsOver()) continue;
+            // The custom browser also contains spectatable Casual/Ranked sessions.
+            // Only those matchmaking entries belong in PLAY's ongoing match list.
+            if (!_spectatableMatchIds.TryGetValue(game.Id, out var instanceId) ||
+                !_matchmakerGames.TryGetValue(instanceId, out var initiator) ||
+                initiator.GetGameMode().GetCard<CardGameMode>()?.Ranking is not
+                    (GameRankingType.Friendly or GameRankingType.Ranked) ||
+                !_gameInstances.TryGetValue(instanceId, out var instance) ||
+                !instance.IsStarted || instance.IsOver()) continue;
             var ratings = instance.GetTeamRatings();
             PublicMatchPlayer[] Team(Dictionary<uint, Rating> team) => team.Select(p =>
                 new PublicMatchPlayer(p.Key, _playerDatabase.GetPlayerName(p.Key) ?? $"Player {p.Key}", (int)Math.Round(p.Value.Mean))).ToArray();
