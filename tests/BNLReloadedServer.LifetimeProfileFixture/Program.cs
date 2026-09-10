@@ -1,0 +1,1 @@
+LifetimeProfileTests.Run();

@@ -32,6 +32,7 @@ public interface IMasterServerDatabase
     public Task StoreCompletedMatch(CompletedMatchRecord match);
     public Task<List<ArchivedMatchRecord>> GetCompletedMatches(int limit, long? before);
     public Task<ArchivedMatchDetail?> GetCompletedMatch(string matchId);
+    public Task<LifetimeProfileStats> GetLifetimeProfileStats(uint playerId);
     public Task<bool> SetNewRatings(List<uint> winners, List<uint> losers, HashSet<uint> excluded);
     public Task<bool> SetFriends(uint receiverId, uint senderId, bool accepted);
     public Task<bool> SetFriendRequest(uint receiverId, uint senderId);

@@ -240,6 +240,17 @@ public sealed class ControlPanelServer : IDisposable
                 return;
             }
 
+            if (method == "GET" && path.StartsWith("/api/profile-stats/"))
+            {
+                if (!uint.TryParse(path["/api/profile-stats/".Length..], out var statsPlayerId))
+                {
+                    ctx.Response.StatusCode = 400;
+                    await WriteJson(ctx, new { error = "Invalid player ID" });
+                }
+                else await WriteJson(ctx, await Databases.MasterServerDatabase.GetLifetimeProfileStats(statsPlayerId));
+                return;
+            }
+
             if (method == "GET" && path == "/api/matches")
             {
                 await ServeMatchHistory(ctx);

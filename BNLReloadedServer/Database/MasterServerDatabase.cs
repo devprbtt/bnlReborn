@@ -37,6 +37,8 @@ public class MasterServerDatabase : IMasterServerDatabase
         _playerDb.CreateTableAsync<ArchivedMatchDeviceRecord>().Wait();
         _playerDb.CreateTableAsync<ArchivedMatchPerkRecord>().Wait();
         EnsureMatchArchiveColumns().Wait();
+        _playerDb.ExecuteAsync("CREATE INDEX IF NOT EXISTS IX_MatchPlayers_Player ON MatchPlayers(player_id)").Wait();
+        _playerDb.ExecuteAsync("CREATE INDEX IF NOT EXISTS IX_MatchPresences_Player ON MatchPresences(player_id)").Wait();
         BackfillRankEligibility().Wait();
     }
 
@@ -195,6 +197,13 @@ public class MasterServerDatabase : IMasterServerDatabase
         {
             _asyncLock.Release();
         }
+    }
+
+    public async Task<LifetimeProfileStats> GetLifetimeProfileStats(uint playerId)
+    {
+        LifetimeProfileStats result = null!;
+        await _playerDb.RunInTransactionAsync(db => result = LifetimeProfileStats.Read(db, playerId));
+        return result;
     }
 
     public async Task<List<ArchivedMatchRecord>> GetCompletedMatches(int limit, long? before)
