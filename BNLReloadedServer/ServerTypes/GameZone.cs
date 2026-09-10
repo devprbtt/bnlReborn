@@ -88,8 +88,6 @@ public partial class GameZone : Updater
     private Task? _gameLoop;
     private Task? _endMatchTask;
 
-    private Timer? _build1Timer;
-    private Timer? _build2Timer;
 
     private float _respawnTime;
     private int _increaseTimes;
@@ -691,11 +689,6 @@ public partial class GameZone : Updater
                             .ToUnixTimeMilliseconds(),
                         _ => null
                     };
-
-                    if (endTime != null)
-                    {
-                        _build1Timer = StartTimer(endTime.Value - startTime.ToUnixTimeMilliseconds(), OnBuild1TimerElapsed);
-                    }
                     break;
                 }
             case ZonePhaseType.Build:
@@ -748,11 +741,6 @@ public partial class GameZone : Updater
                         .ToUnixTimeMilliseconds(),
                     _ => null
                 };
-
-                if (endTime != null)
-                {
-                    _build2Timer = StartTimer(endTime.Value - startTime.ToUnixTimeMilliseconds(), OnBuild2TimerElapsed);
-                }
                 break;
             case ZonePhaseType.Build2:
                 nextPhase = ZonePhaseType.Assault2;
@@ -1974,6 +1962,12 @@ public partial class GameZone : Updater
         var startedAt = Stopwatch.GetTimestamp();
         try
         {
+            // Phase deadlines run on the zone queue, after setup has committed.
+            // A zero-duration timer used to race phase assignment and lose the
+            // only Build -> Assault transition permanently.
+            if (BuildPhaseDeadline.AdvanceIfDue(_zoneData.Phase,
+                    DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(), UpdatePhase))
+                Log.Info(LogCat.Match, $"Build deadline advanced: {DiagnosticName}, phase={_zoneData.Phase.PhaseType}");
             OnTick(tickNumber)();
         }
         finally
@@ -2446,40 +2440,6 @@ public partial class GameZone : Updater
         };
 
     private void FlushBuffer() => _sendBuffer.UseBuffer(_sessionsSender.Send);
-
-    private void OnBuild1TimerElapsed(object? sender, ElapsedEventArgs e)
-    {
-        if (_build1Timer == null) return;
-        _build1Timer.Stop();
-        _build1Timer.Dispose();
-        _build1Timer = null;
-
-        try
-        {
-            if (_zoneData.Phase.PhaseType is ZonePhaseType.Build)
-                EnqueueAction(UpdatePhase);
-        }
-        catch (ObjectDisposedException)
-        {
-        }
-    }
-
-    private void OnBuild2TimerElapsed(object? sender, ElapsedEventArgs e)
-    {
-        if (_build2Timer == null) return;
-        _build2Timer.Stop();
-        _build2Timer.Dispose();
-        _build2Timer = null;
-
-        try
-        {
-            if (_zoneData.Phase.PhaseType is ZonePhaseType.Build2)
-                EnqueueAction(UpdatePhase);
-        }
-        catch (ObjectDisposedException)
-        {
-        }
-    }
 
     private void OnRespawnTimerIncreased(object? sender, ElapsedEventArgs e)
     {
