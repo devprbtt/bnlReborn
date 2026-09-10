@@ -9,6 +9,8 @@ namespace BNLReloadedServer.Database;
 public sealed class LifetimeCombatTotals
 {
     public long Matches { get; set; }
+    public long Wins { get; set; }
+    public long Losses { get; set; }
     public long Kills { get; set; }
     public long Deaths { get; set; }
     public long Assists { get; set; }
@@ -26,33 +28,44 @@ public sealed class LifetimeCombatTotals
 }
 public sealed record LifetimeHeroStats(long HeroKey, LifetimeCombatTotals Combat);
 public sealed record LifetimeProfileStats(int Version, uint PlayerId, long? Since, LifetimeCombatTotals Overall,
-    List<LifetimeHeroStats> Heroes, long UnattributedMatches)
+    List<LifetimeHeroStats> Heroes, long UnattributedMatches, long ExcludedMatches)
 {
     public static LifetimeProfileStats Read(SQLiteConnection db, uint playerId)
     {
         var overall = new LifetimeCombatTotals();
         var heroes = new Dictionary<long, LifetimeCombatTotals>();
-        long? since = null; long unattributed = 0;
+        long? since = null; long excluded = 0;
         var players = db.Table<ArchivedMatchPlayerRecord>().Where(p => p.PlayerId == playerId).ToList();
         var presences = db.Table<ArchivedMatchPresenceRecord>().Where(p => p.PlayerId == playerId).ToList()
             .GroupBy(p => p.MatchId).ToDictionary(g => g.Key, g => g.ToList());
         foreach (var player in players)
         {
             var match = db.Find<ArchivedMatchRecord>(player.MatchId);
-            if (match == null) continue;
-            since = Math.Min(since ?? match.StartedAt, match.StartedAt);
             var rows = presences.GetValueOrDefault(player.MatchId) ?? [];
+            var keys = rows.Select(p => p.HeroKey).Distinct().ToArray();
+            // One eligibility rule for every player's career and hero totals.
+            // Raw maps are sparse: an absent counter means zero, an absent map
+            // means unrecorded. Never keep kills from an ineligible record.
+            if (match == null || match.EndedAt <= match.StartedAt ||
+                match.Winner is not (int)TeamType.Team1 and not (int)TeamType.Team2 ||
+                keys.Length != 1 || keys[0] == 0 || rows.Count == 0 ||
+                rows.Any(p => p.JoinedAt > (p.LeftAt ?? match.EndedAt))) { excluded++; continue; }
             // Merge overlapping reconnect intervals and clamp them to the round.
             var seconds = PlayedSeconds(match, rows);
-            var stats = ReadStats(player.Stats);
-            var raw = ReadRaw(player.RawStats);
-            Add(overall, stats, raw, seconds);
-            var keys = rows.Select(p => p.HeroKey).Distinct().ToArray();
-            if (keys.Length != 1) { unattributed++; continue; }
+            Dictionary<PlayerMatchStatType,int> stats;
+            Dictionary<ScoreType,float> raw;
+            try { stats = ReadStats(player.Stats); raw = ReadRaw(player.RawStats); }
+            catch (Exception ex) when (ex is IOException or ArgumentException or OverflowException) { excluded++; continue; }
+            if (seconds <= 0 || raw.Count == 0 ||
+                Enum.GetValues<PlayerMatchStatType>().Any(k => !stats.ContainsKey(k) || stats[k] < 0) ||
+                raw.Values.Any(v => !float.IsFinite(v) || v < 0) ||
+                raw.GetValueOrDefault(ScoreType.KillPlayerCriticalByHero) > stats[PlayerMatchStatType.Kill]) { excluded++; continue; }
+            since = Math.Min(since ?? match.StartedAt, match.StartedAt);
+            Add(overall, stats, raw, seconds, player.IsWinner);
             if (!heroes.TryGetValue(keys[0], out var combat)) heroes[keys[0]] = combat = new();
-            Add(combat, stats, raw, seconds);
+            Add(combat, stats, raw, seconds, player.IsWinner);
         }
-        return new(1, playerId, since, overall, heroes.Select(p => new LifetimeHeroStats(p.Key, p.Value)).ToList(), unattributed);
+        return new(2, playerId, since, overall, heroes.Select(p => new LifetimeHeroStats(p.Key, p.Value)).ToList(), 0, excluded);
     }
     public static double PlayedSeconds(ArchivedMatchRecord match, IEnumerable<ArchivedMatchPresenceRecord> rows)
     {
@@ -77,9 +90,10 @@ public sealed record LifetimeProfileStats(int Version, uint PlayerId, long? Sinc
         using var reader = new BinaryReader(new MemoryStream(bytes));
         return reader.ReadMap<ScoreType,float,Dictionary<ScoreType,float>>(reader.ReadByteEnum<ScoreType>,reader.ReadSingle);
     }
-    static void Add(LifetimeCombatTotals t, Dictionary<PlayerMatchStatType,int> s, Dictionary<ScoreType,float> raw, double seconds)
+    static void Add(LifetimeCombatTotals t, Dictionary<PlayerMatchStatType,int> s, Dictionary<ScoreType,float> raw, double seconds, bool winner)
     {
         t.Matches++; t.Seconds += seconds;
+        if (winner) t.Wins++; else t.Losses++;
         t.Kills += s.GetValueOrDefault(PlayerMatchStatType.Kill); t.Deaths += s.GetValueOrDefault(PlayerMatchStatType.Death);
         t.Assists += s.GetValueOrDefault(PlayerMatchStatType.Assist); t.Objective += s.GetValueOrDefault(PlayerMatchStatType.Objective);
         t.Built += s.GetValueOrDefault(PlayerMatchStatType.Built); t.Destroyed += s.GetValueOrDefault(PlayerMatchStatType.Destroyed);
