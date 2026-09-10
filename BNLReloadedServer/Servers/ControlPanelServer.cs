@@ -688,6 +688,7 @@ public sealed class ControlPanelServer : IDisposable
          path == "/api/activity" ||
          path == "/api/players" ||
          IsPublicPlayerDetailPath(path) ||
+         path.StartsWith("/api/profile-stats/", StringComparison.Ordinal) ||
          path == "/api/matches" ||
          path.StartsWith("/api/matches/", StringComparison.Ordinal) ||
          path == "/api/maps" ||

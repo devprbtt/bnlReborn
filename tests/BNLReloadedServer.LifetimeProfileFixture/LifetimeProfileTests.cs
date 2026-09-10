@@ -21,6 +21,10 @@ public static class LifetimeProfileTests
     }
     public static void Run()
     {
+        var gate=typeof(BNLReloadedServer.ControlPanel.ControlPanelServer).GetMethod("IsPublicReadRequest",System.Reflection.BindingFlags.Static|System.Reflection.BindingFlags.NonPublic)!;
+        Check((bool)gate.Invoke(null,["GET","/api/profile-stats/3"])!,"lifetime profile GET is accessible without an admin session");
+        Check(!(bool)gate.Invoke(null,["POST","/api/profile-stats/3"])!,"lifetime profile route does not permit public writes");
+        Check(!(bool)gate.Invoke(null,["GET","/api/console"])!,"admin routes remain protected");
         var path=Path.Combine(Path.GetTempPath(),"bnl-lifetime-"+Guid.NewGuid()+".db");
         try
         {
