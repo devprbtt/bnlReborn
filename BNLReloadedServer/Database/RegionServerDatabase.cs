@@ -892,9 +892,10 @@ public class RegionServerDatabase(AsyncTaskTcpServer server, AsyncTaskTcpServer 
         return true;
     }
 
-    public bool StartGameFromMatchmaker(CardGameMode gameMode, List<PlayerQueueData> team1, List<PlayerQueueData> team2)
+    public bool StartGameFromMatchmaker(CardGameMode gameMode, List<PlayerQueueData> team1, List<PlayerQueueData> team2,
+        int playersPerTeam)
     {
-        var matchInitiator = new MatchmakerInitiator(gameMode, team1, team2);
+        var matchInitiator = new MatchmakerInitiator(gameMode, team1, team2, playersPerTeam);
         var gameInstance = new GameInstance(matchServer, server, Guid.NewGuid().ToString(), matchInitiator);
         matchInitiator.GameInstanceId = gameInstance.GameInstanceId;
         gameInstance.CreateLobby(gameMode.Key, null);
@@ -1117,7 +1118,7 @@ public class RegionServerDatabase(AsyncTaskTcpServer server, AsyncTaskTcpServer 
         return true;
     }
 
-    public IEnumerable<(Dictionary<uint, Rating> team1, Dictionary<uint, Rating> team2, string instanceId)> GetBackfillNeeded(Key gameModeKey)
+    public IEnumerable<(Dictionary<uint, Rating> team1, Dictionary<uint, Rating> team2, string instanceId, int playersPerTeam)> GetBackfillNeeded(Key gameModeKey)
     {
         var gameInstances = _gameInstances
             .Where(g => g.Value.GetGameMode() == gameModeKey && !g.Value.IsOver() && g.Value.NeedsBackfill()).ToList();
@@ -1125,8 +1126,9 @@ public class RegionServerDatabase(AsyncTaskTcpServer server, AsyncTaskTcpServer 
 
         foreach (var (instanceId, instance) in gameInstances)
         {
+            if (!_matchmakerGames.TryGetValue(instanceId, out var initiator)) continue;
             var (team1, team2) = instance.GetTeamRatings();
-            yield return (team1, team2, instanceId);
+            yield return (team1, team2, instanceId, initiator.PlayersPerTeam);
         }
     }
 
