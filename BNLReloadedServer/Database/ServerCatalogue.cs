@@ -1,4 +1,4 @@
-﻿using System.Collections.Frozen;
+using System.Collections.Frozen;
 using BNLReloadedServer.BaseTypes;
 using BNLReloadedServer.ProtocolHelpers;
 
@@ -6,12 +6,31 @@ namespace BNLReloadedServer.Database;
 
 public class ServerCatalogue : Catalogue
 {
-    private FrozenDictionary<Key, Card> _db;
+    private sealed class Snapshot
+    {
+        public readonly FrozenDictionary<Key, Card> Cards;
+        public readonly CardBlock?[] Blocks = new CardBlock?[65536];
+        public Snapshot(FrozenDictionary<Key, Card> cards)
+        {
+            Cards = cards;
+            foreach (var block in cards.Values.OfType<CardBlock>()) Blocks[block.BlockId] = block;
+        }
+    }
+
+    private volatile Snapshot _snapshot;
+    private FrozenDictionary<Key, Card> _db => _snapshot.Cards;
+
+    // Publish keyed cards and the block-id index together; readers never use a process-lifetime cache.
+    public CardBlock? GetBlockCard(ushort id)
+    {
+        var snapshot = _snapshot;
+        return snapshot.Blocks[id];
+    }
     private readonly Lock _updateLock = new();
 
     public ServerCatalogue()
     {
-        _db = FrozenDictionary<Key, Card>.Empty;
+        _snapshot = new Snapshot(FrozenDictionary<Key, Card>.Empty);
     }
 
     public override Card? GetCard(Key key)
@@ -32,7 +51,7 @@ public class ServerCatalogue : Catalogue
                 card.Key = Key(card.Id);
                 tempDict.Add(card.Key, card);
             }
-            _db = tempDict.ToFrozenDictionary();
+            _snapshot = new Snapshot(tempDict.ToFrozenDictionary());
             Replicated = true;
             CatalogueBlob.Set(cards);
         }
@@ -51,7 +70,7 @@ public class ServerCatalogue : Catalogue
             {
                 [card.Key] = card
             };
-            _db = tempDict.ToFrozenDictionary();
+            _snapshot = new Snapshot(tempDict.ToFrozenDictionary());
             CatalogueBlob.Set(cards);
         }
     }
@@ -68,7 +87,7 @@ public class ServerCatalogue : Catalogue
 
             var tempDict = new Dictionary<Key, Card>(_db, KeyEqualityComparer.Instance);
             tempDict.Remove(key);
-            _db = tempDict.ToFrozenDictionary();
+            _snapshot = new Snapshot(tempDict.ToFrozenDictionary());
             CatalogueBlob.Set(cards);
             return true;
         }
