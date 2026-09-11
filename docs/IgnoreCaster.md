@@ -14,4 +14,11 @@ exit cleanup, other-caster application, rejected self-source bookkeeping,
 aura attachment and flag-off behavior. Uses a complete valid catalogue fixture.
 
 Scope: aura recipient filtering and constant buff self exclusion. No catalogue
-values or client files changed. Not deployed to the live service yet.
+values or client files changed.
+
+Deployed runtime commit a02d26245a11efa01eaf33a968c485412d6255f0 on 2026-09-11
+03:01 UTC. Verified DLL/PDB hashes, signed authentication, startup and all three
+game listeners. Follow-up: active/running, NRestarts=0, no error-priority journal
+entries. Previous release a50c85bfcb74 retained for rollback. No catalogue edits.
+In-match behavior still needs a live check.
+
