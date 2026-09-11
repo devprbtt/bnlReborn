@@ -250,6 +250,16 @@ public partial class Unit
     public bool DoesEffectApply(ConstEffectInfo effect, TeamType sourceTeam) =>
         effect.Card.Effect?.Targeting is not { } targeting || DoesEffectApply(targeting, sourceTeam);
 
+    private bool DoesConstantEffectApply(ConstEffectInfo effect, TeamType sourceTeam, EffectSource? source) =>
+        DoesEffectApply(effect, sourceTeam) &&
+        // An aura's targeting describes its recipients, not the unit carrying it.
+        (effect.Card.Effect is not ConstEffectBuff { Targeting: { IgnoreCaster: true } } ||
+         source is not UnitSource caster || caster.Unit.Id != Id);
+
+    public bool DoesAuraTargetApply(ConstEffectAura aura, Unit caster) =>
+        aura.Targeting is not { } targeting ||
+        (DoesEffectApply(targeting, caster.Team) && (!targeting.IgnoreCaster || caster.Id != Id));
+
     public bool DoesEffectApply(EffectTargeting targeting, TeamType sourceTeam) =>
         targeting.AffectedTeam switch
         {
@@ -266,7 +276,7 @@ public partial class Unit
             return;
         }
 
-        if (!DoesEffectApply(effect, sourceTeam) || IsImmune(effect)) return;
+        if (!DoesConstantEffectApply(effect, sourceTeam, source) || IsImmune(effect)) return;
 
         if (IsDead && source is PersistOnDeathSource persistOnDeathSource)
         {
@@ -337,7 +347,7 @@ public partial class Unit
 
     public void AddEffects(IEnumerable<ConstEffectInfo> effects, TeamType sourceTeam, EffectSource? source)
     {
-        var appliedEffects = effects.Where(e => DoesEffectApply(e, sourceTeam) && !IsImmune(e)).ToList();
+        var appliedEffects = effects.Where(e => DoesConstantEffectApply(e, sourceTeam, source) && !IsImmune(e)).ToList();
         if (appliedEffects.Count == 0) return;
 
         if (IsDead && source is PersistOnDeathSource persistOnDeathSource)

@@ -2048,7 +2048,8 @@ public partial class GameZone : Updater
                 {
                     var auraImpact = unitSource.Impact ?? unit.CreateImpactData();
                     var previousColliders = unit.UnitsInAuraSinceLastUpdate.GetValueOrDefault(aura, []);
-                    var currentColliders = _unitOctree.GetColliding(bounds);
+                    var currentColliders = _unitOctree.GetColliding(bounds)
+                        .Where(target => target.DoesAuraTargetApply(aura, unit)).ToArray();
                     var exiting = previousColliders.Except(currentColliders).ToList();
                     var entering = currentColliders.Except(previousColliders).ToList();
                     unit.UnitsInAuraSinceLastUpdate[aura] = currentColliders;
