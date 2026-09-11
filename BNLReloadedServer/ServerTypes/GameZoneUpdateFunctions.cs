@@ -77,8 +77,8 @@ public partial class GameZone
 
         if (_conquest != null)
         {
-            if (unitInit.Controlled) _serviceZone.SendUnitUpdate(unit.Id, unit.GetUpdateData());
-            else _unbufferedZone.SendUnitUpdate(unit.Id, unit.GetUpdateData());
+            if (unitInit.Controlled) _serviceZone.SendUnitUpdate(unit.Id, ConquestSpawnUpdate(unit));
+            else _unbufferedZone.SendUnitUpdate(unit.Id, ConquestSpawnUpdate(unit));
         }
 
         if (unitInit.Transform is not null && _gameLoop != null)

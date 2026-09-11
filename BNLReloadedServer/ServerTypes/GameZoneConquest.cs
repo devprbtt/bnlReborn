@@ -7,6 +7,13 @@ namespace BNLReloadedServer.ServerTypes;
 
 public partial class GameZone
 {
+    private static UnitUpdate ConquestSpawnUpdate(Unit unit)
+    {
+        // OnRespawn runs before Unit.Respawn restores health/ammo. Its buffered
+        // packet can arrive after that unbuffered reset, so send only mode effects.
+        var snapshot = unit.GetUpdateData();
+        return new UnitUpdate { Effects = snapshot.Effects, Buffs = snapshot.Buffs };
+    }
     private SkyBridgeConquest? _conquest;
     private ulong _conquestBuffDeadline;
     private static readonly Key[] ConquestBuffs = [new("effect_blockbuster_lite_buff"),

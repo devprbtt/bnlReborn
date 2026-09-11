@@ -45,3 +45,16 @@ Conquest fixture: 38 checks, including actual map loading, both entries, unchang
 matchmaking pools, timing, majority/ties, elevation, round transitions, damage
 guard, BB reapplication/deadline and optional wire payload. Multiplayer placement,
 presentation and balancing still require a playtest with the updated client.
+
+## Spawn health correction (pending deployment)
+
+Conquest's extra spawn update must contain only Effects/Buffs. UnitCreated is
+called before Unit.Respawn resets health, forcefield and ammunition. A full
+snapshot captured there contains zero/previous health; its buffered delivery can
+overwrite the later unbuffered full-health reset on the client. The correction
+uses an effects-only packet. The fixture now exercises real Unit.Respawn with
+wire serialization and delayed Conquest delivery, for first spawn and respawn:
+46 checks pass. The regression fails with the former full snapshot.
+
+User requested no server restart while players are online. This correction is
+source-only until a separately authorized deployment window.

@@ -95,4 +95,39 @@ var teamTwo=new SkyBridgeConquest(centers);
 var defenders=attackers.Select(p=>p with {Team=TeamType.Team2}).ToArray();
 teamTwo.Step(10,defenders); teamTwo.Step(600,defenders);
 Check(teamTwo.Attacker==TeamType.Team2 && teamTwo.Shielded(TeamType.Team2) && !teamTwo.Shielded(TeamType.Team1),"team two wins and shield direction reverses");
+// Actual Unit.Respawn sends its health reset unbuffered after OnRespawn.
+// Deliver the Conquest spawn packet last, as happens when the zone buffer flushes.
+var spawnSnapshot=typeof(GameZone).GetMethod("ConquestSpawnUpdate",BindingFlags.NonPublic|BindingFlags.Static)!;
+var spawnCard=new CardUnit {Id="fixture_spawn",Data=new UnitDataCommon(),Health=new UnitHealth {Health=new Health {MaxHealth=110,HealthType=HealthType.Player}}};
+db.Replicate(db.All.Append(spawnCard).Append(new CardGlobalLogic {Id="global_logic"}).ToList());
+List<UnitUpdate> delayed=[]; List<UnitUpdate> immediate=[];
+UnitUpdate WireCopy(UnitUpdate packet)
+{
+    using var bytes=new MemoryStream();packet.Write(new BinaryWriter(bytes));bytes.Position=0;
+    return UnitUpdate.ReadRecord(new BinaryReader(bytes));
+}
+var spawnUpdater=updater with {
+    GetTeamEffects=_=>[], OnChangeId=u=>u.Id+1,
+    OnRespawn=(u,_,_)=>delayed.Add(WireCopy((UnitUpdate)spawnSnapshot.Invoke(null,[u])!)),
+    OnUnitUpdate=(_,packet,unbuffered)=> { if(unbuffered) immediate.Add(WireCopy(packet)); }
+};
+var spawned=new Unit(50,new UnitInit {Key=spawnCard.Key,Team=TeamType.Team1,PlayerId=50},spawnUpdater);
+spawned.ZoneService=DispatchProxy.Create<BNLReloadedServer.Service.IServiceZone,NoopZoneService>();
+foreach (var label in new[] {"first spawn","death and respawn"})
+{
+    immediate.Clear();delayed.Clear();spawned.IsDead=true;
+    typeof(Unit).GetField("_health",BindingFlags.NonPublic|BindingFlags.Instance)!.SetValue(spawned,0f);
+    Check(spawned.Respawn(Vector3.Zero,Quaternion.Identity),label+" executes real respawn");
+    Check(spawned.GetUpdateData().Health==110,label+" initializes server health");
+    float clientHealth=0;
+    foreach(var packet in immediate.Concat(delayed)) if(packet.Health.HasValue) clientHealth=packet.Health.Value;
+    Check(clientHealth==110,label+" stays full health after delayed Conquest packet");
+    Check(delayed.All(p=>p.Health==null && p.Forcefield==null && p.Ammo==null),label+" Conquest packet excludes uninitialized combat state");
+}
 Console.WriteLine($"Conquest suite passed: {checks} checks.");
+
+public class NoopZoneService : DispatchProxy
+{
+    protected override object? Invoke(MethodInfo? method, object?[]? args) =>
+        method?.ReturnType==typeof(bool) ? false : null;
+}
