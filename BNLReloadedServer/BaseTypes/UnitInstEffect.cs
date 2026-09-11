@@ -939,17 +939,46 @@ public partial class Unit
         _wasConfused = false;
     }
 
-    private bool DoPull(Unit puller, ConstEffectPull pull)
+    private void ReconcilePull()
     {
-        if (pull.Force < _minPullForce && DateTimeOffset.Now - _lastPullTime < TimeSpan.FromSeconds(3)) return false;
-        if (Math.Abs(pull.Force - _minPullForce) < 0.01f && _activePuller is not null &&
-            puller.Id != _activePuller) return false;
-
-        _minPullForce = pull.Force;
-        _lastPullTime = DateTimeOffset.Now;
-        _activePuller = puller.Id;
-
-        return true;
+        Unit? selected = null;
+        float force = 0;
+        // Prefer the strongest live effect, keeping the current source on ties.
+        // Re-evaluate the entire set: removing a stance must not cancel a well.
+        foreach (var info in ActiveEffects)
+        {
+            if (info.Card?.Effect is not ConstEffectPull pull ||
+                !_effectSources.TryGetValue(info.Key, out var sources)) continue;
+            foreach (var source in sources)
+            {
+                if (source is not UnitSource unitSource) continue;
+                var candidate = unitSource.Unit;
+                if (selected is null || pull.Force > force ||
+                    (pull.Force == force && candidate.Id == _activePuller))
+                {
+                    selected = candidate;
+                    force = pull.Force;
+                }
+            }
+        }
+        if (selected is null)
+        {
+            if (_activePuller is null) return;
+            _activePuller = null;
+            _activePullForce = 0;
+            _updater.OnPull(this, new ManeuverPull { Enabled = false });
+            return;
+        }
+        if (_activePuller == selected.Id && _activePullForce == force) return;
+        _activePuller = selected.Id;
+        _activePullForce = force;
+        _updater.OnPull(this, new ManeuverPull
+        {
+            Enabled = true,
+            OriginUnitId = selected.Id,
+            OriginPos = selected.Transform.Position,
+            Force = force
+        });
     }
 
     public void OnFall(float height, bool force, float min, float max, bool doFallDamage)

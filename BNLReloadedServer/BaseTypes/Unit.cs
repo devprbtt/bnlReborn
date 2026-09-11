@@ -100,8 +100,7 @@ public partial class Unit
 
     public readonly Dictionary<Unit, DateTimeOffset> RecentDamagers = new();
 
-    private float _minPullForce;
-    private DateTimeOffset? _lastPullTime;
+    private float _activePullForce;
     private uint? _activePuller;
 
     public TimeSpan TimeSinceCreated => DateTimeOffset.Now - CreationTime;
@@ -310,6 +309,7 @@ public partial class Unit
                     Buffs = _buffs,
                     Effects = ActiveEffects.ToInfoDictionary()
                 });
+                ReconcilePull();
                 return;
             }
         }
@@ -334,7 +334,11 @@ public partial class Unit
             BuffStatsUpdate(!effect.Card.Positive, source, buffer);
         }
 
-        if (ActiveEffects.Contains(effect)) return;
+        if (ActiveEffects.Contains(effect))
+        {
+            ReconcilePull();
+            return;
+        }
 
         ActiveEffects = ActiveEffects.Add(effect);
 
@@ -433,6 +437,7 @@ public partial class Unit
 
         if (actualEffects.Count == 0)
         {
+            ReconcilePull();
             if (doUpdate)
             {
                 _updater.OnUnitUpdate(this, new UnitUpdate
@@ -476,7 +481,11 @@ public partial class Unit
                 effectSource.Remove(source);
             }
 
-            if (effectSource.Count > 0) return;
+            if (effectSource.Count > 0)
+            {
+                ReconcilePull();
+                return;
+            }
             _effectSources.Remove(effect.Key);
         }
 
@@ -524,6 +533,7 @@ public partial class Unit
         }
 
         ActiveEffects = ActiveEffects.RemoveRange(actualEffects);
+        if (actualEffects.Count == 0) ReconcilePull(); // Only the source set changed.
 
         _updater.OnUnitUpdate(this, new UnitUpdate
         {
@@ -1474,18 +1484,6 @@ public partial class Unit
                         RemoveEffects(blockEffects.Select(k => new ConstEffectInfo(k, null)), Team, null,
                             true);
                     break;
-                case ConstEffectPull:
-                    var pullers = _effectSources.GetValueOrDefault(info.Key);
-                    if (pullers is null || pullers.Select(p => p as UnitSource).OfType<UnitSource>()
-                            .Select(p => p.Unit.Id).All(i => i != _activePuller))
-                    {
-                        _activePuller = null;
-                        _updater.OnPull(this, new ManeuverPull
-                        {
-                            Enabled = false
-                        });
-                    }
-                    break;
                 case ConstEffectSelf constEffectSelf:
                     if (constEffectSelf.ConstantEffects is { Count: > 0 } effects)
                     {
@@ -1533,32 +1531,6 @@ public partial class Unit
                 case ConstEffectOnNearbyBlock nearby:
                     NearbyBlockEffects.Add(nearby, new BoundingSphere(center, nearby.Radius));
                     break;
-                case ConstEffectPull pullEffect:
-                    var pullers = _effectSources.GetValueOrDefault(info.Key);
-                    if (pullers is null)
-                        break;
-
-                    foreach (var puller in pullers)
-                    {
-                        var src = puller switch
-                        {
-                            UnitSource unitSource1 => unitSource1.Unit,
-                            _ => null
-                        };
-                        if (src is null) continue;
-                        if (DoPull(src, pullEffect))
-                        {
-                            _updater.OnPull(this, new ManeuverPull
-                            {
-                                OriginPos = src.Transform.Position,
-                                OriginUnitId = src.Id,
-                                Force = pullEffect.Force,
-                                Enabled = true
-                            });
-                        }
-                    }
-
-                    break;
                 case ConstEffectSelf constEffectSelf:
                     CreateIntervalUpdater(info.Key, constEffectSelf);
                     if (constEffectSelf.ConstantEffects is { Count: > 0 } effects)
@@ -1583,5 +1555,6 @@ public partial class Unit
                     break;
             }
         }
+        ReconcilePull();
     }
 }
