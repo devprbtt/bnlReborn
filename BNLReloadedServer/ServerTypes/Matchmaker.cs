@@ -21,6 +21,11 @@ public class Matchmaker(AsyncTaskTcpServer server)
     private const double MinimumMatchQuality = 0.3;
     private const double SquadBoost = 1.07;
     private const double QueueCheckSeconds = 30;
+    private const double MatchFillWindowSeconds = 30;
+    private const int StandardPlayersPerTeam = 4;
+    private const int ExpandedPlayersPerTeam = StandardPlayersPerTeam + 1;
+    private const int StandardMatchPlayers = StandardPlayersPerTeam * 2;
+    private const int ExpandedMatchPlayers = ExpandedPlayersPerTeam * 2;
     private const uint NumBalChecks = 8;
     private const int AbortDelay = 2000;
     private const bool ShowQueueMessages = true;
@@ -35,6 +40,7 @@ public class Matchmaker(AsyncTaskTcpServer server)
 
     private class QueueData
     {
+        public Lock QueueCheckLock { get; } = new();
         public Key GameModeKey { get; init; }
         public List<PlayerQueueData> Players { get; set; } = [];
         public ConcurrentDictionary<uint, bool> DoBackfilling { get; } = new();
@@ -54,17 +60,24 @@ public class Matchmaker(AsyncTaskTcpServer server)
         public CancellationTokenSource? LoopCanceler { get; set; }
         public Task? QueueLoop { get; set; }
         public Timer? QueueTimer { get; set; }
+        public Timer? MatchFillTimer { get; set; }
+        public DateTimeOffset? MatchFillDeadline { get; set; }
         public ulong? ConfTime { get; set; }
 
         public CardGameMode GameModeCard => Databases.Catalogue.GetCard<CardGameMode>(GameModeKey)
             ?? throw new InvalidOperationException($"Game mode card '{GameModeKey}' is missing from the catalogue");
 
-        public bool EnoughForPop() => Players.Count >= GameModeCard.PlayersPerTeam * 2;
+        public int PlayersPerTeamForNextMatch => Players.Count >= ExpandedMatchPlayers
+            ? ExpandedPlayersPerTeam
+            : StandardPlayersPerTeam;
+
+        public bool EnoughForPop() => Players.Count >= StandardMatchPlayers;
     }
 
     private record QueueGrouping(List<PlayerQueueData> Players, double RatingMean, DateTimeOffset MinJoinTime);
 
-    private record BackfillInfo(Dictionary<uint, Rating> Team1, Dictionary<uint, Rating> Team2, string GameInstanceId);
+    private record BackfillInfo(Dictionary<uint, Rating> Team1, Dictionary<uint, Rating> Team2, string GameInstanceId,
+        int PlayersPerTeam);
 
     private readonly ConcurrentDictionary<Key, QueueData> _queues = new();
 
@@ -102,6 +115,10 @@ public class Matchmaker(AsyncTaskTcpServer server)
 
         queue?.QueueLoop = null;
         queue?.ConfTime = null;
+        queue?.MatchFillTimer?.Stop();
+        queue?.MatchFillTimer?.Dispose();
+        queue?.MatchFillTimer = null;
+        queue?.MatchFillDeadline = null;
         queue?.AcceptVotes1.Clear();
         queue?.AcceptVotes2.Clear();
         queue?.MatchSender1.UnsubscribeAll();
@@ -285,7 +302,7 @@ public class Matchmaker(AsyncTaskTcpServer server)
                 return;
 
             queue.IsPop = PopStatus.Match;
-            var balance = queue.Players.Count == 1 ? [[queue.Players.First()], []] : DoQueueBalance(queue, true);
+            var balance = queue.Players.Count == 1 ? [[queue.Players.First()], []] : DoQueueBalance(queue, queue.GameModeCard.PlayersPerTeam, true);
 
             if (balance == null)
             {
@@ -316,7 +333,7 @@ public class Matchmaker(AsyncTaskTcpServer server)
             queue.AcceptVotes1.Clear();
             queue.MatchSender1.UnsubscribeAll();
             Databases.RegionServerDatabase.StartGameFromMatchmaker(queue.GameModeCard, queue.Team1.ToList(),
-                queue.Team2.ToList());
+                queue.Team2.ToList(), queue.GameModeCard.PlayersPerTeam);
             queue.Team1.Clear();
             queue.Team2.Clear();
             queue.Team1 = null;
@@ -337,8 +354,8 @@ public class Matchmaker(AsyncTaskTcpServer server)
             return (null, null);
         }
 
-        var team1Needs = queue.GameModeCard.PlayersPerTeam - backfillInfo.Team1.Values.Count;
-        var team2Needs = queue.GameModeCard.PlayersPerTeam - backfillInfo.Team2.Values.Count;
+        var team1Needs = backfillInfo.PlayersPerTeam - backfillInfo.Team1.Values.Count;
+        var team2Needs = backfillInfo.PlayersPerTeam - backfillInfo.Team2.Values.Count;
 
         var checkTeam1 = true;
         var checkTeam2 = true;
@@ -422,13 +439,13 @@ public class Matchmaker(AsyncTaskTcpServer server)
         return (null, null);
     }
 
-    private static List<List<PlayerQueueData>>? DoQueueBalance(QueueData queue, bool force = false)
+    private static List<List<PlayerQueueData>>? DoQueueBalance(QueueData queue, int playersPerTeam, bool force = false)
     {
         var minQuality = (DateTimeOffset.Now - queue.LastJoinTime).TotalSeconds > MaxSecondWaitTimeWithFullLobby || force
             ? 0
             : MinimumMatchQuality;
 
-        var playersForQueue = Math.Min((queue.Players.Count >> 1) << 1, queue.GameModeCard.PlayersPerTeam * 2);
+        var playersForQueue = Math.Min((queue.Players.Count >> 1) << 1, playersPerTeam * 2);
         var players = queue.Players.ToList();
         if (players.Count == 0) return null;
 
@@ -648,7 +665,44 @@ public class Matchmaker(AsyncTaskTcpServer server)
         }
     }
 
+    private static void CancelMatchFillWindow(QueueData queue)
+    {
+        queue.MatchFillTimer?.Stop();
+        queue.MatchFillTimer?.Dispose();
+        queue.MatchFillTimer = null;
+        queue.MatchFillDeadline = null;
+    }
+
+    private bool IsMatchFillWindowComplete(QueueData queue)
+    {
+        if (queue.MatchFillDeadline is null)
+        {
+            queue.MatchFillDeadline = DateTimeOffset.Now.AddSeconds(MatchFillWindowSeconds);
+            queue.MatchFillTimer = new Timer(TimeSpan.FromSeconds(MatchFillWindowSeconds).TotalMilliseconds)
+            {
+                AutoReset = false
+            };
+            queue.MatchFillTimer.Elapsed += (_, _) => QueueCheck(queue);
+            queue.MatchFillTimer.Start();
+            ShowQueueMessage($"Waiting {MatchFillWindowSeconds} seconds for additional players in {queue.GameModeCard.Id}.");
+            QueueChanged();
+            return false;
+        }
+
+        return DateTimeOffset.Now >= queue.MatchFillDeadline.Value;
+    }
+
     private void QueueCheck(QueueData queue)
+    {
+        // A fill-window timer, the periodic checker, and a joining player can all request a
+        // check concurrently. Only one may inspect and transition this queue into a pop.
+        lock (queue.QueueCheckLock)
+        {
+            QueueCheckLocked(queue);
+        }
+    }
+
+    private void QueueCheckLocked(QueueData queue)
     {
         queue.Players = queue.Players.DistinctBy(p => p.PlayerId).ToList();
         if (queue.IsPop is PopStatus.None)
@@ -658,7 +712,7 @@ public class Matchmaker(AsyncTaskTcpServer server)
                 ? 0
                 : MinimumMatchQuality;
             foreach (var info in Databases.RegionServerDatabase.GetBackfillNeeded(queue.GameModeKey)
-                         .Select(tuple => new BackfillInfo(tuple.team1, tuple.team2, tuple.instanceId)))
+                         .Select(tuple => new BackfillInfo(tuple.team1, tuple.team2, tuple.instanceId, tuple.playersPerTeam)))
             {
                 var (team1Backfill, team2Backfill) = DoBackfillBalance(queue, minQuality, info);
                 if (team1Backfill is not null || team2Backfill is not null)
@@ -712,13 +766,19 @@ public class Matchmaker(AsyncTaskTcpServer server)
 
         if (!queue.EnoughForPop())
         {
+            CancelMatchFillWindow(queue);
             ShowQueueMessage($"Not enough for pop. Only {queue.Players.Count} in queue.");
             return;
         }
 
-        var balancedTeams = DoQueueBalance(queue);
+        if (!IsMatchFillWindowComplete(queue))
+            return;
+
+        var playersPerTeam = queue.PlayersPerTeamForNextMatch;
+        var balancedTeams = DoQueueBalance(queue, playersPerTeam);
         if (balancedTeams is null) return;
         queue.IsPop = PopStatus.Match;
+        CancelMatchFillWindow(queue);
 
         foreach (var player in balancedTeams.SelectMany(p => p))
         {
@@ -829,7 +889,7 @@ public class Matchmaker(AsyncTaskTcpServer server)
                         queue.AcceptVotes1.Clear();
                         queue.MatchSender1.UnsubscribeAll();
                         Databases.RegionServerDatabase.StartGameFromMatchmaker(queue.GameModeCard, queue.Team1.ToList(),
-                            queue.Team2.ToList());
+                            queue.Team2.ToList(), queue.Team1.Count);
                         queue.Team1.Clear();
                         queue.Team2.Clear();
                         queue.Team1 = null;

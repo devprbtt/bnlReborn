@@ -403,6 +403,14 @@ public partial class GameInstance : IGameInstance
             var playable = mapPool
                 .Where(k => k.GetCard<CardMap>() is not null && Databases.MapDatabase.HasMap(k))
                 .ToArray();
+
+            // Extended matchmaking games are 5v5. Single-cube maps do not have enough room
+            // for that format, so keep them out of the ballot while retaining them for 4v4.
+            if (GameInitiator is MatchmakerInitiator { PlayersPerTeam: >= 5 })
+            {
+                playable = playable.Where(HasMoreThanOneCube).ToArray();
+            }
+
             rnd.Shuffle(playable);
             maps = playable.Take(mapGrabCount)
                 .Select(MapInfo (key) => new MapInfoCard { MapKey = key }).ToList();
@@ -419,6 +427,13 @@ public partial class GameInstance : IGameInstance
 
         Lobby = new GameLobby(new ServiceLobby(_lobbySender), this, GameInstanceId, MatchKey, gameModeKey, maps);
     }
+
+    private static bool HasMoreThanOneCube(Key mapKey) => Databases.MapDatabase.LoadMapData(mapKey)?.Units
+        .Select(unit => unit.UnitKey.GetCard<CardUnit>()?.Id)
+        .Where(id => id?.StartsWith("unit_shield_line_", StringComparison.Ordinal) is true)
+        .Distinct(StringComparer.Ordinal)
+        .Skip(1)
+        .Any() is true;
 
     public ChatRoom? GetChatRoom(RoomId roomId)
     {

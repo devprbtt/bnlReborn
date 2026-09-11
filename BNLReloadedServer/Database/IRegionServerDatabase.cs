@@ -43,7 +43,8 @@ public interface IRegionServerDatabase
     public bool StartMapEditorGame(uint playerId, MapData map, Key heroKey, TeamType team);
     public bool StartTimeTrialGame(uint playerId);
     public bool RestartTimeTrialGame(uint playerId);
-    public bool StartGameFromMatchmaker(CardGameMode gameMode, List<PlayerQueueData> team1, List<PlayerQueueData> team2);
+    public bool StartGameFromMatchmaker(CardGameMode gameMode, List<PlayerQueueData> team1, List<PlayerQueueData> team2,
+        int playersPerTeam);
     public bool BackfillMatchmakerGame(PlayerQueueData player, TeamType team, string gameInstanceId);
     public bool SetIgnored(uint playerId, uint targetId, bool ignore);
     public void SendIgnoresTo(uint playerId);
@@ -54,7 +55,7 @@ public interface IRegionServerDatabase
     public bool RemoveGameInstance(string gameInstanceId);
     public void ReturnSpectatorsToMenu(string gameInstanceId);
     public bool RemoveFromGameInstance(uint playerId, string gameInstanceId);
-    public IEnumerable<(Dictionary<uint, Rating> team1, Dictionary<uint, Rating> team2, string instanceId)> GetBackfillNeeded(Key gameModeKey);
+    public IEnumerable<(Dictionary<uint, Rating> team1, Dictionary<uint, Rating> team2, string instanceId, int playersPerTeam)> GetBackfillNeeded(Key gameModeKey);
     public int GetActiveGamesCount(Key gameModeKey);
     public List<QueueSnapshot> GetQueueSnapshot();
     public PlayerActivity GetPlayerActivity();
