@@ -1,4 +1,4 @@
-﻿using System.Collections.Immutable;
+using System.Collections.Immutable;
 using System.Numerics;
 using BNLReloadedServer.Database;
 using BNLReloadedServer.Octree_Extensions;
@@ -34,6 +34,7 @@ public partial class Unit
     public uint? SpawnId;
     public bool IsRecall;
     public bool IsDead = false;
+    public Func<bool>? ConquestDamageBlocked { get; set; }
     public bool IsActive = true;
     public bool IsFirstLand = true;
     public bool WasAfkWarned;

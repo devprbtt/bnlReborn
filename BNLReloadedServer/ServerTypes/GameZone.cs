@@ -241,6 +241,7 @@ public partial class GameZone : Updater
 
         _respawnTime = _zoneData.MatchCard.RespawnLogic?.BaseRespawnTime ?? 10f;
 
+        InitializeConquest();
         BeginningZoneInitData = _zoneData.GetZoneInitData();
         EnqueueAction(() =>
         {
@@ -419,6 +420,7 @@ public partial class GameZone : Updater
 
     private void CreateSupplyUnit(Key supplyKey, Vector3 position)
     {
+        if (_conquest != null && supplyKey.GetCard<CardUnit>()?.Labels?.Contains(UnitLabel.SupplyBlockbuster) == true) return;
         if (_zoneData.MatchCard.SupplyLogic is not { } supplyLogic) return;
         var spawnPoint = position with { Y = position.Y + supplyLogic.SpawnHeight };
         var transform = ZoneTransformHelper.ToZoneTransform(spawnPoint, Quaternion.Identity);
@@ -620,6 +622,7 @@ public partial class GameZone : Updater
     private ZoneUpdate GetInitialZoneUpdate() =>
         new()
         {
+            ConquestStateJson = ConquestSnapshot(),
             Phase = _zoneData.Phase,
             PlayerInfo = _zoneData.PlayerInfo,
             SpawnPoints = _zoneData.SpawnPoints.Values.ToList(),
@@ -714,12 +717,12 @@ public partial class GameZone : Updater
                         .TotalMilliseconds, OnRespawnTimerIncreased);
                 }
 
-                if (_zoneData.MatchCard.SupplyLogic?.Sequence is { Count: > 0 } supplySequence)
+                if (ConquestSupplies(_zoneData.MatchCard.SupplyLogic?.Sequence) is { Count: > 0 } supplySequence)
                 {
                     _zoneData.UpdateSupplyTime(supplySequence[0], GetSupplyPosition(supplySequence[0]));
                     _supplyTimer = StartTimer(TimeSpan.FromSeconds(supplySequence[0].Seconds).TotalMilliseconds, OnSupplyTimerElapsed);
                 }
-                else if (_zoneData.MatchCard.SupplyLogic?.RepeatSequence is { Count: > 0 } repSequence)
+                else if (ConquestSupplies(_zoneData.MatchCard.SupplyLogic?.RepeatSequence) is { Count: > 0 } repSequence)
                 {
                     _zoneData.UpdateSupplyTime(repSequence[0], GetSupplyPosition(repSequence[0]));
                     _supplyTimer = StartTimer(TimeSpan.FromSeconds(repSequence[0].Seconds).TotalMilliseconds, OnSupplyTimerElapsed);
@@ -913,6 +916,7 @@ public partial class GameZone : Updater
                     Team2Stats = _zoneData.GetTeamScores(TeamType.Team2)
                 },
                 PlayerSpawnPoints = _zoneData.PlayerSpawnPoints,
+                ConquestStateJson = ConquestSnapshot(),
                 Phase = _zoneData.Phase,
                 PlayerInfo = _zoneData.PlayerInfo,
                 Objectives = _zoneData.MatchCard.Data?.Type is MatchType.TimeTrial or MatchType.Tutorial
@@ -966,6 +970,7 @@ public partial class GameZone : Updater
         _serviceZone.SendUpdateZone(matchZoneUpdate);
         zoneService.SendUpdateZone(new ZoneUpdate
         {
+            ConquestStateJson = ConquestSnapshot(),
             Phase = _zoneData.Phase,
             SpawnPoints = _zoneData.SpawnPoints.Values.ToList()
         });
@@ -1994,6 +1999,7 @@ public partial class GameZone : Updater
         {
             if (tickNumber == 0)
                 Log.Info(LogCat.Perf, $"First tick started: {DiagnosticName}, units={_units.Count}");
+            TickConquest(SecondsPerTick, tickNumber % TicksForBuffCheck == 0);
             var doBuffCheck = tickNumber % TicksForBuffCheck == 0;
             var doDmgCaptureCheck = tickNumber % TicksForDmgCaptureCheck == 0;
             var doBlockCheck = tickNumber == 0;
@@ -2490,16 +2496,16 @@ public partial class GameZone : Updater
                 EnqueueAction(() => CreateSupplyUnit(supplyDrop.Value, position.Value)))
             {
                 _supplyTimes++;
-                if (_zoneData.MatchCard.SupplyLogic.Sequence is { Count: > 0 } sequence &&
+                if (ConquestSupplies(_zoneData.MatchCard.SupplyLogic.Sequence) is { Count: > 0 } sequence &&
                     _supplyTimes < sequence.Count)
                 {
                     _zoneData.UpdateSupplyTime(sequence[_supplyTimes], GetSupplyPosition(sequence[_supplyTimes]));
                     _supplyTimer.Interval = TimeSpan.FromSeconds(sequence[_supplyTimes].Seconds).TotalMilliseconds;
                     _supplyTimer.Start();
                 }
-                else if (_zoneData.MatchCard.SupplyLogic.RepeatSequence is { Count: > 0 } repeatSequence)
+                else if (ConquestSupplies(_zoneData.MatchCard.SupplyLogic.RepeatSequence) is { Count: > 0 } repeatSequence)
                 {
-                    var repIndex = (_supplyTimes - (_zoneData.MatchCard.SupplyLogic.Sequence?.Count ?? 0)) % repeatSequence.Count;
+                    var repIndex = (_supplyTimes - (ConquestSupplies(_zoneData.MatchCard.SupplyLogic.Sequence)?.Count ?? 0)) % repeatSequence.Count;
                     _zoneData.UpdateSupplyTime(repeatSequence[repIndex], GetSupplyPosition(repeatSequence[repIndex]));
                     _supplyTimer.Interval = TimeSpan.FromSeconds(repeatSequence[repIndex].Seconds).TotalMilliseconds;
                     _supplyTimer.Start();

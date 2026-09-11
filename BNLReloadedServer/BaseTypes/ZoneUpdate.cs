@@ -1,9 +1,11 @@
-﻿using BNLReloadedServer.ProtocolHelpers;
+using BNLReloadedServer.ProtocolHelpers;
 
 namespace BNLReloadedServer.BaseTypes;
 
 public class ZoneUpdate
 {
+    public string? ConquestStateJson { get; set; }
+
     public ZonePhase? Phase { get; set; }
 
     public MatchStats? Statistics { get; set; }
@@ -26,7 +28,7 @@ public class ZoneUpdate
     {
         new BitField(Phase != null, Statistics != null, SpawnPoints != null, PlayerSpawnPoints != null,
           RespawnInfo != null, PlayerInfo != null, SupplyInfo != null, Objectives != null,
-          ResourceCap.HasValue).Write(writer);
+          ResourceCap.HasValue, ConquestStateJson != null).Write(writer);
         if (Phase != null)
             ZonePhase.WriteRecord(writer, Phase);
         if (Statistics != null)
@@ -43,14 +45,13 @@ public class ZoneUpdate
             SupplyInfo.WriteRecord(writer, SupplyInfo);
         if (Objectives != null)
             writer.WriteList(Objectives, ZoneObjective.WriteRecord);
-        if (!ResourceCap.HasValue)
-            return;
-        writer.Write(ResourceCap.Value);
+        if (ResourceCap.HasValue) writer.Write(ResourceCap.Value);
+        if (ConquestStateJson != null) writer.Write(ConquestStateJson);
     }
 
     public void Read(BinaryReader reader)
     {
-        var bitField = new BitField(9);
+        var bitField = new BitField(10);
         bitField.Read(reader);
         Phase = bitField[0] ? ZonePhase.ReadRecord(reader) : null;
         Statistics = bitField[1] ? MatchStats.ReadRecord(reader) : null;
@@ -61,6 +62,7 @@ public class ZoneUpdate
         SupplyInfo = bitField[6] ? SupplyInfo.ReadRecord(reader) : null;
         Objectives = bitField[7] ? reader.ReadList<ZoneObjective, List<ZoneObjective>>(ZoneObjective.ReadRecord) : null;
         ResourceCap = bitField[8] ? reader.ReadSingle() : null;
+        ConquestStateJson = bitField[9] ? reader.ReadString() : null;
     }
 
     public static void WriteRecord(BinaryWriter writer, ZoneUpdate value) => value.Write(writer);

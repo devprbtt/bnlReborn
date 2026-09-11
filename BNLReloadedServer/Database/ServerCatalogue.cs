@@ -44,6 +44,7 @@ public class ServerCatalogue : Catalogue
     {
         lock (_updateLock)
         {
+            ConquestMapRegistration.Register(cards);
             var tempDict = new Dictionary<Key, Card>(KeyEqualityComparer.Instance);
             foreach (var card in cards)
             {

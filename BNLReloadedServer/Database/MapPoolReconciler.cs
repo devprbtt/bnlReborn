@@ -8,6 +8,7 @@ public static class MapPoolReconciler
 {
     public static void Reconcile(List<Card> cards)
     {
+        ConquestMapRegistration.Register(cards);
         var mapList = cards.OfType<CardMapList>().FirstOrDefault();
         var mapCards = cards.OfType<CardMap>().ToList();
         var mapDatabase = Databases.MapDatabase;

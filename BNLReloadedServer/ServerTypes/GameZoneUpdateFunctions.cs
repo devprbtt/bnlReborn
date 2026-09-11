@@ -20,6 +20,8 @@ public partial class GameZone
             _playerIdToUnitId.Add(unitInit.PlayerId.Value, unit.Id);
         }
 
+        ApplyConquestUnit(unit);
+
         // Applied on both creation and respawn - effects are wiped on death.
         if (unitInit.PlayerId != null && _zoneData.Phase.PhaseType is ZonePhaseType.Build or ZonePhaseType.Build2)
         {
@@ -71,6 +73,12 @@ public partial class GameZone
             var timer = new UnitUpdate { BombTimeoutEnd = breakDeadline };
             if (unitInit.Controlled) _serviceZone.SendUnitUpdate(unit.Id, timer);
             else _unbufferedZone.SendUnitUpdate(unit.Id, timer);
+        }
+
+        if (_conquest != null)
+        {
+            if (unitInit.Controlled) _serviceZone.SendUnitUpdate(unit.Id, unit.GetUpdateData());
+            else _unbufferedZone.SendUnitUpdate(unit.Id, unit.GetUpdateData());
         }
 
         if (unitInit.Transform is not null && _gameLoop != null)
@@ -1540,6 +1548,7 @@ public partial class GameZone
     private HashSet<ConstEffectInfo> GetTeamEffects(TeamType team) => _teamEffects[(int)team];
 
     private bool DoesObjBuffApply(TeamType team, IEnumerable<UnitLabel> labels) =>
+        _conquest != null ? _conquest.Shielded(team) :
         _zoneData.MatchCard.Data?.Type == MatchType.TimeTrial || !labels.Contains(
             _objectiveConquest[(int)team].Count > 0 ? _objectiveConquest[(int)team].Peek() : UnitLabel.Objective);
 
@@ -1651,6 +1660,10 @@ public partial class GameZone
 
     private void UnitIsKilled(Unit target, ImpactData impact, bool mining = false)
     {
+        // This callback runs just before Unit.IsDead changes. Exclude the victim explicitly
+        // so a last-carrier kill restores cube protection before another queued hit.
+        if (_conquest?.Attacking == true && target.PlayerId.HasValue && target.Team == _conquest.Attacker)
+            TickConquest(0, true, target.Id);
         var assists = target.PlayerId != null
             ? target.RecentDamagers.Where(a => a.Value > DateTimeOffset.Now && a.Key.Team != target.Team)
                 .Select(k => k.Key.PlayerId)

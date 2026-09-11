@@ -1,0 +1,8 @@
+{
+  "source": "C:\\Users\\Paulo\\.codex-storage\\workspace-data\\blocknload-unity-upgrade\\extracted\\work\\skybridge-conquest-server\\Maps\\map_sr2_sky_bridge_don_edit.bnlbin",
+  "source_commit": "1d782e0e9c20",
+  "source_sha256": "08c804718745d79a03f9302b907da52afb8fe9bd006a7113a40e7bc4f24d68f6",
+  "output": "map_sr2_sky_bridge_don_edit_conquest.bnlbin",
+  "output_sha256": "7003a8e37c76e10042b730e4a9cadfdca7a13fa6de312125d9f1b8cd6d9e2c71",
+  "transformation": "Separate copy; change display name/map id only. Geometry unchanged."
+}

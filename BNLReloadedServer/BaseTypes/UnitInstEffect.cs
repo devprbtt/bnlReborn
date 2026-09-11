@@ -1,4 +1,4 @@
-﻿using System.Numerics;
+using System.Numerics;
 using BNLReloadedServer.Database;
 using BNLReloadedServer.Logging;
 using BNLReloadedServer.ProtocolHelpers;
@@ -383,7 +383,7 @@ public partial class Unit
 
     private void TakeDamage(float amount, EffectSource? source, UnitUpdate update)
     {
-        if (!IsHealth || IsDead || GetBuff(BuffType.Invulnerability) > 0) return;
+        if (ConquestDamageBlocked?.Invoke() == true || !IsHealth || IsDead || GetBuff(BuffType.Invulnerability) > 0) return;
 
         var currHealth = update.Health ?? _health;
         var newHealth = Math.Max(0.0f, currHealth - amount);
@@ -415,7 +415,7 @@ public partial class Unit
 
     private void TakeDamage(DamageData damage, ImpactData impact, bool splash, Unit? attacker, TeamType? attackingTeam, UnitUpdate update)
     {
-        if (!IsHealth || IsDead) return;
+        if (ConquestDamageBlocked?.Invoke() == true || !IsHealth || IsDead) return;
         if ((!damage.IgnoreInvincibility && GetBuff(BuffType.Invulnerability) > 0) ||
             ((((UnitCard?.Health?.Health?.MeleeOnly ?? false) && !damage.Melee) ||
             ((UnitCard?.Health?.Health?.MiningOnly ?? false) && !damage.Mining) ||
