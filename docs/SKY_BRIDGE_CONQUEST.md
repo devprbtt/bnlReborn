@@ -58,3 +58,18 @@ wire serialization and delayed Conquest delivery, for first spawn and respawn:
 
 User requested no server restart while players are online. This correction is
 source-only until a separately authorized deployment window.
+
+## Conquest presentation and scoring update (pending deployment)
+
+Holding two zones earns one second per second; holding all three earns two.
+Capture remains 10 seconds for testing. Each square now counts living players
+from eight blocks below its BB center through four above (inclusive), so nearby
+decks share a zone without unlimited vertical reach. Version 2 snapshots include
+these bounds, both authoritative population counts per zone, and scoring rates.
+The client uses them for occupancy indicators and bonus display; older snapshots
+remain supported without inventing counts or a scoring bonus.
+
+Validation: Conquest fixture 51 checks pass, including triple-cap/loss-of-third,
+vertical boundary and cross-deck contest coverage, and the spawn-health regression.
+Release build passes with warnings treated as errors. No deployment or restart:
+the existing user restriction remains active.

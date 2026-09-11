@@ -76,12 +76,14 @@ public partial class GameZone
 
     private string? ConquestSnapshot() => _conquest == null ? null : JsonSerializer.Serialize(new
     {
-        round = _conquest.Round, attacker = (int)_conquest.Attacker, attackRemaining = _conquest.AttackRemaining,
+        version = 2, round = _conquest.Round, attacker = (int)_conquest.Attacker, attackRemaining = _conquest.AttackRemaining,
         target = _conquest.Target, team1 = _conquest.Scores[1], team2 = _conquest.Scores[2],
         tier = _conquest.Tier, halfWidth = SkyBridgeConquest.HalfWidth,
+        depthBelow = SkyBridgeConquest.DepthBelow, heightAbove = SkyBridgeConquest.HeightAbove,
+        rate1 = _conquest.ScoreRate(TeamType.Team1), rate2 = _conquest.ScoreRate(TeamType.Team2),
         capturing = _zoneData.Phase.PhaseType is ZonePhaseType.Assault or ZonePhaseType.Assault2 or ZonePhaseType.SuddenDeath,
         zones = _conquest.Zones.Select(z => new { x = z.Center.X, y = z.Center.Y, z = z.Center.Z,
             owner = (int)z.Owner, capturing = (int)z.Capturing, progress = z.Progress / SkyBridgeConquest.CaptureSeconds,
-            contested = z.Contested }).ToArray()
+            contested = z.Contested, team1Count = z.Team1Count, team2Count = z.Team2Count }).ToArray()
     });
 }

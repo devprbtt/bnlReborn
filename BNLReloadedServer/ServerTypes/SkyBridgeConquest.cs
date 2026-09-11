@@ -8,7 +8,8 @@ public sealed class SkyBridgeConquest
 {
     public const string MapId = "map_sr2_sky_bridge_don_edit_conquest";
     public const string OriginalMapId = "map_sr2_sky_bridge_don_edit";
-    public const float HalfWidth = 6, HalfHeight = 3, CaptureSeconds = 10, AttackSeconds = 90;
+    public const float HalfWidth = 6, DepthBelow = 8, HeightAbove = 4, CaptureSeconds = 10, AttackSeconds = 90;
+    public const float TripleCapRate = 2;
     public sealed record Player(uint Id, TeamType Team, Vector3 Position);
     public sealed class Zone(Vector3 center)
     {
@@ -17,6 +18,11 @@ public sealed class SkyBridgeConquest
         public TeamType Capturing { get; internal set; }
         public float Progress { get; internal set; }
         public bool Contested { get; internal set; }
+        public int Team1Count { get; internal set; }
+        public int Team2Count { get; internal set; }
+        public bool Contains(Vector3 position) => Math.Abs(position.X - Center.X) <= HalfWidth &&
+            Math.Abs(position.Z - Center.Z) <= HalfWidth && position.Y >= Center.Y - DepthBelow &&
+            position.Y <= Center.Y + HeightAbove;
     }
     public Zone[] Zones { get; }
     public float[] Scores { get; } = new float[3];
@@ -32,9 +38,17 @@ public sealed class SkyBridgeConquest
         if (Zones.Length != 3) throw new ArgumentException("Conquest requires exactly three BB drop points.");
     }
     public bool Shielded(TeamType team) => !Attacking || team == Attacker;
+    public float ScoreRate(TeamType team) => Attacking || team == TeamType.Neutral ? 0 :
+        Zones.Count(z => z.Owner == team) switch { 3 => TripleCapRate, 2 => 1, _ => 0 };
     public void Step(float elapsed, IReadOnlyList<Player> players)
     {
         if (!float.IsFinite(elapsed) || elapsed < 0) throw new ArgumentOutOfRangeException(nameof(elapsed));
+        foreach (var zone in Zones)
+        {
+            zone.Team1Count = players.Count(p => p.Team == TeamType.Team1 && zone.Contains(p.Position));
+            zone.Team2Count = players.Count(p => p.Team == TeamType.Team2 && zone.Contains(p.Position));
+            zone.Contested = zone.Team1Count > 0 && zone.Team2Count > 0;
+        }
         if (Attacking)
         {
             AttackRemaining = Math.Max(0, AttackRemaining - elapsed);
@@ -44,8 +58,9 @@ public sealed class SkyBridgeConquest
         // Score the ownership held during this step, before resolving captures at its end.
         foreach (var team in new[] { TeamType.Team1, TeamType.Team2 })
         {
-            if (Zones.Count(z => z.Owner == team) < 2) continue;
-            Scores[(int)team] = Math.Min(Target, Scores[(int)team] + elapsed);
+            var rate = ScoreRate(team);
+            if (rate == 0) continue;
+            Scores[(int)team] = Math.Min(Target, Scores[(int)team] + elapsed * rate);
             if (Scores[(int)team] >= Target && players.Any(p => p.Team == team))
             {
                 Attacker = team; AttackRemaining = AttackSeconds; return;
@@ -53,12 +68,8 @@ public sealed class SkyBridgeConquest
         }
         foreach (var zone in Zones)
         {
-            var inside = players.Where(p => Math.Abs(p.Position.X - zone.Center.X) <= HalfWidth &&
-                Math.Abs(p.Position.Z - zone.Center.Z) <= HalfWidth &&
-                Math.Abs(p.Position.Y - zone.Center.Y) <= HalfHeight).ToArray();
-            var one = inside.Count(p => p.Team == TeamType.Team1);
-            var two = inside.Count(p => p.Team == TeamType.Team2);
-            zone.Contested = one > 0 && two > 0;
+            var one = zone.Team1Count;
+            var two = zone.Team2Count;
             if (one == two) continue; // Empty/tied zones retain ownership and pause capture.
             var majority = one > two ? TeamType.Team1 : TeamType.Team2;
             if (zone.Owner == majority) { zone.Progress = 0; zone.Capturing = TeamType.Neutral; continue; }

@@ -37,7 +37,7 @@ Check(contested.Zones[0].Owner==TeamType.Team1,"majority captures while enemies 
 contested.Step(30,[]); Check(contested.Scores[1]==0 && contested.Zones[0].Owner==TeamType.Team1,"empty zones retain ownership; one zone earns no time");
 contested.Step(10,[new(3,TeamType.Team2,centers[0])]); Check(contested.Zones[0].Owner==TeamType.Team2,"enemy recaptures");
 var bounds = new SkyBridgeConquest(centers);
-bounds.Step(10,[new(1,TeamType.Team1,centers[0]+new Vector3(6,3,6)),new(2,TeamType.Team1,centers[1]+new Vector3(0,3.1f,0))]);
+bounds.Step(10,[new(1,TeamType.Team1,centers[0]+new Vector3(6,4,6)),new(2,TeamType.Team1,centers[1]+new Vector3(0,4.1f,0))]);
 Check(bounds.Zones[0].Owner==TeamType.Team1 && bounds.Zones[1].Owner==TeamType.Neutral,"square corners included and separate elevations excluded");
 foreach (string? payload in new string?[] {null,"{\"round\":1,\"zones\":[]}"})
 {
@@ -95,6 +95,17 @@ var teamTwo=new SkyBridgeConquest(centers);
 var defenders=attackers.Select(p=>p with {Team=TeamType.Team2}).ToArray();
 teamTwo.Step(10,defenders); teamTwo.Step(600,defenders);
 Check(teamTwo.Attacker==TeamType.Team2 && teamTwo.Shielded(TeamType.Team2) && !teamTwo.Shielded(TeamType.Team1),"team two wins and shield direction reverses");
+var triple=new SkyBridgeConquest(centers);
+var allZones=attackers.Append(new SkyBridgeConquest.Player(3,TeamType.Team1,centers[2])).ToArray();
+triple.Step(10,allZones);triple.Step(10,allZones);
+Check(triple.Scores[1]==20 && triple.ScoreRate(TeamType.Team1)==2,"triple cap scores twice as fast");
+triple.Step(10,[new(9,TeamType.Team2,centers[2])]);
+Check(triple.ScoreRate(TeamType.Team1)==1,"losing third zone returns scoring to normal");
+var vertical=new SkyBridgeConquest(centers);
+vertical.Step(10,[new(1,TeamType.Team1,centers[0]+new Vector3(0,-8,0)),new(2,TeamType.Team2,centers[0]+new Vector3(0,4,0)),new(3,TeamType.Team1,centers[0]+new Vector3(0,-8.01f,0))]);
+Check(vertical.Zones[0].Team1Count==1 && vertical.Zones[0].Team2Count==1 && vertical.Zones[0].Contested,"bounded vertical column counts both decks and rejects below floor");
+Check(vertical.Zones[0].Owner==TeamType.Neutral,"players on different decks contest one zone");
+vertical.Step(0,[]);Check(vertical.Zones.All(z=>z.Team1Count==0 && z.Team2Count==0),"occupancy clears when players leave");
 // Actual Unit.Respawn sends its health reset unbuffered after OnRespawn.
 // Deliver the Conquest spawn packet last, as happens when the zone buffer flushes.
 var spawnSnapshot=typeof(GameZone).GetMethod("ConquestSpawnUpdate",BindingFlags.NonPublic|BindingFlags.Static)!;
