@@ -64,6 +64,15 @@ public partial class GameZone
             }
         }
 
+        if (unit.BlockbusterBreakDeadline is { } breakDeadline)
+        {
+            // Match the create channel, including falling crates whose normal
+            // movement updates are temporarily suppressed by IsDropped.
+            var timer = new UnitUpdate { BombTimeoutEnd = breakDeadline };
+            if (unitInit.Controlled) _serviceZone.SendUnitUpdate(unit.Id, timer);
+            else _unbufferedZone.SendUnitUpdate(unit.Id, timer);
+        }
+
         if (unitInit.Transform is not null && _gameLoop != null)
         {
             RunBlockCheckForUnit(unit);

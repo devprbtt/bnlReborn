@@ -110,6 +110,10 @@ public partial class Unit
 
     public bool IsExpired => _expirationTime.HasValue && DateTimeOffset.Now >= _expirationTime;
 
+    public ulong? BlockbusterBreakDeadline => UnitCard?.Data is UnitDataCommon &&
+        UnitCard.Labels?.Contains(UnitLabel.SupplyBlockbuster) == true && _expirationTime.HasValue
+        ? (ulong)_expirationTime.Value.ToUnixTimeMilliseconds() : null;
+
     public float LengthOfCharge =>
         StartChargeTime is null ? 0.0f : (float)(DateTimeOffset.Now - StartChargeTime.Value).TotalSeconds;
 
@@ -1113,6 +1117,13 @@ public partial class Unit
         if (UnitCard?.Data is UnitDataBomb)
         {
             newUpdate.BombTimeoutEnd = (ulong?)_bombTimeoutEnd?.ToUnixTimeMilliseconds();
+        }
+        else if (BlockbusterBreakDeadline is { } breakDeadline)
+        {
+            // Reuse the existing absolute unit-countdown wire field for timed
+            // supply crates. This snapshot also reaches late joiners; no local
+            // timer or packet-layout change is needed. Pickups are excluded.
+            newUpdate.BombTimeoutEnd = breakDeadline;
         }
 
         if (UnitCard?.Data is UnitDataPortal)
