@@ -77,7 +77,7 @@ public class Matchmaker(AsyncTaskTcpServer server)
     private record QueueGrouping(List<PlayerQueueData> Players, double RatingMean, DateTimeOffset MinJoinTime);
 
     private record BackfillInfo(Dictionary<uint, Rating> Team1, Dictionary<uint, Rating> Team2, string GameInstanceId,
-        int PlayersPerTeam);
+        int PlayersPerTeam, HashSet<uint> ParticipantHistory);
 
     private readonly ConcurrentDictionary<Key, QueueData> _queues = new();
 
@@ -348,7 +348,8 @@ public class Matchmaker(AsyncTaskTcpServer server)
         BackfillInfo backfillInfo)
     {
         var validPlayers = queue.Players
-            .Where(p => p.SquadId is null && queue.DoBackfilling.GetValueOrDefault(p.PlayerId)).ToList();
+            .Where(p => p.SquadId is null && queue.DoBackfilling.GetValueOrDefault(p.PlayerId) &&
+                        !backfillInfo.ParticipantHistory.Contains(p.PlayerId)).ToList();
         if (validPlayers.Count == 0)
         {
             return (null, null);
@@ -712,7 +713,8 @@ public class Matchmaker(AsyncTaskTcpServer server)
                 ? 0
                 : MinimumMatchQuality;
             foreach (var info in Databases.RegionServerDatabase.GetBackfillNeeded(queue.GameModeKey)
-                         .Select(tuple => new BackfillInfo(tuple.team1, tuple.team2, tuple.instanceId, tuple.playersPerTeam)))
+                         .Select(tuple => new BackfillInfo(tuple.team1, tuple.team2, tuple.instanceId,
+                             tuple.playersPerTeam, tuple.participantHistory)))
             {
                 var (team1Backfill, team2Backfill) = DoBackfillBalance(queue, minQuality, info);
                 if (team1Backfill is not null || team2Backfill is not null)

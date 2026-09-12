@@ -937,6 +937,9 @@ public class RegionServerDatabase(AsyncTaskTcpServer server, AsyncTaskTcpServer 
     {
         if (!UserConnected(player.PlayerId, out var playerInfo) || !_matchmakerGames.TryGetValue(gameInstanceId, out var initiator) ||
             !_gameInstances.TryGetValue(gameInstanceId, out var gameInstance) || gameInstance.IsOver()) return false;
+        // Recheck at assignment time in case the queue pop was created from a stale
+        // snapshot or two confirmation paths raced each other.
+        if (initiator.HasParticipated(player.PlayerId)) return false;
         if (!initiator.AddPlayer(player, team)) return false;
 
         playerInfo.GameInstanceId = gameInstanceId;
@@ -1118,7 +1121,8 @@ public class RegionServerDatabase(AsyncTaskTcpServer server, AsyncTaskTcpServer 
         return true;
     }
 
-    public IEnumerable<(Dictionary<uint, Rating> team1, Dictionary<uint, Rating> team2, string instanceId, int playersPerTeam)> GetBackfillNeeded(Key gameModeKey)
+    public IEnumerable<(Dictionary<uint, Rating> team1, Dictionary<uint, Rating> team2, string instanceId,
+        int playersPerTeam, HashSet<uint> participantHistory)> GetBackfillNeeded(Key gameModeKey)
     {
         var gameInstances = _gameInstances
             .Where(g => g.Value.GetGameMode() == gameModeKey && !g.Value.IsOver() && g.Value.NeedsBackfill()).ToList();
@@ -1128,7 +1132,7 @@ public class RegionServerDatabase(AsyncTaskTcpServer server, AsyncTaskTcpServer 
         {
             if (!_matchmakerGames.TryGetValue(instanceId, out var initiator)) continue;
             var (team1, team2) = instance.GetTeamRatings();
-            yield return (team1, team2, instanceId, initiator.PlayersPerTeam);
+            yield return (team1, team2, instanceId, initiator.PlayersPerTeam, initiator.GetParticipantHistory());
         }
     }
 

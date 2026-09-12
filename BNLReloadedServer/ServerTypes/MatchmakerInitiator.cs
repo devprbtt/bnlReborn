@@ -13,6 +13,11 @@ public class MatchmakerInitiator(CardGameMode gameMode, List<PlayerQueueData> te
     private readonly List<PlayerQueueData> _team1 = team1.ToList();
     private readonly List<PlayerQueueData> _team2 = team2.ToList();
 
+    // Keep this for the lifetime of the match. Removing a quitter from the active
+    // roster must not make them eligible to backfill the same match later.
+    private readonly HashSet<uint> _participantHistory = team1.Concat(team2).Select(player => player.PlayerId).ToHashSet();
+    private readonly Lock _rosterLock = new();
+
     private readonly HashSet<uint> _spectators = [];
 
     private readonly Lock _spectatorsLock = new();
@@ -33,42 +38,62 @@ public class MatchmakerInitiator(CardGameMode gameMode, List<PlayerQueueData> te
 
     public bool AddPlayer(PlayerQueueData player, TeamType team)
     {
-        switch (team)
+        lock (_rosterLock)
         {
-            case TeamType.Team1:
-                if (_team1.Count >= playersPerTeam)
-                {
-                    return false;
-                }
-                _team1.Add(player);
-                break;
-            case TeamType.Team2:
-                if (_team2.Count >= playersPerTeam)
-                {
-                    return false;
-                }
-                _team2.Add(player);
-                break;
-            case TeamType.Neutral:
-            default:
-                return false;
-        }
+            if (_participantHistory.Contains(player.PlayerId)) return false;
 
-        if (_team1.Count >= playersPerTeam && _team2.Count >= playersPerTeam)
-        {
-            _firstSlotFreed = null;
-        }
+            switch (team)
+            {
+                case TeamType.Team1:
+                    if (_team1.Count >= playersPerTeam)
+                    {
+                        return false;
+                    }
+                    _team1.Add(player);
+                    break;
+                case TeamType.Team2:
+                    if (_team2.Count >= playersPerTeam)
+                    {
+                        return false;
+                    }
+                    _team2.Add(player);
+                    break;
+                case TeamType.Neutral:
+                default:
+                    return false;
+            }
 
-        return true;
+            _participantHistory.Add(player.PlayerId);
+
+            if (_team1.Count >= playersPerTeam && _team2.Count >= playersPerTeam)
+            {
+                _firstSlotFreed = null;
+            }
+
+            return true;
+        }
     }
 
     public void RemovePlayer(uint playerId)
     {
         lock (_spectatorsLock) _spectators.Remove(playerId);
-        if (_team1.RemoveAll(p => p.PlayerId == playerId) + _team2.RemoveAll(p => p.PlayerId == playerId) > 0)
+        lock (_rosterLock)
         {
-            _firstSlotFreed ??= DateTimeOffset.Now;
+            if (_team1.RemoveAll(p => p.PlayerId == playerId) + _team2.RemoveAll(p => p.PlayerId == playerId) > 0)
+            {
+                _firstSlotFreed ??= DateTimeOffset.Now;
+            }
         }
+    }
+
+    public bool HasParticipated(uint playerId)
+    {
+        lock (_rosterLock) return _participantHistory.Contains(playerId);
+    }
+
+    public HashSet<uint> GetParticipantHistory()
+    {
+        lock (_rosterLock) return [.. _participantHistory];
     }
 
     public TeamType GetTeamForPlayer(uint playerId) =>
