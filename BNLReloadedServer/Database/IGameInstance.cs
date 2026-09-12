@@ -52,7 +52,7 @@ public interface IGameInstance
     public void UnitMoved(uint unitId, ulong moveTime, ZoneTransform transform);
     public void BuildRequest(ushort rpcId, uint playerId, BuildInfo buildInfo, IServiceZone builderService);
     public void CancelBuildRequest(uint playerId);
-    public void EventBroadcast(ZoneEvent zoneEvent);
+    public void EventBroadcast(uint playerId, ZoneEvent zoneEvent);
     public void SwitchGear(ushort rpcId, uint playerId, Key gearKey, IServiceZone switcherService);
     public void StartReload(ushort rpcId, uint playerId, IServiceZone reloaderService);
     public void Reload(ushort rpcId, uint playerId, IServiceZone reloaderService);

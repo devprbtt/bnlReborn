@@ -662,7 +662,8 @@ public partial class GameInstance : IGameInstance
 
     public void CancelBuildRequest(uint playerId) => Zone?.EnqueueAction(() => Zone?.ReceivedCancelBuildRequest(playerId));
 
-    public void EventBroadcast(ZoneEvent zoneEvent) => Zone?.EnqueueAction(() => Zone?.ReceivedEventBroadcast(zoneEvent));
+    public void EventBroadcast(uint playerId, ZoneEvent zoneEvent) =>
+        Zone?.EnqueueAction(() => Zone?.ReceivedEventBroadcast(playerId, zoneEvent));
 
     public void SwitchGear(ushort rpcId, uint playerId, Key gearKey, IServiceZone switcherService) =>
         Zone?.EnqueueAction(() => Zone?.ReceivedSwitchGearRequest(rpcId, playerId, gearKey, switcherService));

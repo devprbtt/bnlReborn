@@ -71,6 +71,7 @@ public partial class GameZone : Updater
     private readonly Dictionary<uint, DateTimeOffset> _lastTeamPing = new();
     private readonly Dictionary<uint, DateTimeOffset> _lastHeroEmote = new();
     private readonly HashSet<uint> _activeHeroEmotes = [];
+    private readonly GroundSlamEntitlements _groundSlamEntitlements = new();
     private TeamType _winningTeam = TeamType.Neutral;
     private readonly List<(uint, UnitInit, Func<IServiceZone?>)> _createOnStart = [];
     private readonly List<(uint, UnitUpdate, Func<IServiceZone?>)> _updateOnStart = [];
