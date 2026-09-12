@@ -1223,7 +1223,10 @@ public partial class Unit
 
             if (ammoDict.Count > 0)
             {
-                UpdateData(new UnitUpdate { Ammo = ammoDict }, null, true);
+                // Instant reload effects can be produced by the shot that scored a kill.
+                // Keep their refill on the buffered zone stream so it cannot arrive before,
+                // and then be overwritten by, that shot's buffered ammo-consumption update.
+                UpdateData(new UnitUpdate { Ammo = ammoDict });
             }
         }
         else
@@ -1243,7 +1246,7 @@ public partial class Unit
                 UpdateData(new UnitUpdate
                 {
                     Ammo = new Dictionary<Key, List<Ammo>> { { CurrentGear.Key, updatedAmmo } }
-                }, null, true);
+                });
             }
         }
     }
