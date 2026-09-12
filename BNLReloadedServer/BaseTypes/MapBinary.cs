@@ -709,9 +709,7 @@ public class MapBinary
 
     public Vector3s? CheckBlocks(IBoundingShape bounds, Func<BlockBinary, bool> check)
     {
-        var startPoint = (Vector3s)bounds.Center;
-
-        if (!ContainsBlock(startPoint))
+        if (!TryGetTraversalStart(bounds, out var startPoint))
         {
             return null;
         }
@@ -743,9 +741,7 @@ public class MapBinary
 
     public IEnumerable<Vector3s> EnumerateBlocks(IBoundingShape bounds, Func<BlockBinary, bool>? check)
     {
-        var startPoint = (Vector3s)bounds.Center;
-
-        if (!ContainsBlock(startPoint))
+        if (!TryGetTraversalStart(bounds, out var startPoint))
         {
             yield break;
         }
@@ -771,6 +767,16 @@ public class MapBinary
                 visitedBlocks.Add(b);
             }
         }
+    }
+
+    private bool TryGetTraversalStart(IBoundingShape bounds, out Vector3s startPoint)
+    {
+        var center = bounds.Center;
+        startPoint = new Vector3s(
+            Math.Clamp((int)MathF.Floor(center.X), 0, SizeX - 1),
+            Math.Clamp((int)MathF.Floor(center.Y), 0, SizeY - 1),
+            Math.Clamp((int)MathF.Floor(center.Z), 0, SizeZ - 1));
+        return bounds.Intersects(startPoint.ToVector3(), (startPoint + Vector3s.One).ToVector3());
     }
 
     public ushort SetVData(CardBlock thisBlock, Vector3s otherBlock, BlockFace attachPoint, Direction2D placeDirection)
