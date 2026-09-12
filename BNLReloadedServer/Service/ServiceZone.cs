@@ -911,7 +911,7 @@ public partial class ServiceZone(ISender sender) : IServiceZone
         var data = ZoneEvent.ReadVariant(reader);
         if (sender.AssociatedPlayerId.HasValue)
         {
-            GameInstance?.EventBroadcast(data);
+            GameInstance?.EventBroadcast(sender.AssociatedPlayerId.Value, data);
         }
     }
 

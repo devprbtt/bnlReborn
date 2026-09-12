@@ -108,8 +108,15 @@ public partial class GameZone
         }
     }
 
-    public void ReceivedEventBroadcast(ZoneEvent zoneEvent)
+    public void ReceivedEventBroadcast(uint playerId, ZoneEvent zoneEvent)
     {
+        if (zoneEvent is ZoneEventDoubleJump doubleJump &&
+            _playerIdToUnitId.TryGetValue(playerId, out var controlledUnitId) &&
+            doubleJump.UnitId == controlledUnitId)
+        {
+            _groundSlamEntitlements.Cancel(playerId);
+        }
+
         if (zoneEvent is ZoneEventUnitCommonLand commonLand && _units.TryGetValue(commonLand.UnitId, out var unit) && unit.Controlled)
         {
             if (!unit.IsFirstLand)
@@ -688,6 +695,8 @@ public partial class GameZone
 
         if (tool?.Tool is not ToolGroundSlam toolSlam || !tool.IsEnoughAmmoToUse()) return;
 
+        _groundSlamEntitlements.Begin(playerId, playerUnitId, toolIndex);
+
         if (player.IsRecall)
         {
             player.EndRecall();
@@ -713,7 +722,8 @@ public partial class GameZone
     public void ReceivedGroundSlamHitRequest(uint playerId, byte toolIndex, HitData hitData)
     {
         if (!_playerIdToUnitId.TryGetValue(playerId, out var playerUnitId) ||
-            !_playerUnits.TryGetValue(playerUnitId, out var player))
+            !_playerUnits.TryGetValue(playerUnitId, out var player) || player.IsDead ||
+            !_groundSlamEntitlements.TryConsume(playerId, playerUnitId, toolIndex))
         {
             return;
         }
