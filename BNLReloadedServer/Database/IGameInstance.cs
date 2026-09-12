@@ -76,7 +76,7 @@ public interface IGameInstance
     public void SkybeamHit(uint unitId, HitData hitData);
     public void CastRequest(uint playerId, CastData castData);
     public void Hit(ulong time, Dictionary<ulong, HitData> hits);
-    public void Fall(uint unitId, float height, bool force);
+    public void Fall(uint playerId, uint unitId, float height, bool force);
     public void Pickup(uint playerId, uint pickupId);
     public void SelectSpawnPoint(uint playerId, uint? spawnId);
     public void TurretTarget(uint playerId, uint turretId, uint targetId);

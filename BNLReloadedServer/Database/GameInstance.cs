@@ -735,8 +735,8 @@ public partial class GameInstance : IGameInstance
     public void Hit(ulong time, Dictionary<ulong, HitData> hits) =>
         Zone?.EnqueueAction(() => Zone?.ReceivedHit(time, hits));
 
-    public void Fall(uint unitId, float height, bool force) =>
-        Zone?.EnqueueAction(() => Zone?.ReceivedFall(unitId, height, force));
+    public void Fall(uint playerId, uint unitId, float height, bool force) =>
+        Zone?.EnqueueAction(() => Zone?.ReceivedFall(playerId, unitId, height, force));
 
     public void Pickup(uint playerId, uint pickupId) =>
         Zone?.EnqueueAction(() => Zone?.ReceivedPickup(playerId, pickupId));

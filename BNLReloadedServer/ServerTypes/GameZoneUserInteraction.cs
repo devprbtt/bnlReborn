@@ -110,11 +110,19 @@ public partial class GameZone
 
     public void ReceivedEventBroadcast(uint playerId, ZoneEvent zoneEvent)
     {
+        if (zoneEvent is ZoneEventForceFall forceFall &&
+            _playerIdToUnitId.TryGetValue(playerId, out var forceFallUnitId) &&
+            forceFall.UnitId == forceFallUnitId)
+        {
+            _forceFallEntitlements.Begin(playerId, forceFallUnitId);
+        }
+
         if (zoneEvent is ZoneEventDoubleJump doubleJump &&
             _playerIdToUnitId.TryGetValue(playerId, out var controlledUnitId) &&
             doubleJump.UnitId == controlledUnitId)
         {
             _groundSlamEntitlements.Cancel(playerId);
+            _forceFallEntitlements.Cancel(playerId, controlledUnitId);
         }
 
         if (zoneEvent is ZoneEventUnitCommonLand commonLand && _units.TryGetValue(commonLand.UnitId, out var unit) && unit.Controlled)
@@ -1173,11 +1181,23 @@ public partial class GameZone
         }
     }
 
-    public void ReceivedFall(uint unitId, float height, bool force)
+    public void ReceivedFall(uint playerId, uint unitId, float height, bool force)
     {
         if (!_units.TryGetValue(unitId, out var unit))
         {
             return;
+        }
+
+        var isPlayersUnit = _playerIdToUnitId.TryGetValue(playerId, out var controlledUnitId) &&
+                            controlledUnitId == unitId;
+        if (force && (!isPlayersUnit || !_forceFallEntitlements.TryConsume(playerId, unitId)))
+        {
+            return;
+        }
+
+        if (!force && isPlayersUnit)
+        {
+            _forceFallEntitlements.Clear(playerId);
         }
 
         var fallPos = unit.GetFallPosition();

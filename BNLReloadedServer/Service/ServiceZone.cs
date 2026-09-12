@@ -903,7 +903,10 @@ public partial class ServiceZone(ISender sender) : IServiceZone
         var height = reader.ReadSingle();
         var force = reader.ReadBoolean();
 
-        GameInstance?.Fall(unitId, height, force);
+        if (sender.AssociatedPlayerId.HasValue)
+        {
+            GameInstance?.Fall(sender.AssociatedPlayerId.Value, unitId, height, force);
+        }
     }
 
     private void ReceiveEmitZoneEvent(BinaryReader reader)
