@@ -37,6 +37,7 @@ public partial class GameZone
     private void TickConquest(float seconds, bool publish, uint? dyingUnitId = null)
     {
         if (_conquest == null || HasEnded) return;
+        var startedAttack = false;
         if (_zoneData.Phase.PhaseType is ZonePhaseType.Assault or ZonePhaseType.Assault2 or ZonePhaseType.SuddenDeath)
         {
             var wasAttacking = _conquest.Attacking;
@@ -44,11 +45,21 @@ public partial class GameZone
                 _playerLobbyInfo.TryGetValue(u.PlayerId.Value, out var player) && player.Team == u.Team)
                 .Select(u => new SkyBridgeConquest.Player(u.PlayerId!.Value, u.Team, u.Transform.Position)).ToArray());
             if (_conquest.Attacking && !wasAttacking)
+            {
+                startedAttack = true;
                 _conquestBuffDeadline = (ulong)DateTimeOffset.UtcNow.AddSeconds(SkyBridgeConquest.AttackSeconds).ToUnixTimeMilliseconds();
+            }
         }
         foreach (var unit in _units.Values.ToArray()) ApplyConquestUnit(unit);
-        if (publish) _serviceZone.SendUpdateZone(new ZoneUpdate { ConquestStateJson = ConquestSnapshot() });
+        // The periodic snapshot cadence is sufficient for timers, but the attack
+        // transition must follow the boost application in this same server tick so
+        // clients can play the announcer and show the phase notice immediately.
+        if (ConquestSnapshotDue(publish, startedAttack))
+            _serviceZone.SendUpdateZone(new ZoneUpdate { ConquestStateJson = ConquestSnapshot() });
     }
+
+    private static bool ConquestSnapshotDue(bool periodicUpdate, bool startedAttack) =>
+        periodicUpdate || startedAttack;
 
     private void ApplyConquestUnit(Unit unit)
     {

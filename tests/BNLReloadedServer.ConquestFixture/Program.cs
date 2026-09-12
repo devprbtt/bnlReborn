@@ -16,6 +16,9 @@ mode.Step(9,attackers); Check(mode.Zones.All(z=>z.Owner==TeamType.Neutral),"capt
 mode.Step(1,attackers); Check(mode.Zones.Count(z=>z.Owner==TeamType.Team1)==2,"capture at ten seconds");
 mode.Step(419,attackers); Check(!mode.Attacking && mode.Scores[1]==419,"only ownership time scores");
 mode.Step(1,attackers); Check(mode.Attacker==TeamType.Team1 && mode.Tier=="lite","first threshold awards light BB");
+var snapshotDue=typeof(GameZone).GetMethod("ConquestSnapshotDue",BindingFlags.NonPublic|BindingFlags.Static)!;
+Check((bool)snapshotDue.Invoke(null,[false,true])!,"BB transition bypasses periodic snapshot delay");
+Check(!(bool)snapshotDue.Invoke(null,[false,false])!,"ordinary Conquest state retains periodic snapshot cadence");
 Check(mode.Shielded(TeamType.Team1) && !mode.Shielded(TeamType.Team2),"only defender cubes exposed");
 Check(!mode.ObjectiveShielded(TeamType.Team2,[UnitLabel.Line1],UnitLabel.Line1),"first defender cube is vulnerable during attack");
 Check(mode.ObjectiveShielded(TeamType.Team2,[UnitLabel.Line3],UnitLabel.Line1),"later defender cube stays shielded until its turn");
