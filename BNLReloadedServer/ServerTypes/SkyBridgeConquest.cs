@@ -9,6 +9,7 @@ public sealed class SkyBridgeConquest
     public const string MapId = "map_sr2_sky_bridge_don_edit_conquest";
     public const string OriginalMapId = "map_sr2_sky_bridge_don_edit";
     public const float HalfWidth = 6, DepthBelow = 8, HeightAbove = 4, CaptureSeconds = 10, AttackSeconds = 90;
+    public const float LiteTargetSeconds = 7 * 60, ClassicTargetSeconds = 5 * 60, UberTargetSeconds = 3 * 60;
     public const float TripleCapRate = 2;
     public sealed record Player(uint Id, TeamType Team, Vector3 Position);
     public sealed class Zone(Vector3 center)
@@ -29,7 +30,12 @@ public sealed class SkyBridgeConquest
     public TeamType Attacker { get; private set; }
     public float AttackRemaining { get; private set; }
     public int Round { get; private set; }
-    public float Target => Round < 3 ? 600 : 180;
+    public float Target => Round switch
+    {
+        0 => LiteTargetSeconds,
+        1 => ClassicTargetSeconds,
+        _ => UberTargetSeconds
+    };
     public string Tier => Round == 0 ? "lite" : Round == 1 ? "classic" : "uber";
     public bool Attacking => Attacker != TeamType.Neutral;
     public SkyBridgeConquest(IEnumerable<Vector3> centers)

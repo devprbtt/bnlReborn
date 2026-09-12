@@ -11,10 +11,10 @@ void Check(bool ok, string name) { if (!ok) throw new Exception(name); Console.W
 Vector3[] centers = [new(0,10,0),new(0,10,30),new(0,10,60)];
 SkyBridgeConquest.Player[] attackers = [new(1,TeamType.Team1,centers[0]),new(2,TeamType.Team1,centers[1])];
 var mode = new SkyBridgeConquest(centers);
-Check(mode.Zones.All(z=>z.Owner==TeamType.Neutral) && mode.Target==600,"neutral start and ten minute target");
+Check(mode.Zones.All(z=>z.Owner==TeamType.Neutral) && mode.Target==420,"neutral start and seven minute Lite target");
 mode.Step(9,attackers); Check(mode.Zones.All(z=>z.Owner==TeamType.Neutral),"capture takes ten seconds");
 mode.Step(1,attackers); Check(mode.Zones.Count(z=>z.Owner==TeamType.Team1)==2,"capture at ten seconds");
-mode.Step(599,attackers); Check(!mode.Attacking && mode.Scores[1]==599,"only ownership time scores");
+mode.Step(419,attackers); Check(!mode.Attacking && mode.Scores[1]==419,"only ownership time scores");
 mode.Step(1,attackers); Check(mode.Attacker==TeamType.Team1 && mode.Tier=="lite","first threshold awards light BB");
 Check(mode.Shielded(TeamType.Team1) && !mode.Shielded(TeamType.Team2),"only defender cubes exposed");
 mode.Step(10,[attackers[0]]); Check(mode.Attacking && mode.AttackRemaining==80,"one death does not end attack");
@@ -22,12 +22,15 @@ mode.Step(10,attackers); Check(mode.AttackRemaining==70,"respawn does not reset 
 mode.Step(0,[]); Check(!mode.Attacking && mode.Round==1,"last living carrier removed ends attack");
 Check(mode.Scores.All(s=>s==0) && mode.Zones.All(z=>z.Owner==TeamType.Neutral),"new capture resets both scores and zones");
 Check(mode.Shielded(TeamType.Team1) && mode.Shielded(TeamType.Team2),"both cube shields return");
-foreach (string tier in new[] {"classic","uber","uber"})
+foreach (var progression in new[] { (Tier: "classic", Target: 300f, NextTarget: 180f),
+                                    (Tier: "uber", Target: 180f, NextTarget: 180f),
+                                    (Tier: "uber", Target: 180f, NextTarget: 180f) })
 {
+    Check(mode.Target==progression.Target,"target before BB " + progression.Tier);
     mode.Step(10,attackers); mode.Step(mode.Target,attackers);
-    Check(mode.Attacking && mode.Tier==tier,"BB progression " + mode.Round + " " + tier);
+    Check(mode.Attacking && mode.Tier==progression.Tier,"BB progression " + mode.Round + " " + progression.Tier);
     mode.Step(90,attackers); Check(!mode.Attacking,"expiry ends attack " + mode.Round);
-    Check(mode.Target==(mode.Round>=3?180:600),"target progression " + mode.Round);
+    Check(mode.Target==progression.NextTarget,"target progression " + mode.Round);
 }
 var contested = new SkyBridgeConquest(centers);
 contested.Step(10,[attackers[0],new(3,TeamType.Team2,centers[0])]);
@@ -64,7 +67,7 @@ cube.TakeDamage(new DamageData(20,20,20,20,20,20,20,20,false,false,true,true),ne
 Check(cube.GetUpdateData().Health==100,"cube guard blocks direct and splash damage even with ignore-defences flags");
 // Exercise the real GameZone buff application on a respawned unit with the same deadline.
 var zone=(GameZone)RuntimeHelpers.GetUninitializedObject(typeof(GameZone));
-var buffMode=new SkyBridgeConquest(centers); buffMode.Step(10,attackers);buffMode.Step(600,attackers);
+var buffMode=new SkyBridgeConquest(centers); buffMode.Step(10,attackers);buffMode.Step(420,attackers);
 typeof(GameZone).GetField("_conquest",BindingFlags.NonPublic|BindingFlags.Instance)!.SetValue(zone,buffMode);
 ulong deadline=(ulong)DateTimeOffset.UtcNow.AddSeconds(45).ToUnixTimeMilliseconds();
 typeof(GameZone).GetField("_conquestBuffDeadline",BindingFlags.NonPublic|BindingFlags.Instance)!.SetValue(zone,deadline);
@@ -93,7 +96,7 @@ Check(cards.OfType<CardMap>().Count()==2 && pool.Custom.Count==2,"idempotent reg
 Check(originalCard.Name.Text=="Sky Bridge Don Edit" && pool.Ranked.Count==1 && pool.Friendly.Count==1,"original card and matchmaking pools unchanged");
 var teamTwo=new SkyBridgeConquest(centers);
 var defenders=attackers.Select(p=>p with {Team=TeamType.Team2}).ToArray();
-teamTwo.Step(10,defenders); teamTwo.Step(600,defenders);
+teamTwo.Step(10,defenders); teamTwo.Step(420,defenders);
 Check(teamTwo.Attacker==TeamType.Team2 && teamTwo.Shielded(TeamType.Team2) && !teamTwo.Shielded(TeamType.Team1),"team two wins and shield direction reverses");
 var triple=new SkyBridgeConquest(centers);
 var allZones=attackers.Append(new SkyBridgeConquest.Player(3,TeamType.Team1,centers[2])).ToArray();
