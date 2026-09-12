@@ -17,6 +17,10 @@ mode.Step(1,attackers); Check(mode.Zones.Count(z=>z.Owner==TeamType.Team1)==2,"c
 mode.Step(419,attackers); Check(!mode.Attacking && mode.Scores[1]==419,"only ownership time scores");
 mode.Step(1,attackers); Check(mode.Attacker==TeamType.Team1 && mode.Tier=="lite","first threshold awards light BB");
 Check(mode.Shielded(TeamType.Team1) && !mode.Shielded(TeamType.Team2),"only defender cubes exposed");
+Check(!mode.ObjectiveShielded(TeamType.Team2,[UnitLabel.Line1],UnitLabel.Line1),"first defender cube is vulnerable during attack");
+Check(mode.ObjectiveShielded(TeamType.Team2,[UnitLabel.Line3],UnitLabel.Line1),"later defender cube stays shielded until its turn");
+Check(mode.ObjectiveShielded(TeamType.Team2,[UnitLabel.Line1],null),"objectives remain shielded when progression is exhausted");
+Check(mode.ObjectiveShielded(TeamType.Team1,[UnitLabel.Line1],UnitLabel.Line1),"attacker objectives remain shielded");
 mode.Step(10,[attackers[0]]); Check(mode.Attacking && mode.AttackRemaining==80,"one death does not end attack");
 mode.Step(10,attackers); Check(mode.AttackRemaining==70,"respawn does not reset attack duration");
 mode.Step(0,[]); Check(!mode.Attacking && mode.Round==1,"last living carrier removed ends attack");

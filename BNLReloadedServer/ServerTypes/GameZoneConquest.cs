@@ -55,8 +55,8 @@ public partial class GameZone
         if (_conquest == null) return;
         if (unit.UnitCard?.IsObjective == true)
         {
-            unit.ConquestDamageBlocked = () => _conquest.Shielded(unit.Team);
-            if (_conquest.Shielded(unit.Team))
+            unit.ConquestDamageBlocked = () => ConquestObjectiveShielded(unit.Team, unit.UnitCard.Labels ?? []);
+            if (ConquestObjectiveShielded(unit.Team, unit.UnitCard.Labels ?? []))
             {
                 if (!unit.ActiveEffects.Any(e => CatalogueHelper.ObjectiveShieldKeys.Contains(e.Key)))
                     unit.AddEffect(new ConstEffectInfo(CatalogueHelper.ObjectiveShieldKeys[0], (ulong?)null), unit.Team, null);
@@ -72,6 +72,12 @@ public partial class GameZone
         foreach (var key in _conquest.Round == 0 ? new[] { buff } : new[] { buff, ConquestBuffs[3] })
             if (!unit.ActiveEffects.Any(e => e.Key == key))
                 unit.AddEffect(new ConstEffectInfo(key, (ulong?)_conquestBuffDeadline), unit.Team, null);
+    }
+
+    private bool ConquestObjectiveShielded(TeamType team, IEnumerable<UnitLabel> labels)
+    {
+        UnitLabel? currentObjective = _objectiveConquest[(int)team].TryPeek(out var current) ? current : null;
+        return _conquest?.ObjectiveShielded(team, labels, currentObjective) ?? false;
     }
 
     private string? ConquestSnapshot() => _conquest == null ? null : JsonSerializer.Serialize(new

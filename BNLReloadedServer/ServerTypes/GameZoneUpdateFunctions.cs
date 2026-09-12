@@ -1548,7 +1548,7 @@ public partial class GameZone
     private HashSet<ConstEffectInfo> GetTeamEffects(TeamType team) => _teamEffects[(int)team];
 
     private bool DoesObjBuffApply(TeamType team, IEnumerable<UnitLabel> labels) =>
-        _conquest != null ? _conquest.Shielded(team) :
+        _conquest != null ? ConquestObjectiveShielded(team, labels) :
         _zoneData.MatchCard.Data?.Type == MatchType.TimeTrial || !labels.Contains(
             _objectiveConquest[(int)team].Count > 0 ? _objectiveConquest[(int)team].Peek() : UnitLabel.Objective);
 

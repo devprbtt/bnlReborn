@@ -44,6 +44,8 @@ public sealed class SkyBridgeConquest
         if (Zones.Length != 3) throw new ArgumentException("Conquest requires exactly three BB drop points.");
     }
     public bool Shielded(TeamType team) => !Attacking || team == Attacker;
+    public bool ObjectiveShielded(TeamType team, IEnumerable<UnitLabel> labels, UnitLabel? currentObjective) =>
+        Shielded(team) || currentObjective is null || !labels.Contains(currentObjective.Value);
     public float ScoreRate(TeamType team) => Attacking || team == TeamType.Neutral ? 0 :
         Zones.Count(z => z.Owner == team) switch { 3 => TripleCapRate, 2 => 1, _ => 0 };
     public void Step(float elapsed, IReadOnlyList<Player> players)
