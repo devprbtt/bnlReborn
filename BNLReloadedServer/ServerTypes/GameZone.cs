@@ -251,7 +251,7 @@ public partial class GameZone : Updater
             Log.Info(LogCat.Perf, $"Zone queued setup started: {DiagnosticName}");
             _zoneData.SpawnPoints = spawns;
             _zoneData.PlayerInfo = playerMap;
-            _zoneData.ResourceCap = gameInitiator.GetResourceCap();
+            _zoneData.ResourceCap = GetResourceCap();
             SetUpObjectives();
             CreateMapUnits();
             Log.Info(LogCat.Perf, $"Zone queued setup completed: {DiagnosticName}, units={_units.Count}, " +

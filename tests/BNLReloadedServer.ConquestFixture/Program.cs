@@ -76,6 +76,9 @@ Check(cube.GetUpdateData().Health==100,"cube guard blocks direct and splash dama
 var zone=(GameZone)RuntimeHelpers.GetUninitializedObject(typeof(GameZone));
 var buffMode=new SkyBridgeConquest(centers); buffMode.Step(10,attackers);buffMode.Step(420,attackers);
 typeof(GameZone).GetField("_conquest",BindingFlags.NonPublic|BindingFlags.Instance)!.SetValue(zone,buffMode);
+var getResourceCap=typeof(GameZone).GetMethod("GetResourceCap",BindingFlags.NonPublic|BindingFlags.Instance)!;
+Check((float)getResourceCap.Invoke(zone,null)! == SkyBridgeConquest.ResourceCap && SkyBridgeConquest.ResourceCap==3000,
+    "Conquest overrides the authoritative brick cap to 3000");
 ulong deadline=(ulong)DateTimeOffset.UtcNow.AddSeconds(45).ToUnixTimeMilliseconds();
 typeof(GameZone).GetField("_conquestBuffDeadline",BindingFlags.NonPublic|BindingFlags.Instance)!.SetValue(zone,deadline);
 var apply=typeof(GameZone).GetMethod("ApplyConquestUnit",BindingFlags.NonPublic|BindingFlags.Instance)!;

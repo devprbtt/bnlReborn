@@ -9,6 +9,7 @@ public sealed class SkyBridgeConquest
     public const string MapId = "map_sr2_sky_bridge_don_edit_conquest";
     public const string OriginalMapId = "map_sr2_sky_bridge_don_edit";
     public const float HalfWidth = 6, DepthBelow = 8, HeightAbove = 4, CaptureSeconds = 10, AttackSeconds = 90;
+    public const float ResourceCap = 3000;
     public const float LiteTargetSeconds = 7 * 60, ClassicTargetSeconds = 5 * 60, UberTargetSeconds = 3 * 60;
     public const float TripleCapRate = 2;
     public sealed record Player(uint Id, TeamType Team, Vector3 Position);
