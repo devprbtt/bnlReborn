@@ -1187,7 +1187,7 @@ public class RegionServerDatabase(AsyncTaskTcpServer server, AsyncTaskTcpServer 
                 !instance.IsStarted || instance.IsOver()) continue;
             var ratings = instance.GetTeamRatings();
             PublicMatchPlayer[] Team(Dictionary<uint, Rating> team) => team.Select(p =>
-                new PublicMatchPlayer(p.Key, _playerDatabase.GetPlayerName(p.Key) ?? $"Player {p.Key}", (int)Math.Round(p.Value.Mean))).ToArray();
+                new PublicMatchPlayer(p.Key, _playerDatabase.GetPlayerName(p.Key) ?? $"Player {p.Key}", (int)Math.Round(p.Value.Mean * 100.0))).ToArray();
             string mapId = game.MapInfo is MapInfoCard card ? card.MapKey.GetCard<CardMap>()?.Id ?? "" : "";
             matches.Add(new PublicMatch(game.Id.ToString(), game.GameName ?? "Match", mapId, instance.StartedAt, Team(ratings.team1), Team(ratings.team2)));
         }
