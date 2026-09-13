@@ -93,7 +93,8 @@ public class GameLobby : Updater
 
     public void AddPlayer(uint playerId, TeamType team, ulong? squadId)
     {
-        if (!LobbyData.Players.TryGetValue(playerId, out var value))
+        var returningPlayer = LobbyData.Players.TryGetValue(playerId, out var value);
+        if (!returningPlayer)
         {
             var profileData = Databases.PlayerDatabase.GetPlayerProfile(playerId);
             var lastPlayedHero = Databases.PlayerDatabase.GetLastPlayedHero(playerId);
@@ -122,37 +123,48 @@ public class GameLobby : Updater
                 DeviceLevels = deviceLevels
             };
             LobbyData.Players.TryAdd(playerId, playerState);
-            if (LobbyData.Timer.TimerType == LobbyTimerType.Requeue)
-            {
-                if (LobbyData.RequeuePlayers.TryGetValue(team, out var requeue))
-                {
-                    requeue.Add(playerId);
-                }
-                else
-                {
-                    LobbyData.RequeuePlayers.Add(team, [playerId]);
-                }
-
-                if (!_requeueLobbyTimers.ContainsKey(playerId))
-                {
-                    var timer = GetRequeueTimer(playerId);
-                    var requeueTimer = new Timer(timer.EndTime - timer.StartTime);
-                    requeueTimer.AutoReset = false;
-                    requeueTimer.Elapsed += OnRequeueTimerElapsed;
-                    requeueTimer.Enabled = true;
-                    _requeueTimers.TryAdd(requeueTimer, playerId);
-                    _requeueLobbyTimers.TryAdd(playerId, timer);
-                }
-
-                SendLobbyUpdate(players: LobbyData.Players.Values.ToList(), requeuePlayers: LobbyData.RequeuePlayers);
-                return;
-            }
         }
-        else
+        else if (value != null)
         {
             value.Status = LobbyStatus.Online;
         }
+
+        // A reconnecting/backfilling custom player already exists in Players. The old code only
+        // created requeue state for a brand-new entry, so the returning client received a timer
+        // already at zero and PlayerReady had no timer to advance into the running zone.
+        if (LobbyData.Timer.TimerType == LobbyTimerType.Requeue)
+        {
+            EnsureRequeueState(playerId, team);
+            SendLobbyUpdate(players: LobbyData.Players.Values.ToList(), requeuePlayers: LobbyData.RequeuePlayers);
+            return;
+        }
         SendLobbyUpdate(players: LobbyData.Players.Values.ToList());
+    }
+
+    private void EnsureRequeueState(uint playerId, TeamType team)
+    {
+        if (LobbyData.RequeuePlayers.TryGetValue(team, out var requeue))
+        {
+            if (!requeue.Contains(playerId)) requeue.Add(playerId);
+        }
+        else
+        {
+            LobbyData.RequeuePlayers.Add(team, [playerId]);
+        }
+
+        if (_requeueLobbyTimers.ContainsKey(playerId)) return;
+        var timer = GetRequeueTimer(playerId);
+        var requeueTimer = new Timer(timer.EndTime - timer.StartTime) { AutoReset = false };
+        requeueTimer.Elapsed += OnRequeueTimerElapsed;
+        if (!_requeueTimers.TryAdd(requeueTimer, playerId) || !_requeueLobbyTimers.TryAdd(playerId, timer))
+        {
+            _requeueTimers.TryRemove(requeueTimer, out _);
+            _requeueLobbyTimers.TryRemove(playerId, out _);
+            requeueTimer.Dispose();
+            return;
+        }
+        requeueTimer.Enabled = true;
+        Log.Info(LogCat.Match, $"Restored requeue timer for returning player {playerId}");
     }
 
     public void PlayerLeft(uint playerId, IServiceLobby? lobbyService)
@@ -338,8 +350,12 @@ public class GameLobby : Updater
         player.Ready = true;
         if (LobbyData.Timer.TimerType is LobbyTimerType.Requeue)
         {
-            OnRequeueTimerElapsed(_requeueTimers.FirstOrDefault(p => p.Value == playerId).Key,
-                new ElapsedEventArgs(DateTime.Now));
+            EnsureRequeueState(playerId, player.Team);
+            var requeueTimer = _requeueTimers.FirstOrDefault(p => p.Value == playerId).Key;
+            if (requeueTimer != null)
+            {
+                OnRequeueTimerElapsed(requeueTimer, new ElapsedEventArgs(DateTime.Now));
+            }
         }
         else if (LobbyData.Players.Values.Where(p => p.Hero != Key.None).All(p => p.Ready) && _currentTimer.HasValue)
         {
@@ -640,7 +656,9 @@ public class GameLobby : Updater
     private void OnRequeueTimerElapsed(object? sender, ElapsedEventArgs e)
     {
         if (sender is not Timer timer) return;
-        _requeueTimers.Remove(timer, out var playerId);
+        // PlayerReady can complete this timer while its elapsed callback is already queued.
+        // Only the callback that successfully owns/removes the timer may transfer the player.
+        if (!_requeueTimers.Remove(timer, out var playerId)) return;
         _requeueLobbyTimers.Remove(playerId, out _);
         timer.Stop();
         timer.Dispose();
