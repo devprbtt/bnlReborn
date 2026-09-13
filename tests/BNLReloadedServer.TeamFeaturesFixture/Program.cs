@@ -32,6 +32,8 @@ Assert(waitingArena.GetRespawnTimeOverride() == 2f,
     "waiting arena respawns players after two seconds");
 Assert(!waitingArena.UsesPhaseBarriers(),
     "waiting arena removes both teams' protected phase force fields");
+Assert(!waitingArena.AllowsTeamCommunication(),
+    "waiting arena disables team-only callouts and map pings");
 Assert(WaitingArenaInitiator.SpawnPositions.Count == 12,
     "waiting arena exposes twelve randomized spawn areas");
 Assert(WaitingArenaInitiator.SelectRandomSpawn([7u, 9u], 1u, 7u) == 9u,

@@ -1404,7 +1404,11 @@ public partial class GameZone
         }
     }
 
-    public void ReceivedPlayerCommand(uint playerId, Key command) => _serviceZone.SendPlayerCommand(playerId, command);
+    public void ReceivedPlayerCommand(uint playerId, Key command)
+    {
+        if (!_gameInitiator.AllowsTeamCommunication()) return;
+        _serviceZone.SendPlayerCommand(playerId, command);
+    }
 
     public void ReceivedStartRecallRequest(uint playerId)
     {

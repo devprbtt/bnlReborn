@@ -22,6 +22,7 @@ public interface IGameInitiator
     public float GetRespawnMultiplier();
     public float? GetRespawnTimeOverride() => null;
     public bool UsesPhaseBarriers() => true;
+    public bool AllowsTeamCommunication() => true;
     public bool IsSuperSupplies();
     public bool NeedsBackfill();
     public void SetBackfillReady(bool backfillReady);

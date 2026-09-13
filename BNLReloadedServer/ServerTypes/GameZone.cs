@@ -1021,6 +1021,7 @@ public partial class GameZone : Updater
     {
         team = TeamType.Neutral;
         safeNormal = Vector3.UnitY;
+        if (!_gameInitiator.AllowsTeamCommunication()) return false;
 
         if (!_playerIdToUnitId.TryGetValue(playerId, out var unitId) ||
             !_playerUnits.TryGetValue(unitId, out var player) || player.IsDead || !player.IsActive ||

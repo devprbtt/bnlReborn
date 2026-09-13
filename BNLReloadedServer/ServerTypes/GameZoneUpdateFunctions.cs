@@ -1894,12 +1894,13 @@ public partial class GameZone
         }
 
         if (targetUnitCard?.Loot is not { LootItem: not null } loot) return;
+        var friendlyKill = killer is not null && !AreOpponents(target, killer);
         if (killer is null)
         {
             if (!loot.SpawnOnUndefinedKill)
                 return;
         }
-        else if ((killerTeam == targetTeam && !loot.SpawnOnFriendlyKill) || (killerTeam != targetTeam && !loot.SpawnOnEnemyKill))
+        else if ((friendlyKill && !loot.SpawnOnFriendlyKill) || (!friendlyKill && !loot.SpawnOnEnemyKill))
             return;
 
         var lootPos = ZoneTransformHelper.ToZoneTransform(target.Transform.Position, Quaternion.Identity);
@@ -1907,7 +1908,7 @@ public partial class GameZone
         switch (loot.LootItem)
         {
             case LootItemCommon lootItemCommon:
-                var lootItem = killerTeam == targetTeam
+                var lootItem = friendlyKill
                     ? lootItemCommon.Item
                     : lootItemCommon.OpponentItem ?? lootItemCommon.Item;
 
@@ -1917,7 +1918,7 @@ public partial class GameZone
                 break;
 
             case LootItemCondition lootItemCondition:
-                var lootItems = killerTeam == targetTeam
+                var lootItems = friendlyKill
                     ? lootItemCondition.ItemsByCondition
                     : lootItemCondition.OpponentItemsByCondition ?? lootItemCondition.ItemsByCondition;
 
@@ -1958,7 +1959,7 @@ public partial class GameZone
                 break;
 
             case LootItemRandom lootItemRandom:
-                var lootItemsRand = killerTeam == targetTeam
+                var lootItemsRand = friendlyKill
                     ? lootItemRandom.ItemsByWeight
                     : lootItemRandom.OpponentItemsByWeight ?? lootItemRandom.ItemsByWeight;
 
