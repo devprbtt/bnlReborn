@@ -1663,7 +1663,7 @@ public partial class GameZone
         if (_conquest?.Attacking == true && target.PlayerId.HasValue && target.Team == _conquest.Attacker)
             TickConquest(0, true, target.Id);
         var assists = target.PlayerId != null
-            ? target.RecentDamagers.Where(a => a.Value > DateTimeOffset.Now && a.Key.Team != target.Team)
+            ? target.RecentDamagers.Where(a => a.Value > DateTimeOffset.Now && AreOpponents(target, a.Key))
                 .Select(k => k.Key.PlayerId)
             .Where(a => a is not null && a != impact.CasterPlayerId).OfType<uint>().ToList() : [];
 
@@ -1689,6 +1689,7 @@ public partial class GameZone
         var killerPlayer = impact.CasterPlayerId is null
             ? null
             : _playerUnits.GetValueOrDefault(_playerIdToUnitId.GetValueOrDefault(impact.CasterPlayerId.Value));
+        var killerIsOpponent = killerPlayer is not null && AreOpponents(target, killerPlayer);
 
         var targetTeam = target.Team;
 
@@ -1725,7 +1726,7 @@ public partial class GameZone
                 .Where(i => _playerIdToUnitId.ContainsKey(i) && _playerUnits.ContainsKey(_playerIdToUnitId[i]))
                 .Select(i => _playerUnits[_playerIdToUnitId[i]]);
 
-            target.KillStatsUpdate(targetTeam, impact.Crit, killer, killerPlayer, assisters);
+            target.KillStatsUpdate(targetTeam, impact.Crit, killer, killerPlayer, assisters, killerIsOpponent);
             if (target is { PlayerId: not null })
             {
                 UpdateRespawnTime(target);
@@ -1779,7 +1780,7 @@ public partial class GameZone
                 }
                 break;
 
-            case UnitDataPlayer when killerPlayer is not null && killerPlayer.Team != target.Team:
+            case UnitDataPlayer when killerPlayer is not null && killerIsOpponent:
                 var selfImpact = killerPlayer.CreateImpactData();
                 foreach (var effect in killerPlayer.ActiveEffects.GetEffectsOfType<ConstEffectOnKill>().Select(kil => kil.Effect).OfType<InstEffect>())
                 {
@@ -1806,7 +1807,7 @@ public partial class GameZone
 
         if (targetUnitCard?.Health?.KillReward is { } reward && killerPlayer is not null && (!reward.Mining || mining))
         {
-            if (reward.TeamReward is not null && (target.PlayerId == null || killerPlayer.Team != targetTeam))
+            if (reward.TeamReward is not null && (target.PlayerId == null || killerIsOpponent))
             {
                 foreach (var player in _playerUnits.Values.Where(p => p.Team == killerPlayer.Team && p != killerPlayer))
                 {
@@ -1815,7 +1816,9 @@ public partial class GameZone
                         isObjective ? ResourceType.Objective : ResourceType.General);
                 }
             }
-            if (reward.EnemyReward is not null && killerPlayer.Team != targetTeam)
+            if (reward.EnemyReward is not null && (target.PlayerId == null
+                    ? killerPlayer.Team != targetTeam
+                    : killerIsOpponent))
             {
                 killerPlayer.AddResource(reward.EnemyReward.Value,
                     target.PlayerId != null ? ResourceType.Kill :
@@ -1894,8 +1897,13 @@ public partial class GameZone
         }
 
         if (targetUnitCard?.Loot is not { LootItem: not null } loot) return;
-        var friendlyKill = killer is not null && !AreOpponents(target, killer);
-        if (killer is null)
+        // In the free-for-all arena the damage source may be a weapon or device. Use the
+        // credited player for relationship checks, conditional loot and loot ownership.
+        var lootKiller = _gameInitiator is WaitingArenaInitiator && killerPlayer is not null
+            ? killerPlayer
+            : killer;
+        var friendlyKill = lootKiller is not null && !AreOpponents(target, lootKiller);
+        if (lootKiller is null)
         {
             if (!loot.SpawnOnUndefinedKill)
                 return;
@@ -1914,7 +1922,7 @@ public partial class GameZone
 
                 if (lootItem is null) return;
 
-                CreateLootUnit(lootItem, lootPos, killer);
+                CreateLootUnit(lootItem, lootPos, lootKiller);
                 break;
 
             case LootItemCondition lootItemCondition:
@@ -1924,36 +1932,36 @@ public partial class GameZone
 
                 if (lootItems is null) return;
 
-                if (killer is null)
+                if (lootKiller is null)
                 {
                     if (lootItems.TryGetValue(LootConditionType.Always, out var alwaysItem))
                     {
-                        CreateLootUnit(alwaysItem, lootPos, killer);
+                        CreateLootUnit(alwaysItem, lootPos, lootKiller);
                     }
                 }
                 else
                 {
-                    if (lootItems.TryGetValue(LootConditionType.LowHealth, out var lowHpLoot) && killer.IsLowHealth)
+                    if (lootItems.TryGetValue(LootConditionType.LowHealth, out var lowHpLoot) && lootKiller.IsLowHealth)
                     {
-                        CreateLootUnit(lowHpLoot, lootPos, killer);
+                        CreateLootUnit(lowHpLoot, lootPos, lootKiller);
                     }
-                    else if (lootItems.TryGetValue(LootConditionType.LowAmmo, out var lowAmmoLoot) && killer.IsLowAmmo)
+                    else if (lootItems.TryGetValue(LootConditionType.LowAmmo, out var lowAmmoLoot) && lootKiller.IsLowAmmo)
                     {
-                        CreateLootUnit(lowAmmoLoot, lootPos, killer);
+                        CreateLootUnit(lowAmmoLoot, lootPos, lootKiller);
                     }
                     else if (lootItems.TryGetValue(LootConditionType.FriendlySide, out var friendSideLoot) &&
-                             MapBinary.OnFriendlySide(target.Transform.Position, killer.Team))
+                             MapBinary.OnFriendlySide(target.Transform.Position, lootKiller.Team))
                     {
-                        CreateLootUnit(friendSideLoot, lootPos, killer);
+                        CreateLootUnit(friendSideLoot, lootPos, lootKiller);
                     }
                     else if (lootItems.TryGetValue(LootConditionType.EnemySide, out var enemySideLoot) &&
-                             MapBinary.OnEnemySide(target.Transform.Position, killer.Team))
+                             MapBinary.OnEnemySide(target.Transform.Position, lootKiller.Team))
                     {
-                        CreateLootUnit(enemySideLoot, lootPos, killer);
+                        CreateLootUnit(enemySideLoot, lootPos, lootKiller);
                     }
                     else if (lootItems.TryGetValue(LootConditionType.Always, out var alwaysLoot))
                     {
-                        CreateLootUnit(alwaysLoot, lootPos, killer);
+                        CreateLootUnit(alwaysLoot, lootPos, lootKiller);
                     }
                 }
                 break;
@@ -1974,7 +1982,7 @@ public partial class GameZone
                     accumulatedWeight += weightedLootItem.Weight;
                     if (randVal <= accumulatedWeight && weightedLootItem.Item is not null)
                     {
-                        CreateLootUnit(weightedLootItem.Item, lootPos, killer);
+                        CreateLootUnit(weightedLootItem.Item, lootPos, lootKiller);
                         break;
                     }
                 }

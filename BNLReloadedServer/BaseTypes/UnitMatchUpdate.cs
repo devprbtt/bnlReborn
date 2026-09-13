@@ -232,12 +232,13 @@ public partial class Unit
         }
     }
 
-    public void KillStatsUpdate(TeamType targetTeam, bool crit, Unit? killer, Unit? killerPlayer, IEnumerable<Unit> assisters)
+    public void KillStatsUpdate(TeamType targetTeam, bool crit, Unit? killer, Unit? killerPlayer,
+        IEnumerable<Unit> assisters, bool killerIsOpponent)
     {
         switch (UnitCard?.Health?.Health?.HealthType)
         {
             case HealthType.Player when PlayerId is not null:
-                if (killerPlayer is not null && targetTeam != killerPlayer.Team)
+                if (killerPlayer is not null && killerIsOpponent)
                 {
                     killerPlayer.UpdateStat(ScoreType.Kills, 1);
 
@@ -265,7 +266,7 @@ public partial class Unit
                     {
                         UpdateStat(ScoreType.KilledCriticalByHero, 1);
                     }
-                    if (targetTeam != killerPlayer.Team)
+                    if (killerIsOpponent)
                     {
                         killerPlayer.UpdateStat(ScoreType.KillPlayerByHero, 1);
                         if (crit)
@@ -277,7 +278,7 @@ public partial class Unit
                 else if (killer?.UnitCard?.DeviceType is not DeviceType.None)
                 {
                     UpdateStat(ScoreType.KilledByBlock, 1);
-                    if (killerPlayer is not null && targetTeam != killerPlayer.Team)
+                    if (killerPlayer is not null && killerIsOpponent)
                     {
                         killerPlayer.UpdateStat(ScoreType.KillPlayerByBlock, 1);
                     }

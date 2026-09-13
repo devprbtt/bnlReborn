@@ -1,10 +1,12 @@
 using System.Numerics;
 using System.IO.Compression;
+using System.Linq.Expressions;
 using System.Text.Json;
 using BNLReloadedServer.Servers;
 using BNLReloadedServer.Service;
 using BNLReloadedServer.ServerTypes;
 using BNLReloadedServer.BaseTypes;
+using BNLReloadedServer.Database;
 
 const byte serviceZoneId = 6;
 const byte zoneReadyId = 1;
@@ -65,6 +67,23 @@ Assert(Unit.DoesCombatRelationshipApply(true, RelativeTeamType.Friendly,
        !Unit.DoesCombatRelationshipApply(true, RelativeTeamType.Opponent,
         TeamType.Neutral, 10, TeamType.Neutral, 10),
     "FFA combat filtering keeps a player's own devices and effects friendly");
+
+var playerCard = new CardUnit
+{
+    Id = "fixture_waiting_arena_player",
+    Data = new UnitDataPlayer(),
+    Health = new UnitHealth { Health = new Health { MaxHealth = 100, HealthType = HealthType.Player } }
+};
+var catalogue = (ServerCatalogue)Databases.Catalogue;
+catalogue.Replicate(catalogue.All.Append(playerCard).ToList());
+var statsUpdater = CreateFixtureUpdater();
+var victim = new Unit(100, new UnitInit { Key = playerCard.Key, Team = TeamType.Neutral, PlayerId = 10 }, statsUpdater);
+var creditedKiller = new Unit(101, new UnitInit { Key = playerCard.Key, Team = TeamType.Neutral, PlayerId = 11 }, statsUpdater);
+victim.KillStatsUpdate(TeamType.Neutral, false, creditedKiller, creditedKiller, [], true);
+Assert(creditedKiller.Stats?.GetValueOrDefault(ScoreType.Kills) == 1,
+    "FFA opponent kills count even though both players use the neutral protocol team");
+Assert(creditedKiller.Stats?.GetValueOrDefault(ScoreType.KillPlayerByHero) == 1,
+    "FFA opponent hero kills retain normal kill-source statistics");
 
 var legacySender = new FixtureSender();
 var legacyZone = new ServiceZone(legacySender);
@@ -204,6 +223,19 @@ void Assert(bool condition, string message)
 {
     if (!condition) throw new InvalidOperationException($"Failed: {message}");
     assertions++;
+}
+
+UnitUpdater CreateFixtureUpdater()
+{
+    var constructor = typeof(UnitUpdater).GetConstructors().Single(c => c.GetParameters().Length == 20);
+    var callbacks = constructor.GetParameters().Select(parameter =>
+    {
+        var invoke = parameter.ParameterType.GetMethod("Invoke")!;
+        var parameters = invoke.GetParameters()
+            .Select(argument => Expression.Parameter(argument.ParameterType, argument.Name)).ToArray();
+        return (object)Expression.Lambda(parameter.ParameterType, Expression.Default(invoke.ReturnType), parameters).Compile();
+    }).ToArray();
+    return (UnitUpdater)constructor.Invoke(callbacks);
 }
 
 void AssertWaitingArenaSpawnSupport()
