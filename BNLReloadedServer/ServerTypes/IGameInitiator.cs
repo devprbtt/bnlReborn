@@ -21,6 +21,7 @@ public interface IGameInitiator
     public long? GetBuildPhaseEndTime(DateTimeOffset startTime);
     public float GetRespawnMultiplier();
     public float? GetRespawnTimeOverride() => null;
+    public bool UsesPhaseBarriers() => true;
     public bool IsSuperSupplies();
     public bool NeedsBackfill();
     public void SetBackfillReady(bool backfillReady);

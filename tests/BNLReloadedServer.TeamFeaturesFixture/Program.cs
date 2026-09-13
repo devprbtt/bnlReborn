@@ -1,4 +1,6 @@
 using System.Numerics;
+using System.IO.Compression;
+using System.Text.Json;
 using BNLReloadedServer.Servers;
 using BNLReloadedServer.Service;
 using BNLReloadedServer.ServerTypes;
@@ -28,6 +30,15 @@ Assert(waitingArena.GetResourceCap() == 1000 && waitingArena.GetResourceAmount()
     "waiting arena starts players at its 1,000-brick cap");
 Assert(waitingArena.GetRespawnTimeOverride() == 2f,
     "waiting arena respawns players after two seconds");
+Assert(!waitingArena.UsesPhaseBarriers(),
+    "waiting arena removes both teams' protected phase force fields");
+Assert(WaitingArenaInitiator.SpawnPositions.Count == 12,
+    "waiting arena exposes twelve randomized spawn areas");
+Assert(WaitingArenaInitiator.SelectRandomSpawn([7u, 9u], 1u, 7u) == 9u,
+    "waiting arena excludes the previous spawn when another is available");
+Assert(WaitingArenaInitiator.SelectRandomSpawn([], 3u) == 3u,
+    "waiting arena spawn selection retains a safe fallback");
+AssertWaitingArenaSpawnSupport();
 Assert(waitingArena.IsInSpawnNoBuildZone(new Vector3s(20, 25, 30)),
     "waiting arena spawn protection covers the full vertical column");
 Assert(!waitingArena.IsInSpawnNoBuildZone(new Vector3s(27, 10, 30)),
@@ -181,6 +192,56 @@ void Assert(bool condition, string message)
 {
     if (!condition) throw new InvalidOperationException($"Failed: {message}");
     assertions++;
+}
+
+void AssertWaitingArenaSpawnSupport()
+{
+    var directory = new DirectoryInfo(AppContext.BaseDirectory);
+    FileInfo? mapFile = null;
+    while (directory != null && mapFile == null)
+    {
+        var candidate = new FileInfo(Path.Combine(directory.FullName, "Maps", "map_sr2_search_and_destroy.bnlbin"));
+        if (candidate.Exists) mapFile = candidate;
+        directory = directory.Parent;
+    }
+    Assert(mapFile != null, "Search and Destroy map is available for spawn validation");
+
+    using var outer = Inflate(File.ReadAllBytes(mapFile!.FullName));
+    using var document = JsonDocument.Parse(outer);
+    var map = document.RootElement.GetProperty("map");
+    var size = map.GetProperty("size");
+    var sizeY = size.GetProperty("y").GetInt32();
+    var sizeZ = size.GetProperty("z").GetInt32();
+    var sizeX = size.GetProperty("x").GetInt32();
+    using var blocksStream = Inflate(Convert.FromBase64String(map.GetProperty("blocks_data").GetString()!));
+    var blocks = blocksStream.ToArray();
+    var stride = blocks.Length / (sizeX * sizeY * sizeZ);
+
+    ushort BlockId(int x, int y, int z)
+    {
+        var offset = ((x * sizeY + y) * sizeZ + z) * stride;
+        return stride == 4 ? blocks[offset] : BitConverter.ToUInt16(blocks, offset);
+    }
+
+    foreach (var spawn in WaitingArenaInitiator.SpawnPositions)
+    {
+        var x = (int)MathF.Floor(spawn.X);
+        var y = (int)MathF.Floor(spawn.Y);
+        var z = (int)MathF.Floor(spawn.Z);
+        Assert(BlockId(x, y, z) == 0, $"spawn {spawn} has open player space");
+        var floor = BlockId(x, y - 1, z);
+        Assert(floor is not 0 and not 59, $"spawn {spawn} has solid non-locked support above lava");
+    }
+}
+
+MemoryStream Inflate(byte[] bytes)
+{
+    using var input = new MemoryStream(bytes);
+    using var zlib = new ZLibStream(input, CompressionMode.Decompress);
+    var output = new MemoryStream();
+    zlib.CopyTo(output);
+    output.Position = 0;
+    return output;
 }
 
 sealed class FixtureSender : ISender

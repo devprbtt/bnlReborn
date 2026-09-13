@@ -9,12 +9,29 @@ namespace BNLReloadedServer.ServerTypes;
 public sealed class WaitingArenaInitiator(CardGameMode gameMode, MapData map) : IGameInitiator
 {
     private const float SpawnNoBuildRadius = 6f;
+    public static IReadOnlyList<System.Numerics.Vector3> SpawnPositions { get; } =
+    [
+        new(26.5f, 19f, 27.5f), new(26.5f, 19f, 39.5f),
+        new(46.5f, 19f, 27.5f), new(46.5f, 19f, 39.5f),
+        new(61.5f, 16f, 23.5f), new(61.5f, 16f, 44.5f),
+        new(74.5f, 18f, 27.5f), new(74.5f, 18f, 39.5f),
+        new(86.5f, 16f, 23.5f), new(86.5f, 16f, 44.5f),
+        new(102.5f, 19f, 35.5f), new(122.5f, 19f, 31.5f)
+    ];
     private readonly ConcurrentDictionary<uint, TeamType> _players = new();
 
     public string? GameInstanceId { get; set; }
     public bool IsWaitingArena => true;
 
     public TeamType AddPlayer(uint playerId) => _players.GetOrAdd(playerId, TeamType.Neutral);
+
+    public static uint SelectRandomSpawn(IEnumerable<uint> spawnIds, uint fallback, uint? previousSpawn = null)
+    {
+        var all = spawnIds.ToArray();
+        var candidates = all.Where(id => id != previousSpawn).ToArray();
+        if (candidates.Length == 0) candidates = all;
+        return candidates.Length == 0 ? fallback : candidates[Random.Shared.Next(candidates.Length)];
+    }
 
     public void RemovePlayer(uint playerId) => _players.TryRemove(playerId, out _);
     public int PlayerCount => _players.Count;
@@ -32,6 +49,7 @@ public sealed class WaitingArenaInitiator(CardGameMode gameMode, MapData map) : 
     public long? GetBuildPhaseEndTime(DateTimeOffset startTime) => startTime.ToUnixTimeMilliseconds();
     public float GetRespawnMultiplier() => 0;
     public float? GetRespawnTimeOverride() => 2f;
+    public bool UsesPhaseBarriers() => false;
     public bool IsSuperSupplies() => false;
     public bool NeedsBackfill() => false;
     public void SetBackfillReady(bool backfillReady) { }

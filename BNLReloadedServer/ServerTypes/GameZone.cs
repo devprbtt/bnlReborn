@@ -342,12 +342,12 @@ public partial class GameZone : Updater
         return player;
     }
 
-    private uint GetDefaultOrRandomSpawn(TeamType team)
+    private uint GetDefaultOrRandomSpawn(TeamType team, uint? previousSpawn = null)
     {
         if (_gameInitiator is not WaitingArenaInitiator)
             return _defaultSpawnId[(int)team];
-        var candidates = _mapSpawnPoints.Keys.ToArray();
-        return candidates.Length == 0 ? _defaultSpawnId[(int)team] : candidates[Random.Shared.Next(candidates.Length)];
+        return WaitingArenaInitiator.SelectRandomSpawn(_mapSpawnPoints.Keys,
+            _defaultSpawnId[(int)team], previousSpawn);
     }
 
     // Map units are controlled by everyone in the match
@@ -558,6 +558,12 @@ public partial class GameZone : Updater
     private void UpdateRespawnTime(Unit unit)
     {
         if (unit.PlayerId == null) return;
+        if (_gameInitiator is WaitingArenaInitiator)
+        {
+            _zoneData.PlayerSpawnPoints.TryGetValue(unit.PlayerId.Value, out var previousSpawn);
+            _zoneData.UpdatePlayerSelectedSpawn(unit.PlayerId.Value,
+                GetDefaultOrRandomSpawn(unit.Team, previousSpawn));
+        }
         var respLength = GetRespawnLength();
         unit.RespawnTime = DateTimeOffset.Now.AddSeconds(respLength);
         _zoneData.UpdateSpawnTime(unit.PlayerId.Value, (ulong)unit.RespawnTime.Value.ToUnixTimeMilliseconds());
@@ -1412,8 +1418,9 @@ public partial class GameZone : Updater
         unit.UpdateData(new UnitUpdate { MovementActive = true });
     }
 
-    private static List<BarrierLabel> GetBarriersForPhase(ZonePhaseType phase)
+    private List<BarrierLabel> GetBarriersForPhase(ZonePhaseType phase)
     {
+        if (!_gameInitiator.UsesPhaseBarriers()) return [];
         return phase switch
         {
             ZonePhaseType.Waiting => [],
