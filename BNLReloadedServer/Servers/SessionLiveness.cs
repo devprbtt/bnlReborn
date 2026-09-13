@@ -48,9 +48,17 @@ internal static class SessionLiveness
                     return;
                 }
 
-                if (ping.SendLivenessProbe() <= maxMissed) continue;
+                var missedProbes = ping.SendLivenessProbe();
+                if (missedProbes <= maxMissed) continue;
 
-                Log.Warn(LogCat.Conn, $"{label} session {Describe()} missed {maxMissed} pings, disconnecting it");
+                // A pong is the normal acknowledgement, but any received packet proves the
+                // connection is alive. Do not disconnect an active session merely because its
+                // dedicated pong was delayed behind other client work.
+                var silence = reader.SinceLastPacket;
+                if (silence <= silenceBudget) continue;
+
+                Log.Warn(LogCat.Conn, $"{label} session {Describe()} missed {maxMissed} pings and sent nothing " +
+                                          $"for {silence.TotalSeconds:0}s, disconnecting it");
                 session.Disconnect();
                 return;
             }

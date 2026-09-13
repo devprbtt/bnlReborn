@@ -21,7 +21,9 @@ public class Configs
     public bool UseRaycastExplosions { get; init; }
     public int ReconnectGraceSeconds { get; init; } = 180;
     public int PingIntervalSeconds { get; init; } = 2;
-    public int MaxMissedPings { get; init; } = 11;
+    // Unity can stop servicing network messages while synchronously loading a map.
+    // Give those stalls a full minute before declaring the session dead.
+    public int MaxMissedPings { get; init; } = 30;
     public bool ControlPanelEnabled { get; init; }
     public int ControlPanelPort { get; init; } = 8080;
 }
