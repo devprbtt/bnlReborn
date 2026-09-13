@@ -20,6 +20,7 @@ public interface IGameInitiator
     public float GetResourceAmount();
     public long? GetBuildPhaseEndTime(DateTimeOffset startTime);
     public float GetRespawnMultiplier();
+    public float? GetRespawnTimeOverride() => null;
     public bool IsSuperSupplies();
     public bool NeedsBackfill();
     public void SetBackfillReady(bool backfillReady);

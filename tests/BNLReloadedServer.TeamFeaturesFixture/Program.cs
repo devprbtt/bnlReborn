@@ -26,6 +26,8 @@ for (uint playerId = 1000; playerId < 1256; playerId++) waitingArena.AddPlayer(p
 Assert(waitingArena.PlayerCount == 258, "waiting arena accepts an unbounded player set beyond normal team limits");
 Assert(waitingArena.GetResourceCap() == 1000 && waitingArena.GetResourceAmount() == 1000,
     "waiting arena starts players at its 1,000-brick cap");
+Assert(waitingArena.GetRespawnTimeOverride() == 2f,
+    "waiting arena respawns players after two seconds");
 Assert(waitingArena.IsInSpawnNoBuildZone(new Vector3s(20, 25, 30)),
     "waiting arena spawn protection covers the full vertical column");
 Assert(!waitingArena.IsInSpawnNoBuildZone(new Vector3s(27, 10, 30)),

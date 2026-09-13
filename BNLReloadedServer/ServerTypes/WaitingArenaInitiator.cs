@@ -31,6 +31,7 @@ public sealed class WaitingArenaInitiator(CardGameMode gameMode, MapData map) : 
     public float GetResourceAmount() => 1000;
     public long? GetBuildPhaseEndTime(DateTimeOffset startTime) => startTime.ToUnixTimeMilliseconds();
     public float GetRespawnMultiplier() => 0;
+    public float? GetRespawnTimeOverride() => 2f;
     public bool IsSuperSupplies() => false;
     public bool NeedsBackfill() => false;
     public void SetBackfillReady(bool backfillReady) { }

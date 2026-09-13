@@ -552,7 +552,8 @@ public partial class GameZone : Updater
         return dropPoint;
     }
 
-    private float GetRespawnLength() => _respawnTime * (1 + _gameInitiator.GetRespawnMultiplier());
+    private float GetRespawnLength() => _gameInitiator.GetRespawnTimeOverride() ??
+                                        _respawnTime * (1 + _gameInitiator.GetRespawnMultiplier());
 
     private void UpdateRespawnTime(Unit unit)
     {
