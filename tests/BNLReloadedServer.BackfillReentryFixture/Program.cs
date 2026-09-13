@@ -13,8 +13,9 @@ PlayerQueueData Player(uint id) => new(id, Guid.NewGuid(), new Rating(25, 25d / 
 
 var initialTeam1 = Player(1);
 var initialTeam2 = Player(2);
-var initiator = new MatchmakerInitiator(new CardGameMode { Id = "fixture_backfill_reentry" },
-    [initialTeam1], [initialTeam2], 2);
+var initiator = new MatchmakerInitiator(
+    new CardGameMode { Id = "fixture_backfill_reentry", PlayersPerTeam = 2 },
+    [initialTeam1], [initialTeam2]);
 
 Check(initiator.HasParticipated(initialTeam1.PlayerId), "initial player is recorded in match history");
 Check(initiator.GetTeamForPlayer(initialTeam1.PlayerId) == TeamType.Team1,
