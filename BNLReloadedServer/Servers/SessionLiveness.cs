@@ -7,12 +7,19 @@ namespace BNLReloadedServer.Servers;
 
 internal static class SessionLiveness
 {
+    private const double MinimumAuthenticatedSilenceSeconds = 60;
+
     public static CancellationTokenSource? Start(IServicePing ping, TcpSession session, string label,
         SessionSender sender, SessionReader reader, Func<string?> peer)
     {
         var interval = Databases.ConfigDatabase.PingIntervalSeconds();
-        var maxMissed = Databases.ConfigDatabase.MaxMissedPings();
-        if (interval <= 0 || maxMissed <= 0) return null;
+        var configuredMaxMissed = Databases.ConfigDatabase.MaxMissedPings();
+        if (interval <= 0 || configuredMaxMissed <= 0) return null;
+
+        // Existing production configs predate the longer loading grace and contain an
+        // explicit value of 11, so a property initializer alone cannot migrate them.
+        var minimumMaxMissed = (int)Math.Ceiling(MinimumAuthenticatedSilenceSeconds / interval);
+        var maxMissed = Math.Max(configuredMaxMissed, minimumMaxMissed);
 
         var cts = new CancellationTokenSource();
         _ = Run(ping, session, label, sender, reader, peer, TimeSpan.FromSeconds(interval), maxMissed, cts.Token);
