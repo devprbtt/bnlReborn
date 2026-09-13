@@ -408,6 +408,18 @@ public partial class GameZone : Updater
     private bool AreOpponents(Unit target, Unit source) =>
         RelationshipApplies(target, source, source.Team, RelativeTeamType.Opponent);
 
+    internal static void AssignPickupToRecipient(bool freeForAll, Unit pickup, Unit recipient)
+    {
+        pickup.Team = recipient.Team;
+        if (!freeForAll) return;
+
+        // Waiting-arena pickups use a friendly TakeEffect. The wire team is Neutral for
+        // every player, so transfer the pickup to the recipient's per-player combat side
+        // before applying that effect.
+        pickup.OwnerPlayerId = recipient.CombatOwnerPlayerId;
+        pickup.FreeForAllPlayer = pickup.OwnerPlayerId.HasValue;
+    }
+
     private void CreateLootUnit(LootItemUnit loot, ZoneTransform transform, Unit? killer = null)
     {
         var lootCard = Databases.Catalogue.GetCard<CardUnit>(loot.LootUnitKey);

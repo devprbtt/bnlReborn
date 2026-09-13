@@ -68,6 +68,17 @@ Assert(Unit.DoesCombatRelationshipApply(true, RelativeTeamType.Friendly,
         TeamType.Neutral, 10, TeamType.Neutral, 10),
     "FFA combat filtering keeps a player's own devices and effects friendly");
 
+var pickup = new Unit(90, new UnitInit { Key = Key.None, Team = TeamType.Neutral }, CreateFixtureUpdater());
+var pickupRecipient = new Unit(91,
+    new UnitInit { Key = Key.None, Team = TeamType.Neutral, PlayerId = 12, OwnerId = 12 },
+    CreateFixtureUpdater());
+GameZone.AssignPickupToRecipient(true, pickup, pickupRecipient);
+Assert(pickup.FreeForAllPlayer && pickup.CombatOwnerPlayerId == pickupRecipient.CombatOwnerPlayerId &&
+       Unit.DoesCombatRelationshipApply(true, RelativeTeamType.Friendly,
+           pickupRecipient.Team, pickupRecipient.CombatOwnerPlayerId,
+           pickup.Team, pickup.CombatOwnerPlayerId),
+    "FFA pickup TakeEffects inherit the recipient's per-player combat side");
+
 var playerCard = new CardUnit
 {
     Id = "fixture_waiting_arena_player",
@@ -79,6 +90,16 @@ catalogue.Replicate(catalogue.All.Append(playerCard).ToList());
 var statsUpdater = CreateFixtureUpdater();
 var victim = new Unit(100, new UnitInit { Key = playerCard.Key, Team = TeamType.Neutral, PlayerId = 10 }, statsUpdater);
 var creditedKiller = new Unit(101, new UnitInit { Key = playerCard.Key, Team = TeamType.Neutral, PlayerId = 11 }, statsUpdater);
+victim.FreeForAllPlayer = true;
+creditedKiller.FreeForAllPlayer = true;
+var opponentTargeting = new EffectTargeting { AffectedTeam = RelativeTeamType.Opponent };
+var revealAura = new ConstEffectAura { Targeting = opponentTargeting, OuterRadius = 10 };
+Assert(victim.DoesAuraTargetApply(revealAura, creditedKiller) &&
+       GameZone.Match(opponentTargeting, creditedKiller, victim),
+    "FFA radar auras and Spot Prey target every differently owned player");
+Assert(!creditedKiller.DoesAuraTargetApply(revealAura, creditedKiller) &&
+       !GameZone.Match(opponentTargeting, creditedKiller, creditedKiller),
+    "FFA radar auras and Spot Prey never mark their caster as an enemy");
 victim.KillStatsUpdate(TeamType.Neutral, false, creditedKiller, creditedKiller, [], true);
 Assert(creditedKiller.Stats?.GetValueOrDefault(ScoreType.Kills) == 1,
     "FFA opponent kills count even though both players use the neutral protocol team");

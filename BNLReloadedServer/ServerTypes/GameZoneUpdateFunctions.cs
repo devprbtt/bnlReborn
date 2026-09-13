@@ -1763,7 +1763,7 @@ public partial class GameZone
                 break;
 
             case UnitDataPickup { TakeEffect: not null } unitDataPickup when killer is not null:
-                target.Team = killer.Team;
+                AssignPickupToRecipient(_gameInitiator is WaitingArenaInitiator, target, killer);
                 var tImpact5 = target.CreateImpactData();
                 killerPlayer?.StatsFromPickup(target);
                 ApplyInstEffect(target.GetSelfSource(tImpact5), [killer], unitDataPickup.TakeEffect, tImpact5);
