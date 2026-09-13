@@ -78,6 +78,12 @@ public class RegionServerDatabase(AsyncTaskTcpServer server, AsyncTaskTcpServer 
 
     private readonly Matchmaker _matchmaker = new(server);
 
+    private const string WaitingArenaMapId = "map_sr2_search_and_destroy";
+    private readonly Lock _waitingArenaLock = new();
+    private readonly ConcurrentDictionary<uint, byte> _waitingArenaEnabled = new();
+    private string? _waitingArenaInstanceId;
+    private WaitingArenaInitiator? _waitingArenaInitiator;
+
     public bool MatchmakingEnabled => _matchmakingEnabled;
 
     private readonly ConcurrentDictionary<ulong, SquadData> _squads = new();
@@ -276,6 +282,7 @@ public class RegionServerDatabase(AsyncTaskTcpServer server, AsyncTaskTcpServer 
         playerInfo.Online = false;
         LiveStateChanged();
         _matchmaker.RemovePlayer(userId, null);
+        _waitingArenaEnabled.TryRemove(userId, out _);
         var customId = playerInfo.CustomGameId;
         var gameInstanceId = playerInfo.GameInstanceId;
         if (customId.HasValue && TryGetCustomGame(customId.Value, out var list))
@@ -1164,6 +1171,170 @@ public class RegionServerDatabase(AsyncTaskTcpServer server, AsyncTaskTcpServer 
     }
 
     public void EnableBackfilling(uint playerId, bool enable) => _matchmaker.SetDoBackfilling(playerId, enable);
+
+    public void SetWaitingArenaEnabled(uint playerId, bool enable, IServiceMatchmaker serviceMatchmaker)
+    {
+        if (enable)
+            _waitingArenaEnabled[playerId] = 0;
+        else
+            _waitingArenaEnabled.TryRemove(playerId, out _);
+
+        if (enable && _matchmaker.IsQueued(playerId))
+            JoinWaitingArena(playerId, serviceMatchmaker);
+        else if (!enable)
+            LeaveWaitingArena(playerId, serviceMatchmaker);
+        else
+            SendWaitingArenaState(playerId, serviceMatchmaker);
+    }
+
+    public bool JoinWaitingArena(uint playerId, IServiceMatchmaker serviceMatchmaker)
+    {
+        if (!_matchmaker.IsQueued(playerId) || !UserConnected(playerId, out var playerInfo))
+        {
+            SendWaitingArenaState(playerId, serviceMatchmaker);
+            return false;
+        }
+
+        _waitingArenaEnabled[playerId] = 0;
+        GameInstance? instance;
+        WaitingArenaInitiator? initiator;
+        lock (_waitingArenaLock)
+        {
+            if (_waitingArenaInstanceId == null || !_gameInstances.TryGetValue(_waitingArenaInstanceId, out var current) ||
+                current is not GameInstance currentGame)
+            {
+                var mapKey = new Key(WaitingArenaMapId);
+                var map = Databases.MapDatabase.LoadMapData(mapKey);
+                if (map == null) return false;
+                PrepareWaitingArenaMap(map);
+                initiator = new WaitingArenaInitiator(CatalogueHelper.ModeCustom, map);
+                instance = new GameInstance(matchServer, server, Guid.NewGuid().ToString(), initiator);
+                initiator.GameInstanceId = instance.GameInstanceId;
+                instance.SetMap(new MapInfoCard { MapKey = mapKey }, map);
+                instance.CreateLobby(CatalogueHelper.ModeCustom.Key, new MapInfoCard { MapKey = mapKey });
+                if (!_gameInstances.TryAdd(instance.GameInstanceId, instance)) return false;
+                _waitingArenaInstanceId = instance.GameInstanceId;
+                _waitingArenaInitiator = initiator;
+            }
+            else
+            {
+                instance = currentGame;
+                initiator = _waitingArenaInitiator;
+            }
+
+            if (initiator == null) return false;
+            if (playerInfo.GameInstanceId == instance.GameInstanceId)
+            {
+                SendWaitingArenaState(playerId, serviceMatchmaker);
+                return true;
+            }
+            if (playerInfo.GameInstanceId != null) return false;
+
+            var team = initiator.AddPlayer(playerId);
+            playerInfo.GameInstanceId = instance.GameInstanceId;
+            if (!GetService<IServiceScene>(playerInfo.Guid, ServiceId.ServiceScene, out var sceneService))
+            {
+                initiator.RemovePlayer(playerId);
+                playerInfo.GameInstanceId = null;
+                return false;
+            }
+            UpdateScene(playerId, new SceneLobby { MyTeam = team, GameMode = CatalogueHelper.ModeCustom.Key }, sceneService, true);
+        }
+
+        BroadcastWaitingArenaState();
+        return true;
+    }
+
+    public bool LeaveWaitingArena(uint playerId, IServiceMatchmaker serviceMatchmaker)
+    {
+        GameInstance? instance = null;
+        lock (_waitingArenaLock)
+        {
+            if (_waitingArenaInstanceId != null && _gameInstances.TryGetValue(_waitingArenaInstanceId, out var found))
+                instance = found as GameInstance;
+        }
+        if (instance == null || GetGameInstance(playerId) != instance)
+        {
+            SendWaitingArenaState(playerId, serviceMatchmaker);
+            return false;
+        }
+
+        _waitingArenaInitiator?.RemovePlayer(playerId);
+        instance.PlayerLeftInstance(playerId, KickReason.MatchQuit);
+        lock (_waitingArenaLock)
+        {
+            if (_waitingArenaInitiator?.PlayerCount == 0)
+            {
+                _waitingArenaInstanceId = null;
+                _waitingArenaInitiator = null;
+            }
+        }
+        BroadcastWaitingArenaState();
+        return true;
+    }
+
+    public void WaitingArenaQueueChanged(uint? playerId, bool joined)
+    {
+        if (playerId.HasValue && joined && _waitingArenaEnabled.ContainsKey(playerId.Value) &&
+            UserConnected(playerId.Value, out var info) &&
+            GetService<IServiceMatchmaker>(info.Guid, ServiceId.ServiceMatchmaker, out var service))
+        {
+            JoinWaitingArena(playerId.Value, service);
+            return;
+        }
+
+        if (playerId.HasValue && !joined && UserConnected(playerId.Value, out var playerInfo) &&
+            GetService<IServiceMatchmaker>(playerInfo.Guid, ServiceId.ServiceMatchmaker, out var matchmakerService))
+        {
+            // Clear the instance id first so accepting a real match transfers directly without a
+            // transient main-menu scene overwriting the incoming lobby scene.
+            var instance = GetGameInstance(playerId.Value) as GameInstance;
+            if (instance != null && instance.GameInstanceId == _waitingArenaInstanceId)
+            {
+                playerInfo.GameInstanceId = null;
+                _waitingArenaInitiator?.RemovePlayer(playerId.Value);
+                instance.PlayerLeftInstance(playerId.Value, KickReason.MatchQuit);
+            }
+            SendWaitingArenaState(playerId.Value, matchmakerService);
+        }
+        BroadcastWaitingArenaState();
+    }
+
+    private static void PrepareWaitingArenaMap(MapData map)
+    {
+        map.Units.RemoveAll(unit => unit.UnitKey.GetCard<CardUnit>()?.Labels?.Any(label => label is
+            UnitLabel.Objective or UnitLabel.Base or UnitLabel.ShieldGenerator or UnitLabel.ShieldGeneratorDestroyed or
+            UnitLabel.DropPointResource or UnitLabel.DropPointBlockbuster or UnitLabel.DropPointBase or
+            UnitLabel.SupplyResource or UnitLabel.SupplyBlockbuster or UnitLabel.Srv2Objective1 or UnitLabel.Srv2Objective2) == true);
+
+        var positions = new[]
+        {
+            new System.Numerics.Vector3(10.5f, 15f, 33.5f), new(137.5f, 15f, 33.5f),
+            new(44.5f, 18f, 19.5f), new(44.5f, 18f, 47.5f),
+            new(103.5f, 18f, 19.5f), new(103.5f, 18f, 47.5f),
+            new(61.5f, 18f, 14.5f), new(86.5f, 18f, 53.5f),
+            new(61.5f, 18f, 53.5f), new(86.5f, 18f, 14.5f),
+            new(74f, 18f, 27f), new(74f, 18f, 41f)
+        };
+        map.SpawnPoints = positions.SelectMany((position, index) => new[]
+        {
+            new MapSpawnPoint { Team = TeamType.Team1, Position = position, Direction = index % 2 == 0 ? Direction2D.Right : Direction2D.Left, Label = SpawnPointLabel.Base },
+            new MapSpawnPoint { Team = TeamType.Team2, Position = position, Direction = index % 2 == 0 ? Direction2D.Right : Direction2D.Left, Label = SpawnPointLabel.Base }
+        }).ToList();
+    }
+
+    private void SendWaitingArenaState(uint playerId, IServiceMatchmaker service) =>
+        service.SendWaitingArenaUpdate(_waitingArenaEnabled.ContainsKey(playerId),
+            GetGameInstance(playerId) is GameInstance instance && instance.GameInstanceId == _waitingArenaInstanceId,
+            _matchmaker.TotalQueuedPlayers());
+
+    private void BroadcastWaitingArenaState()
+    {
+        foreach (var playerId in _connectedUsers.Keys.Where(_matchmaker.IsQueued))
+            if (UserConnected(playerId, out var info) &&
+                GetService<IServiceMatchmaker>(info.Guid, ServiceId.ServiceMatchmaker, out var service))
+                SendWaitingArenaState(playerId, service);
+    }
 
     public void ConfirmMatch(uint playerId, bool confirm, IServiceMatchmaker serviceMatchmaker) =>
         _matchmaker.OnPopAccepted(playerId, confirm, serviceMatchmaker);

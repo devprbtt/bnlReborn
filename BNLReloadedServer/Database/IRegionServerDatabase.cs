@@ -57,6 +57,9 @@ public interface IRegionServerDatabase
     public void JoinQueue(uint playerId, Key gameModeKey, IServiceMatchmaker serviceMatchmaker);
     public void LeaveQueue(uint playerId, IServiceMatchmaker serviceMatchmaker);
     public void EnableBackfilling(uint playerId, bool enable);
+    public void SetWaitingArenaEnabled(uint playerId, bool enable, IServiceMatchmaker serviceMatchmaker);
+    public bool JoinWaitingArena(uint playerId, IServiceMatchmaker serviceMatchmaker);
+    public bool LeaveWaitingArena(uint playerId, IServiceMatchmaker serviceMatchmaker);
     public void ConfirmMatch(uint playerId, bool confirm, IServiceMatchmaker serviceMatchmaker);
     public void ForceStartMatch(uint playerId);
     public ulong? CreateSquad(uint ownerId, List<uint> players);
@@ -82,4 +85,5 @@ public interface IRegionServerDatabase
     public void FreeMatchmakerSlot(uint playerId, string gameInstanceId);
     public bool IsUserOnline(uint playerId);
     public void RemoveOfflineUser(uint playerId);
+    public void WaitingArenaQueueChanged(uint? playerId, bool joined);
 }

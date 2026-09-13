@@ -67,6 +67,10 @@ public class Matchmaker(AsyncTaskTcpServer server)
     
     private readonly ConcurrentDictionary<Key, QueueData> _queues = new();
 
+    public bool IsQueued(uint playerId) => _queues.Values.Any(q => q.Players.Any(p => p.PlayerId == playerId));
+
+    public int TotalQueuedPlayers() => _queues.Values.SelectMany(q => q.Players).Select(p => p.PlayerId).Distinct().Count();
+
     private void StartQueue(Key gameModeKey)
     {
         var sender = new SessionSender(server);
@@ -139,6 +143,7 @@ public class Matchmaker(AsyncTaskTcpServer server)
         
         QueueCheck(queue);
         QueueChanged();
+        Databases.RegionServerDatabase.WaitingArenaQueueChanged(playerId, true);
     }
 
     public void RemovePlayer(uint playerId, IServiceMatchmaker? matchmakerService)
@@ -173,13 +178,16 @@ public class Matchmaker(AsyncTaskTcpServer server)
             }
         }
         QueueChanged();
+        Databases.RegionServerDatabase.WaitingArenaQueueChanged(playerId, false);
     }
 
     public void RemoveSquad(ulong squadId, List<IServiceMatchmaker> serviceMatchmakers)
     {
+        var removedPlayerIds = new List<uint>();
         foreach (var queue in _queues.Values.Where(x => x.Players.Any(p => p.SquadId == squadId)).ToList())
         {
             var players = queue.Players.Where(p => p.SquadId == squadId).ToList();
+            removedPlayerIds.AddRange(players.Select(p => p.PlayerId));
             players.ForEach(p =>
             {
                 queue.Sender.Unsubscribe(p.PlayerGuid);
@@ -209,6 +217,8 @@ public class Matchmaker(AsyncTaskTcpServer server)
             }
         }
         QueueChanged();
+        foreach (var removedPlayerId in removedPlayerIds.Distinct())
+            Databases.RegionServerDatabase.WaitingArenaQueueChanged(removedPlayerId, false);
     }
 
     /// <summary>

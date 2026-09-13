@@ -21,4 +21,6 @@ public interface IServiceMatchmaker : IService
     public void SendExitCustomGame();
     
     public void SendJoinCustomGameBySteam(ushort rpcId, CustomGameJoinResult result, string? error = null);
+
+    public void SendWaitingArenaUpdate(bool enabled, bool inArena, int playersInQueue);
 }
