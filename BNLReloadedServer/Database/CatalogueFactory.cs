@@ -125,7 +125,9 @@ public static class CatalogueFactory
         };
 
         var newUnit = new Unit(id, unitInit, updater);
-        newUnit.FreeForAllPlayer = freeForAll && newUnit.CombatOwnerPlayerId.HasValue;
+        newUnit.AssignFreeForAllTeam(freeForAll
+            ? owner?.FreeForAllTeamId ?? newUnit.CombatOwnerPlayerId
+            : null);
         newUnit.SetDamageCredit(DamageAccounting.ResolveSpawnCredit(builtDevice, unit.DeviceType,
             unit.TreatHitsAsOwnerHits, owner?.DamageCredit ?? DamageCreditType.None));
 
@@ -195,7 +197,7 @@ public static class CatalogueFactory
         };
 
         var newUnit = new Unit(id, unitInit, updater);
-        newUnit.FreeForAllPlayer = gameInitiator is WaitingArenaInitiator;
+        newUnit.AssignFreeForAllTeam(gameInitiator is WaitingArenaInitiator ? playerId : null);
 
         var effects = PerkHelper.ExtractEffects(playerInfo.Perks ?? []);
         var passives = playerData.Passive?.ConvertPassives(playerInfo.Perks ?? []);

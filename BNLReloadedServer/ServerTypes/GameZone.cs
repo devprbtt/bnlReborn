@@ -338,7 +338,6 @@ public partial class GameZone : Updater
         var unitId = NewUnitId();
         var player = CatalogueFactory.CreatePlayerUnit(unitId, playerInfo.PlayerId, transform, playerInfo, _gameInitiator, _zoneData.MatchCard,
             _defaultUnitUpdater with { OnUnitInit = GetUnitInitAction(creatorService) });
-        if (player != null && _gameInitiator is WaitingArenaInitiator) player.FreeForAllPlayer = true;
         return player;
     }
 
@@ -403,7 +402,7 @@ public partial class GameZone : Updater
 
     private bool RelationshipApplies(Unit target, Unit? source, TeamType sourceTeam, RelativeTeamType relationship)
         => Unit.DoesCombatRelationshipApply(_gameInitiator is WaitingArenaInitiator, relationship,
-            target.Team, target.CombatOwnerPlayerId, sourceTeam, source?.CombatOwnerPlayerId);
+            target.Team, target.FreeForAllTeamId, sourceTeam, source?.FreeForAllTeamId);
 
     private bool AreOpponents(Unit target, Unit source) =>
         RelationshipApplies(target, source, source.Team, RelativeTeamType.Opponent);
@@ -417,7 +416,7 @@ public partial class GameZone : Updater
         // every player, so transfer the pickup to the recipient's per-player combat side
         // before applying that effect.
         pickup.OwnerPlayerId = recipient.CombatOwnerPlayerId;
-        pickup.FreeForAllPlayer = pickup.OwnerPlayerId.HasValue;
+        pickup.AssignFreeForAllTeam(recipient.FreeForAllTeamId);
     }
 
     private void CreateLootUnit(LootItemUnit loot, ZoneTransform transform, Unit? killer = null)
@@ -446,7 +445,8 @@ public partial class GameZone : Updater
         var transform = ZoneTransformHelper.ToZoneTransform(shotPos, QuaternionExtensions.LookRotation(vecDir));
         transform.SetLocalVelocity(Vector3.Normalize(vecDir) * speed);
 
-        CatalogueFactory.CreateUnit(NewUnitId(), projectileKey, transform, creator?.Team ?? TeamType.Neutral, creator, updater, speed);
+        CatalogueFactory.CreateUnit(NewUnitId(), projectileKey, transform, creator?.Team ?? TeamType.Neutral,
+            creator, updater, speed, freeForAll: _gameInitiator is WaitingArenaInitiator);
     }
 
     private void CreateSupplyUnit(Key supplyKey, Vector3 position)

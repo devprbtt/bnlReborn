@@ -72,11 +72,12 @@ var pickup = new Unit(90, new UnitInit { Key = Key.None, Team = TeamType.Neutral
 var pickupRecipient = new Unit(91,
     new UnitInit { Key = Key.None, Team = TeamType.Neutral, PlayerId = 12, OwnerId = 12 },
     CreateFixtureUpdater());
+pickupRecipient.AssignFreeForAllTeam(12);
 GameZone.AssignPickupToRecipient(true, pickup, pickupRecipient);
-Assert(pickup.FreeForAllPlayer && pickup.CombatOwnerPlayerId == pickupRecipient.CombatOwnerPlayerId &&
+Assert(pickup.FreeForAllTeamId == pickupRecipient.FreeForAllTeamId &&
        Unit.DoesCombatRelationshipApply(true, RelativeTeamType.Friendly,
-           pickupRecipient.Team, pickupRecipient.CombatOwnerPlayerId,
-           pickup.Team, pickup.CombatOwnerPlayerId),
+           pickupRecipient.Team, pickupRecipient.FreeForAllTeamId,
+           pickup.Team, pickup.FreeForAllTeamId),
     "FFA pickup TakeEffects inherit the recipient's per-player combat side");
 
 var playerCard = new CardUnit
@@ -90,8 +91,11 @@ catalogue.Replicate(catalogue.All.Append(playerCard).ToList());
 var statsUpdater = CreateFixtureUpdater();
 var victim = new Unit(100, new UnitInit { Key = playerCard.Key, Team = TeamType.Neutral, PlayerId = 10 }, statsUpdater);
 var creditedKiller = new Unit(101, new UnitInit { Key = playerCard.Key, Team = TeamType.Neutral, PlayerId = 11 }, statsUpdater);
-victim.FreeForAllPlayer = true;
-creditedKiller.FreeForAllPlayer = true;
+victim.AssignFreeForAllTeam(10);
+creditedKiller.AssignFreeForAllTeam(11);
+Assert(victim.FreeForAllTeamId == 10 && creditedKiller.FreeForAllTeamId == 11 &&
+       victim.FreeForAllTeamId != creditedKiller.FreeForAllTeamId,
+    "each FFA player receives a unique explicit team ID");
 var opponentTargeting = new EffectTargeting { AffectedTeam = RelativeTeamType.Opponent };
 var revealAura = new ConstEffectAura { Targeting = opponentTargeting, OuterRadius = 10 };
 Assert(victim.DoesAuraTargetApply(revealAura, creditedKiller) &&
