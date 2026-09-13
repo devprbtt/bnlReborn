@@ -1269,6 +1269,46 @@ public partial class GameZone : Updater
         return true;
     }
 
+    public void PreparePlayerHeroChange(uint playerId)
+    {
+        _activeHeroEmotes.Remove(playerId);
+        _lastHeroEmote.Remove(playerId);
+        _lastTeamPing.Remove(playerId);
+        if (!_playerIdToUnitId.TryGetValue(playerId, out var unitId) ||
+            !_playerUnits.TryGetValue(unitId, out var player))
+            return;
+
+        var impact = new ImpactData
+        {
+            Crit = false,
+            InsidePoint = player.GetMidpoint(),
+            ShotPos = player.GetMidpoint(),
+            Normal = Vector3s.Zero
+        };
+        foreach (var unit in _units.Values.Where(unit => unit.OwnerPlayerId == playerId).ToList())
+        {
+            impact.InsidePoint = unit.GetMidpoint();
+            impact.ShotPos = unit.GetMidpoint();
+            unit.Killed(impact);
+        }
+        foreach (var projectileId in _keepShotAlive.ToList())
+        {
+            if (_shotInfo.TryGetValue(projectileId, out var shotInfo) && shotInfo.Caster.OwnerPlayerId == playerId)
+                ReceivedProjDropRequest(projectileId);
+        }
+
+        _playerUnits.Remove(unitId);
+        RemoveUnit(unitId, $"waiting-arena-hero-change: playerId={playerId}");
+        _playerIdToUnitId.Remove(playerId);
+        _zoneData.PlayerSpawnPoints.Remove(playerId);
+        _zoneData.RespawnInfo.Remove(playerId);
+        _serviceZone.SendUpdateZone(new ZoneUpdate
+        {
+            PlayerSpawnPoints = _zoneData.PlayerSpawnPoints,
+            RespawnInfo = _zoneData.RespawnInfo
+        });
+    }
+
     private Unit[] CollidingWithUnit(Unit unit, Vector3? position = null)
     {
         if (unit.UnitCard?.Size is not { } size) return [];

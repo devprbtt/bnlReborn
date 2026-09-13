@@ -66,6 +66,7 @@ public interface IRegionServerDatabase
     public void SetWaitingArenaEnabled(uint playerId, bool enable, IServiceMatchmaker serviceMatchmaker);
     public bool JoinWaitingArena(uint playerId, IServiceMatchmaker serviceMatchmaker);
     public bool LeaveWaitingArena(uint playerId, IServiceMatchmaker serviceMatchmaker);
+    public bool ChangeWaitingArenaHero(uint playerId);
     public void ConfirmMatch(uint playerId, bool confirm, IServiceMatchmaker serviceMatchmaker);
     public void ForceStartMatch(uint playerId);
     public ulong? CreateSquad(uint ownerId, List<uint> players);

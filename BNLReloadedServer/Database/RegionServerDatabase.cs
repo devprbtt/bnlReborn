@@ -144,7 +144,10 @@ public class RegionServerDatabase(AsyncTaskTcpServer server, AsyncTaskTcpServer 
         gameInstance.LinkGuidToPlayer(userId, sessionId, player.Guid);
         if (scene.Type == SceneType.Lobby || (scene.Type == SceneType.Zone && gameInstance.HasLobby()))
         {
-            gameInstance.UserEnteredLobby(userId);
+            // Zone connections still register the lobby service for shared updates, but must not
+            // create a requeue/hero-selection timer. Such a timer would send the player to the
+            // same Zone again when it expired.
+            gameInstance.UserEnteredLobby(userId, scene.Type == SceneType.Lobby);
         }
 
         return true;
@@ -1417,6 +1420,19 @@ public class RegionServerDatabase(AsyncTaskTcpServer server, AsyncTaskTcpServer 
         }
         BroadcastWaitingArenaState();
         return true;
+    }
+
+    public bool ChangeWaitingArenaHero(uint playerId)
+    {
+        if (!_matchmaker.IsQueued(playerId)) return false;
+        lock (_waitingArenaLock)
+        {
+            if (_waitingArenaInstanceId == null ||
+                !_gameInstances.TryGetValue(_waitingArenaInstanceId, out var instance) ||
+                GetGameInstance(playerId) != instance)
+                return false;
+            return instance.SendWaitingArenaUserToLobby(playerId);
+        }
     }
 
     public void WaitingArenaQueueChanged(uint? playerId, bool joined)

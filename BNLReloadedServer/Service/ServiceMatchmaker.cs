@@ -38,7 +38,8 @@ public class ServiceMatchmaker(ISender sender) : IServiceMatchmaker
         MessageSetWaitingArenaEnabled = 25,
         MessageJoinWaitingArena = 26,
         MessageLeaveWaitingArena = 27,
-        MessageWaitingArenaUpdate = 28
+        MessageWaitingArenaUpdate = 28,
+        MessageChangeWaitingArenaHero = 29
     }
 
     private readonly IRegionServerDatabase _serverDatabase = Databases.RegionServerDatabase;
@@ -342,6 +343,12 @@ public class ServiceMatchmaker(ISender sender) : IServiceMatchmaker
             _serverDatabase.LeaveWaitingArena(sender.AssociatedPlayerId.Value, this);
     }
 
+    private void ReceiveChangeWaitingArenaHero(BinaryReader reader)
+    {
+        if (sender.AssociatedPlayerId.HasValue)
+            _serverDatabase.ChangeWaitingArenaHero(sender.AssociatedPlayerId.Value);
+    }
+
     public void SendWaitingArenaUpdate(bool enabled, bool inArena, int playersInQueue)
     {
         using var writer = CreateWriter();
@@ -433,6 +440,9 @@ public class ServiceMatchmaker(ISender sender) : IServiceMatchmaker
                 break;
             case ServiceMatchmakerId.MessageLeaveWaitingArena:
                 ReceiveLeaveWaitingArena(reader);
+                break;
+            case ServiceMatchmakerId.MessageChangeWaitingArenaHero:
+                ReceiveChangeWaitingArenaHero(reader);
                 break;
             default:
                 Log.Warn(LogCat.Net, $"Unknown service matchmaker id {Log.EnumName(matchEnum, serviceMatchmakerId)}");

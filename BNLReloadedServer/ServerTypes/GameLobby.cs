@@ -365,6 +365,14 @@ public class GameLobby : Updater
         SendLobbyUpdate(players: LobbyData.Players.Values.ToList());
     }
 
+    public void PrepareHeroChange(uint playerId)
+    {
+        if (!LobbyData.Players.TryGetValue(playerId, out var player)) return;
+        player.Ready = false;
+        EnsureRequeueState(playerId, player.Team);
+        SendLobbyUpdate(players: LobbyData.Players.Values.ToList(), requeuePlayers: LobbyData.RequeuePlayers);
+    }
+
     public void LoadProgressUpdate(uint playerId, float progress)
     {
         LobbyData.PlayersProgress[playerId] = progress;

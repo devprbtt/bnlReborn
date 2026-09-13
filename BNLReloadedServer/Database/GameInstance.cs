@@ -153,10 +153,10 @@ public partial class GameInstance : IGameInstance
         }
     }
 
-    public void UserEnteredLobby(uint userId)
+    public void UserEnteredLobby(uint userId, bool enteringLobby)
     {
         if (!_connectedUsers.TryGetValue(userId, out var value) || Lobby == null) return;
-        if (!GameInitiator.IsPlayerSpectator(userId))
+        if (enteringLobby && !GameInitiator.IsPlayerSpectator(userId))
         {
             Lobby.EnqueueAction(() =>
             {
@@ -591,6 +591,24 @@ public partial class GameInstance : IGameInstance
             Restart = _restartingZone
         };
         _serverDatabase.UpdateScene(playerId, scene, _restartingZone);
+    }
+
+    public bool SendWaitingArenaUserToLobby(uint playerId)
+    {
+        if (GameInitiator is not WaitingArenaInitiator || Lobby == null || Zone == null ||
+            !_connectedUsers.TryGetValue(playerId, out var player))
+            return false;
+
+        var team = GameInitiator.GetTeamForPlayer(playerId);
+        Zone.EnqueueAction(() =>
+        {
+            Zone.PreparePlayerHeroChange(playerId);
+            _zoneSender.Unsubscribe(player.Guid);
+            Lobby.EnqueueAction(() => Lobby.PrepareHeroChange(playerId));
+            _serverDatabase.UpdateScene(playerId,
+                new SceneLobby { MyTeam = team, GameMode = CatalogueHelper.ModeCustom.Key }, true);
+        });
+        return true;
     }
 
     private void UploadZoneData(uint playerId, MatchConnectionInfo player)

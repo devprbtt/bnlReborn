@@ -14,7 +14,7 @@ public interface IGameInstance
     public bool IsOver();
     public MapInfo? GetMapInfo();
     public void LinkGuidToPlayer(uint userId, Guid guid, Guid regionGuid);
-    public void UserEnteredLobby(uint userId);
+    public void UserEnteredLobby(uint userId, bool enteringLobby);
     // For when players leave via alt+f4
     public void PlayerDisconnected(uint userId);
     // For when players leave via disconnect button
@@ -47,6 +47,7 @@ public interface IGameInstance
     public void LoadProgressUpdate(uint playerId, float progress);
     public void StartMatch(ICollection<PlayerLobbyState> playerList, bool restart = false);
     public void SendUserToZone(uint playerId);
+    public bool SendWaitingArenaUserToLobby(uint playerId);
     public void PlayerEnterScene(uint playerId);
     public void PlayerZoneReady(uint playerId);
     public void UnitMoved(uint unitId, ulong moveTime, ZoneTransform transform);
