@@ -256,18 +256,43 @@ public partial class Unit
         effect.Card.Effect?.Targeting is not { } targeting || DoesEffectApply(targeting, sourceTeam);
 
     private bool DoesConstantEffectApply(ConstEffectInfo effect, TeamType sourceTeam, EffectSource? source) =>
-        DoesEffectApply(effect, sourceTeam) &&
+        (effect.Card.Effect?.Targeting is not { } targeting || DoesEffectApply(targeting, sourceTeam, source)) &&
         // An aura's targeting describes its recipients, not the unit carrying it.
         (effect.Card.Effect is not ConstEffectBuff { Targeting: { IgnoreCaster: true } } ||
          source is not UnitSource caster || caster.Unit.Id != Id);
 
     public bool DoesAuraTargetApply(ConstEffectAura aura, Unit caster) =>
         aura.Targeting is not { } targeting ||
-        (DoesEffectApply(targeting, caster.Team) && (!targeting.IgnoreCaster || caster.Id != Id));
+        (DoesEffectApply(targeting, caster) && (!targeting.IgnoreCaster || caster.Id != Id));
+
+    public bool DoesEffectApply(EffectTargeting targeting, Unit source) =>
+        DoesEffectApply(targeting, source.Team, new UnitSource(source));
+
+    private bool DoesEffectApply(EffectTargeting targeting, TeamType sourceTeam, EffectSource? source)
+    {
+        if (!FreeForAllPlayer) return DoesEffectApply(targeting, sourceTeam);
+        var sourceOwnerId = source is UnitSource unitSource ? unitSource.Unit.OwnerPlayerId : null;
+        return DoesFreeForAllRelationshipApply(targeting.AffectedTeam, OwnerPlayerId, sourceOwnerId) &&
+               ContainsLabelOrIsUnitType(targeting);
+    }
+
+    internal static bool DoesFreeForAllRelationshipApply(RelativeTeamType relationship, uint? targetOwnerId,
+        uint? sourceOwnerId)
+    {
+        var sameOwner = targetOwnerId.HasValue && sourceOwnerId.HasValue && targetOwnerId == sourceOwnerId;
+        return relationship switch
+        {
+            RelativeTeamType.Friendly => sameOwner,
+            RelativeTeamType.Opponent => !sameOwner,
+            _ => true
+        };
+    }
 
     public bool DoesEffectApply(EffectTargeting targeting, TeamType sourceTeam) =>
         targeting.AffectedTeam switch
         {
+            _ when FreeForAllPlayer &&
+                   !DoesFreeForAllRelationshipApply(targeting.AffectedTeam, OwnerPlayerId, null) => false,
             RelativeTeamType.Friendly when sourceTeam != Team => false,
             RelativeTeamType.Opponent when sourceTeam == Team && !FreeForAllPlayer => false,
             _ => ContainsLabelOrIsUnitType(targeting)
@@ -469,7 +494,7 @@ public partial class Unit
     {
         if (effect.HasDuration || !ActiveEffects.Contains(effect)) return;
 
-        if (!DoesEffectApply(effect, sourceTeam)) return;
+        if (!DoesConstantEffectApply(effect, sourceTeam, source)) return;
 
         if (IsDead)
         {
@@ -506,7 +531,9 @@ public partial class Unit
 
     public void RemoveEffects(IEnumerable<ConstEffectInfo> effects, TeamType sourceTeam, EffectSource? source, bool clearAll = false)
     {
-        Func<ConstEffectInfo, TeamType, bool> doCheck = _everConfused ? (eff, _) => DoesEffectApply(eff) : DoesEffectApply;
+        Func<ConstEffectInfo, TeamType, bool> doCheck = _everConfused
+            ? (eff, _) => DoesEffectApply(eff)
+            : (eff, team) => DoesConstantEffectApply(eff, team, source);
         var actualEffects = effects
             .Where(e => !e.HasDuration && ActiveEffects.Contains(e) && doCheck(e, sourceTeam)).ToList();
 

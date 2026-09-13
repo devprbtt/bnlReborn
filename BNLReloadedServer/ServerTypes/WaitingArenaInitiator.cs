@@ -9,16 +9,11 @@ namespace BNLReloadedServer.ServerTypes;
 public sealed class WaitingArenaInitiator(CardGameMode gameMode, MapData map) : IGameInitiator
 {
     private readonly ConcurrentDictionary<uint, TeamType> _players = new();
-    private int _nextTeam;
 
     public string? GameInstanceId { get; set; }
     public bool IsWaitingArena => true;
 
-    public TeamType AddPlayer(uint playerId)
-    {
-        return _players.GetOrAdd(playerId, _ =>
-            Interlocked.Increment(ref _nextTeam) % 2 == 0 ? TeamType.Team2 : TeamType.Team1);
-    }
+    public TeamType AddPlayer(uint playerId) => _players.GetOrAdd(playerId, TeamType.Neutral);
 
     public void RemovePlayer(uint playerId) => _players.TryRemove(playerId, out _);
     public int PlayerCount => _players.Count;

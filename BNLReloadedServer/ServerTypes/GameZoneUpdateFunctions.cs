@@ -2224,7 +2224,7 @@ public partial class GameZone
         if (tesla.TeslaUnitData is not { } data) return (null, null, tesla.Id);
         var unitsNearby = _unitOctree.GetColliding(new BoundingSphere(tesla.GetMidpoint(), data.AttackRange));
         var nearbyEnemies = MapBinary.CheckVisibility(tesla.GetMidpoint(),
-                unitsNearby.Where(u => data.AttackTargeting is null || u.DoesEffectApply(data.AttackTargeting, tesla.Team)),
+                unitsNearby.Where(u => data.AttackTargeting is null || u.DoesEffectApply(data.AttackTargeting, tesla)),
                 unitsNearby.Where(u => u != tesla && !checkedTeslas.Contains(u) && u.PlayerId is null).ToList())
             .Select(u => u?.Id);
 

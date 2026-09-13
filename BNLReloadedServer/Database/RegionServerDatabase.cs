@@ -1451,7 +1451,8 @@ public class RegionServerDatabase(AsyncTaskTcpServer server, AsyncTaskTcpServer 
         map.Units.RemoveAll(unit => unit.UnitKey.GetCard<CardUnit>()?.Labels?.Any(label => label is
             UnitLabel.Objective or UnitLabel.Base or UnitLabel.ShieldGenerator or UnitLabel.ShieldGeneratorDestroyed or
             UnitLabel.DropPointResource or UnitLabel.DropPointBlockbuster or UnitLabel.DropPointBase or
-            UnitLabel.SupplyResource or UnitLabel.SupplyBlockbuster or UnitLabel.Srv2Objective1 or UnitLabel.Srv2Objective2) == true);
+            UnitLabel.SupplyResource or UnitLabel.SupplyBlockbuster or UnitLabel.HealthSupply or UnitLabel.AmmmoSupply or
+            UnitLabel.Srv2Objective1 or UnitLabel.Srv2Objective2) == true);
 
         var positions = new[]
         {
@@ -1462,10 +1463,12 @@ public class RegionServerDatabase(AsyncTaskTcpServer server, AsyncTaskTcpServer 
             new(61.5f, 18f, 53.5f), new(86.5f, 18f, 14.5f),
             new(74f, 18f, 27f), new(74f, 18f, 41f)
         };
-        map.SpawnPoints = positions.SelectMany((position, index) => new[]
+        map.SpawnPoints = positions.Select((position, index) => new MapSpawnPoint
         {
-            new MapSpawnPoint { Team = TeamType.Team1, Position = position, Direction = index % 2 == 0 ? Direction2D.Right : Direction2D.Left, Label = SpawnPointLabel.Base },
-            new MapSpawnPoint { Team = TeamType.Team2, Position = position, Direction = index % 2 == 0 ? Direction2D.Right : Direction2D.Left, Label = SpawnPointLabel.Base }
+            Team = TeamType.Neutral,
+            Position = position,
+            Direction = index % 2 == 0 ? Direction2D.Right : Direction2D.Left,
+            Label = SpawnPointLabel.Base
         }).ToList();
     }
 

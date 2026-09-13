@@ -346,7 +346,7 @@ public partial class GameZone : Updater
     {
         if (_gameInitiator is not WaitingArenaInitiator)
             return _defaultSpawnId[(int)team];
-        var candidates = _mapSpawnPoints.Where(entry => entry.Value.Team == team).Select(entry => entry.Key).ToArray();
+        var candidates = _mapSpawnPoints.Keys.ToArray();
         return candidates.Length == 0 ? _defaultSpawnId[(int)team] : candidates[Random.Shared.Next(candidates.Length)];
     }
 
@@ -2237,7 +2237,7 @@ public partial class GameZone : Updater
                                 new Vector3(0.5f, portalSize.y, 0.5f));
 
                             var unitsForTeleport = _unitOctree.GetColliding(teleportRange).Where(u =>
-                                u.Id != unit.Id && (portalData.UnitsFilter is not { } targeting || u.DoesEffectApply(targeting, unit.Team)));
+                                u.Id != unit.Id && (portalData.UnitsFilter is not { } targeting || u.DoesEffectApply(targeting, unit)));
 
                             if (unitsForTeleport.FirstOrDefault() is { } unitToTeleport)
                             {
@@ -2285,7 +2285,7 @@ public partial class GameZone : Updater
 
                                 var otherForTeleport = _unitOctree.GetColliding(teleport2Range).Where(u =>
                                     u.Id != otherPortal.Id && (portalData.UnitsFilter is not { } targeting ||
-                                                               u.DoesEffectApply(targeting, otherPortal.Team)));
+                                                               u.DoesEffectApply(targeting, otherPortal)));
 
                                 if (!otherForTeleport.Any())
                                 {

@@ -12,6 +12,20 @@ const byte heroEmoteId = 102;
 const uint capabilityMagic = 0x42504E47u;
 var assertions = 0;
 
+var waitingArena = new WaitingArenaInitiator(new CardGameMode(), new MapData());
+Assert(waitingArena.AddPlayer(10) == TeamType.Neutral && waitingArena.AddPlayer(11) == TeamType.Neutral,
+    "waiting arena assigns every player to the neutral FFA team");
+Assert(Unit.DoesFreeForAllRelationshipApply(RelativeTeamType.Friendly, 10, 10),
+    "FFA players retain their own beneficial effects");
+Assert(!Unit.DoesFreeForAllRelationshipApply(RelativeTeamType.Opponent, 10, 10),
+    "FFA players cannot target themselves as opponents");
+Assert(!Unit.DoesFreeForAllRelationshipApply(RelativeTeamType.Friendly, 10, 11) &&
+       Unit.DoesFreeForAllRelationshipApply(RelativeTeamType.Opponent, 10, 11),
+    "different FFA players are opponents and never teammates");
+Assert(!Unit.DoesFreeForAllRelationshipApply(RelativeTeamType.Friendly, 10, null) &&
+       Unit.DoesFreeForAllRelationshipApply(RelativeTeamType.Opponent, 10, null),
+    "teamless map sources cannot grant friendly effects to FFA players");
+
 var legacySender = new FixtureSender();
 var legacyZone = new ServiceZone(legacySender);
 Receive(legacyZone, zoneReadyId);
