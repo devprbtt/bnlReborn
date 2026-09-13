@@ -323,7 +323,7 @@ public partial class GameZone : Updater
     private Unit? CreatePlayerUnit(uint playerId, IServiceZone creatorService)
     {
         if (!_playerLobbyInfo.TryGetValue(playerId, out var playerInfo)) return null;
-        var spawnId = _defaultSpawnId[(int)playerInfo.Team];
+        var spawnId = GetDefaultOrRandomSpawn(playerInfo.Team);
         var spawnPoint = _mapSpawnPoints.GetValueOrDefault(spawnId);
         var pos = Vector3.Zero;
         var rot = Quaternion.Identity;
@@ -336,9 +336,18 @@ public partial class GameZone : Updater
         var transform = ZoneTransformHelper.ToZoneTransform(pos, rot);
 
         var unitId = NewUnitId();
-
-        return CatalogueFactory.CreatePlayerUnit(unitId, playerInfo.PlayerId, transform, playerInfo, _gameInitiator, _zoneData.MatchCard,
+        var player = CatalogueFactory.CreatePlayerUnit(unitId, playerInfo.PlayerId, transform, playerInfo, _gameInitiator, _zoneData.MatchCard,
             _defaultUnitUpdater with { OnUnitInit = GetUnitInitAction(creatorService) });
+        if (player != null && _gameInitiator is WaitingArenaInitiator) player.FreeForAllPlayer = true;
+        return player;
+    }
+
+    private uint GetDefaultOrRandomSpawn(TeamType team)
+    {
+        if (_gameInitiator is not WaitingArenaInitiator)
+            return _defaultSpawnId[(int)team];
+        var candidates = _mapSpawnPoints.Where(entry => entry.Value.Team == team).Select(entry => entry.Key).ToArray();
+        return candidates.Length == 0 ? _defaultSpawnId[(int)team] : candidates[Random.Shared.Next(candidates.Length)];
     }
 
     // Map units are controlled by everyone in the match
@@ -839,10 +848,9 @@ public partial class GameZone : Updater
                 Deaths = 0,
                 Assists = 0
             });
-
-            _mapSpawnPoints.TryGetValue(_defaultSpawnId[(int)player.Team], out var spawn);
-
-            spawnPoints.Add(player.PlayerId, spawn != null ? _defaultSpawnId[(int)player.Team] : null);
+            var spawnId = GetDefaultOrRandomSpawn(player.Team);
+            _mapSpawnPoints.TryGetValue(spawnId, out var spawn);
+            spawnPoints.Add(player.PlayerId, spawn != null ? spawnId : null);
         }
 
         var matchZoneUpdate = new ZoneUpdate
@@ -951,8 +959,9 @@ public partial class GameZone : Updater
             });
         }
 
-        _mapSpawnPoints.TryGetValue(_defaultSpawnId[(int)lobbyInfo.Team], out var spawn);
-        _zoneData.PlayerSpawnPoints[playerId] = spawn != null ? _defaultSpawnId[(int)lobbyInfo.Team] : null;
+        var spawnId = GetDefaultOrRandomSpawn(lobbyInfo.Team);
+        _mapSpawnPoints.TryGetValue(spawnId, out var spawn);
+        _zoneData.PlayerSpawnPoints[playerId] = spawn != null ? spawnId : null;
 
         var matchZoneUpdate = new ZoneUpdate
         {
@@ -1083,7 +1092,7 @@ public partial class GameZone : Updater
         player.IsActive = false;
         player.Killed(impact);
 
-        _zoneData.UpdatePlayerSelectedSpawn(playerId, _defaultSpawnId[(int)player.Team]);
+        _zoneData.UpdatePlayerSelectedSpawn(playerId, GetDefaultOrRandomSpawn(player.Team));
     }
 
     public bool PlayerLeft(uint playerId, KickReason reason)
@@ -1135,6 +1144,10 @@ public partial class GameZone : Updater
         if (_gameInitiator is MatchmakerInitiator initiator)
         {
             initiator.RemovePlayer(playerId);
+        }
+        else if (_gameInitiator is WaitingArenaInitiator waitingArena)
+        {
+            waitingArena.RemovePlayer(playerId);
         }
 
         _serviceZone.SendKickPlayer(playerId, reason);
@@ -1397,7 +1410,7 @@ public partial class GameZone : Updater
     }
 
     private bool CheckIfMatchOver(TeamType targetTeam, Unit? killer) =>
-        _zoneData.MatchCard.Data?.Type switch
+        _gameInitiator is not WaitingArenaInitiator && _zoneData.MatchCard.Data?.Type switch
         {
             MatchType.ShieldRush2 or MatchType.ShieldCapture => _objectiveConquest[(int)targetTeam].Count == 0,
             // A kill with nobody behind it — lava, a trap, a block falling on something — has no
@@ -1803,7 +1816,7 @@ public partial class GameZone : Updater
         bool splashDamage = false, bool crit = false,
         float critMultiplier = 1f, DamageFalloff? falloff = null)
     {
-        var friendlyFire = _zoneData.MatchCard.FriendlyFire;
+        var friendlyFire = _gameInitiator is WaitingArenaInitiator ? null : _zoneData.MatchCard.FriendlyFire;
         var playerDmg = source?.PlayerDamageAmount(damage.PlayerDamage) ?? damage.PlayerDamage;
         if (crit)
         {

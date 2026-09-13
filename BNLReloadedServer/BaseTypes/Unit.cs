@@ -36,6 +36,7 @@ public partial class Unit
     public bool IsDead = false;
     public Func<bool>? ConquestDamageBlocked { get; set; }
     public bool IsActive = true;
+    public bool FreeForAllPlayer;
     public bool IsFirstLand = true;
     public bool WasAfkWarned;
     public readonly List<GearData> Gears = [];
@@ -268,7 +269,7 @@ public partial class Unit
         targeting.AffectedTeam switch
         {
             RelativeTeamType.Friendly when sourceTeam != Team => false,
-            RelativeTeamType.Opponent when sourceTeam == Team => false,
+            RelativeTeamType.Opponent when sourceTeam == Team && !FreeForAllPlayer => false,
             _ => ContainsLabelOrIsUnitType(targeting)
         };
 

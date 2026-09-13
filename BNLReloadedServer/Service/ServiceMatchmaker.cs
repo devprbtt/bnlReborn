@@ -34,7 +34,11 @@ public class ServiceMatchmaker(ISender sender) : IServiceMatchmaker
         MessageExitCustomGame = 21,
         MessageRegisterCustomGame = 22,
         MessageJoinCustomGameBySteam = 23,
-        MessageSetCustomGameThirdPerson = 24
+        MessageSetCustomGameThirdPerson = 24,
+        MessageSetWaitingArenaEnabled = 25,
+        MessageJoinWaitingArena = 26,
+        MessageLeaveWaitingArena = 27,
+        MessageWaitingArenaUpdate = 28
     }
 
     private readonly IRegionServerDatabase _serverDatabase = Databases.RegionServerDatabase;
@@ -320,6 +324,34 @@ public class ServiceMatchmaker(ISender sender) : IServiceMatchmaker
         var gameId = reader.ReadUInt64();
     }
 
+    private void ReceiveSetWaitingArenaEnabled(BinaryReader reader)
+    {
+        if (sender.AssociatedPlayerId.HasValue)
+            _serverDatabase.SetWaitingArenaEnabled(sender.AssociatedPlayerId.Value, reader.ReadBoolean(), this);
+    }
+
+    private void ReceiveJoinWaitingArena(BinaryReader reader)
+    {
+        if (sender.AssociatedPlayerId.HasValue)
+            _serverDatabase.JoinWaitingArena(sender.AssociatedPlayerId.Value, this);
+    }
+
+    private void ReceiveLeaveWaitingArena(BinaryReader reader)
+    {
+        if (sender.AssociatedPlayerId.HasValue)
+            _serverDatabase.LeaveWaitingArena(sender.AssociatedPlayerId.Value, this);
+    }
+
+    public void SendWaitingArenaUpdate(bool enabled, bool inArena, int playersInQueue)
+    {
+        using var writer = CreateWriter();
+        writer.Write((byte)ServiceMatchmakerId.MessageWaitingArenaUpdate);
+        writer.Write(enabled);
+        writer.Write(inArena);
+        writer.Write(playersInQueue);
+        sender.Send(writer);
+    }
+
     public bool Receive(BinaryReader reader)
     {
         var serviceMatchmakerId = reader.ReadByte();
@@ -392,6 +424,15 @@ public class ServiceMatchmaker(ISender sender) : IServiceMatchmaker
                 break;
             case ServiceMatchmakerId.MessageSetCustomGameThirdPerson:
                 ReceiveSetCustomGameThirdPerson(reader);
+                break;
+            case ServiceMatchmakerId.MessageSetWaitingArenaEnabled:
+                ReceiveSetWaitingArenaEnabled(reader);
+                break;
+            case ServiceMatchmakerId.MessageJoinWaitingArena:
+                ReceiveJoinWaitingArena(reader);
+                break;
+            case ServiceMatchmakerId.MessageLeaveWaitingArena:
+                ReceiveLeaveWaitingArena(reader);
                 break;
             default:
                 Log.Warn(LogCat.Net, $"Unknown service matchmaker id {Log.EnumName(matchEnum, serviceMatchmakerId)}");
