@@ -291,12 +291,9 @@ public partial class GameZone
             actualUnits = actualUnits.Where(u => u.UnitCard?.Labels?.Intersect(labels).Any() is true);
         }
 
-        actualUnits = effect.Targeting switch
-        {
-            { AffectedTeam: RelativeTeamType.Friendly } => actualUnits.Where(u => u.Team == source.Team),
-            { AffectedTeam: RelativeTeamType.Opponent } => actualUnits.Where(u => u.Team != source.Team),
-            _ => actualUnits
-        };
+        if (effect.Targeting is { } targeting)
+            actualUnits = actualUnits.Where(u => RelationshipApplies(u, unitSource, source.Team,
+                targeting.AffectedTeam));
 
         if (effect.Targeting?.AffectedUnits is { Count: > 0 } inclUnits)
         {
@@ -436,12 +433,8 @@ public partial class GameZone
                 return true;
 
             case InstEffectAllPlayersPersistent instEffectAllPlayersPersistent:
-                var playerEnumer = instEffectAllPlayersPersistent switch
-                {
-                    { AffectedTeam: RelativeTeamType.Friendly } => _playerUnits.Values.Where(p => p.Team == source.Team),
-                    { AffectedTeam: RelativeTeamType.Opponent } => _playerUnits.Values.Where(p => p.Team != source.Team),
-                    _ => _playerUnits.Values
-                };
+                var playerEnumer = _playerUnits.Values.Where(p => RelationshipApplies(p, unitSource, source.Team,
+                    instEffectAllPlayersPersistent.AffectedTeam));
 
                 if (!instEffectAllPlayersPersistent.IncludeDeadPlayers)
                 {
@@ -470,7 +463,8 @@ public partial class GameZone
                     var ownTeamConstant = ConstEffectsForOwnTeam(constant, effect);
                     foreach (var unit in actualUnitList)
                     {
-                        var applicable = unit.Team == source.Team ? ownTeamConstant : constant;
+                        var applicable = RelationshipApplies(unit, unitSource, source.Team,
+                            RelativeTeamType.Friendly) ? ownTeamConstant : constant;
                         if (applicable.Count == 0) continue;
                         unit.AddEffects(applicable.Select(c => new ConstEffectInfo(c)), source.Team, source);
                     }
@@ -782,7 +776,8 @@ public partial class GameZone
                     var ownTeamConst = ConstEffectsForOwnTeam(con, effect);
                     foreach (var unit in actualUnitList)
                     {
-                        var applicable = unit.Team == source.Team ? ownTeamConst : con;
+                        var applicable = RelationshipApplies(unit, unitSource, source.Team,
+                            RelativeTeamType.Friendly) ? ownTeamConst : con;
                         if (applicable.Count == 0) continue;
                         unit.AddEffects(applicable.Select(c => new ConstEffectInfo(c)), source.Team, source);
                     }
@@ -1100,12 +1095,8 @@ public partial class GameZone
                     actualUnitList.RemoveAll(u => u.PlayerId == unitSource.OwnerPlayerId);
                 }
 
-                actualUnitList = instEffectResourceAll.AffectedTeam switch
-                {
-                    RelativeTeamType.Friendly => actualUnitList.Where(u => u.Team == source.Team).ToList(),
-                    RelativeTeamType.Opponent => actualUnitList.Where(u => u.Team != source.Team).ToList(),
-                    _ => actualUnitList
-                };
+                actualUnitList = actualUnitList.Where(u => RelationshipApplies(u, unitSource, source.Team,
+                    instEffectResourceAll.AffectedTeam)).ToList();
 
                 if (!instEffectResourceAll.IncludeDeadPlayers)
                 {
@@ -1231,7 +1222,8 @@ public partial class GameZone
                     var ownTeamSplashConst = ConstEffectsForOwnTeam(splashConst, effect);
                     affUnits.ForEach(u =>
                     {
-                        var applicable = u.Team == source.Team ? ownTeamSplashConst : splashConst;
+                        var applicable = RelationshipApplies(u, unitSource, source.Team,
+                            RelativeTeamType.Friendly) ? ownTeamSplashConst : splashConst;
                         if (applicable.Count == 0) return;
                         u.AddEffects(applicable.Select(e => new ConstEffectInfo(e)), source.Team, source);
                     });
@@ -1408,7 +1400,8 @@ public partial class GameZone
                 var ownTeamEff = ConstEffectsForOwnTeam(eff, effect);
                 foreach (var unit in actualUnitList)
                 {
-                    var applicableEff = unit.Team == source.Team ? ownTeamEff : eff;
+                    var applicableEff = RelationshipApplies(unit, unitSource, source.Team,
+                        RelativeTeamType.Friendly) ? ownTeamEff : eff;
                     if (applicableEff.Count == 0) continue;
                     unit.AddEffects(applicableEff.Select(c => new ConstEffectInfo(c, instEffectZoneEffect.Duration)),
                         source.Team, persistantSource);

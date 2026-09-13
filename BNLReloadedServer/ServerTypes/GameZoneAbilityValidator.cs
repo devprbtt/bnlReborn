@@ -39,6 +39,10 @@ public partial class GameZone
         ValidateIgnoreCaster(t, caster, target);
 
     private static bool ValidateAffectedTeam(EffectTargeting t, Unit caster, Unit target) =>
+        target.FreeForAllPlayer && target.CombatOwnerPlayerId.HasValue
+            ? Unit.DoesFreeForAllRelationshipApply(t.AffectedTeam, target.CombatOwnerPlayerId,
+                caster.CombatOwnerPlayerId)
+            :
         t.AffectedTeam switch
         {
             RelativeTeamType.Friendly => target.Team == caster.Team,

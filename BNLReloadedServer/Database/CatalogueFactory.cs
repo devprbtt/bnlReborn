@@ -109,7 +109,8 @@ public static class CatalogueFactory
     }
 
     public static Unit? CreateUnit(uint id, Key unitKey, ZoneTransform location, TeamType team, Unit? owner,
-        UnitUpdater updater, float speed = 0, bool isAttached = false, bool builtDevice = false)
+        UnitUpdater updater, float speed = 0, bool isAttached = false, bool builtDevice = false,
+        bool freeForAll = false)
     {
         var unit = Databases.Catalogue.GetCard<CardUnit>(unitKey);
         if (unit == null) return null;
@@ -124,6 +125,7 @@ public static class CatalogueFactory
         };
 
         var newUnit = new Unit(id, unitInit, updater);
+        newUnit.FreeForAllPlayer = freeForAll && newUnit.CombatOwnerPlayerId.HasValue;
         newUnit.SetDamageCredit(DamageAccounting.ResolveSpawnCredit(builtDevice, unit.DeviceType,
             unit.TreatHitsAsOwnerHits, owner?.DamageCredit ?? DamageCreditType.None));
 
@@ -193,6 +195,7 @@ public static class CatalogueFactory
         };
 
         var newUnit = new Unit(id, unitInit, updater);
+        newUnit.FreeForAllPlayer = gameInitiator is WaitingArenaInitiator;
 
         var effects = PerkHelper.ExtractEffects(playerInfo.Perks ?? []);
         var passives = playerData.Passive?.ConvertPassives(playerInfo.Perks ?? []);

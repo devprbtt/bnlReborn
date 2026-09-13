@@ -53,6 +53,16 @@ Assert(!Unit.DoesFreeForAllRelationshipApply(RelativeTeamType.Friendly, 10, 11) 
 Assert(!Unit.DoesFreeForAllRelationshipApply(RelativeTeamType.Friendly, 10, null) &&
        Unit.DoesFreeForAllRelationshipApply(RelativeTeamType.Opponent, 10, null),
     "teamless map sources cannot grant friendly effects to FFA players");
+Assert(Unit.DoesCombatRelationshipApply(true, RelativeTeamType.Opponent,
+        TeamType.Neutral, 10, TeamType.Neutral, 11) &&
+       !Unit.DoesCombatRelationshipApply(true, RelativeTeamType.Friendly,
+        TeamType.Neutral, 10, TeamType.Neutral, 11),
+    "FFA combat filtering treats different owners on the same neutral team as enemies");
+Assert(Unit.DoesCombatRelationshipApply(true, RelativeTeamType.Friendly,
+        TeamType.Neutral, 10, TeamType.Neutral, 10) &&
+       !Unit.DoesCombatRelationshipApply(true, RelativeTeamType.Opponent,
+        TeamType.Neutral, 10, TeamType.Neutral, 10),
+    "FFA combat filtering keeps a player's own devices and effects friendly");
 
 var legacySender = new FixtureSender();
 var legacyZone = new ServiceZone(legacySender);

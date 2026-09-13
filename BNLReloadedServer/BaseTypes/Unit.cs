@@ -45,6 +45,7 @@ public partial class Unit
     public Dictionary<Key, int> DeviceLevels = new();
     public BuildInfo? CurrentBuildInfo;
     public uint? OwnerPlayerId;
+    public uint? CombatOwnerPlayerId => PlayerId ?? OwnerPlayerId;
     public uint? TurretTargetId = 0U;
     public TeslaChargeType TeslaCharge = TeslaChargeType.NoCharge;
     private int _charges;
@@ -271,8 +272,8 @@ public partial class Unit
     private bool DoesEffectApply(EffectTargeting targeting, TeamType sourceTeam, EffectSource? source)
     {
         if (!FreeForAllPlayer) return DoesEffectApply(targeting, sourceTeam);
-        var sourceOwnerId = source is UnitSource unitSource ? unitSource.Unit.OwnerPlayerId : null;
-        return DoesFreeForAllRelationshipApply(targeting.AffectedTeam, OwnerPlayerId, sourceOwnerId) &&
+        var sourceOwnerId = source is UnitSource unitSource ? unitSource.Unit.CombatOwnerPlayerId : null;
+        return DoesFreeForAllRelationshipApply(targeting.AffectedTeam, CombatOwnerPlayerId, sourceOwnerId) &&
                ContainsLabelOrIsUnitType(targeting);
     }
 
@@ -288,11 +289,22 @@ public partial class Unit
         };
     }
 
+    internal static bool DoesCombatRelationshipApply(bool freeForAll, RelativeTeamType relationship,
+        TeamType targetTeam, uint? targetOwnerId, TeamType sourceTeam, uint? sourceOwnerId) =>
+        freeForAll && targetOwnerId.HasValue
+            ? DoesFreeForAllRelationshipApply(relationship, targetOwnerId, sourceOwnerId)
+            : relationship switch
+            {
+                RelativeTeamType.Friendly => targetTeam == sourceTeam,
+                RelativeTeamType.Opponent => targetTeam != sourceTeam,
+                _ => true
+            };
+
     public bool DoesEffectApply(EffectTargeting targeting, TeamType sourceTeam) =>
         targeting.AffectedTeam switch
         {
             _ when FreeForAllPlayer &&
-                   !DoesFreeForAllRelationshipApply(targeting.AffectedTeam, OwnerPlayerId, null) => false,
+                   !DoesFreeForAllRelationshipApply(targeting.AffectedTeam, CombatOwnerPlayerId, null) => false,
             RelativeTeamType.Friendly when sourceTeam != Team => false,
             RelativeTeamType.Opponent when sourceTeam == Team && !FreeForAllPlayer => false,
             _ => ContainsLabelOrIsUnitType(targeting)

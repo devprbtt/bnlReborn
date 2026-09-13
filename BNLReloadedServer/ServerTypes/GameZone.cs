@@ -367,7 +367,8 @@ public partial class GameZone : Updater
             ? _defaultUnitUpdater with { OnUnitInit = GetUnitInitAction(creatorService) }
             : _defaultUnitUpdater;
         var newUnit = CatalogueFactory.CreateUnit(NewUnitId(), unit.Key, transform, builder?.Team ?? TeamType.Neutral,
-            builder, updater, isAttached: isAttached, builtDevice: builtDevice);
+            builder, updater, isAttached: isAttached, builtDevice: builtDevice,
+            freeForAll: _gameInitiator is WaitingArenaInitiator);
         if (newUnit == null) return newUnit;
 
         if (unit.CountLimit is { Limit: > 0 })
@@ -399,6 +400,13 @@ public partial class GameZone : Updater
 
         return newUnit;
     }
+
+    private bool RelationshipApplies(Unit target, Unit? source, TeamType sourceTeam, RelativeTeamType relationship)
+        => Unit.DoesCombatRelationshipApply(_gameInitiator is WaitingArenaInitiator, relationship,
+            target.Team, target.CombatOwnerPlayerId, sourceTeam, source?.CombatOwnerPlayerId);
+
+    private bool AreOpponents(Unit target, Unit source) =>
+        RelationshipApplies(target, source, source.Team, RelativeTeamType.Opponent);
 
     private void CreateLootUnit(LootItemUnit loot, ZoneTransform transform, Unit? killer = null)
     {
@@ -2206,7 +2214,7 @@ public partial class GameZone : Updater
                         var prevBaddies = unit.DamageCaptureEffect.NearbyUnits;
                         var nearbyBaddies = nearby.Where(u =>
                             (u.UnitCard?.Labels?.Contains(unitDataDamageCapture.CapturerLabel) ?? false) &&
-                            u.Team != unit.Team).ToArray();
+                            AreOpponents(u, unit)).ToArray();
 
                         var doUpdate = false;
                         unit.DamageCaptureEffect.NearbyUnits = nearbyBaddies;
@@ -2266,7 +2274,7 @@ public partial class GameZone : Updater
 
                     case UnitDataLandmine when !isDisabled && unit.LandmineEffect is not null:
                         var nearbyUnits = _unitOctree.GetColliding(unit.LandmineEffect.Shape);
-                        var nearbyEnemies = nearbyUnits.Where(u => u.PlayerId != null && u.Team != unit.Team);
+                        var nearbyEnemies = nearbyUnits.Where(u => u.PlayerId != null && AreOpponents(u, unit));
                         if (nearbyEnemies.Any())
                         {
                             unit.Killed(unit.CreateBlankImpactData());
