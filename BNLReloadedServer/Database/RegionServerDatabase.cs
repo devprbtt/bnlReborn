@@ -1457,10 +1457,10 @@ public class RegionServerDatabase(AsyncTaskTcpServer server, AsyncTaskTcpServer 
         var positions = new[]
         {
             new System.Numerics.Vector3(10.5f, 15f, 33.5f), new(137.5f, 15f, 33.5f),
-            new(44.5f, 18f, 19.5f), new(44.5f, 18f, 47.5f),
-            new(103.5f, 18f, 19.5f), new(103.5f, 18f, 47.5f),
-            new(61.5f, 18f, 14.5f), new(86.5f, 18f, 53.5f),
-            new(61.5f, 18f, 53.5f), new(86.5f, 18f, 14.5f),
+            new(40.5f, 18f, 11.5f), new(40.5f, 18f, 56.5f),
+            new(107.5f, 18f, 11.5f), new(107.5f, 18f, 56.5f),
+            new(61.5f, 18f, 23.5f), new(86.5f, 18f, 44.5f),
+            new(61.5f, 18f, 44.5f), new(86.5f, 18f, 23.5f),
             new(74f, 18f, 27f), new(74f, 18f, 41f)
         };
         map.SpawnPoints = positions.Select((position, index) => new MapSpawnPoint

@@ -41,7 +41,10 @@ public partial class GameZone
     {
         if (!_playerIdToUnitId.TryGetValue(playerId, out var playerUnitId) ||
             !_playerUnits.TryGetValue(playerUnitId, out var player) ||
-            !player.Devices.Values.Select(d => d.DeviceKey).Contains(buildInfo.DeviceKey))
+            !player.Devices.Values.Select(d => d.DeviceKey).Contains(buildInfo.DeviceKey) ||
+            _gameInitiator is WaitingArenaInitiator arena &&
+            (arena.IsInSpawnNoBuildZone(buildInfo.BuildInsidePosition) ||
+             arena.IsInSpawnNoBuildZone(buildInfo.BuildOutsidePosition)))
         {
             builderService.SendStartBuild(rpcId, false);
             return;

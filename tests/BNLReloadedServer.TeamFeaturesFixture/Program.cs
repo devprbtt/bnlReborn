@@ -12,9 +12,24 @@ const byte heroEmoteId = 102;
 const uint capabilityMagic = 0x42504E47u;
 var assertions = 0;
 
-var waitingArena = new WaitingArenaInitiator(new CardGameMode(), new MapData());
+var waitingArenaMap = new MapData
+{
+    SpawnPoints =
+    [
+        new MapSpawnPoint { Position = new Vector3(20.5f, 10f, 30.5f), Team = TeamType.Neutral }
+    ]
+};
+var waitingArena = new WaitingArenaInitiator(new CardGameMode(), waitingArenaMap);
 Assert(waitingArena.AddPlayer(10) == TeamType.Neutral && waitingArena.AddPlayer(11) == TeamType.Neutral,
     "waiting arena assigns every player to the neutral FFA team");
+for (uint playerId = 1000; playerId < 1256; playerId++) waitingArena.AddPlayer(playerId);
+Assert(waitingArena.PlayerCount == 258, "waiting arena accepts an unbounded player set beyond normal team limits");
+Assert(waitingArena.GetResourceCap() == 1000 && waitingArena.GetResourceAmount() == 1000,
+    "waiting arena starts players at its 1,000-brick cap");
+Assert(waitingArena.IsInSpawnNoBuildZone(new Vector3s(20, 25, 30)),
+    "waiting arena spawn protection covers the full vertical column");
+Assert(!waitingArena.IsInSpawnNoBuildZone(new Vector3s(27, 10, 30)),
+    "waiting arena spawn protection ends outside its six-block radius");
 Assert(Unit.DoesFreeForAllRelationshipApply(RelativeTeamType.Friendly, 10, 10),
     "FFA players retain their own beneficial effects");
 Assert(!Unit.DoesFreeForAllRelationshipApply(RelativeTeamType.Opponent, 10, 10),

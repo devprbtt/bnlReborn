@@ -514,6 +514,11 @@ public partial class GameZone
                     _ => Vector3.Zero
                 });
                 if (!_zoneData.BlocksData.ContainsBlock(blockLoc)) return false;
+                if (_gameInitiator is WaitingArenaInitiator arena && arena.IsInSpawnNoBuildZone(blockLoc))
+                {
+                    SendAuthoritativeBuildCorrection(unitSource, blockLoc);
+                    return false;
+                }
 
                 var devCard = Databases.Catalogue.GetCard<CardDevice>(instEffectBuildDevice.DeviceKey);
                 var itemCard = devCard?.DeviceKeyAtLevel((byte)instEffectBuildDevice.Level);
