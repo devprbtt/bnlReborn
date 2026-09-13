@@ -22,9 +22,10 @@ public partial class GameZone
     private void InitializeConquest()
     {
         if (_zoneData.MapKey != new Key(SkyBridgeConquest.MapId)) return;
+        var rules = _zoneData.MapKey.Value.GetCard<CardMap>()?.Conquest;
         _conquest = new SkyBridgeConquest(_zoneData.MapData.Units
             .Where(u => u.UnitKey.GetCard<CardUnit>()?.Labels?.Contains(UnitLabel.DropPointBlockbuster) == true)
-            .Select(u => u.Position));
+            .Select(u => u.Position), rules);
         foreach (var key in ConquestBuffs.Concat(CatalogueHelper.ObjectiveShieldKeys))
             if (key.GetCard<CardEffect>() == null) throw new InvalidOperationException($"Missing Conquest effect {key}");
     }
@@ -47,7 +48,7 @@ public partial class GameZone
             if (_conquest.Attacking && !wasAttacking)
             {
                 startedAttack = true;
-                _conquestBuffDeadline = (ulong)DateTimeOffset.UtcNow.AddSeconds(SkyBridgeConquest.AttackSeconds).ToUnixTimeMilliseconds();
+                _conquestBuffDeadline = (ulong)DateTimeOffset.UtcNow.AddSeconds(_conquest.Rules.AttackSeconds).ToUnixTimeMilliseconds();
             }
         }
         foreach (var unit in _units.Values.ToArray()) ApplyConquestUnit(unit);
@@ -95,12 +96,12 @@ public partial class GameZone
     {
         version = 2, round = _conquest.Round, attacker = (int)_conquest.Attacker, attackRemaining = _conquest.AttackRemaining,
         target = _conquest.Target, team1 = _conquest.Scores[1], team2 = _conquest.Scores[2],
-        tier = _conquest.Tier, halfWidth = SkyBridgeConquest.HalfWidth,
-        depthBelow = SkyBridgeConquest.DepthBelow, heightAbove = SkyBridgeConquest.HeightAbove,
+        tier = _conquest.Tier, halfWidth = _conquest.Rules.ZoneHalfWidth,
+        depthBelow = _conquest.Rules.ZoneDepthBelow, heightAbove = _conquest.Rules.ZoneHeightAbove,
         rate1 = _conquest.ScoreRate(TeamType.Team1), rate2 = _conquest.ScoreRate(TeamType.Team2),
         capturing = _zoneData.Phase.PhaseType is ZonePhaseType.Assault or ZonePhaseType.Assault2 or ZonePhaseType.SuddenDeath,
         zones = _conquest.Zones.Select(z => new { x = z.Center.X, y = z.Center.Y, z = z.Center.Z,
-            owner = (int)z.Owner, capturing = (int)z.Capturing, progress = z.Progress / SkyBridgeConquest.CaptureSeconds,
+            owner = (int)z.Owner, capturing = (int)z.Capturing, progress = z.Progress / _conquest.Rules.CaptureSeconds,
             contested = z.Contested, team1Count = z.Team1Count, team2Count = z.Team2Count }).ToArray()
     });
 }

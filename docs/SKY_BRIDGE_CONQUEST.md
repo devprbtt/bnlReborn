@@ -5,12 +5,13 @@ selectable alongside the unchanged `map_sr2_sky_bridge_don_edit`. Registration
 adds only the experimental custom-list entry when both its payload and the
 original catalogue card exist. No ranked/friendly pool changes.
 
-Three 12x12 squares centered on the original BB drop markers use a +/-3 vertical
-range and 10-second majority capture. Ties/empty zones pause capture and retain
-ownership. Changing capturing teams resets capture progress. Two owned zones
-earn one scoring second per second. Both clocks start at zero, target 600 seconds.
+Three 12x12 squares centered on the original BB drop markers use an eight-block
+depth/four-block height and 10-second majority capture by default. Ties/empty
+zones pause capture and retain ownership. Changing capturing teams resets capture
+progress. Two owned zones earn one scoring second per second; all three earn two.
 
-At threshold, Light → Classic → Uber BB attacks last 90 seconds. Only defender
+At the default 420/300/180-second thresholds, Light → Classic → Uber BB attacks
+last 90 seconds. Only defender
 objectives become vulnerable. BB restores after respawn at the original deadline.
 The last living attacker dying ends the attack immediately; disconnects also
 end attacks when none remain alive. End resets both clocks/ownership and restores
@@ -32,6 +33,34 @@ for experimental matches; no live deployment is included in this change.
 
 Map geometry is unchanged in a separate payload; see CONQUEST_MAP_PROVENANCE.json.
 The new payload must accompany any later deployment, or the entry is not registered.
+
+## Live CDB tuning
+
+The dedicated `map_sr2_sky_bridge_don_edit_conquest` map card accepts a
+server-only `conquest` object. It is read when a new match is constructed, so a
+CDB change-watcher update affects subsequent matches without restarting the
+server. Existing matches retain the settings they started with.
+
+```json
+"conquest": {
+  "initial_bricks": 2000,
+  "brick_cap": 3000,
+  "capture_seconds": 10,
+  "attack_seconds": 90,
+  "lite_bb_seconds": 420,
+  "classic_bb_seconds": 300,
+  "extreme_bb_seconds": 180,
+  "triple_capture_rate": 2,
+  "zone_half_width": 6,
+  "zone_depth_below": 8,
+  "zone_height_above": 4
+}
+```
+
+Starting bricks are always clamped to the configured cap. Invalid non-positive
+timings/ranges fall back to the defaults above. The object is omitted from the
+binary catalogue sent to clients, preserving protocol compatibility; clients
+receive the authoritative active values in Conquest snapshots.
 
 Validation, from repository root:
 

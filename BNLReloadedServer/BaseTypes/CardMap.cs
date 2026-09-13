@@ -18,6 +18,10 @@ public class CardMap : Card
 
     public MapData? Data { get; set; }
 
+    // JSON/CDB-only match tuning for the dedicated Conquest map. Do not append
+    // this to Write/Read: clients do not need these authoritative server rules.
+    public ConquestLogic? Conquest { get; set; }
+
     public override void Write(BinaryWriter writer)
     {
         new BitField(Id != null, true, Name != null, Description != null, Image != null, LargeImage != null, Data != null).Write(writer);

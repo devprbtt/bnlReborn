@@ -179,7 +179,7 @@ public static class CatalogueFactory
     }
 
     public static Unit? CreatePlayerUnit(uint id, uint playerId, ZoneTransform transform, PlayerLobbyState playerInfo,
-        IGameInitiator gameInitiator, CardMatch matchCard, UnitUpdater updater)
+        IGameInitiator gameInitiator, CardMatch matchCard, UnitUpdater updater, float? initialResourceOverride = null)
     {
         var unitCard = Databases.Catalogue.GetCard<CardUnit>(playerInfo.Hero);
         if (unitCard is not { Data: UnitDataPlayer playerData }) return null;
@@ -313,7 +313,9 @@ public static class CatalogueFactory
             Ability = abilityCard?.Key,
             AbilityCharges = abilityCard?.Charges?.MaxCharges,
             AbilityChargeCooldownEnd = 0,
-            Resource = gameInitiator.GetResourceAmount(),
+            // Never allow a mode/custom starting value to create a player above
+            // the authoritative cap. Conquest supplies its CDB map override here.
+            Resource = Math.Min(initialResourceOverride ?? gameInitiator.GetResourceAmount(), updater.GetResourceCap()),
             Effects = newUnit.ActiveEffects.ToInfoDictionary(),
             Devices = devices != null ? updatedDevices : null
         };

@@ -337,7 +337,7 @@ public partial class GameZone : Updater
 
         var unitId = NewUnitId();
         var player = CatalogueFactory.CreatePlayerUnit(unitId, playerInfo.PlayerId, transform, playerInfo, _gameInitiator, _zoneData.MatchCard,
-            _defaultUnitUpdater with { OnUnitInit = GetUnitInitAction(creatorService) });
+            _defaultUnitUpdater with { OnUnitInit = GetUnitInitAction(creatorService) }, _conquest?.Rules.InitialBricks);
         return player;
     }
 

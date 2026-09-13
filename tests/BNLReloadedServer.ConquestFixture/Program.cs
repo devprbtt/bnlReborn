@@ -2,8 +2,10 @@ using System.Numerics;
 using System.Linq.Expressions;
 using System.Reflection;
 using System.Runtime.CompilerServices;
+using System.Text.Json;
 using BNLReloadedServer.BaseTypes;
 using BNLReloadedServer.Database;
+using BNLReloadedServer.ProtocolHelpers;
 using BNLReloadedServer.ServerTypes;
 
 int checks = 0;
@@ -77,8 +79,8 @@ var zone=(GameZone)RuntimeHelpers.GetUninitializedObject(typeof(GameZone));
 var buffMode=new SkyBridgeConquest(centers); buffMode.Step(10,attackers);buffMode.Step(420,attackers);
 typeof(GameZone).GetField("_conquest",BindingFlags.NonPublic|BindingFlags.Instance)!.SetValue(zone,buffMode);
 var getResourceCap=typeof(GameZone).GetMethod("GetResourceCap",BindingFlags.NonPublic|BindingFlags.Instance)!;
-Check((float)getResourceCap.Invoke(zone,null)! == SkyBridgeConquest.ResourceCap && SkyBridgeConquest.ResourceCap==3000,
-    "Conquest overrides the authoritative brick cap to 3000");
+Check((float)getResourceCap.Invoke(zone,null)! == 3000 && buffMode.Rules.InitialBricks==2000,
+    "Conquest defaults provide authoritative initial bricks and cap");
 ulong deadline=(ulong)DateTimeOffset.UtcNow.AddSeconds(45).ToUnixTimeMilliseconds();
 typeof(GameZone).GetField("_conquestBuffDeadline",BindingFlags.NonPublic|BindingFlags.Instance)!.SetValue(zone,deadline);
 var apply=typeof(GameZone).GetMethod("ApplyConquestUnit",BindingFlags.NonPublic|BindingFlags.Instance)!;
@@ -104,6 +106,31 @@ List<Card> cards=[originalCard,pool];
 ConquestMapRegistration.Register(cards); ConquestMapRegistration.Register(cards);
 Check(cards.OfType<CardMap>().Count()==2 && pool.Custom.Count==2,"idempotent registration retains two custom map choices");
 Check(originalCard.Name.Text=="Sky Bridge Don Edit" && pool.Ranked.Count==1 && pool.Friendly.Count==1,"original card and matchmaking pools unchanged");
+var generatedConquest=cards.OfType<CardMap>().Single(c=>c.Id==SkyBridgeConquest.MapId);
+Check(generatedConquest.Conquest is { InitialBricks: 2000, BrickCap: 3000, CaptureSeconds: 10 },
+    "generated Conquest map exposes default CDB tuning");
+var cdbJson=JsonSerializer.Serialize<Card>(generatedConquest,JsonHelper.DefaultSerializerSettings);
+var cdbCopy=(CardMap)JsonSerializer.Deserialize<Card>(cdbJson,JsonHelper.DefaultSerializerSettings)!;
+Check(cdbCopy.Conquest is { LiteBbSeconds: 420, ClassicBbSeconds: 300, ExtremeBbSeconds: 180 },
+    "Conquest tuning round-trips through CDB JSON");
+using(var cardBytes=new MemoryStream())
+{
+    generatedConquest.Write(new BinaryWriter(cardBytes));cardBytes.Position=0;
+    var clientCopy=CardMap.ReadRecord(new BinaryReader(cardBytes));
+    Check(clientCopy.Conquest==null && cardBytes.Position==cardBytes.Length,
+        "server-only Conquest tuning does not change the client card protocol");
+}
+var customRules=new ConquestLogic {InitialBricks=4500,BrickCap=2500,CaptureSeconds=4,AttackSeconds=12,
+    LiteBbSeconds=20,ClassicBbSeconds=15,ExtremeBbSeconds=10,TripleCaptureRate=3,
+    ZoneHalfWidth=7,ZoneDepthBelow=9,ZoneHeightAbove=5};
+var configured=new SkyBridgeConquest(centers,customRules);
+Check(configured.Rules.InitialBricks==2500 && configured.Rules.BrickCap==2500,
+    "CDB initial bricks are clamped to the CDB cap");
+configured.Step(3,attackers);Check(configured.Zones.All(z=>z.Owner==TeamType.Neutral),"CDB capture time is authoritative before threshold");
+configured.Step(1,attackers);Check(configured.Zones.Count(z=>z.Owner==TeamType.Team1)==2,"CDB capture time is authoritative at threshold");
+configured.Step(20,attackers);Check(configured.Attacker==TeamType.Team1 && configured.AttackRemaining==12,
+    "CDB Lite and attack clocks are authoritative");
+configured.Step(12,attackers);Check(configured.Round==1 && configured.Target==15,"CDB Classic clock is authoritative");
 var teamTwo=new SkyBridgeConquest(centers);
 var defenders=attackers.Select(p=>p with {Team=TeamType.Team2}).ToArray();
 teamTwo.Step(10,defenders); teamTwo.Step(420,defenders);

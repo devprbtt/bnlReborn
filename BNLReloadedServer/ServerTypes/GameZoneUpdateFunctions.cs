@@ -1555,7 +1555,7 @@ public partial class GameZone
         _serviceZone.SendImpact(impactData);
     }
 
-    private float GetResourceCap() => _conquest != null ? SkyBridgeConquest.ResourceCap : _gameInitiator.GetResourceCap();
+    private float GetResourceCap() => _conquest?.Rules.BrickCap ?? _gameInitiator.GetResourceCap();
 
     private static readonly EffectLabel[] HostileEffectLabels =
     [
