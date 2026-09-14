@@ -16,6 +16,8 @@ var mode = new SkyBridgeConquest(centers);
 Check(mode.Zones.All(z=>z.Owner==TeamType.Neutral) && mode.Target==420,"neutral start and seven minute Lite target");
 mode.Step(9,attackers); Check(mode.Zones.All(z=>z.Owner==TeamType.Neutral),"capture takes ten seconds");
 mode.Step(1,attackers); Check(mode.Zones.Count(z=>z.Owner==TeamType.Team1)==2,"capture at ten seconds");
+Check(mode.ZonesCaptured(1)==1 && mode.ZonesCaptured(2)==1 && mode.ZoneTimeSeconds(1)==10 && mode.ZoneTimeSeconds(2)==10,
+    "capture contributors receive one zone and ten seconds of zone presence each");
 mode.Step(419,attackers); Check(!mode.Attacking && mode.Scores[1]==419,"only ownership time scores");
 mode.Step(1,attackers); Check(mode.Attacker==TeamType.Team1 && mode.Tier=="lite","first threshold awards light BB");
 var snapshotDue=typeof(GameZone).GetMethod("ConquestSnapshotDue",BindingFlags.NonPublic|BindingFlags.Static)!;
@@ -46,6 +48,10 @@ contested.Step(10,[attackers[0],new(3,TeamType.Team2,centers[0])]);
 Check(contested.Zones[0].Owner==TeamType.Neutral,"equal populations pause capture");
 contested.Step(10,[attackers[0],new(4,TeamType.Team1,centers[0]),new(3,TeamType.Team2,centers[0])]);
 Check(contested.Zones[0].Owner==TeamType.Team1,"majority captures while enemies present");
+Check(contested.ZonesCaptured(1)==1 && contested.ZonesCaptured(4)==1 && contested.ZonesCaptured(3)==0,
+    "all present majority players share capture credit but the defender does not");
+Check(contested.ZoneTimeSeconds(1)==20 && contested.ZoneTimeSeconds(3)==20,
+    "contested time still counts as time physically present in a zone");
 contested.Step(30,[]); Check(contested.Scores[1]==0 && contested.Zones[0].Owner==TeamType.Team1,"empty zones retain ownership; one zone earns no time");
 contested.Step(10,[new(3,TeamType.Team2,centers[0])]); Check(contested.Zones[0].Owner==TeamType.Team2,"enemy recaptures");
 var bounds = new SkyBridgeConquest(centers);

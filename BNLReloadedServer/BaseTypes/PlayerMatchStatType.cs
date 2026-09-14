@@ -9,5 +9,7 @@ public enum PlayerMatchStatType
     BlockAssist = 5,
     Kill = 6,
     Death = 7,
-    Assist = 8
+    Assist = 8,
+    ZonesCaptured = 9,
+    ZoneTimeSeconds = 10
 }

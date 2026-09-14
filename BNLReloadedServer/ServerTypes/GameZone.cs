@@ -1187,6 +1187,7 @@ public partial class GameZone : Updater
             player.UpdateStatsFromTimers();
             archivedStatInfo = _zoneData.MatchCard.Stats?.Stats?.ToDictionary(k => k.Key,
                 v => (int)v.Value.Sum(score => player.Stats.GetValueOrDefault(score.Key) * score.Value));
+            archivedStatInfo = AddConquestResultStats(playerId, archivedStatInfo);
             var archivedTotalInfo = _zoneData.MatchCard.Stats?.Total;
             archivedTotal = (int)(archivedTotalInfo?.Sum(
                 score => archivedStatInfo?[score.Key] * score.Value) ?? 0);
@@ -1617,6 +1618,7 @@ public partial class GameZone : Updater
             var zoneDataMatchCard = _zoneData.MatchCard;
             var statInfo = zoneDataMatchCard.Stats?.Stats?.ToDictionary(k => k.Key,
                 v => (int)v.Value.Sum(score => player.Stats.GetValueOrDefault(score.Key) * score.Value));
+            statInfo = AddConquestResultStats(player.PlayerId.Value, statInfo);
             var totalInfo = zoneDataMatchCard.Stats?.Total;
             _matchParticipation.SetResult(player.PlayerId.Value, player.Team == winner, statInfo,
                 (int)(totalInfo?.Sum(score => statInfo?[score.Key] * score.Value) ?? 0),

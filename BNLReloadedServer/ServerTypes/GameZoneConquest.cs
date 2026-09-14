@@ -62,6 +62,16 @@ public partial class GameZone
     private static bool ConquestSnapshotDue(bool periodicUpdate, bool startedAttack) =>
         periodicUpdate || startedAttack;
 
+    private Dictionary<PlayerMatchStatType, int>? AddConquestResultStats(uint playerId,
+        Dictionary<PlayerMatchStatType, int>? stats)
+    {
+        if (_conquest == null) return stats;
+        stats ??= [];
+        stats[PlayerMatchStatType.ZonesCaptured] = _conquest.ZonesCaptured(playerId);
+        stats[PlayerMatchStatType.ZoneTimeSeconds] = _conquest.ZoneTimeSeconds(playerId);
+        return stats;
+    }
+
     private void ApplyConquestUnit(Unit unit)
     {
         if (_conquest == null) return;
@@ -94,7 +104,8 @@ public partial class GameZone
 
     private string? ConquestSnapshot() => _conquest == null ? null : JsonSerializer.Serialize(new
     {
-        version = 2, round = _conquest.Round, attacker = (int)_conquest.Attacker, attackRemaining = _conquest.AttackRemaining,
+        version = 3, round = _conquest.Round, attacker = (int)_conquest.Attacker, attackRemaining = _conquest.AttackRemaining,
+        attackDuration = _conquest.Rules.AttackSeconds,
         target = _conquest.Target, team1 = _conquest.Scores[1], team2 = _conquest.Scores[2],
         tier = _conquest.Tier, halfWidth = _conquest.Rules.ZoneHalfWidth,
         depthBelow = _conquest.Rules.ZoneDepthBelow, heightAbove = _conquest.Rules.ZoneHeightAbove,
