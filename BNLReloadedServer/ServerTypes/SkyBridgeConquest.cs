@@ -28,6 +28,8 @@ public sealed class SkyBridgeConquest
     }
     public Zone[] Zones { get; }
     public float[] Scores { get; } = new float[3];
+    private readonly Dictionary<uint, int> _zonesCaptured = [];
+    private readonly Dictionary<uint, float> _zoneTimeSeconds = [];
     public TeamType Attacker { get; private set; }
     public float AttackRemaining { get; private set; }
     public int Round { get; private set; }
@@ -39,6 +41,8 @@ public sealed class SkyBridgeConquest
     };
     public string Tier => Round == 0 ? "lite" : Round == 1 ? "classic" : "uber";
     public bool Attacking => Attacker != TeamType.Neutral;
+    public int ZonesCaptured(uint playerId) => _zonesCaptured.GetValueOrDefault(playerId);
+    public int ZoneTimeSeconds(uint playerId) => (int)Math.Floor(_zoneTimeSeconds.GetValueOrDefault(playerId));
     public SkyBridgeConquest(IEnumerable<Vector3> centers)
     {
         Zones = centers.Select(c => new Zone(c)).ToArray();
@@ -64,6 +68,9 @@ public sealed class SkyBridgeConquest
             if (AttackRemaining == 0 || !players.Any(p => p.Team == Attacker)) EndAttack();
             return;
         }
+        // Presence is credited once per step even if tuned zone bounds overlap.
+        foreach (var player in players.Where(player => Zones.Any(zone => zone.Contains(player.Position))))
+            _zoneTimeSeconds[player.Id] = _zoneTimeSeconds.GetValueOrDefault(player.Id) + elapsed;
         // Score the ownership held during this step, before resolving captures at its end.
         foreach (var team in new[] { TeamType.Team1, TeamType.Team2 })
         {
@@ -87,6 +94,8 @@ public sealed class SkyBridgeConquest
             if (zone.Progress >= CaptureSeconds)
             {
                 zone.Owner = majority; zone.Capturing = TeamType.Neutral; zone.Progress = 0;
+                foreach (var player in players.Where(player => player.Team == majority && zone.Contains(player.Position)))
+                    _zonesCaptured[player.Id] = _zonesCaptured.GetValueOrDefault(player.Id) + 1;
             }
         }
     }

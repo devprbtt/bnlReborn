@@ -30,6 +30,13 @@ public sealed record LifetimeHeroStats(long HeroKey, LifetimeCombatTotals Combat
 public sealed record LifetimeProfileStats(int Version, uint PlayerId, long? Since, LifetimeCombatTotals Overall,
     List<LifetimeHeroStats> Heroes, long UnattributedMatches, long ExcludedMatches)
 {
+    private static readonly PlayerMatchStatType[] RequiredCombatStats =
+    [
+        PlayerMatchStatType.Earned, PlayerMatchStatType.Built, PlayerMatchStatType.Destroyed,
+        PlayerMatchStatType.Objective, PlayerMatchStatType.BlockAssist, PlayerMatchStatType.Kill,
+        PlayerMatchStatType.Death, PlayerMatchStatType.Assist
+    ];
+
     public static LifetimeProfileStats Read(SQLiteConnection db, uint playerId)
     {
         var overall = new LifetimeCombatTotals();
@@ -57,7 +64,8 @@ public sealed record LifetimeProfileStats(int Version, uint PlayerId, long? Sinc
             try { stats = ReadStats(player.Stats); raw = ReadRaw(player.RawStats); }
             catch (Exception ex) when (ex is IOException or ArgumentException or OverflowException) { excluded++; continue; }
             if (seconds <= 0 || raw.Count == 0 ||
-                Enum.GetValues<PlayerMatchStatType>().Any(k => !stats.ContainsKey(k) || stats[k] < 0) ||
+                RequiredCombatStats.Any(k => !stats.ContainsKey(k) || stats[k] < 0) ||
+                stats.Values.Any(value => value < 0) ||
                 raw.Values.Any(v => !float.IsFinite(v) || v < 0) ||
                 raw.GetValueOrDefault(ScoreType.KillPlayerCriticalByHero) > stats[PlayerMatchStatType.Kill]) { excluded++; continue; }
             since = Math.Min(since ?? match.StartedAt, match.StartedAt);

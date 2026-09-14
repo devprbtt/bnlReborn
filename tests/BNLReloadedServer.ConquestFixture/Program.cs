@@ -14,6 +14,8 @@ var mode = new SkyBridgeConquest(centers);
 Check(mode.Zones.All(z=>z.Owner==TeamType.Neutral) && mode.Target==420,"neutral start and seven minute Lite target");
 mode.Step(9,attackers); Check(mode.Zones.All(z=>z.Owner==TeamType.Neutral),"capture takes ten seconds");
 mode.Step(1,attackers); Check(mode.Zones.Count(z=>z.Owner==TeamType.Team1)==2,"capture at ten seconds");
+Check(mode.ZonesCaptured(1)==1 && mode.ZonesCaptured(2)==1 && mode.ZoneTimeSeconds(1)==10 && mode.ZoneTimeSeconds(2)==10,
+    "capture contributors receive one zone and ten seconds of zone presence each");
 mode.Step(419,attackers); Check(!mode.Attacking && mode.Scores[1]==419,"only ownership time scores");
 mode.Step(1,attackers); Check(mode.Attacker==TeamType.Team1 && mode.Tier=="lite","first threshold awards light BB");
 var snapshotDue=typeof(GameZone).GetMethod("ConquestSnapshotDue",BindingFlags.NonPublic|BindingFlags.Static)!;
@@ -44,6 +46,10 @@ contested.Step(10,[attackers[0],new(3,TeamType.Team2,centers[0])]);
 Check(contested.Zones[0].Owner==TeamType.Neutral,"equal populations pause capture");
 contested.Step(10,[attackers[0],new(4,TeamType.Team1,centers[0]),new(3,TeamType.Team2,centers[0])]);
 Check(contested.Zones[0].Owner==TeamType.Team1,"majority captures while enemies present");
+Check(contested.ZonesCaptured(1)==1 && contested.ZonesCaptured(4)==1 && contested.ZonesCaptured(3)==0,
+    "all present majority players share capture credit but the defender does not");
+Check(contested.ZoneTimeSeconds(1)==20 && contested.ZoneTimeSeconds(3)==20,
+    "contested time still counts as time physically present in a zone");
 contested.Step(30,[]); Check(contested.Scores[1]==0 && contested.Zones[0].Owner==TeamType.Team1,"empty zones retain ownership; one zone earns no time");
 contested.Step(10,[new(3,TeamType.Team2,centers[0])]); Check(contested.Zones[0].Owner==TeamType.Team2,"enemy recaptures");
 var bounds = new SkyBridgeConquest(centers);
@@ -148,6 +154,26 @@ foreach (var label in new[] {"first spawn","death and respawn"})
     Check(clientHealth==110,label+" stays full health after delayed Conquest packet");
     Check(delayed.All(p=>p.Health==null && p.Forcefield==null && p.Ammo==null),label+" Conquest packet excludes uninitialized combat state");
 }
+// Exercise the result injection and byte-keyed wire record, not only pure counters.
+var resultMode=new SkyBridgeConquest(centers);
+resultMode.Step(10,[attackers[0]]);resultMode.Step(140,[attackers[0]]);
+var resultZone=(GameZone)RuntimeHelpers.GetUninitializedObject(typeof(GameZone));
+typeof(GameZone).GetField("_conquest",BindingFlags.NonPublic|BindingFlags.Instance)!.SetValue(resultZone,resultMode);
+var addResults=typeof(GameZone).GetMethod("AddConquestResultStats",BindingFlags.NonPublic|BindingFlags.Instance)!;
+var resultStats=(Dictionary<PlayerMatchStatType,int>)addResults.Invoke(resultZone,[1u,null])!;
+Check(resultStats[PlayerMatchStatType.ZonesCaptured]==1 && resultStats[PlayerMatchStatType.ZoneTimeSeconds]==150,"end-match payload includes captures and 150 seconds without a configured stats map");
+var existingStats=new Dictionary<PlayerMatchStatType,int>{{PlayerMatchStatType.Kill,7}};
+addResults.Invoke(resultZone,[1u,existingStats]);
+Check(existingStats[PlayerMatchStatType.Kill]==7 && existingStats[PlayerMatchStatType.ZonesCaptured]==1,"participation augments existing combat stats");
+var absentStats=(Dictionary<PlayerMatchStatType,int>)addResults.Invoke(resultZone,[99u,null])!;
+Check(absentStats[PlayerMatchStatType.ZonesCaptured]==0 && absentStats[PlayerMatchStatType.ZoneTimeSeconds]==0,"players with no zone participation receive explicit zeros");
+using(var wire=new MemoryStream()) {
+ new EndMatchPlayerStats {Stats=resultStats,Total=42}.Write(new BinaryWriter(wire));wire.Position=0;
+ var decoded=new EndMatchPlayerStats();decoded.Read(new BinaryReader(wire));
+ Check(decoded.Stats![(PlayerMatchStatType)9]==1 && decoded.Stats[(PlayerMatchStatType)10]==150 && decoded.Total==42,"conquest byte keys survive result protocol round-trip");
+}
+typeof(GameZone).GetField("_conquest",BindingFlags.NonPublic|BindingFlags.Instance)!.SetValue(resultZone,null);
+Check(addResults.Invoke(resultZone,[1u,null])==null,"non-Conquest results remain unchanged");
 Console.WriteLine($"Conquest suite passed: {checks} checks.");
 
 public class NoopZoneService : DispatchProxy
