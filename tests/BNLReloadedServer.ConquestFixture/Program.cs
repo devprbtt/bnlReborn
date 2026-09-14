@@ -181,6 +181,26 @@ foreach (var label in new[] {"first spawn","death and respawn"})
     Check(clientHealth==110,label+" stays full health after delayed Conquest packet");
     Check(delayed.All(p=>p.Health==null && p.Forcefield==null && p.Ammo==null),label+" Conquest packet excludes uninitialized combat state");
 }
+// Exercise the result injection and byte-keyed wire record, not only pure counters.
+var resultMode=new SkyBridgeConquest(centers);
+resultMode.Step(10,[attackers[0]]);resultMode.Step(140,[attackers[0]]);
+var resultZone=(GameZone)RuntimeHelpers.GetUninitializedObject(typeof(GameZone));
+typeof(GameZone).GetField("_conquest",BindingFlags.NonPublic|BindingFlags.Instance)!.SetValue(resultZone,resultMode);
+var addResults=typeof(GameZone).GetMethod("AddConquestResultStats",BindingFlags.NonPublic|BindingFlags.Instance)!;
+var resultStats=(Dictionary<PlayerMatchStatType,int>)addResults.Invoke(resultZone,[1u,null])!;
+Check(resultStats[PlayerMatchStatType.ZonesCaptured]==1 && resultStats[PlayerMatchStatType.ZoneTimeSeconds]==150,"end-match payload includes captures and 150 seconds without a configured stats map");
+var existingStats=new Dictionary<PlayerMatchStatType,int>{{PlayerMatchStatType.Kill,7}};
+addResults.Invoke(resultZone,[1u,existingStats]);
+Check(existingStats[PlayerMatchStatType.Kill]==7 && existingStats[PlayerMatchStatType.ZonesCaptured]==1,"participation augments existing combat stats");
+var absentStats=(Dictionary<PlayerMatchStatType,int>)addResults.Invoke(resultZone,[99u,null])!;
+Check(absentStats[PlayerMatchStatType.ZonesCaptured]==0 && absentStats[PlayerMatchStatType.ZoneTimeSeconds]==0,"players with no zone participation receive explicit zeros");
+using(var wire=new MemoryStream()) {
+ new EndMatchPlayerStats {Stats=resultStats,Total=42}.Write(new BinaryWriter(wire));wire.Position=0;
+ var decoded=new EndMatchPlayerStats();decoded.Read(new BinaryReader(wire));
+ Check(decoded.Stats![(PlayerMatchStatType)9]==1 && decoded.Stats[(PlayerMatchStatType)10]==150 && decoded.Total==42,"conquest byte keys survive result protocol round-trip");
+}
+typeof(GameZone).GetField("_conquest",BindingFlags.NonPublic|BindingFlags.Instance)!.SetValue(resultZone,null);
+Check(addResults.Invoke(resultZone,[1u,null])==null,"non-Conquest results remain unchanged");
 Console.WriteLine($"Conquest suite passed: {checks} checks.");
 
 public class NoopZoneService : DispatchProxy
