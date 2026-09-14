@@ -787,8 +787,12 @@ public partial class GameInstance : IGameInstance
                 if (cancelledEmote && zoneService.SupportsHeroEmote)
                     zoneService.SendHeroEmote(playerId, false, -1);
 
-                if (player.Team == team && zoneService.SupportsTeamPing)
+                if (player.Team != team) continue;
+                if (zoneService.SupportsTeamPing)
                     zoneService.SendTeamPing(playerId, position, safeNormal);
+                // Reuse the original player-command presentation. Every teammate
+                // hears the sender hero/skin's VO and sees the native notice.
+                zoneService.SendPlayerCommand(playerId, TeamPingRegistration.EnemySpottedNotification);
             }
         });
 

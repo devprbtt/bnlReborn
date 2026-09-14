@@ -36,6 +36,14 @@ Assert(!waitingArena.UsesPhaseBarriers(),
     "waiting arena removes both teams' protected phase force fields");
 Assert(!waitingArena.AllowsTeamCommunication(),
     "waiting arena disables team-only callouts and map pings");
+var pingCards = new List<Card>();
+TeamPingRegistration.Register(pingCards);
+TeamPingRegistration.Register(pingCards);
+var pingNotification = (CardNotification)pingCards.Single();
+Assert(pingNotification.Id == TeamPingRegistration.EnemySpottedNotificationId &&
+       pingNotification.PlayerNotifySound == "command_enemy_spotted" &&
+       pingNotification.SmallNotifyText?.Text == "<PLAYER>: Enemy spotted",
+    "team ping registers one idempotent native enemy-spotted command card");
 Assert(WaitingArenaInitiator.SpawnPositions.Count == 12,
     "waiting arena exposes twelve randomized spawn areas");
 Assert(WaitingArenaInitiator.SelectRandomSpawn([7u, 9u], 1u, 7u) == 9u,
