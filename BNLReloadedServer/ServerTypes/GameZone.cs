@@ -2102,6 +2102,12 @@ public partial class GameZone : Updater
                     RunBlockCheckForUnit(unit);
                 }
 
+                if (doBuffCheck && !unit.IsDead && unit.PiggyBankData != null)
+                {
+                    var stored = MathF.Floor(unit.PiggyBankStoredResource);
+                    if (unit.Resource != stored) unit.UpdateData(new UnitUpdate { Resource = stored });
+                }
+
                 unit.CleanUpExpired();
                 var unitSource = unit.GetSelfSource(unit.CreateImpactData());
 

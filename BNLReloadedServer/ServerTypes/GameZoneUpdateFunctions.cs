@@ -1770,9 +1770,7 @@ public partial class GameZone
                 break;
 
             case UnitDataPiggyBank unitDataPiggyBank when killerPlayer is not null:
-                var resourceCount = (float)(target.TimeSinceCreated.TotalSeconds *
-                                            unitDataPiggyBank.ResourcePerInterval /
-                                            (unitDataPiggyBank.GenerationInterval * 5));
+                var resourceCount = target.PiggyBankStoredResource;
 
                 foreach (var player in _playerUnits.Values.Where(p => p.Team == killerPlayer.Team && !p.IsDead))
                 {

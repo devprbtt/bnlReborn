@@ -815,6 +815,9 @@ public partial class Unit
 
     public UnitDataPiggyBank? PiggyBankData => UnitCard?.Data as UnitDataPiggyBank;
 
+    public float PiggyBankStoredResource => PiggyBankData is { } piggy
+        ? PiggyBankBalance.Calculate(TimeSinceCreated.TotalSeconds, piggy.ResourcePerInterval, piggy.GenerationInterval) : 0;
+
     public ulong LastMoveUpdateTime;
     private ulong _lastUpdateTime;
 
@@ -1134,7 +1137,11 @@ public partial class Unit
 
         newUpdate.Team = Team;
 
-        if (Resource > 0)
+        if (PiggyBankData != null)
+        {
+            newUpdate.Resource = PiggyBankStoredResource;
+        }
+        else if (Resource > 0)
         {
             newUpdate.Resource = Resource;
         }
