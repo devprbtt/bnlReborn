@@ -22,6 +22,10 @@ public class CardMap : Card
     // this to Write/Read: clients do not need these authoritative server rules.
     public ConquestLogic? Conquest { get; set; }
 
+    // CDB-only relative chance of appearing on a casual voting ballot.
+    // Keep out of the binary card format so existing clients remain compatible.
+    public double? CasualVoteWeight { get; set; }
+
     public override void Write(BinaryWriter writer)
     {
         new BitField(Id != null, true, Name != null, Description != null, Image != null, LargeImage != null, Data != null).Write(writer);

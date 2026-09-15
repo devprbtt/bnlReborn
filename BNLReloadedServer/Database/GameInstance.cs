@@ -401,10 +401,10 @@ public partial class GameInstance : IGameInstance
             };
 
             var playable = mapPool
-                .Where(k => k.GetCard<CardMap>() is not null && Databases.MapDatabase.HasMap(k))
-                .ToArray();
-            rnd.Shuffle(playable);
-            maps = playable.Take(mapGrabCount)
+                .Select(k => k.GetCard<CardMap>())
+                .Where(map => map is not null && Databases.MapDatabase.HasMap(map.Key))
+                .Select(map => map!);
+            maps = MapVoteSelection.Select(playable, mapGrabCount, gameMode.Ranking, rnd)
                 .Select(MapInfo (key) => new MapInfoCard { MapKey = key }).ToList();
         }
 

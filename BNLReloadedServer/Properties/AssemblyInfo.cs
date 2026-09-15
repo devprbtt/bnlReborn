@@ -5,3 +5,5 @@ using System.Runtime.CompilerServices;
 [assembly: InternalsVisibleTo("BNLReloadedServer.ConquestFixture")]
 
 [assembly: InternalsVisibleTo("BNLReloadedServer.DeathmatchFollowupFixture")]
+
+[assembly: InternalsVisibleTo("BNLReloadedServer.MapVoteFixture")]
