@@ -376,7 +376,7 @@ public partial class GameZone : Updater
             {
                 UnitLimitScope.World => _units.Values.Where(u => u.Key == unit.Key).ToList(),
 
-                UnitLimitScope.Team => _units.Values.Where(u => u.Key == unit.Key && u.Team == newUnit.Team).ToList(),
+                UnitLimitScope.Team => _units.Values.Where(u => u.Key == unit.Key && RelationshipApplies(u, newUnit, newUnit.Team, RelativeTeamType.Friendly)).ToList(),
 
                 UnitLimitScope.Owner when newUnit.OwnerPlayerId is not null => _units.Values
                     .Where(u => u.Key == unit.Key && u.OwnerPlayerId == newUnit.OwnerPlayerId)
@@ -1956,12 +1956,9 @@ public partial class GameZone : Updater
             var block = MapBinary[blk];
             if (block.Card.Special is not BlockSpecialInsideEffect insideEffect) continue;
 
-            if (insideEffect.TriggerTeam switch
-            {
-                RelativeTeamType.Friendly => block.Team != unit.Team,
-                RelativeTeamType.Opponent => block.Team == unit.Team,
-                _ => false
-            }) continue;
+            // Map blocks have no player owner: hostile traps affect everyone in FFA.
+            if (!Unit.DoesCombatRelationshipApply(_gameInitiator is WaitingArenaInitiator,
+                insideEffect.TriggerTeam, unit.Team, unit.FreeForAllTeamId, block.Team, null)) continue;
 
             if (!MapBinary.UnitsInsideBlock.TryGetValue(blk, out var value))
             {

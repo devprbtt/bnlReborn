@@ -254,7 +254,7 @@ public partial class GameZone
             InstEffectFireMortars instEffectFireMortars when (instEffectFireMortars.OwnedMortarsOnly
                     ? _units.Values.Where(u => u.UnitCard?.Data is UnitDataMortar && unitSource is not null &&
                                                u.OwnerPlayerId == unitSource.OwnerPlayerId)
-                    : _units.Values.Where(u => u.UnitCard?.Data is UnitDataMortar && u.Team == source.Team))
+                    : _units.Values.Where(u => u.UnitCard?.Data is UnitDataMortar && RelationshipApplies(u, unitSource, source.Team, RelativeTeamType.Friendly)))
                 is { } applicableMortars =>
                 instEffectFireMortars.MaxMortars is not null
                     ? applicableMortars.OrderBy(m => Vector3.DistanceSquared(m.Transform.Position, impactPoint))
@@ -565,7 +565,7 @@ public partial class GameZone
                                 UnitLimitScope.World => _units.Values.Count(u => u.Key == unitCard.Key),
 
                                 UnitLimitScope.Team => _units.Values.Count(u =>
-                                    u.Key == unitCard.Key && u.Team == source.Team),
+                                    u.Key == unitCard.Key && RelationshipApplies(u, unitSource, source.Team, RelativeTeamType.Friendly)),
 
                                 UnitLimitScope.Owner => _units.Values
                                     .Count(u => u.Key == unitCard.Key && u.OwnerPlayerId == unitSource.OwnerPlayerId),
@@ -1243,7 +1243,7 @@ public partial class GameZone
                         u.OwnerPlayerId == unitSource.OwnerPlayerId &&
                         u.UnitCard?.Labels?.Contains(instEffectTeleport.Anchor) is true)
                     : _units.Values.Where(u =>
-                        u.Team == source.Team &&
+                        RelationshipApplies(u, unitSource, source.Team, RelativeTeamType.Friendly) &&
                         u.UnitCard?.Labels?.Contains(instEffectTeleport.Anchor) is true);
 
                 if (instEffectTeleport.RangeLimit is { } limit)

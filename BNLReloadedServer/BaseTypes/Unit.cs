@@ -297,7 +297,7 @@ public partial class Unit
 
     internal static bool DoesCombatRelationshipApply(bool freeForAll, RelativeTeamType relationship,
         TeamType targetTeam, uint? targetOwnerId, TeamType sourceTeam, uint? sourceOwnerId) =>
-        freeForAll && targetOwnerId.HasValue
+        freeForAll
             ? DoesFreeForAllRelationshipApply(relationship, targetOwnerId, sourceOwnerId)
             : relationship switch
             {

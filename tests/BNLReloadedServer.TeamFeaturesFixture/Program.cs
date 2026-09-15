@@ -118,6 +118,37 @@ Assert(creditedKiller.Stats?.GetValueOrDefault(ScoreType.Kills) == 1,
 Assert(creditedKiller.Stats?.GetValueOrDefault(ScoreType.KillPlayerByHero) == 1,
     "FFA opponent hero kills retain normal kill-source statistics");
 
+var deviceCard=new CardUnit { Id="fixture_ffa_device",Data=new UnitDataTurret() };
+catalogue.Replicate(catalogue.All.Append(deviceCard).ToList());
+var ownerUnit=new Unit(202,new UnitInit { Key=playerCard.Key,Team=TeamType.Neutral,PlayerId=12,OwnerId=12 },statsUpdater);
+ownerUnit.AssignFreeForAllTeam(12);
+var device=CatalogueFactory.CreateUnit(203,deviceCard.Key,new ZoneTransform(),TeamType.Neutral,ownerUnit,statsUpdater with { GetTeamEffects = _ => [] },builtDevice:true,freeForAll:true)!;
+Assert(device.FreeForAllTeamId==12 && device.OwnerPlayerId==12,"factory keeps device owner and per-player combat identity");
+Assert(victim.DoesEffectApply(opponentTargeting,device) && creditedKiller.DoesEffectApply(opponentTargeting,device) && !ownerUnit.DoesEffectApply(opponentTargeting,device),"device effects hit all other players but protect their owner");
+
+// Deathmatch device ownership and map-hazard relationships, including same wire team.
+foreach(uint owner in new uint[]{10,11,12})
+foreach(uint targetOwner in new uint[]{10,11,12})
+{
+    Assert(Unit.DoesCombatRelationshipApply(true,RelativeTeamType.Opponent,
+        TeamType.Neutral,targetOwner,TeamType.Neutral,owner)==(owner!=targetOwner),
+        "FFA devices target every other owner, never their own");
+    Assert(Unit.DoesCombatRelationshipApply(true,RelativeTeamType.Friendly,
+        TeamType.Neutral,targetOwner,TeamType.Neutral,owner)==(owner==targetOwner),
+        "FFA friendly devices and limits stay per owner");
+}
+foreach(TeamType mapTeam in Enum.GetValues<TeamType>())
+{
+    Assert(Unit.DoesCombatRelationshipApply(true,RelativeTeamType.Opponent,
+        TeamType.Neutral,10,mapTeam,null),"map hazards trigger regardless of saved team");
+    Assert(Unit.DoesCombatRelationshipApply(true,RelativeTeamType.Opponent,
+        mapTeam,null,TeamType.Neutral,10),"unowned map devices are hostile targets");
+    Assert(!Unit.DoesCombatRelationshipApply(true,RelativeTeamType.Friendly,
+        mapTeam,null,TeamType.Neutral,10),"unowned devices are never friendly");
+}
+Assert(!Unit.DoesCombatRelationshipApply(false,RelativeTeamType.Opponent,
+    TeamType.Team1,10,TeamType.Team1,11),"team modes retain same-team protection");
+
 var legacySender = new FixtureSender();
 var legacyZone = new ServiceZone(legacySender);
 Receive(legacyZone, zoneReadyId);
