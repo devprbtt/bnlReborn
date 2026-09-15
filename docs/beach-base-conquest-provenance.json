@@ -1,0 +1,8 @@
+{
+  "source": "C:\\Users\\Paulo\\.codex-storage\\workspace-data\\blocknload-unity-upgrade\\extracted\\work\\pending-server-release\\Maps\\map_sr2_beach_base_new.bnlbin",
+  "copied_input": "extracted\\work\\beach-base-conquest-inputs\\map_sr2_beach_base_new.bnlbin",
+  "source_sha256": "8386d18d42c035bf5303a4e9f7ad4a6371166a8057ef08c2d1d784c2b447e902",
+  "output": "extracted\\work\\pending-server-release\\Maps\\map_sr2_beach_base_new_conquest.bnlbin",
+  "output_sha256": "6e299015d968b089a62505e7c3b4099f66faf723353baea188a652673a3462d2",
+  "transformation": "Only name, description and map_id metadata changed. Embedded map data unchanged."
+}

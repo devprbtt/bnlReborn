@@ -8,14 +8,13 @@ internal static class ConquestZoneFloor
 {
     internal static void Apply(MapBinary map, Key? mapKey, MapData data)
     {
-        if (mapKey != new Key(SkyBridgeConquest.MapId)) return;
+        if (!ConquestMapRegistration.IsConquest(mapKey)) return;
         var metal = new Key("block_metal").GetCard<CardBlock>()
             ?? throw new InvalidOperationException("Conquest requires the standard metal block.");
         if (!metal.Solid || metal.Destructible || !metal.CanFloat)
             throw new InvalidOperationException("Conquest floor metal must be solid, indestructible and self-supporting.");
-        var rules = (mapKey.Value.GetCard<CardMap>()?.Conquest ?? new ConquestLogic()).Validated();
-        var centers = data.Units.Where(u => u.UnitKey.GetCard<CardUnit>()?.Labels?.Contains(UnitLabel.DropPointBlockbuster) == true)
-            .Select(u => u.Position);
+        var rules = (mapKey!.Value.GetCard<CardMap>()?.Conquest ?? ConquestMapRegistration.DefaultRules(mapKey.Value)).Validated();
+        var centers = ConquestMapRegistration.Centers(data);
         foreach (var position in Cells(centers, rules, map.Size))
         {
             var block = map[position];

@@ -21,11 +21,9 @@ public partial class GameZone
 
     private void InitializeConquest()
     {
-        if (_zoneData.MapKey != new Key(SkyBridgeConquest.MapId)) return;
-        var rules = _zoneData.MapKey.Value.GetCard<CardMap>()?.Conquest;
-        _conquest = new SkyBridgeConquest(_zoneData.MapData.Units
-            .Where(u => u.UnitKey.GetCard<CardUnit>()?.Labels?.Contains(UnitLabel.DropPointBlockbuster) == true)
-            .Select(u => u.Position), rules);
+        if (!ConquestMapRegistration.IsConquest(_zoneData.MapKey)) return;
+        var rules = _zoneData.MapKey!.Value.GetCard<CardMap>()?.Conquest ?? ConquestMapRegistration.DefaultRules(_zoneData.MapKey.Value);
+        _conquest = new SkyBridgeConquest(ConquestMapRegistration.Centers(_zoneData.MapData), rules);
         foreach (var key in ConquestBuffs.Concat(CatalogueHelper.ObjectiveShieldKeys))
             if (key.GetCard<CardEffect>() == null) throw new InvalidOperationException($"Missing Conquest effect {key}");
     }

@@ -239,6 +239,42 @@ var actualMode=new SkyBridgeConquest(actualCenters,floorRules);
 actualMode.Step(10,actualCenters.Select((c,index)=>new SkyBridgeConquest.Player((uint)(index+1),TeamType.Team1,
     new Vector3(c.X,(float)Math.Ceiling(c.Y-floorRules.ZoneDepthBelow),c.Z))).ToArray());
 Check(actualMode.Zones.All(z=>z.Owner==TeamType.Team1),"shipped-map floor elevations allow capture in all three zones");
+
+// Beach Base reuses the same rules and live initialization path with independent map identity.
+var beachOriginal=Databases.MapDatabase.LoadMapData(new Key(ConquestMapRegistration.BeachBaseOriginalId))!;
+var beach=Databases.MapDatabase.LoadMapData(new Key(ConquestMapRegistration.BeachBaseMapId))!;
+Check(beachOriginal!=null && beach!=null,"Beach Base original and Conquest payloads load");
+Check(JsonSerializer.Serialize(beachOriginal)==JsonSerializer.Serialize(beach),"Beach Base geometry, units, spawns, environment and triggers preserved");
+var beachSourceHash=System.Security.Cryptography.SHA256.HashData(File.ReadAllBytes("Maps/"+ConquestMapRegistration.BeachBaseOriginalId+".bnlbin"));
+var beachCard=new CardMap {Id=ConquestMapRegistration.BeachBaseOriginalId,Key=new Key(ConquestMapRegistration.BeachBaseOriginalId),Name=new LocalizedString{Text="Beach Base Mid edit",Data=[]},Data=beachOriginal};
+var beachPool=new CardMapList{Custom=[beachCard.Key],Friendly=[beachCard.Key],Ranked=[beachCard.Key]};
+List<Card> beachCards=[beachCard,beachPool];ConquestMapRegistration.Register(beachCards);ConquestMapRegistration.Register(beachCards);
+var beachVariant=beachCards.OfType<CardMap>().Single(c=>c.Id==ConquestMapRegistration.BeachBaseMapId);
+Check(beachCards.OfType<CardMap>().Count()==2 && beachPool.Custom.Count==2,"Beach Base variant registration is idempotent");
+Check(beachPool.Friendly.SequenceEqual(new[]{beachCard.Key}) && beachPool.Ranked.SequenceEqual(new[]{beachCard.Key}) && beachCard.Name.Text=="Beach Base Mid edit","Beach Base normal name and matchmaking pools preserved");
+Check(ConquestMapRegistration.IsConquest(beachVariant.Key) && !ConquestMapRegistration.IsConquest(beachCard.Key) && !ConquestMapRegistration.IsConquest(null),"only dedicated variant enables Conquest");
+var beachRules=beachVariant.Conquest!;
+Check(beachRules.ZoneDepthBelow==5 && beachRules.CaptureSeconds==10 && beachRules.AttackSeconds==90 && beachRules.BrickCap==3000 && beachRules.LiteBbSeconds==420 && beachRules.ClassicBbSeconds==300 && beachRules.ExtremeBbSeconds==180,"Beach Base keeps established rules with safe vertical bounds");
+db.Replicate(db.All.Concat(new Card[]{beachVariant}).ToList());
+var beachCenters=ConquestMapRegistration.Centers(beach!).ToArray();
+Check(beachCenters.SequenceEqual(new Vector3[]{new(128,7,9),new(128,9,48),new(128,9,76.5f)}),"Beach Base A B C follow ascending map Z at original markers");
+var beachFloors=ConquestZoneFloor.Cells(beachCenters,beachRules,beach.Size).ToArray();
+Check(beachFloors.Length==444 && beachFloors.Distinct().Count()==444,"all three footprints have complete non-overlapping floors including fractional marker");
+Check(beachFloors.All(p=>p.y+1>beach.Properties!.PlanePosition && p.y+1>beach.Properties.KillPosition),"every floor surface is above water and kill plane");
+var beachTerrain=new MapBinary(beach.Schema,beach.BlocksData!,beach.Size,beach.Properties!.PlanePosition,mapUpdater,m=>ConquestZoneFloor.Apply(m,beachVariant.Key,beach));
+Check(beachFloors.All(p=>beachTerrain[p].Id==metalCard.BlockId && !beachTerrain[p].Card.Destructible),"Beach Base runtime floors are indestructible metal");
+var beachMode=new SkyBridgeConquest(beachCenters,beachRules);
+beachMode.Step(10,beachCenters.Select((c,i)=>new SkyBridgeConquest.Player((uint)i+1,TeamType.Team1,new Vector3(c.X,(float)Math.Ceiling(c.Y-beachRules.ZoneDepthBelow),c.Z))).ToArray());
+Check(beachMode.Zones.All(z=>z.Owner==TeamType.Team1) && beachMode.ScoreRate(TeamType.Team1)==2,"players standing on all Beach floors capture and earn triple-zone rate");
+Check(beachSourceHash.SequenceEqual(System.Security.Cryptography.SHA256.HashData(File.ReadAllBytes("Maps/"+ConquestMapRegistration.BeachBaseOriginalId+".bnlbin"))),"Beach Base source bytes remain untouched");
+var effectIds=new[]{"effect_blockbuster_lite_buff","effect_blockbuster_classic_buff","effect_blockbuster_uber_buff","effect_status_shielded_bb","effect_shield_for_line_base","effect_shield_for_line_2","effect_shield_for_line_3"};
+db.Replicate(db.All.Concat(effectIds.Where(id=>new Key(id).GetCard<CardEffect>()==null).Select(id=>new CardEffect{Id=id})).ToList());
+var beachZone=(GameZone)RuntimeHelpers.GetUninitializedObject(typeof(GameZone));
+var beachData=(ZoneData)RuntimeHelpers.GetUninitializedObject(typeof(ZoneData));beachData.MapKey=beachVariant.Key;beachData.MapData=beach;
+typeof(GameZone).GetField("_zoneData",BindingFlags.Instance|BindingFlags.NonPublic)!.SetValue(beachZone,beachData);
+typeof(GameZone).GetMethod("InitializeConquest",BindingFlags.Instance|BindingFlags.NonPublic)!.Invoke(beachZone,null);
+var initialized=(SkyBridgeConquest)typeof(GameZone).GetField("_conquest",BindingFlags.Instance|BindingFlags.NonPublic)!.GetValue(beachZone)!;
+Check(initialized.Zones.Select(z=>z.Center).SequenceEqual(beachCenters) && initialized.Rules.ZoneDepthBelow==5,"actual GameZone initializes Beach Base with its own card rules and centers");
 Console.WriteLine($"Conquest suite passed: {checks} checks.");
 
 public class NoopZoneService : DispatchProxy
