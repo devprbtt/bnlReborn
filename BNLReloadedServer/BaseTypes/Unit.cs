@@ -262,11 +262,20 @@ public partial class Unit
     public bool DoesEffectApply(ConstEffectInfo effect, TeamType sourceTeam) =>
         effect.Card.Effect?.Targeting is not { } targeting || DoesEffectApply(targeting, sourceTeam);
 
-    private bool DoesConstantEffectApply(ConstEffectInfo effect, TeamType sourceTeam, EffectSource? source) =>
-        (effect.Card.Effect?.Targeting is not { } targeting || DoesEffectApply(targeting, sourceTeam, source)) &&
-        // An aura's targeting describes its recipients, not the unit carrying it.
-        (effect.Card.Effect is not ConstEffectBuff { Targeting: { IgnoreCaster: true } } ||
-         source is not UnitSource caster || caster.Unit.Id != Id);
+    private bool DoesConstantEffectApply(ConstEffectInfo effect, TeamType sourceTeam, EffectSource? source,
+        bool targetSelf = false)
+    {
+        // A self wrapper selects the unit carrying it, not the unit that applied
+        // it. Keep the real source in bookkeeping; only targeting is holder-relative.
+        if (targetSelf || effect.Card.Effect is ConstEffectSelf)
+        {
+            sourceTeam = Team;
+            source = SelfSource;
+        }
+        return (effect.Card.Effect?.Targeting is not { } targeting || DoesEffectApply(targeting, sourceTeam, source)) &&
+            (effect.Card.Effect is not ConstEffectBuff { Targeting: { IgnoreCaster: true } } ||
+             source is not UnitSource caster || caster.Unit.Id != Id);
+    }
 
     public bool DoesAuraTargetApply(ConstEffectAura aura, Unit caster) =>
         aura.Targeting is not { } targeting ||
@@ -398,9 +407,9 @@ public partial class Unit
         });
     }
 
-    public void AddEffects(IEnumerable<ConstEffectInfo> effects, TeamType sourceTeam, EffectSource? source)
+    public void AddEffects(IEnumerable<ConstEffectInfo> effects, TeamType sourceTeam, EffectSource? source, bool targetSelf = false)
     {
-        var appliedEffects = effects.Where(e => DoesConstantEffectApply(e, sourceTeam, source) && !IsImmune(e)).ToList();
+        var appliedEffects = effects.Where(e => DoesConstantEffectApply(e, sourceTeam, source, targetSelf) && !IsImmune(e)).ToList();
         if (appliedEffects.Count == 0) return;
 
         if (IsDead && source is PersistOnDeathSource persistOnDeathSource)
@@ -547,11 +556,11 @@ public partial class Unit
         });
     }
 
-    public void RemoveEffects(IEnumerable<ConstEffectInfo> effects, TeamType sourceTeam, EffectSource? source, bool clearAll = false)
+    public void RemoveEffects(IEnumerable<ConstEffectInfo> effects, TeamType sourceTeam, EffectSource? source, bool clearAll = false, bool targetSelf = false)
     {
         Func<ConstEffectInfo, TeamType, bool> doCheck = _everConfused
             ? (eff, _) => DoesEffectApply(eff)
-            : (eff, team) => DoesConstantEffectApply(eff, team, source);
+            : (eff, team) => DoesConstantEffectApply(eff, team, source, targetSelf);
         var actualEffects = effects
             .Where(e => !e.HasDuration && ActiveEffects.Contains(e) && doCheck(e, sourceTeam)).ToList();
 
@@ -1560,12 +1569,12 @@ public partial class Unit
                         {
                             foreach (var source in sources)
                             {
-                                RemoveEffects(effects.Select(k => new ConstEffectInfo(k, null)), Team, source);
+                                RemoveEffects(effects.Select(k => new ConstEffectInfo(k, null)), Team, source, targetSelf: true);
                             }
                         }
                         else
                         {
-                            RemoveEffects(effects.Select(k => new ConstEffectInfo(k, null)), Team, SelfSource);
+                            RemoveEffects(effects.Select(k => new ConstEffectInfo(k, null)), Team, SelfSource, targetSelf: true);
                         }
 
                         _nestedEffectSources.Remove(info.Key);
@@ -1609,12 +1618,12 @@ public partial class Unit
                             _nestedEffectSources[info.Key] = new HashSet<EffectSource>(sources);
                             foreach (var source in sources)
                             {
-                                AddEffects(effects.Select(k => new ConstEffectInfo(k)), Team, source);
+                                AddEffects(effects.Select(k => new ConstEffectInfo(k)), Team, source, targetSelf: true);
                             }
                         }
                         else
                         {
-                            AddEffects(effects.Select(k => new ConstEffectInfo(k)), Team, SelfSource);
+                            AddEffects(effects.Select(k => new ConstEffectInfo(k)), Team, SelfSource, targetSelf: true);
                         }
                     }
                     break;
