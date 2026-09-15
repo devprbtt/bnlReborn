@@ -201,6 +201,44 @@ using(var wire=new MemoryStream()) {
 }
 typeof(GameZone).GetField("_conquest",BindingFlags.NonPublic|BindingFlags.Instance)!.SetValue(resultZone,null);
 Check(addResults.Invoke(resultZone,[1u,null])==null,"non-Conquest results remain unchanged");
+// Generate the support floor before stability and snapshot serialization.
+var airCard=new CardBlock { Id="block_air",BlockId=0 };
+var metalCard=new CardBlock { Id="block_metal",BlockId=10,Solid=true,Destructible=false };
+var stoneCard=new CardBlock { Id="fixture_floor_stone",BlockId=2,Solid=true,CanStayInAir=true };
+var dropCard=new CardUnit { Id="unit_special_drop_point_blockbuster",Data=new UnitDataCommon(),Labels=[UnitLabel.DropPointBlockbuster] };
+var floorRules=new ConquestLogic();
+var floorMapCard=new CardMap { Id=SkyBridgeConquest.MapId,Conquest=floorRules };
+db.Replicate(db.All.Where(c=>c.Id!=metalCard.Id && c.Id!=floorMapCard.Id).Concat(new Card[]{airCard,metalCard,stoneCard,dropCard,floorMapCard}).ToList());
+Vector3[] floorCenters=[new(12.5f,20.25f,12.5f),new(32.5f,20.25f,32.5f),new(52.5f,20.25f,52.5f)];
+var size=new Vector3s(64,32,64);var blank=new BlockArrayMap3D(size);blank[3,3,3]=new Block { Id=2 };
+var packed=MapBinary.Pack(blank);var originalBytes=packed.ToArray();
+var mapInfo=new MapData { Size=size,BlocksData=packed,Units=floorCenters.Select(c=>new MapUnit { Position=c,UnitKey=dropCard.Key }).ToList() };
+var mapUpdater=new MapUpdater((_,_)=>{},(_,_)=>{},_=>{},_=>true);
+var terrain=new MapBinary(6,packed,size,0,mapUpdater,m=>ConquestZoneFloor.Apply(m,floorMapCard.Key,mapInfo));
+var cells=ConquestZoneFloor.Cells(floorCenters,floorRules,size).ToArray();
+Check(cells.Length==507 && cells.All(p=>terrain[p].Id==10 && terrain[p].Damage==0),"metal covers all 13x13 cells of each fractional zone footprint");
+Check(cells.All(p=>p.y==12) && terrain[3,3,3].Id==2 && terrain[12,14,12].Id==0,"floor is exactly one layer and other terrain is preserved");
+Check(packed.SequenceEqual(originalBytes),"Conquest floor never changes shared source map bytes");
+var floorCapture=new SkyBridgeConquest(floorCenters,floorRules);
+floorCapture.Step(10,floorCenters.Select((c,index)=>new SkyBridgeConquest.Player((uint)(index+1),TeamType.Team1,new Vector3(c.X,13,c.Z))).ToArray());
+Check(floorCapture.Zones.All(z=>z.Owner==TeamType.Team1),"standing on the floor captures all three zones without building");
+var damage=new DamageData(99999,99999,99999,99999,99999,99999,99999,99999,false,false,false,false);
+Check(terrain.DamageBlock(cells[0],damage,null).Count==0 && terrain[cells[0]].Id==10,"standard metal floor survives combat damage");
+var snapshot=new MapBinary(terrain.ToBinary(),0,mapUpdater);
+Check(cells.All(p=>snapshot[p].Id==10),"initial and late-join binary snapshots include the entire metal floor");
+var classic=new MapBinary(6,packed,size,0,mapUpdater,m=>ConquestZoneFloor.Apply(m,new Key(SkyBridgeConquest.OriginalMapId),mapInfo));
+Check(cells.All(p=>classic[p].Id==0),"classic Sky Bridge receives no Conquest floor");
+var edgeCells=ConquestZoneFloor.Cells([new Vector3(.25f,2,.25f)],floorRules,size).ToArray();
+Check(edgeCells.All(p=>p.x>=0 && p.z>=0 && p.y==0 && p.x<size.x && p.z<size.z),"floor clips safely at horizontal and bottom map limits");
+
+var actualMap=Databases.MapDatabase.LoadMapData(new Key(SkyBridgeConquest.MapId))!;
+var actualCenters=actualMap.Units.Where(u=>u.UnitKey==dropCard.Key).Select(u=>u.Position).ToArray();
+var actualCells=ConquestZoneFloor.Cells(actualCenters,floorRules,actualMap.Size).ToArray();
+Check(actualCenters.Length==3 && actualCells.Length==432,"shipped Sky Bridge Conquest has three complete 12x12 metal floors");
+var actualMode=new SkyBridgeConquest(actualCenters,floorRules);
+actualMode.Step(10,actualCenters.Select((c,index)=>new SkyBridgeConquest.Player((uint)(index+1),TeamType.Team1,
+    new Vector3(c.X,(float)Math.Ceiling(c.Y-floorRules.ZoneDepthBelow),c.Z))).ToArray());
+Check(actualMode.Zones.All(z=>z.Owner==TeamType.Team1),"shipped-map floor elevations allow capture in all three zones");
 Console.WriteLine($"Conquest suite passed: {checks} checks.");
 
 public class NoopZoneService : DispatchProxy

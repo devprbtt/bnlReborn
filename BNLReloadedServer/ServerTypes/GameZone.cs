@@ -223,7 +223,8 @@ public partial class GameZone : Updater
             MapData = mapData,
             MapKey = mapKey,
             BlocksData = new MapBinary(mapData.Schema, mapData.BlocksData ?? [],
-                mapData.Size, mapData.Properties?.PlanePosition ?? 0, new MapUpdater(OnCut, OnMined, OnDetached, EnqueueAction)),
+                mapData.Size, mapData.Properties?.PlanePosition ?? 0, new MapUpdater(OnCut, OnMined, OnDetached, EnqueueAction),
+                terrain => ConquestZoneFloor.Apply(terrain, mapKey, mapData)),
             CanSwitchHero = gameInitiator.CanSwitchHero(),
             ForceThirdPerson = gameInitiator.IsThirdPersonForced(),
             Phase = new ZonePhase

@@ -83,7 +83,8 @@ public class MapBinary
         InitStabilityData(liquidPlane);
     }
 
-    public MapBinary(int schema, byte[] binary, Vector3s size, float liquidPlane, MapUpdater mapUpdater)
+    public MapBinary(int schema, byte[] binary, Vector3s size, float liquidPlane, MapUpdater mapUpdater,
+        Action<MapBinary>? initializeTerrain = null)
     {
         _mapUpdater = mapUpdater;
         var input = binary.UnZip();
@@ -123,6 +124,10 @@ public class MapBinary
         }
         else if (binaryReader.Read(_data, 0, count) != count)
             throw new EndOfStreamException();
+
+        // Mode terrain must exist before stability is calculated and the first
+        // client map snapshot is produced. The source map bytes stay untouched.
+        initializeTerrain?.Invoke(this);
 
         var stableCount = SizeX * SizeY * SizeZ * StabilityBinary.Size;
         _stabilityData = new byte[stableCount];
