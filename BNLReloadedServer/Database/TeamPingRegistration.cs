@@ -9,13 +9,18 @@ public static class TeamPingRegistration
 
     public static void Register(List<Card> cards)
     {
-        if (cards.Any(card => card.Id == EnemySpottedNotificationId)) return;
+        var existing=cards.OfType<CardNotification>().FirstOrDefault(card => card.Id == EnemySpottedNotificationId);
+        if (existing != null)
+        {
+            existing.PlayerNotifySound = "command_needs_help";
+            return;
+        }
         cards.Add(new CardNotification
         {
             Id = EnemySpottedNotificationId,
             Key = EnemySpottedNotification,
             SmallNotifyText = new LocalizedString { Text = "<PLAYER>: Enemy spotted", Data = [] },
-            PlayerNotifySound = "command_enemy_spotted",
+            PlayerNotifySound = "command_needs_help",
             ShowOnKillScroll = false
         });
     }

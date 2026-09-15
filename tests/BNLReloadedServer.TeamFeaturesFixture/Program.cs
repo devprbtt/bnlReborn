@@ -41,9 +41,13 @@ TeamPingRegistration.Register(pingCards);
 TeamPingRegistration.Register(pingCards);
 var pingNotification = (CardNotification)pingCards.Single();
 Assert(pingNotification.Id == TeamPingRegistration.EnemySpottedNotificationId &&
-       pingNotification.PlayerNotifySound == "command_enemy_spotted" &&
+       pingNotification.PlayerNotifySound == "command_needs_help" &&
        pingNotification.SmallNotifyText?.Text == "<PLAYER>: Enemy spotted",
     "team ping registers one idempotent native enemy-spotted command card");
+pingNotification.PlayerNotifySound="command_enemy_spotted";
+TeamPingRegistration.Register(pingCards);
+Assert(pingCards.Count==1 && pingNotification.PlayerNotifySound=="command_needs_help",
+    "ping registration repairs the previously invalid VO lookup without duplicating the card");
 Assert(WaitingArenaInitiator.SpawnPositions.Count == 12,
     "waiting arena exposes twelve randomized spawn areas");
 Assert(WaitingArenaInitiator.SelectRandomSpawn([7u, 9u], 1u, 7u) == 9u,
