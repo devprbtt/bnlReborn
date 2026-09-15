@@ -991,8 +991,9 @@ public class RegionServerDatabase(AsyncTaskTcpServer server, AsyncTaskTcpServer 
         };
     }
 
-    private static bool CanUseGlobalChat(ConnectionInfo info) => info.Online &&
-        info.ActiveScene?.Type == SceneType.MainMenu && info.GameInstanceId == null;
+    private bool CanUseGlobalChat(ConnectionInfo info) => info.Online &&
+        ((info.ActiveScene?.Type == SceneType.MainMenu && info.GameInstanceId == null) ||
+         (info.GameInstanceId != null && info.GameInstanceId == _waitingArenaInstanceId));
 
     public bool SendMessage(uint playerId, RoomId roomId, string message)
     {
@@ -1118,13 +1119,23 @@ public class RegionServerDatabase(AsyncTaskTcpServer server, AsyncTaskTcpServer 
     {
         if (!UserConnected(playerId, out var playerInfo)) return false;
         if (playerInfo.GameInstanceId != gameInstanceId) return false;
+        var wasArena = gameInstanceId == _waitingArenaInstanceId;
         playerInfo.GameInstanceId = null;
+        if (wasArena) _waitingArenaInitiator?.RemovePlayer(playerId);
         if (playerInfo.Ignored.Count > 0)
         {
             playerInfo.Ignored.Clear();
             SendIgnores(playerInfo);
         }
         UpdateScene(playerId, new SceneMainMenu());
+        if (wasArena)
+        {
+            if (GetService<IServiceMatchmaker>(playerInfo.Guid, ServiceId.ServiceMatchmaker, out var arenaService))
+                SendWaitingArenaState(playerId, arenaService);
+            BroadcastWaitingArenaState();
+            if (_waitingArenaInitiator?.PlayerCount == 0)
+            { _waitingArenaInstanceId = null; _waitingArenaInitiator = null; }
+        }
         LiveStateChanged();
 
         return true;
@@ -1208,7 +1219,8 @@ public class RegionServerDatabase(AsyncTaskTcpServer server, AsyncTaskTcpServer 
             .Select(c => new PublicMap(c!.Id ?? "", c.Name?.Text ?? c.Id ?? "Map")).ToArray();
         var pool = CatalogueHelper.MapList;
         return new PublicPlaySnapshot(DateTimeOffset.UtcNow.ToUnixTimeSeconds(),
-            queues.SelectMany(q => q.Players.Select(p => new PublicQueuePlayer(p.PlayerId, p.Nickname ?? $"Player {p.PlayerId}", p.JoinTime / 1000, q.ModeName ?? q.ModeId))).ToArray(),
+            queues.SelectMany(q => q.Players.Select(p => new PublicQueuePlayer(p.PlayerId, p.Nickname ?? $"Player {p.PlayerId}", p.JoinTime / 1000, q.ModeName ?? q.ModeId,
+                (GetGameInstance(p.PlayerId) as GameInstance)?.GameInstanceId == _waitingArenaInstanceId && _waitingArenaInstanceId != null))).ToArray(),
             matches.ToArray(), Maps(pool?.Friendly), Maps(pool?.Ranked));
     }
 

@@ -224,7 +224,8 @@ public partial class GameZone : Updater
             MapKey = mapKey,
             BlocksData = new MapBinary(mapData.Schema, mapData.BlocksData ?? [],
                 mapData.Size, mapData.Properties?.PlanePosition ?? 0, new MapUpdater(OnCut, OnMined, OnDetached, EnqueueAction),
-                terrain => ConquestZoneFloor.Apply(terrain, mapKey, mapData)),
+                terrain => { ConquestZoneFloor.Apply(terrain, mapKey, mapData);
+                    if (gameInitiator is WaitingArenaInitiator) DeathmatchFollowup.RemoveMapForcefields(terrain); }),
             CanSwitchHero = gameInitiator.CanSwitchHero(),
             ForceThirdPerson = gameInitiator.IsThirdPersonForced(),
             Phase = new ZonePhase
@@ -662,6 +663,7 @@ public partial class GameZone : Updater
         new()
         {
             ConquestStateJson = ConquestSnapshot(),
+            BlockOwnersJson = BlockOwnerSnapshot(),
             Phase = _zoneData.Phase,
             PlayerInfo = _zoneData.PlayerInfo,
             SpawnPoints = _zoneData.SpawnPoints.Values.ToList(),
@@ -955,6 +957,7 @@ public partial class GameZone : Updater
                 },
                 PlayerSpawnPoints = _zoneData.PlayerSpawnPoints,
                 ConquestStateJson = ConquestSnapshot(),
+                BlockOwnersJson = BlockOwnerSnapshot(),
                 Phase = _zoneData.Phase,
                 PlayerInfo = _zoneData.PlayerInfo,
                 Objectives = _zoneData.MatchCard.Data?.Type is MatchType.TimeTrial or MatchType.Tutorial
@@ -1010,6 +1013,7 @@ public partial class GameZone : Updater
         zoneService.SendUpdateZone(new ZoneUpdate
         {
             ConquestStateJson = ConquestSnapshot(),
+            BlockOwnersJson = BlockOwnerSnapshot(),
             Phase = _zoneData.Phase,
             SpawnPoints = _zoneData.SpawnPoints.Values.ToList()
         });
@@ -1189,6 +1193,7 @@ public partial class GameZone : Updater
             archivedStatInfo = _zoneData.MatchCard.Stats?.Stats?.ToDictionary(k => k.Key,
                 v => (int)v.Value.Sum(score => player.Stats.GetValueOrDefault(score.Key) * score.Value));
             archivedStatInfo = AddConquestResultStats(playerId, archivedStatInfo);
+            archivedStatInfo = DeathmatchFollowup.AddDestruction(archivedStatInfo, player.Stats);
             var archivedTotalInfo = _zoneData.MatchCard.Stats?.Total;
             archivedTotal = (int)(archivedTotalInfo?.Sum(
                 score => archivedStatInfo?[score.Key] * score.Value) ?? 0);
@@ -1432,6 +1437,12 @@ public partial class GameZone : Updater
         }
 
         _unbufferedZone.SendBlockUpdates(updates);
+        var owners = BlockOwnerSnapshot();
+        if (owners != null && owners != _lastBlockOwners)
+        {
+            _lastBlockOwners = owners;
+            _serviceZone.SendUpdateZone(new ZoneUpdate { BlockOwnersJson = owners });
+        }
     }
 
     private static void MovementActive(Unit unit)
@@ -1620,6 +1631,7 @@ public partial class GameZone : Updater
             var statInfo = zoneDataMatchCard.Stats?.Stats?.ToDictionary(k => k.Key,
                 v => (int)v.Value.Sum(score => player.Stats.GetValueOrDefault(score.Key) * score.Value));
             statInfo = AddConquestResultStats(player.PlayerId.Value, statInfo);
+            statInfo = DeathmatchFollowup.AddDestruction(statInfo, player.Stats);
             var totalInfo = zoneDataMatchCard.Stats?.Total;
             _matchParticipation.SetResult(player.PlayerId.Value, player.Team == winner, statInfo,
                 (int)(totalInfo?.Sum(score => statInfo?[score.Key] * score.Value) ?? 0),
@@ -1957,9 +1969,10 @@ public partial class GameZone : Updater
             var block = MapBinary[blk];
             if (block.Card.Special is not BlockSpecialInsideEffect insideEffect) continue;
 
-            // Map blocks have no player owner: hostile traps affect everyone in FFA.
+            // Authored traps are ownerless; placed traps retain their owner across respawns.
+            var blockOwner = MapBinary.OwnedBlocks.GetValueOrDefault(blk);
             if (!Unit.DoesCombatRelationshipApply(_gameInitiator is WaitingArenaInitiator,
-                insideEffect.TriggerTeam, unit.Team, unit.FreeForAllTeamId, block.Team, null)) continue;
+                insideEffect.TriggerTeam, unit.Team, unit.FreeForAllTeamId, block.Team, blockOwner?.PlayerId ?? blockOwner?.OwnerPlayerId)) continue;
 
             if (!MapBinary.UnitsInsideBlock.TryGetValue(blk, out var value))
             {

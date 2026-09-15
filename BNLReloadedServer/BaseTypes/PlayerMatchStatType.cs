@@ -11,5 +11,6 @@ public enum PlayerMatchStatType
     Death = 7,
     Assist = 8,
     ZonesCaptured = 9,
-    ZoneTimeSeconds = 10
+    ZoneTimeSeconds = 10,
+    Destruction = 11
 }
