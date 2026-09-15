@@ -54,4 +54,27 @@ Check(removed>0 && unchanged>0,"actual Search and Destroy forcefields removed; o
 Check(original.SequenceEqual(map.BlocksData),"shared map source bytes unchanged");
 var late=new MapBinary(arena.ToBinary(),map.Properties?.PlanePosition??0,updater);
 Check(late.Size==arena.Size,"late join receives valid edited map snapshot");
+// Exercise the actual block publication path with separate buffered/immediate services.
+var zone=(GameZone)RuntimeHelpers.GetUninitializedObject(typeof(GameZone));
+var zd=(ZoneData)RuntimeHelpers.GetUninitializedObject(typeof(ZoneData));zd.BlocksData=arena;
+void SetZoneField(string name,object value)=>typeof(GameZone).GetField(name,BindingFlags.NonPublic|BindingFlags.Instance)!.SetValue(zone,value);
+SetZoneField("_zoneData",zd);
+SetZoneField("_gameInitiator",RuntimeHelpers.GetUninitializedObject(typeof(WaitingArenaInitiator)));
+SetZoneField("<BeginningZoneInitData>k__BackingField",new ZoneInitData());
+var immediate=DispatchProxy.Create<BNLReloadedServer.Service.IServiceZone,RecordingZone>();
+var buffered=DispatchProxy.Create<BNLReloadedServer.Service.IServiceZone,RecordingZone>();
+SetZoneField("_unbufferedZone",immediate);SetZoneField("_serviceZone",buffered);
+var publish=typeof(GameZone).GetMethod("DoBlockUpdate",BindingFlags.NonPublic|BindingFlags.Instance)!;
+publish.Invoke(zone,new object[]{new Dictionary<Vector3s,BlockUpdate>{{new Vector3s(1,2,3),new BlockUpdate{Id=10}}}});
+Check(((RecordingZone)(object)immediate).Calls.SequenceEqual(new[]{"SendUpdateZone","SendBlockUpdates"}),"ownership precedes block creation on the immediate ordered stream");
+Check(((RecordingZone)(object)buffered).Calls.Count==0,"no delayed ownership packet is queued");
+((RecordingZone)(object)immediate).Calls.Clear();
+publish.Invoke(zone,new object[]{new Dictionary<Vector3s,BlockUpdate>()});
+Check(((RecordingZone)(object)immediate).Calls.SequenceEqual(new[]{"SendBlockUpdates"}),"unchanged ownership avoids redundant snapshots");
 Console.WriteLine($"Deathmatch followup server passed: {checks} checks.");
+
+public class RecordingZone : DispatchProxy
+{
+ public readonly List<string> Calls=new();
+ protected override object? Invoke(MethodInfo? method,object?[]? args){Calls.Add(method!.Name);return method.ReturnType==typeof(bool)?false:null;}
+}

@@ -1436,13 +1436,14 @@ public partial class GameZone : Updater
             BeginningZoneInitData.Updates[pos] = newVal;
         }
 
-        _unbufferedZone.SendBlockUpdates(updates);
+        // Ownership must arrive on the same immediate stream before the new block can render.
         var owners = BlockOwnerSnapshot();
         if (owners != null && owners != _lastBlockOwners)
         {
             _lastBlockOwners = owners;
-            _serviceZone.SendUpdateZone(new ZoneUpdate { BlockOwnersJson = owners });
+            _unbufferedZone.SendUpdateZone(new ZoneUpdate { BlockOwnersJson = owners });
         }
+        _unbufferedZone.SendBlockUpdates(updates);
     }
 
     private static void MovementActive(Unit unit)
