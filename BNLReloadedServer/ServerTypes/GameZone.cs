@@ -84,6 +84,9 @@ public partial class GameZone : Updater
         _pendingProjectileHits = new();
     private readonly HashSet<ulong> _checkForWater = [];
     private readonly List<Unit> _unitsToDrop = [];
+    // A dead player who changes heroes keeps the remaining respawn wait: their unit is
+    // removed and rebuilt, so the deadline is stashed here and reapplied on zone re-entry.
+    private readonly Dictionary<uint, DateTimeOffset> _heroChangeRespawn = new();
 
     private DateTimeOffset? _attackStartTime;
 
@@ -312,6 +315,7 @@ public partial class GameZone : Updater
         var playerUnit = CreatePlayerUnit(playerId, zoneService);
         if (playerUnit == null) return;
         playerUnit.ZoneService = savedService;
+        ApplyHeroChangeRespawn(playerId, playerUnit);
 
         if (_gameLoop is null)
         {
@@ -1157,6 +1161,7 @@ public partial class GameZone : Updater
             _playerIdToUnitId.Remove(playerId);
             _zoneData.PlayerSpawnPoints.Remove(playerId);
             _zoneData.RespawnInfo.Remove(playerId);
+            _heroChangeRespawn.Remove(playerId);
             if (HasEnded) return true;
 
             _zoneData.PlayerStats.Remove(playerId);
@@ -1284,6 +1289,7 @@ public partial class GameZone : Updater
         _playerIdToUnitId.Remove(playerId);
         _zoneData.PlayerSpawnPoints.Remove(playerId);
         _zoneData.RespawnInfo.Remove(playerId);
+        _heroChangeRespawn.Remove(playerId);
         if (!HasEnded)
         {
             _zoneData.PlayerStats.Remove(playerId);
@@ -1305,6 +1311,19 @@ public partial class GameZone : Updater
         return true;
     }
 
+    // Re-enter dead with the remaining respawn timer instead of spawning immediately, so
+    // changing heroes while dead does not bypass the respawn wait. The existing respawn loop
+    // spawns the new hero once the deadline passes.
+    private void ApplyHeroChangeRespawn(uint playerId, Unit playerUnit)
+    {
+        if (!_heroChangeRespawn.Remove(playerId, out var deadline)) return;
+        if (deadline <= DateTimeOffset.Now || playerUnit.PlayerId is not { } pid) return;
+        playerUnit.IsDead = true;
+        playerUnit.RespawnTime = deadline;
+        _unitsToDrop.Add(playerUnit);
+        _zoneData.UpdateSpawnTime(pid, (ulong)deadline.ToUnixTimeMilliseconds());
+    }
+
     public void PreparePlayerHeroChange(uint playerId)
     {
         _activeHeroEmotes.Remove(playerId);
@@ -1313,6 +1332,12 @@ public partial class GameZone : Updater
         if (!_playerIdToUnitId.TryGetValue(playerId, out var unitId) ||
             !_playerUnits.TryGetValue(unitId, out var player))
             return;
+
+        // Changing heroes must not skip an active respawn timer: remember the remaining wait.
+        if (player is { IsDead: true, RespawnTime: { } deadline } && deadline > DateTimeOffset.Now)
+            _heroChangeRespawn[playerId] = deadline;
+        else
+            _heroChangeRespawn.Remove(playerId);
 
         var impact = new ImpactData
         {
