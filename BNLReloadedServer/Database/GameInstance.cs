@@ -63,6 +63,8 @@ public partial class GameInstance : IGameInstance
     private bool _restartingZone;
 
     private readonly ConcurrentDictionary<uint, Timer> _disconnectTimers = new();
+    // Only suppress the transport disconnect belonging to an accepted hero-change request.
+    private readonly ConcurrentDictionary<uint, Guid> _heroChangeDisconnects = new();
 
     private readonly IRegionServerDatabase _serverDatabase = Databases.RegionServerDatabase;
 
@@ -114,6 +116,7 @@ public partial class GameInstance : IGameInstance
     public void LinkGuidToPlayer(uint userId, Guid guid, Guid regionGuid)
     {
         CancelDisconnectTimer(userId);
+        _heroChangeDisconnects.TryRemove(userId, out _);
         var playerTeam = GameInitiator.GetTeamForPlayer(userId);
         var squadId = _serverDatabase.GetSquadId(userId);
         var isNewConnection = false;
@@ -212,7 +215,8 @@ public partial class GameInstance : IGameInstance
             Zone?.PlayerDisconnected(userId);
         });
 
-        if (!GameInitiator.IsPlayerSpectator(userId) && IsStarted)
+        var changingHero = ConsumeHeroChangeDisconnect(userId, player.Guid);
+        if (!changingHero && !GameInitiator.IsPlayerSpectator(userId) && IsStarted)
         {
             ChatRooms.BothTeamsRoom.SendServiceMessage(CatalogueStringHelper.OnDisconnected, true, new Dictionary<string, string>
             {
@@ -222,6 +226,9 @@ public partial class GameInstance : IGameInstance
 
         StartDisconnectTimer(userId);
     }
+
+    private bool ConsumeHeroChangeDisconnect(uint playerId, Guid sessionId) =>
+        _heroChangeDisconnects.TryRemove(new KeyValuePair<uint, Guid>(playerId, sessionId));
 
     private void StartDisconnectTimer(uint userId)
     {
@@ -252,6 +259,7 @@ public partial class GameInstance : IGameInstance
     public void PlayerLeftInstance(uint userId, KickReason reason)
     {
         CancelDisconnectTimer(userId);
+        _heroChangeDisconnects.TryRemove(userId, out _);
         _connectedUsers.TryRemove(userId, out var player);
         // GameZone removes matchmaking spectators from the initiator as part of its cleanup, so
         // preserve the role before that queued work runs and use it for the departure message.
@@ -582,15 +590,32 @@ public partial class GameInstance : IGameInstance
         _serverDatabase.UpdateScene(playerId, scene, _restartingZone);
     }
 
+    public bool IsCustomHeroSwitchEnabled =>
+        GameInitiator is CustomGamePlayerGroup && Zone?.CanSwitchHero == true;
+
     public bool SendWaitingArenaUserToLobby(uint playerId)
     {
-        if (GameInitiator is not WaitingArenaInitiator || Lobby == null || Zone == null ||
-            !_connectedUsers.TryGetValue(playerId, out var player))
+        if ((GameInitiator is not WaitingArenaInitiator && !IsCustomHeroSwitchEnabled) ||
+            Lobby == null || Zone == null || HasEnded == true || !IsStarted ||
+            GameInitiator.IsPlayerSpectator(playerId) ||
+            !_connectedUsers.TryGetValue(playerId, out var player) || player.LoadStage != ZoneLoadStage.Finished)
             return false;
 
         var team = GameInitiator.GetTeamForPlayer(playerId);
         Zone.EnqueueAction(() =>
         {
+            // Recheck on the zone thread: duplicate clicks and a match ending while queued
+            // must not remove a player or create a second lobby transfer.
+            if (Zone.HasEnded || player.LoadStage != ZoneLoadStage.Finished) return;
+            player.LoadStage = ZoneLoadStage.None;
+            _heroChangeDisconnects[playerId] = player.Guid;
+            ChatRooms.BothTeamsRoom.SendServiceMessage("<PLAYER> is changing heroes.", false,
+                new Dictionary<string, string>
+                {
+                    { "player_id", playerId.ToString() },
+                    // Lobby chat has no HUD/player-color resolver, so provide a plain-name fallback.
+                    { "<PLAYER>", Databases.PlayerDatabase.GetPlayerName(playerId).Replace("<", "").Replace(">", "") }
+                });
             Zone.PreparePlayerHeroChange(playerId);
             _zoneSender.Unsubscribe(player.Guid);
             Lobby.EnqueueAction(() => Lobby.PrepareHeroChange(playerId));

@@ -112,6 +112,7 @@ public partial class GameZone : Updater
     private uint NewSpawnId() => _newSpawnId++;
 
     public bool HasEnded => _zoneData.MatchEnded;
+    public bool CanSwitchHero => _zoneData.CanSwitchHero;
 
     protected override bool TrackQueuedActionSources => true;
 
@@ -1333,7 +1334,7 @@ public partial class GameZone : Updater
         }
 
         _playerUnits.Remove(unitId);
-        RemoveUnit(unitId, $"waiting-arena-hero-change: playerId={playerId}");
+        RemoveUnit(unitId, $"hero-change: playerId={playerId}");
         _playerIdToUnitId.Remove(playerId);
         _zoneData.PlayerSpawnPoints.Remove(playerId);
         _zoneData.RespawnInfo.Remove(playerId);

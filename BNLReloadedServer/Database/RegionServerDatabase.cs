@@ -1435,6 +1435,10 @@ public class RegionServerDatabase(AsyncTaskTcpServer server, AsyncTaskTcpServer 
 
     public bool ChangeWaitingArenaHero(uint playerId)
     {
+        // Keep the existing RPC ID: custom matches share the arena hero-selection flow.
+        if (GetGameInstance(playerId) is GameInstance custom && custom.IsCustomHeroSwitchEnabled)
+            return custom.SendWaitingArenaUserToLobby(playerId);
+
         if (!_matchmaker.IsQueued(playerId)) return false;
         lock (_waitingArenaLock)
         {
