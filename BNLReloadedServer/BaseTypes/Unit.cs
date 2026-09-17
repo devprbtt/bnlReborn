@@ -1341,10 +1341,12 @@ public partial class Unit
 
         if (updatedAmmo.Count > 0)
         {
+            // The client refills its magazine only from this update and re-arms auto-reload as
+            // soon as the Reload RPC is accepted, so it must not wait for the next buffered tick.
             UpdateData(new UnitUpdate
             {
                 Ammo = new Dictionary<Key, List<Ammo>> { { CurrentGear.Key, updatedAmmo } }
-            });
+            }, null, true);
         }
     }
 

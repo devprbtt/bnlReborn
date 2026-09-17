@@ -583,8 +583,10 @@ public partial class GameZone
     private static void ReconcileDashAmmo(Unit player)
     {
         if (player.CurrentGear is not { } gear) return;
+        // Unbuffered: this carries the magazine, so it must stay ordered with the immediate
+        // reload result instead of arriving a tick later and re-triggering the client's reload.
         player.UpdateData(new UnitUpdate { Ammo = new() { [gear.Key] = gear.Ammo
-            .Select(a => new Ammo { Index = a.AmmoIndex, Mag = a.Mag, Pool = a.Pool }).ToList() } });
+            .Select(a => new Ammo { Index = a.AmmoIndex, Mag = a.Mag, Pool = a.Pool }).ToList() } }, null, true);
     }
 
     public void ReceivedDashChargeStartRequest(uint playerId, byte toolIndex)

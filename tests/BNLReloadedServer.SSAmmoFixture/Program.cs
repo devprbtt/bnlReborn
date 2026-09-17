@@ -38,7 +38,7 @@ unit.AddAmmo(amount);
 Check(updates.Single().Data.Ammo![blitz].Single().Mag == null, "reactive reserve update never carries a stale magazine");
 Check(unit.GetGearByKey(blitz)!.Ammo[0].Mag == 0 && unit.GetGearByKey(blitz)!.Ammo[0].Pool == 4.25f, "reactive reserve gain retained");
 unit.ReloadAmmo();
-Check(updates.All(u => !u.Immediate), "reload and reactive updates share ordered stream");
+Check(!updates[0].Immediate && updates[1].Immediate, "reactive gain stays buffered; reload result is sent immediately so the client never sees an empty magazine after the accepted RPC");
 float clientMag=0, clientPool=4;
 foreach(var update in updates) {
  var a=update.Data.Ammo![blitz].Single();
