@@ -84,6 +84,12 @@ public partial class GameZone : Updater
         _pendingProjectileHits = new();
     private readonly HashSet<ulong> _checkForWater = [];
     private readonly List<Unit> _unitsToDrop = [];
+    // A dead player who changes heroes keeps the remaining respawn wait. The unit is removed and
+    // rebuilt, so rather than re-enter dead (which the client cannot present cleanly from a fresh
+    // unit create), we defer the new hero's spawn to the original deadline, mirroring reconnect-
+    // while-dead: no live unit until then, and the client shows the respawn screen meanwhile.
+    private readonly Dictionary<uint, DateTimeOffset> _heroChangeRespawn = new();
+    private readonly Dictionary<uint, (DateTimeOffset deadline, IServiceZone service)> _pendingHeroChangeSpawns = new();
 
     private DateTimeOffset? _attackStartTime;
 
@@ -309,6 +315,17 @@ public partial class GameZone : Updater
         }
 
         if (_playerUnits.Values.Any(player => player.PlayerId == playerId) || _gameInitiator.IsPlayerSpectator(playerId)) return;
+
+        // Dead-and-changed-heroes: do not spawn a live unit now. Record the deadline in _zoneData so
+        // JoinedInProgress delivers the respawn timer to the client, and spawn the new hero on the
+        // zone thread once the deadline passes (OnTick). The client sits on the normal respawn screen.
+        if (_heroChangeRespawn.Remove(playerId, out var heroDeadline) && heroDeadline > DateTimeOffset.Now)
+        {
+            _zoneData.UpdateSpawnTime(playerId, (ulong)heroDeadline.ToUnixTimeMilliseconds());
+            _pendingHeroChangeSpawns[playerId] = (heroDeadline, savedService);
+            return;
+        }
+
         var playerUnit = CreatePlayerUnit(playerId, zoneService);
         if (playerUnit == null) return;
         playerUnit.ZoneService = savedService;
@@ -1004,6 +1021,10 @@ public partial class GameZone : Updater
                 Team2Stats = _zoneData.GetTeamScores(TeamType.Team2)
             },
             PlayerSpawnPoints = _zoneData.PlayerSpawnPoints,
+            // A player who re-enters while still on a respawn timer (reconnect or hero change) has
+            // already subscribed by now; the initial snapshot omits RespawnInfo, so send it here or
+            // the respawn screen shows no countdown.
+            RespawnInfo = _zoneData.RespawnInfo,
             PlayerInfo = _zoneData.PlayerInfo,
             Objectives = _zoneData.MatchCard.Data?.Type is MatchType.TimeTrial or MatchType.Tutorial
                 ? _zoneData.Objectives
@@ -1157,6 +1178,8 @@ public partial class GameZone : Updater
             _playerIdToUnitId.Remove(playerId);
             _zoneData.PlayerSpawnPoints.Remove(playerId);
             _zoneData.RespawnInfo.Remove(playerId);
+            _heroChangeRespawn.Remove(playerId);
+            _pendingHeroChangeSpawns.Remove(playerId);
             if (HasEnded) return true;
 
             _zoneData.PlayerStats.Remove(playerId);
@@ -1284,6 +1307,8 @@ public partial class GameZone : Updater
         _playerIdToUnitId.Remove(playerId);
         _zoneData.PlayerSpawnPoints.Remove(playerId);
         _zoneData.RespawnInfo.Remove(playerId);
+        _heroChangeRespawn.Remove(playerId);
+        _pendingHeroChangeSpawns.Remove(playerId);
         if (!HasEnded)
         {
             _zoneData.PlayerStats.Remove(playerId);
@@ -1305,6 +1330,26 @@ public partial class GameZone : Updater
         return true;
     }
 
+    // Spawns each hero-change player whose deferred respawn deadline has passed. Runs on the zone
+    // thread from OnTick. Uses CreatePlayerUnit (not the respawn loop) so the new hero/loadout from
+    // the lobby is applied; the create broadcasts to the already-subscribed player.
+    private void SpawnDueHeroChanges()
+    {
+        if (_pendingHeroChangeSpawns.Count == 0) return;
+        var now = DateTimeOffset.Now;
+        foreach (var (playerId, pending) in _pendingHeroChangeSpawns.ToList())
+        {
+            if (pending.deadline > now) continue;
+            _pendingHeroChangeSpawns.Remove(playerId);
+            if (_playerIdToUnitId.ContainsKey(playerId) || !_playerLobbyInfo.ContainsKey(playerId)) continue;
+            var unit = CreatePlayerUnit(playerId, pending.service);
+            if (unit == null) continue;
+            unit.ZoneService = pending.service;
+            _zoneData.UpdateSpawnTime(playerId, null);
+            _serviceZone.SendUnitUpdate(unit.Id, unit.GetUpdateData());
+        }
+    }
+
     public void PreparePlayerHeroChange(uint playerId)
     {
         _activeHeroEmotes.Remove(playerId);
@@ -1313,6 +1358,13 @@ public partial class GameZone : Updater
         if (!_playerIdToUnitId.TryGetValue(playerId, out var unitId) ||
             !_playerUnits.TryGetValue(unitId, out var player))
             return;
+
+        // Changing heroes must not skip an active respawn timer: remember the remaining wait so
+        // the new hero spawns only when it elapses (see _pendingHeroChangeSpawns in SendLoadZone).
+        if (player is { IsDead: true, RespawnTime: { } deadline } && deadline > DateTimeOffset.Now)
+            _heroChangeRespawn[playerId] = deadline;
+        else
+            _heroChangeRespawn.Remove(playerId);
 
         var impact = new ImpactData
         {
@@ -2107,6 +2159,8 @@ public partial class GameZone : Updater
             {
                 _winningTeam = GetWinningTeam();
             }
+
+            SpawnDueHeroChanges();
 
             foreach (var unit in _units.Values.ToList())
             {
