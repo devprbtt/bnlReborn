@@ -580,7 +580,12 @@ public partial class GameZone
         player.StartChargeTime = null;
     }
 
-    private const float DashImprecision = 0.1f;
+    private static void ReconcileDashAmmo(Unit player)
+    {
+        if (player.CurrentGear is not { } gear) return;
+        player.UpdateData(new UnitUpdate { Ammo = new() { [gear.Key] = gear.Ammo
+            .Select(a => new Ammo { Index = a.AmmoIndex, Mag = a.Mag, Pool = a.Pool }).ToList() } });
+    }
 
     public void ReceivedDashChargeStartRequest(uint playerId, byte toolIndex)
     {
@@ -590,12 +595,12 @@ public partial class GameZone
             return;
         }
 
-        if (player.CurrentGear?.Tools[toolIndex] is { } toolLogic && toolLogic.IsEnoughAmmoToUse() &&
-            toolLogic.Tool is ToolDash)
+        if (player.DashCharge.Start(player, toolIndex, DateTimeOffset.UtcNow))
         {
             player.StartChargeTime = DateTimeOffset.Now;
             _unbufferedZone.SendDoDashStartCharge(playerUnitId, toolIndex);
         }
+        else ReconcileDashAmmo(player);
     }
 
     public void ReceivedDashChargeEndRequest(ushort rpcId, uint playerId, byte toolIndex, IServiceZone dashService)
@@ -607,15 +612,16 @@ public partial class GameZone
             return;
         }
 
-        if (player.CurrentGear?.Tools[toolIndex].Tool is ToolDash tool)
+        if (player.DashCharge.Finish(player, toolIndex, DateTimeOffset.UtcNow, out bool maximum))
         {
-            player.LastDashChargeMax = player.LengthOfCharge >= tool.MaxChargeTime - DashImprecision;
+            player.LastDashChargeMax = maximum;
             dashService.SendDashEndChargeSuccess(rpcId, player.LastDashChargeMax);
             _unbufferedZone.SendDoDashEndCharge(playerUnitId, toolIndex);
         }
         else
         {
-            dashService.SendDashEndChargeFail(rpcId, "not a dash tool");
+            dashService.SendDashEndChargeFail(rpcId, "dash charge is invalid or has insufficient ammo");
+            ReconcileDashAmmo(player);
         }
 
         player.StartChargeTime = null;
@@ -629,9 +635,12 @@ public partial class GameZone
             return;
         }
 
-        var tool = player.CurrentGear?.Tools[toolIndex];
+        var tool = player.CurrentGear?.GetTool(toolIndex);
 
-        if (tool?.Tool is not ToolDash toolDash || !tool.IsEnoughAmmoToUse() || player.IsBuff(BuffType.Root)) return;
+        if (!player.DashCharge.Consume(player, toolIndex, DateTimeOffset.UtcNow, out bool maximum) ||
+            tool?.Tool is not ToolDash toolDash)
+        { ReconcileDashAmmo(player); return; }
+        player.LastDashChargeMax = maximum;
 
         if (player.IsRecall)
         {

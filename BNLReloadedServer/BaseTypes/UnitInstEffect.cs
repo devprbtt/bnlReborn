@@ -141,7 +141,7 @@ public partial class Unit
             {
                 var gearAmmo = gear.Ammo[i];
                 ammoUpdate[gear.Key].Add(new Ammo
-                { Index = gearAmmo.AmmoIndex, Mag = gearAmmo.Mag, Pool = gearAmmo.Pool });
+                { Index = gearAmmo.AmmoIndex, Pool = gearAmmo.Pool });
                 if (gearAmmo.Pool >= gearAmmo.PoolSize) continue;
                 if (ammoData[i].Pool is not { } pool) continue;
                 var newPool = Math.Min(float.FusedMultiplyAdd(this.AmmoGainAmount(amount), pool.BaseRegen, gearAmmo.Pool),
@@ -183,7 +183,7 @@ public partial class Unit
             {
                 var gearAmmo = gear.Ammo[i];
                 ammoUpdate[gear.Key].Add(new Ammo
-                { Index = gearAmmo.AmmoIndex, Mag = gearAmmo.Mag, Pool = gearAmmo.Pool });
+                { Index = gearAmmo.AmmoIndex, Pool = gearAmmo.Pool });
                 if (gearAmmo.Pool >= gearAmmo.PoolSize) continue;
                 if (ammoData[i].Pool is not { } pool) continue;
                 ammoUpdate[gear.Key][i].Pool =

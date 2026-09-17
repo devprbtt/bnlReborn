@@ -5,6 +5,7 @@ using BNLReloadedServer.BaseTypes;
 using BNLReloadedServer.Servers;
 using BNLReloadedServer.ServerTypes;
 using BNLReloadedServer.Service;
+using BNLReloadedServer.Logging;
 using Moserware.Skills;
 using NetCoreServer;
 using Timer = System.Timers.Timer;
@@ -403,9 +404,12 @@ public partial class GameInstance : IGameInstance
             var playable = mapPool
                 .Select(k => k.GetCard<CardMap>())
                 .Where(map => map is not null && Databases.MapDatabase.HasMap(map.Key))
-                .Select(map => map!);
+                .Select(map => map!).ToList();
             maps = MapVoteSelection.Select(playable, mapGrabCount, gameMode.Ranking, rnd)
                 .Select(MapInfo (key) => new MapInfoCard { MapKey = key }).ToList();
+            Log.Info(LogCat.Match, $"Map ballot instance={GameInstanceId} mode={gameMode.Id} ranking={gameMode.Ranking} " +
+                $"eligible={playable.Count} candidates=[{string.Join(",", playable.Select(m => $"{m.Id}:{MapVoteSelection.ValidWeight(m.CasualVoteWeight)}"))}] " +
+                $"offered=[{string.Join(",", maps.OfType<MapInfoCard>().Select(m => m.MapKey.GetCard<CardMap>()?.Id))}]");
         }
 
         if (MapData != null)

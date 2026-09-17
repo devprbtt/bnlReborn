@@ -1330,6 +1330,7 @@ public sealed class ControlPanelServer : IDisposable
             return new
             {
                 key = id,
+                casual_vote_weight = ServerTypes.MapVoteSelection.ValidWeight(card?.CasualVoteWeight),
                 name = card?.Name?.Text ?? id,
                 description = card?.Description?.Text ?? string.Empty,
                 match = data?.Match.ToString(),

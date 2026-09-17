@@ -647,6 +647,9 @@ public class GameLobby : Updater
             var mostVoted = SnapshotMaps().MaxBy(m => m.PlayerVotes?.Count);
             if (mostVoted?.Info is MapInfoCard mapInfo && _gameInstance.IsMapNull())
             {
+                Log.Info(LogCat.Match, $"Map vote result instance={LobbyData.SessionName} " +
+                    $"winner={mapInfo.MapKey.GetCard<CardMap>()?.Id} " +
+                    $"votes=[{string.Join(",", SnapshotMaps().Select(m => $"{(m.Info as MapInfoCard)?.MapKey.GetCard<CardMap>()?.Id}:{m.PlayerVotes?.Count ?? 0}"))}]");
                 if (Databases.MapDatabase.LoadMapData(mapInfo.MapKey) is { } mapData)
                 {
                     _gameInstance.SetMap(mapInfo, mapData);

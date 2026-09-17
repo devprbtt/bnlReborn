@@ -64,6 +64,8 @@ public partial class Unit
     public HashSet<Vector3s> OverlappingMapBlocks = [];
     public Action? OnDestroyed;
     public bool LastDashChargeMax = false;
+
+    public DashChargeState DashCharge { get; } = new();
     public bool AbilityTriggered = false;
     public Vector3s? AttachedTo = null;
 
@@ -1054,6 +1056,8 @@ public partial class Unit
             }
         }
 
+        if (data.CurrentGear.HasValue && data.CurrentGear.Value != CurrentGearKey)
+            DashCharge.Clear();
         if (data.CurrentGear.HasValue)
             _currentGearIndex = GearKeyToIndex(data.CurrentGear.Value);
         if (data.CapturePoints.HasValue)
@@ -1340,7 +1344,7 @@ public partial class Unit
             UpdateData(new UnitUpdate
             {
                 Ammo = new Dictionary<Key, List<Ammo>> { { CurrentGear.Key, updatedAmmo } }
-            }, null, true);
+            });
         }
     }
 
