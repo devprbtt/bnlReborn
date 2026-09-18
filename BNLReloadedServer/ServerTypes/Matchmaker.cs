@@ -693,7 +693,8 @@ public class Matchmaker(AsyncTaskTcpServer server)
                     State = new MatchmakerState
                     {
                         State = MatchmakerStateType.ConfirmingBackfilling,
-                        ConfirmationTimeout = queue.ConfTime
+                        ConfirmationTimeout = queue.ConfTime,
+                        QueueGameMode = queue.GameModeKey
                     }
                 };
 
@@ -754,7 +755,8 @@ public class Matchmaker(AsyncTaskTcpServer server)
             State = new MatchmakerState
             {
                 State = MatchmakerStateType.Confirming,
-                ConfirmationTimeout = queue.ConfTime
+                ConfirmationTimeout = queue.ConfTime,
+                QueueGameMode = queue.GameModeKey
             }
         });
         queue.QueueTimer = new Timer(TimeSpan.FromSeconds(confTime).TotalMilliseconds);
@@ -783,7 +785,8 @@ public class Matchmaker(AsyncTaskTcpServer server)
                         State = new MatchmakerState
                         {
                             State = MatchmakerStateType.Aborting,
-                            AbortingByDecline = true
+                            AbortingByDecline = true,
+                            QueueGameMode = queue.GameModeKey
                         }
                     });
                     await Task.Delay(AbortDelay);
@@ -814,7 +817,8 @@ public class Matchmaker(AsyncTaskTcpServer server)
                         {
                             State = MatchmakerStateType.Confirming,
                             PlayersConfirmed = acceptCount,
-                            ConfirmationTimeout = queue.ConfTime
+                            ConfirmationTimeout = queue.ConfTime,
+                            QueueGameMode = queue.GameModeKey
                         }
                     });
 
@@ -879,7 +883,8 @@ public class Matchmaker(AsyncTaskTcpServer server)
                         State = new MatchmakerState
                         {
                             State = MatchmakerStateType.Aborting,
-                            AbortingByDecline = true
+                            AbortingByDecline = true,
+                            QueueGameMode = queue.GameModeKey
                         }
                     });
                     await Task.Delay(AbortDelay);
@@ -977,7 +982,8 @@ public class Matchmaker(AsyncTaskTcpServer server)
                             State = new MatchmakerState
                             {
                                 State = MatchmakerStateType.Aborting,
-                                AbortingByDecline = false
+                                AbortingByDecline = false,
+                                QueueGameMode = queue.GameModeKey
                             }
                         });
                         Task.Delay(AbortDelay).Wait();
@@ -1032,7 +1038,8 @@ public class Matchmaker(AsyncTaskTcpServer server)
                             State = new MatchmakerState
                             {
                                 State = MatchmakerStateType.Aborting,
-                                AbortingByDecline = false
+                                AbortingByDecline = false,
+                                QueueGameMode = queue.GameModeKey
                             }
                         });
                         Task.Delay(AbortDelay).Wait();
@@ -1057,7 +1064,8 @@ public class Matchmaker(AsyncTaskTcpServer server)
                             State = new MatchmakerState
                             {
                                 State = MatchmakerStateType.Aborting,
-                                AbortingByDecline = false
+                                AbortingByDecline = false,
+                                QueueGameMode = queue.GameModeKey
                             }
                         });
                         Task.Delay(AbortDelay).Wait();
