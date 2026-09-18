@@ -1647,7 +1647,7 @@ public partial class GameZone
 
         if (attackerPlayer is not null && OnHitApplies(attackerPlayer, target) && AreOpponents(target, attackerPlayer))
         {
-            if (attackerPlayer.GetBuff(BuffType.LifeSteal) > 0)
+            if (attackerPlayer.GetBuff(BuffType.LifeSteal) > 0 && IsToolDamage(impact))
                 attackerPlayer.AddHealth(attackerPlayer.LifeStealAmount(damage));
             if (attackerPlayer.IsBuff(BuffType.HealBane) && !target.IsDead)
                 target.AddEffects([new ConstEffectInfo(CatalogueHelper.HealBaneDebuff)], attackerPlayer.Team, attackerPlayer.GetSelfSource());
@@ -1670,6 +1670,15 @@ public partial class GameZone
     /// </summary>
     internal static bool OnHitApplies(Unit attackerPlayer, Unit target) =>
         attackerPlayer is { IsDead: false } && target.PlayerId is not null && target.Id != attackerPlayer.Id;
+
+    /// <summary>
+    /// Damage dealt by the player's own gear: the impact source is a gear card, or a projectile unit
+    /// launched by gear (saucers, heavy orbs). Turrets, devices, trap blocks and abilities stamp their
+    /// own keys and do not count.
+    /// </summary>
+    internal static bool IsToolDamage(ImpactData impact) =>
+        impact.SourceKey is { } source &&
+        (source.GetCard<CardGear>() is not null || source.GetCard<CardUnit>()?.Data is UnitDataProjectile);
 
     private void UnitIsKilled(Unit target, ImpactData impact, bool mining = false)
     {

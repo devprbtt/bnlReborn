@@ -50,4 +50,20 @@ var json = "{\"_id\":\"effect_fixture_ls\",\"category\":\"effect\",\"effect\":{\
 var parsed = System.Text.Json.JsonSerializer.Deserialize<Card>(json, JsonHelper.DefaultSerializerSettings) as CardEffect;
 Check(parsed?.Effect is ConstEffectBuff { Buffs: { } buffs } && buffs.TryGetValue(BuffType.LifeSteal, out var v) && v == 0.5f && buffs.ContainsKey(BuffType.HealthGain),
     "CDB key \"life_steal\" deserializes to BuffType.LifeSteal");
+
+// Only gear counts as a tool: turrets, devices, blocks and abilities that damage enemies do not heal.
+var gear = new CardGear { Id = "fixture_ls_gear" };
+var saucer = new CardUnit { Id = "fixture_ls_saucer", Data = new UnitDataProjectile() };
+var turret = new CardUnit { Id = "fixture_ls_turret", Data = new UnitDataTurret() };
+var ability = new CardAbility { Id = "fixture_ls_ability", Icon = "", KillscoreIcon = "", Prefab = "", Behavior = new AbilityBehaviorCast { Application = new AbilityApplicationSelf() }, Charges = new AbilityCharges { MaxCharges = 1, ChargeCooldown = 1 } };
+var trapBlock = new CardBlock { Id = "fixture_ls_block" };
+catalogue.Replicate(catalogue.All.Concat(new Card[] { gear, saucer, turret, ability, trapBlock }).ToList());
+var isTool = typeof(BNLReloadedServer.ServerTypes.GameZone).GetMethod("IsToolDamage", BindingFlags.Static | BindingFlags.NonPublic)!;
+bool Tool(Key? key) => (bool)isTool.Invoke(null, new object[] { new ImpactData { SourceKey = key ?? Key.None } })!;
+Check(Tool(gear.Key), "gear (weapon) damage is tool damage");
+Check(Tool(saucer.Key), "a projectile unit fired from gear counts as tool damage");
+Check(!Tool(turret.Key), "turret damage is not tool damage");
+Check(!Tool(ability.Key), "ability damage is not tool damage");
+Check(!Tool(trapBlock.Key), "trap block damage is not tool damage");
+Check(!Tool(null), "damage with no source is not tool damage");
 Console.WriteLine($"Life steal fixture passed: {checks} checks.");
