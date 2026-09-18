@@ -50,4 +50,17 @@ var json = "{\"_id\":\"effect_fixture_ls\",\"category\":\"effect\",\"effect\":{\
 var parsed = System.Text.Json.JsonSerializer.Deserialize<Card>(json, JsonHelper.DefaultSerializerSettings) as CardEffect;
 Check(parsed?.Effect is ConstEffectBuff { Buffs: { } buffs } && buffs.TryGetValue(BuffType.LifeSteal, out var v) && v == 0.5f && buffs.ContainsKey(BuffType.HealthGain),
     "CDB key \"life_steal\" deserializes to BuffType.LifeSteal");
+
+// Killing blow: the callback reports both the capped and the full hit damage, and life steal is paid on the full hit.
+var damaged = new List<(float damage, float hitDamage)>();
+var probeUpdater = updater with { OnUnitDamaged = (t, d, hit, _) => damaged.Add((d, hit)) };
+var prey = new Unit(20, new UnitInit { Key = hero.Key, Team = TeamType.Team2, PlayerId = 20, OwnerId = 20 }, probeUpdater);
+prey.UpdateData(new UnitUpdate { Health = 8f });
+prey.TakeDamage(new BNLReloadedServer.ServerTypes.DamageData(0f, 0f, 40f, 0f, 0f, 0f, 0f, 0f, false, false, false, false), attacker.CreateImpactData(), false, attacker, attacker.Team);
+Check(prey.IsDead && damaged.Count == 1 && Math.Abs(damaged[0].damage - 8f) < 0.01f && Math.Abs(damaged[0].hitDamage - 40f) < 0.01f,
+    "a killing 40-damage hit on 8 HP reports damage 8 and hit damage 40");
+var finisher = Create(21, TeamType.Team1); finisher.UpdateData(new UnitUpdate { Health = 50f });
+finisher.AddEffect(new ConstEffectInfo(steal.Key), finisher.Team, finisher.GetSelfSource());
+finisher.AddHealth(finisher.LifeStealAmount(damaged[0].hitDamage));
+Check(Math.Abs(finisher.HealthPercentage * 100f - 70f) < 0.01f, "life steal on the killing blow pays on the full 40 (50% -> +20), not the 8 that was left");
 Console.WriteLine($"Life steal fixture passed: {checks} checks.");

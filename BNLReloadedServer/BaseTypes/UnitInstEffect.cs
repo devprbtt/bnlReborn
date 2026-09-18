@@ -404,7 +404,7 @@ public partial class Unit
 
         if (actualDamage > 0)
         {
-            _updater.OnUnitDamaged(this, actualDamage, impact);
+            _updater.OnUnitDamaged(this, actualDamage, amount, impact);
         }
 
         if ((update.Health ?? _health) <= 0.0f)
@@ -560,7 +560,7 @@ public partial class Unit
                 var newForcefield = Math.Max(0.0f, currForcefield - dmg);
                 update.Forcefield = newForcefield;
                 var forceDmg = currForcefield - newForcefield;
-                _updater.OnUnitDamaged(this, forceDmg, impact);
+                _updater.OnUnitDamaged(this, forceDmg, dmg, impact);
                 if (forceDmg > 0 && UnitCard?.Health?.Forcefield is { } forcefield)
                 {
                     _rechargeForcefieldTime = DateTimeOffset.Now.AddSeconds(update.Forcefield > 0
@@ -585,7 +585,7 @@ public partial class Unit
                 var actualShieldAndHealthDamage = actualShieldDamage + actualHealthDamage;
                 if (actualShieldAndHealthDamage > 0)
                 {
-                    _updater.OnUnitDamaged(this, actualShieldAndHealthDamage, impact);
+                    _updater.OnUnitDamaged(this, actualShieldAndHealthDamage, dmg, impact);
                 }
 
                 if (_rechargeForcefieldTime is not null && UnitCard?.Health?.Forcefield is { } force)
@@ -601,7 +601,7 @@ public partial class Unit
                 var actualHealthOnlyDamage = DamageAccounting.Removed(currHealth, newHealth);
                 if (actualHealthOnlyDamage > 0)
                 {
-                    _updater.OnUnitDamaged(this, actualHealthOnlyDamage, impact);
+                    _updater.OnUnitDamaged(this, actualHealthOnlyDamage, dmg, impact);
                 }
 
                 if (_rechargeForcefieldTime is not null && UnitCard?.Health?.Forcefield is { } frc)

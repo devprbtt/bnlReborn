@@ -17,7 +17,9 @@ public delegate void OnImpactAction(Vector3 insidePoint, Vector3 shotPos, bool c
     Key? source = null, CardImpact? card = null, IEnumerable<uint>? affectedUnits = null, Vector3s? normal = null);
 public delegate float GetResourceCap();
 public delegate void UpdateMatchStats(Unit player, int? kills = null, int? deaths = null, int? assists = null);
-public delegate void OnUnitDamaged(Unit target, float damage, ImpactData impact);
+// damage is what the hit actually removed (capped by the target's remaining pools); hitDamage is the
+// full mitigated damage of the hit, so a killing blow still reports its whole value.
+public delegate void OnUnitDamaged(Unit target, float damage, float hitDamage, ImpactData impact);
 public delegate void OnUnitKilled(Unit target, ImpactData impact, bool mining = false);
 public delegate void LinkPortal(Unit unit, bool unlink = false);
 public delegate void OnPull(Unit unit, ManeuverPull maneuverPull);

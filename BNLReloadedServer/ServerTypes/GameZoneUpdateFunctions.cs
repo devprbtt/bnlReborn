@@ -1623,7 +1623,7 @@ public partial class GameZone
         });
     }
 
-    private void UnitIsDamaged(Unit target, float damage, ImpactData impact)
+    private void UnitIsDamaged(Unit target, float damage, float hitDamage, ImpactData impact)
     {
         var attackerPlayer = impact.CasterPlayerId is null
             ? null
@@ -1647,8 +1647,10 @@ public partial class GameZone
 
         if (attackerPlayer is not null && OnHitApplies(attackerPlayer, target) && AreOpponents(target, attackerPlayer))
         {
+            // Pay on the hit's full damage: a killing blow is capped to the victim's last hit points in
+            // `damage`, which made the finishing shot feel like it granted nothing.
             if (attackerPlayer.GetBuff(BuffType.LifeSteal) > 0)
-                attackerPlayer.AddHealth(attackerPlayer.LifeStealAmount(damage));
+                attackerPlayer.AddHealth(attackerPlayer.LifeStealAmount(hitDamage));
             if (attackerPlayer.IsBuff(BuffType.HealBane) && !target.IsDead)
                 target.AddEffects([new ConstEffectInfo(CatalogueHelper.HealBaneDebuff)], attackerPlayer.Team, attackerPlayer.GetSelfSource());
         }
