@@ -755,11 +755,17 @@ public partial class Unit
         UpdateStat(ScoreType.AbilityUsed, 1);
 
         update.AbilityCharges = currCharges;
-        TimeTillNextAbilityCharge ??= DateTimeOffset.Now.AddSeconds(this.AbilityCooldownTime(aCard.Charges.ChargeCooldown));
+        TimeTillNextAbilityCharge ??= ScheduleAbilityCooldown(aCard);
         if (update.AbilityCharges < aCard.Charges.MaxCharges)
         {
             update.AbilityChargeCooldownEnd = (ulong)TimeTillNextAbilityCharge.Value.ToUnixTimeMilliseconds();
         }
+    }
+
+    private DateTimeOffset ScheduleAbilityCooldown(CardAbility aCard)
+    {
+        _abilityCooldownMultiplier = this.AbilityCooldownMultiplier();
+        return DateTimeOffset.Now.AddSeconds(this.AbilityCooldownTime(aCard.Charges!.ChargeCooldown));
     }
 
     public void AbilityUsed()
@@ -778,7 +784,7 @@ public partial class Unit
         update.AbilityCharges = Math.Min((update.AbilityCharges ?? AbilityCharges) + 1, aCard.Charges.MaxCharges);
 
         TimeTillNextAbilityCharge = update.AbilityCharges < aCard.Charges.MaxCharges
-            ? DateTimeOffset.Now.AddSeconds(this.AbilityCooldownTime(aCard.Charges.ChargeCooldown))
+            ? ScheduleAbilityCooldown(aCard)
             : null;
 
         if (update.AbilityCharges < aCard.Charges.MaxCharges && TimeTillNextAbilityCharge.HasValue)

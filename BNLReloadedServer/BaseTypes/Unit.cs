@@ -74,6 +74,8 @@ public partial class Unit
     private DateTimeOffset? _rechargeForcefieldTime;
     public DateTimeOffset? StartChargeTime;
     public DateTimeOffset? TimeTillNextAbilityCharge;
+    // Cooldown multiplier the running ability cooldown was scheduled with; see RescaleAbilityCooldown.
+    private float _abilityCooldownMultiplier = 1f;
     public DateTimeOffset? AbilityTriggerTimeEnd;
     public DateTimeOffset? RespawnTime;
     public DateTimeOffset? RecallTime;
@@ -1384,6 +1386,33 @@ public partial class Unit
         }
     }
 
+    /// <summary>
+    /// Ability cooldown reduction applies to a cooldown that is already running, not only to the
+    /// next one. The elapsed fraction is kept and the remaining time is rescaled by the ratio of the
+    /// new multiplier to the one the cooldown was scheduled with, so gaining the buff shortens the
+    /// wait and losing it stretches the remainder back out.
+    /// </summary>
+    private void RescaleAbilityCooldown()
+    {
+        var multiplier = this.AbilityCooldownMultiplier();
+        if (multiplier == _abilityCooldownMultiplier) return;
+        var previous = _abilityCooldownMultiplier;
+        _abilityCooldownMultiplier = multiplier;
+        if (TimeTillNextAbilityCharge is not { } end || AbilityCard?.Charges is null) return;
+
+        var now = DateTimeOffset.Now;
+        var remaining = end - now;
+        if (remaining <= TimeSpan.Zero) return;
+
+        // A cooldown scheduled at multiplier 0 has no remaining time to scale.
+        var rescaled = previous <= 0f ? TimeSpan.Zero : remaining * (multiplier / previous);
+        TimeTillNextAbilityCharge = now + rescaled;
+        UpdateData(new UnitUpdate
+        {
+            AbilityChargeCooldownEnd = (ulong)TimeTillNextAbilityCharge.Value.ToUnixTimeMilliseconds()
+        });
+    }
+
     private Dictionary<BuffType, float> ExtractBuffs(IEnumerable<Key> effects)
     {
         var buffResult = new Dictionary<BuffType, float>();
@@ -1433,6 +1462,8 @@ public partial class Unit
             {
                 _buffs = ExtractBuffs(e.NewItem.Select(info => info.Key).Distinct());
             }
+
+            RescaleAbilityCooldown();
 
             if (UnitCard?.IsObjective is true && !_updater.DoesObjBuffApply(Team, UnitCard?.Labels ?? []))
             {

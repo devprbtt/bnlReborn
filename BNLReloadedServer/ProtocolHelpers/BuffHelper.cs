@@ -82,8 +82,11 @@ public static class BuffHelper
           initialDamage * Math.Max(0.0f, (100f - unit.GetBuff(BuffType.SplashDamageReduction)) / 100f) *
           float.Max(1f - unit.GetBuff(BuffType.Shield), 0.5f);
 
+        public float AbilityCooldownMultiplier() =>
+          Math.Max(0.0f, 1f - unit.GetBuff(BuffType.AbilityCooldownReduction));
+
         public float AbilityCooldownTime(float initialCooldown) =>
-          initialCooldown * Math.Max(0.0f, 1f - unit.GetBuff(BuffType.AbilityCooldownReduction));
+          initialCooldown * unit.AbilityCooldownMultiplier();
 
         public float ResourceGainAmount(float resourceGain, ResourceType source) =>
           source switch
