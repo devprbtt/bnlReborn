@@ -1645,9 +1645,12 @@ public partial class GameZone
 
         var attacker = impact.CasterUnitId is null ? null : _units.GetValueOrDefault(impact.CasterUnitId.Value);
 
-        if (attackerPlayer is not null && LifeStealApplies(attackerPlayer, target) && AreOpponents(target, attackerPlayer))
+        if (attackerPlayer is not null && OnHitApplies(attackerPlayer, target) && AreOpponents(target, attackerPlayer))
         {
-            attackerPlayer.AddHealth(attackerPlayer.LifeStealAmount(damage));
+            if (attackerPlayer.GetBuff(BuffType.LifeSteal) > 0)
+                attackerPlayer.AddHealth(attackerPlayer.LifeStealAmount(damage));
+            if (attackerPlayer.IsBuff(BuffType.HealBane) && !target.IsDead)
+                target.AddEffects([new ConstEffectInfo(CatalogueHelper.HealBaneDebuff)], attackerPlayer.Team, attackerPlayer.GetSelfSource());
         }
 
         var targetTeam = target.Team;
@@ -1662,12 +1665,11 @@ public partial class GameZone
     }
 
     /// <summary>
-    /// Life steal only pays out for damage a living player deals to another player's unit, never for
-    /// blocks, devices or the attacker's own unit.
+    /// On-hit perks (life steal, heal bane) only trigger for damage a living player deals to another
+    /// player's unit, never for blocks, devices or the attacker's own unit.
     /// </summary>
-    internal static bool LifeStealApplies(Unit attackerPlayer, Unit target) =>
-        attackerPlayer is { IsDead: false } && target.PlayerId is not null && target.Id != attackerPlayer.Id &&
-        attackerPlayer.GetBuff(BuffType.LifeSteal) > 0;
+    internal static bool OnHitApplies(Unit attackerPlayer, Unit target) =>
+        attackerPlayer is { IsDead: false } && target.PlayerId is not null && target.Id != attackerPlayer.Id;
 
     private void UnitIsKilled(Unit target, ImpactData impact, bool mining = false)
     {

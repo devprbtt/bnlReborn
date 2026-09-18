@@ -23,7 +23,7 @@ var steal = new CardEffect { Id = "fixture_ls_half", Positive = true, Effect = n
 var more = new CardEffect { Id = "fixture_ls_quarter", Positive = true, Effect = new ConstEffectBuff { Targeting = everyone, Buffs = new() { [BuffType.LifeSteal] = 0.25f } } };
 catalogue.Replicate([hero, steal, more, new CardGlobalLogic { Id = "global_logic" }]);
 Unit Create(uint id, TeamType team, uint? player = null) => new(id, new UnitInit { Key = hero.Key, Team = team, PlayerId = player ?? id, OwnerId = id }, updater);
-var applies = typeof(BNLReloadedServer.ServerTypes.GameZone).GetMethod("LifeStealApplies", BindingFlags.Static | BindingFlags.NonPublic)!;
+var applies = typeof(BNLReloadedServer.ServerTypes.GameZone).GetMethod("OnHitApplies", BindingFlags.Static | BindingFlags.NonPublic)!;
 bool Applies(Unit a, Unit t) => (bool)applies.Invoke(null, new object[] { a, t })!;
 
 var attacker = Create(1, TeamType.Team1);
@@ -31,7 +31,7 @@ var victim = Create(2, TeamType.Team2);
 attacker.UpdateData(new UnitUpdate { Health = 40f });
 victim.UpdateData(new UnitUpdate { Health = 100f });
 Check(Math.Abs(attacker.HealthPercentage * 100f - 40f) < 0.01f, "attacker starts wounded at 40/100");
-Check(!Applies(attacker, victim) && attacker.LifeStealAmount(40f) == 0f, "no buff: no life steal");
+Check(Applies(attacker, victim) && attacker.LifeStealAmount(40f) == 0f, "no buff: on-hit qualifies but life steal pays nothing");
 attacker.AddEffect(new ConstEffectInfo(steal.Key), attacker.Team, attacker.GetSelfSource());
 Check(Applies(attacker, victim), "buffed living player hitting another player's unit qualifies");
 Check(Math.Abs(attacker.LifeStealAmount(40f) - 20f) < 0.01f, "50% life steal returns half the damage");

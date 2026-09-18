@@ -59,5 +59,7 @@ public enum BuffType
     SwimSpeed = 55,
     ToolWorldDamage = 56,
     // Share of damage dealt to enemy players returned to the attacker as health (snake case: life_steal).
-    LifeSteal = 57
+    LifeSteal = 57,
+    // 1 if active: each hit on an enemy player applies CatalogueHelper.HealBaneDebuff to the victim.
+    HealBane = 58
 }

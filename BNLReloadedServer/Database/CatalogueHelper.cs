@@ -92,6 +92,10 @@ public static class CatalogueHelper
     public static Key AntimatterSource { get; } = new("damage_source_antimatter_shield");
     public static Key SmokeBomb { get; } = new("unit_device_generic_smoketrap");
     public static Key FallImpact { get; } = new("impact_falling");
+
+    // Timed debuff a HealBane attacker applies to every enemy player it damages; its strength and
+    // duration live on the card so designers tune it without a server change.
+    public static Key HealBaneDebuff { get; } = new("effect_heal_bane_debuff");
     public static Key SupplyDrop { get; } = new("unit_supply_resource");
     public static Key SuperSupplyDrop { get; } = new("unit_supply_super_resource");
     public static Key ClassicBlockbuster { get; } = new("unit_supply_blockbuster_classic");
