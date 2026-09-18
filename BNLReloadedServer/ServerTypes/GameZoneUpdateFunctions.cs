@@ -1645,9 +1645,11 @@ public partial class GameZone
 
         var attacker = impact.CasterUnitId is null ? null : _units.GetValueOrDefault(impact.CasterUnitId.Value);
 
-        if (attackerPlayer is not null && OnHitApplies(attackerPlayer, target) && AreOpponents(target, attackerPlayer))
+        // On-hit perks trigger only for the player's own gear, never for their turrets, devices,
+        // trap blocks or abilities.
+        if (attackerPlayer is not null && OnHitApplies(attackerPlayer, target) && IsToolDamage(impact) && AreOpponents(target, attackerPlayer))
         {
-            if (attackerPlayer.GetBuff(BuffType.LifeSteal) > 0 && IsToolDamage(impact))
+            if (attackerPlayer.GetBuff(BuffType.LifeSteal) > 0)
                 attackerPlayer.AddHealth(attackerPlayer.LifeStealAmount(damage));
             if (attackerPlayer.IsBuff(BuffType.HealBane) && !target.IsDead)
                 target.AddEffects([new ConstEffectInfo(CatalogueHelper.HealBaneDebuff)], attackerPlayer.Team, attackerPlayer.GetSelfSource());
