@@ -1645,6 +1645,11 @@ public partial class GameZone
 
         var attacker = impact.CasterUnitId is null ? null : _units.GetValueOrDefault(impact.CasterUnitId.Value);
 
+        if (attackerPlayer is not null && LifeStealApplies(attackerPlayer, target) && AreOpponents(target, attackerPlayer))
+        {
+            attackerPlayer.AddHealth(attackerPlayer.LifeStealAmount(damage));
+        }
+
         var targetTeam = target.Team;
 
         target.DamageStatsUpdate(targetTeam, damage, impact.Crit,
@@ -1655,6 +1660,14 @@ public partial class GameZone
             _gameInitiator.SetBackfillReady(false);
         }
     }
+
+    /// <summary>
+    /// Life steal only pays out for damage a living player deals to another player's unit, never for
+    /// blocks, devices or the attacker's own unit.
+    /// </summary>
+    internal static bool LifeStealApplies(Unit attackerPlayer, Unit target) =>
+        attackerPlayer is { IsDead: false } && target.PlayerId is not null && target.Id != attackerPlayer.Id &&
+        attackerPlayer.GetBuff(BuffType.LifeSteal) > 0;
 
     private void UnitIsKilled(Unit target, ImpactData impact, bool mining = false)
     {

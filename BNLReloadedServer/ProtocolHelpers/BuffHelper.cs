@@ -60,6 +60,10 @@ public static class BuffHelper
         public float AmmoGainAmount(float ammoGain) =>
           ammoGain * Math.Max(0.0f, 1f + unit.GetBuff(BuffType.AmmoGain));
 
+        /// <summary>Health returned to this unit for dealing <paramref name="damage"/> to an enemy player.</summary>
+        public float LifeStealAmount(float damage) =>
+          damage * Math.Max(0.0f, unit.GetBuff(BuffType.LifeSteal));
+
         public float HealthGainAmount(float healthGain) =>
           healthGain * Math.Max(0.0f, 1f + unit.GetBuff(BuffType.HealthGain));
 
@@ -155,6 +159,7 @@ public static class BuffHelper
             BuffType.HealthGain or
             BuffType.AmmoGain or
             BuffType.JumpHeight or
+            BuffType.LifeSteal or
             BuffType.ToolWorldDamage => float.Max(originalValue + addValue, -1),
 
               // Works like the previous list, but stacks multiplicatively if not from perks
