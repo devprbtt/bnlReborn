@@ -160,9 +160,21 @@ public partial class GameInstance : IGameInstance
     public void UserEnteredLobby(uint userId, bool enteringLobby)
     {
         if (!_connectedUsers.TryGetValue(userId, out var value) || Lobby == null) return;
-        if (enteringLobby && !GameInitiator.IsPlayerSpectator(userId))
+        var addPlayer = enteringLobby && !GameInitiator.IsPlayerSpectator(userId);
+        var playerGuid = value.Guid;
+        _services.TryGetValue(playerGuid, out var services);
+        var lobbyService = services?.TryGetValue(ServiceId.ServiceLobby, out var service) is true
+            ? service as IServiceLobby
+            : null;
+
+        // The whole entry runs on the lobby queue. Taking the snapshot on the caller's thread raced
+        // the queued AddPlayer: a joining client could receive a complete lobby that did not contain
+        // itself, which the client treats as fatal (LobbyAlterEgo.GetHero on a missing player) and
+        // it then sits at "Loading lobby 100%". Subscribing here, after AddPlayer, also keeps that
+        // broadcast from reaching the client before its own snapshot.
+        Lobby.EnqueueAction(() =>
         {
-            Lobby.EnqueueAction(() =>
+            if (addPlayer)
             {
                 var announcedByClients = Lobby?.GetPlayerLobbyState(userId)?.Status == LobbyStatus.Offline;
                 Lobby?.AddPlayer(userId, value.Team, value.SquadId);
@@ -173,16 +185,14 @@ public partial class GameInstance : IGameInstance
                         { "player_id", userId.ToString() }
                     });
                 }
-            });
-        }
+            }
 
-        var playerGuid = value.Guid;
-        _lobbySender.Subscribe(playerGuid);
-        _services.TryGetValue(playerGuid, out var services);
-        if (services?.TryGetValue(ServiceId.ServiceLobby, out var service) is true && service is IServiceLobby lobbyService)
-        {
-            lobbyService.SendLobbyUpdate(Lobby.GetLobbyUpdate(userId));
-        }
+            _lobbySender.Subscribe(playerGuid);
+            if (Lobby is { } lobby && lobbyService is not null)
+            {
+                lobbyService.SendLobbyUpdate(lobby.GetLobbyUpdate(userId));
+            }
+        });
     }
 
     private void RemoveFromChat(MatchConnectionInfo? player)
