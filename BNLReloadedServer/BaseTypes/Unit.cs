@@ -1388,9 +1388,9 @@ public partial class Unit
 
     /// <summary>
     /// Ability cooldown reduction applies to a cooldown that is already running, not only to the
-    /// next one. The elapsed fraction is kept and the remaining time is rescaled by the ratio of the
-    /// new multiplier to the one the cooldown was scheduled with, so gaining the buff shortens the
-    /// wait and losing it stretches the remainder back out.
+    /// next one. Gaining reduction cuts the remaining time by the ratio of the new multiplier to the
+    /// one the cooldown was last scaled with; losing it leaves the remainder alone, so a brief buff
+    /// acts as a one-shot cut (a kill perk) and a lasting one as a rate.
     /// </summary>
     private void RescaleAbilityCooldown()
     {
@@ -1398,6 +1398,7 @@ public partial class Unit
         if (multiplier == _abilityCooldownMultiplier) return;
         var previous = _abilityCooldownMultiplier;
         _abilityCooldownMultiplier = multiplier;
+        if (multiplier > previous) return;
         if (TimeTillNextAbilityCharge is not { } end || AbilityCard?.Charges is null) return;
 
         var now = DateTimeOffset.Now;

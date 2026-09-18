@@ -1,6 +1,6 @@
-// Ability cooldown reduction must act on a cooldown that is already running: gaining the buff
-// shortens the remaining wait, losing it stretches the remainder back out, and the client is told
-// the new end time each time. Elapsed progress is always kept.
+// Ability cooldown reduction must act on a cooldown that is already running: gaining the buff cuts
+// the remaining wait immediately and the client is told the new end time; losing it leaves the
+// remainder alone, so a brief buff is a one-shot cut and a lasting one a faster rate.
 using System.Linq.Expressions;
 using BNLReloadedServer.BaseTypes;
 using BNLReloadedServer.Database;
@@ -55,18 +55,19 @@ Check(Near(Remaining(player), baseCooldown / 2), "gaining 50% reduction halves t
 Check(cooldownUpdates.Count == 1 && Near(DateTimeOffset.FromUnixTimeMilliseconds((long)cooldownUpdates[0]).Subtract(DateTimeOffset.Now).TotalSeconds, baseCooldown / 2),
     "client receives the rescaled cooldown end");
 
-// 2. Losing the buff stretches the remainder back to the unbuffed rate.
+// 2. Losing the buff keeps the cut; nothing is stretched back and the client is not bothered.
 cooldownUpdates.Clear();
 Remove(player, half);
-Check(Near(Remaining(player), baseCooldown), "losing the buff restores the unbuffed remaining time");
-Check(cooldownUpdates.Count == 1, "client is told about the stretched cooldown");
+Check(Near(Remaining(player), baseCooldown / 2), "losing the buff keeps the shortened remaining time");
+Check(cooldownUpdates.Count == 0, "no cooldown update is sent when reduction is lost");
 
-// 3. Stacking and partial changes scale by the ratio of multipliers, not from the base cooldown.
-Apply(player, half);
-Apply(player, quarter); // 0.75 reduction -> multiplier 0.25
-Check(Near(Remaining(player), baseCooldown * 0.25), "stacked reductions rescale the remainder by the combined multiplier");
-Remove(player, quarter); // back to 0.5
-Check(Near(Remaining(player), baseCooldown * 0.5), "dropping one stack rescales relative to the surviving buff");
+// 3. Stacking scales by the ratio of multipliers, relative to the last multiplier applied.
+Apply(player, half);   // multiplier back to 0.5 from 1: cuts again (10 -> 5)
+Check(Near(Remaining(player), baseCooldown / 4), "re-gaining reduction cuts the remainder again");
+Apply(player, quarter); // 0.75 reduction -> multiplier 0.25, ratio 0.5
+Check(Near(Remaining(player), baseCooldown / 8), "a stronger stack cuts by the ratio of multipliers");
+Remove(player, quarter); // back to 0.5: no change
+Check(Near(Remaining(player), baseCooldown / 8), "dropping a stack changes nothing");
 Remove(player, half);
 
 // 4. Elapsed progress is preserved: a buff gained late only rescales what is left.
@@ -76,7 +77,7 @@ late.TimeTillNextAbilityCharge = DateTimeOffset.Now.AddSeconds(4); // pretend 16
 Apply(late, half);
 Check(Near(Remaining(late), 2), "only the remaining 4s is halved when the buff arrives late");
 Remove(late, half);
-Check(Near(Remaining(late), 4), "removing it late restores the remaining 4s, not the full cooldown");
+Check(Near(Remaining(late), 2), "removing it late keeps the 2s that were left");
 
 // 5. A buff already active when the ability is used sets the shortened cooldown and records the rate.
 var prebuffed = CreateHero();
@@ -85,7 +86,7 @@ cooldownUpdates.Clear();
 prebuffed.AbilityUsed();
 Check(Near(Remaining(prebuffed), baseCooldown / 2), "ability used under the buff starts the halved cooldown");
 Remove(prebuffed, half);
-Check(Near(Remaining(prebuffed), baseCooldown), "buff expiring after that stretches the remainder to the unbuffed rate");
+Check(Near(Remaining(prebuffed), baseCooldown / 2), "buff expiring after that leaves the halved cooldown alone");
 
 // 6. A total reduction ends the running cooldown at once.
 var cheat = CreateHero();
@@ -115,6 +116,19 @@ Check(chain.AbilityCharges == 0 && chain.TimeTillNextAbilityCharge == before, "s
 chain.AbilityChargeGained();
 Check(chain.AbilityCharges == 1 && Near(Remaining(chain), baseCooldown / 2), "the following charge cooldown starts at the buffed rate");
 Remove(chain, half);
-Check(Near(Remaining(chain), baseCooldown), "and stretches back when the buff ends");
+Check(Near(Remaining(chain), baseCooldown / 2), "and is untouched when the buff ends");
+
+// 9. Kill perk: a brief 80% buff is a one-shot cut of the remaining cooldown, once per kill.
+var perk = new CardEffect { Id = "fixture_cdr_kill", Positive = true, Duration = 0.5f, Effect = new ConstEffectBuff { Targeting = everyone, Buffs = new() { [BuffType.AbilityCooldownReduction] = 0.8f } } };
+catalogue.Replicate(catalogue.All.Append(perk).ToList());
+var killer = CreateHero();
+killer.AbilityUsed();
+Apply(killer, perk);
+Check(Near(Remaining(killer), baseCooldown * 0.2), "a kill cuts 80% of the remaining cooldown at once");
+killer.PurgeEffects(true, false); // timed effects only leave through expiry; purge stands in for the tick
+Check(killer.ActiveEffects.Count == 0 && Near(Remaining(killer), baseCooldown * 0.2), "the cut survives the buff expiring");
+Apply(killer, perk);
+Check(Near(Remaining(killer), baseCooldown * 0.04, 0.05), "a second kill cuts 80% of what is left again");
+killer.PurgeEffects(true, false);
 
 Console.WriteLine($"Ability cooldown fixture passed: {checks} checks.");
