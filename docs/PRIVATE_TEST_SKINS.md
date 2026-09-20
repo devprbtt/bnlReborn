@@ -9,6 +9,7 @@ Owner: Prbtt, SteamID64 `76561197990315750` (resolved from the supplied Steam co
 
 `PrivateSkinAccess` filters real/dummy inventories, lobby equip requests, saved loadouts and persistence sanitization. It rejects both non-owner requests and private skins equipped on the wrong hero. Existing public skin IDs are unchanged.
 
-Validation: `dotnet run --project tests/BNLReloadedServer.PrivateSkinsFixture -c Release` passes 47 assertions covering registration, access, forged selection, wrong-hero selection and stored loadouts.
+Validation: `dotnet run --project tests/BNLReloadedServer.PrivateSkinsFixture -c Release` passes 53 assertions covering registration, access, forged selection, wrong-hero selection and stored loadouts.
 
 Deployment is pending. Deploy only with a matching client containing both generated skins, their portraits, and the new Nigel FPS/weapon assets. This branch does not publish a client feed or release a shop offer.
+

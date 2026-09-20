@@ -46,5 +46,17 @@ foreach(var id in new[]{"skin_hunter_arctic_wolf_private","skin_boxer_demon_priv
 }
 Check(!registration.OfType<CardShopItem>().Any(),"registration adds no shop offers");
 Check(registration.OfType<CardSkin>().Single(c=>c.Id=="skin_hunter_s1").Prefab=="original","stock skin route unchanged");
+registration.Add(new CardGlobalLogic{Id="global_logic",AvailableHeroes=[hunter,boxer]});
+catalogue.Replicate(registration);
+var inventoryDatabase=(PlayerDatabase)RuntimeHelpers.GetUninitializedObject(typeof(PlayerDatabase));
+Field(inventoryDatabase,"_players",new System.Collections.Concurrent.ConcurrentDictionary<uint,PlayerData>(new[]{new KeyValuePair<uint,PlayerData>(1,new PlayerData{SteamId=PrivateSkinAccess.TestSteamId}),new KeyValuePair<uint,PlayerData>(2,new PlayerData{SteamId=76561197990315751})}));
+var inventoryMethod=typeof(PlayerDatabase).GetMethod("GetInventory",BindingFlags.Instance|BindingFlags.NonPublic)!;
+foreach(uint playerId in new uint[]{1,2})
+{
+ var inventory=(List<InventoryItem>)inventoryMethod.Invoke(inventoryDatabase,[playerId])!;
+ foreach(var key in new[]{PrivateSkinAccess.ArcticWolf,PrivateSkinAccess.Demon})
+  Check(inventory.Any(i=>i.Item==key)==(playerId==1),"real inventory private access "+playerId+" "+key);
+ Check(inventory.Any(i=>i.Item==normal),"real inventory preserves public skin "+playerId);
+}
 Console.WriteLine($"PRIVATE_SKINS_PASS {checks}");
 public class Recording:DispatchProxy{public int Calls;protected override object? Invoke(MethodInfo? m,object?[]? a){Calls++;return null;}}
