@@ -34,5 +34,17 @@ foreach(var owner in new[]{false,true})
  var p=new PlayerData{SteamId=owner?PrivateSkinAccess.TestSteamId:0,HeroLoadouts=new(){[hunter]=new LobbyLoadout{HeroKey=hunter,SkinKey=PrivateSkinAccess.ArcticWolf}}};
  p.SanitizeAgainstCatalogue();Check(p.HeroLoadouts.ContainsKey(hunter)==owner,"persistence sanitizer enforces account access "+owner);
 }
+var registration = new List<Card>{new CardUnit{Id="unit_hero_hunter",Data=new UnitDataPlayer{Skins=[normal]}},new CardUnit{Id="unit_hero_boxer",Data=new UnitDataPlayer{Skins=[]}},new CardSkin{Id="skin_hunter_s1",Prefab="original",Bundle="character_longshot"},new CardSkin{Id="skin_boxer_s6",Bundle="character_sweetscience"}};
+PrivateSkinRegistration.Register(registration);
+PrivateSkinRegistration.Register(registration);
+foreach(var id in new[]{"skin_hunter_arctic_wolf_private","skin_boxer_demon_private"})
+{
+ Check(registration.Count(c=>c.Id==id)==1,"catalogue registration idempotent "+id);
+ var skin=registration.OfType<CardSkin>().Single(c=>c.Id==id);
+ Check(skin.Name?.Text!=null && skin.Prefab!=null && skin.FpsPrefab!=null && skin.IconPortrait!=null,"render and portrait routes present "+id);
+ Check(registration.OfType<CardUnit>().SelectMany(c=>((UnitDataPlayer)c.Data!).Skins!).Count(k=>k==new Key(id))==1,"hero skin registration unique "+id);
+}
+Check(!registration.OfType<CardShopItem>().Any(),"registration adds no shop offers");
+Check(registration.OfType<CardSkin>().Single(c=>c.Id=="skin_hunter_s1").Prefab=="original","stock skin route unchanged");
 Console.WriteLine($"PRIVATE_SKINS_PASS {checks}");
 public class Recording:DispatchProxy{public int Calls;protected override object? Invoke(MethodInfo? m,object?[]? a){Calls++;return null;}}
