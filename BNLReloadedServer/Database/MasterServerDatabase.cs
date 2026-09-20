@@ -581,6 +581,7 @@ public class MasterServerDatabase : IMasterServerDatabase
             if (record == null) return false;
 
             var pData = PlayerData.FromPlayerRecord(record);
+            if (loadout.HeroKey != hero || !PrivateSkinAccess.CanEquip(pData.SteamId, hero, loadout.SkinKey)) return false;
             pData.HeroLoadouts[hero] = loadout;
             var newLoadouts = pData.HeroLoadouts;
             record = pData.ToPlayerRecord();

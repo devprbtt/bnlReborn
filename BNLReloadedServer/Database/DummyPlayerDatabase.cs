@@ -187,7 +187,8 @@ public class DummyPlayerDatabase : IPlayerDatabase
         var deviceCards = CatalogueHelper.GetCards<CardDevice>(CardCategory.Device);
         var heroCards = CatalogueHelper.GetCards<CardUnit>(CardCategory.Unit)
             .FindAll(cardUnit => cardUnit.Data?.Type == UnitType.Player);
-        var skinCards = CatalogueHelper.GetCards<CardSkin>(CardCategory.Skin);
+        var skinCards = CatalogueHelper.GetCards<CardSkin>(CardCategory.Skin)
+            .Where(skin => PrivateSkinAccess.CanUse(_players.FirstOrDefault(p => p.Value == playerId).Key, skin.Key));
         var perkCards = CatalogueHelper.GetCards<CardPerk>(CardCategory.Perk);
         var badgeCards = CatalogueHelper.GetCards<CardBadge>(CardCategory.Badge);
         var purchaseTime = (ulong)DateTimeOffset.Now.ToUnixTimeMilliseconds();

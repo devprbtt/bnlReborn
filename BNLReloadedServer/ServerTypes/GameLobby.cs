@@ -287,6 +287,7 @@ public class GameLobby : Updater
     public void SelectSkin(uint playerId, Key skinKey)
     {
         if (!LobbyData.Players.TryGetValue(playerId, out var player)) return;
+        if (!PrivateSkinAccess.CanEquip(player.SteamId, player.Hero, skinKey)) return;
         player.SkinKey = skinKey;
         SendLobbyUpdate(players: LobbyData.Players.Values.ToList());
     }
