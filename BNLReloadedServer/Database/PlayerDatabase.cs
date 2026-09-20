@@ -40,7 +40,8 @@ public class PlayerDatabase : IPlayerDatabase
         var inventory = new List<InventoryItem>();
         var deviceCards = CatalogueHelper.GetCards<CardDevice>(CardCategory.Device);
         var heroCards = CatalogueHelper.GetHeroes().Select(h => h.GetCard<CardUnit>()).OfType<CardUnit>();
-        var skinCards = CatalogueHelper.GetCards<CardSkin>(CardCategory.Skin);
+        var skinCards = CatalogueHelper.GetCards<CardSkin>(CardCategory.Skin)
+            .Where(skin => PrivateSkinAccess.CanUse(player.SteamId, skin.Key));
 
         var offPerks = globalLogic.Perks?.Offensive?.Select(p => p.GetCard<CardPerk>()).OfType<CardPerk>() ?? [];
         var defPerks = globalLogic.Perks?.Defensive?.Select(p => p.GetCard<CardPerk>()).OfType<CardPerk>() ?? [];
@@ -361,7 +362,7 @@ public class PlayerDatabase : IPlayerDatabase
             HeroKey = loadout.HeroKey,
             Devices = devices,
             Perks = loadout.Perks?.ToList(),
-            SkinKey = loadout.SkinKey
+            SkinKey = PrivateSkinAccess.SafeSkin(player.SteamId, heroKey, loadout.SkinKey)
         };
     }
 

@@ -51,7 +51,8 @@ public static class PlayerDataSanitizer
         foreach (var (heroKey, loadout) in player.HeroLoadouts.ToList())
         {
             if (IsMissing<CardUnit>(heroKey) || IsMissing<CardUnit>(loadout.HeroKey) ||
-                IsMissing<CardSkin>(loadout.SkinKey))
+                IsMissing<CardSkin>(loadout.SkinKey) ||
+                !PrivateSkinAccess.CanEquip(player.SteamId, heroKey, loadout.SkinKey))
             {
                 player.HeroLoadouts.Remove(heroKey);
                 stripped.Add($"loadout {heroKey} (hero {loadout.HeroKey}, skin {loadout.SkinKey})");
