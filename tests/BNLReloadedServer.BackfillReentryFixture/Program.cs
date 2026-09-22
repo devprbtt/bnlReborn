@@ -1,4 +1,5 @@
 using BNLReloadedServer.BaseTypes;
+using BNLReloadedServer.Database;
 using BNLReloadedServer.ServerTypes;
 using Moserware.Skills;
 
@@ -37,5 +38,14 @@ Check(initiator.AddPlayer(secondBackfill, TeamType.Team1), "different player rem
 var snapshot = initiator.GetParticipantHistory();
 snapshot.Clear();
 Check(initiator.HasParticipated(initialTeam2.PlayerId), "match history snapshots cannot mutate server state");
+
+Check(GameInstance.EffectiveReconnectGraceSeconds(180, true, GameRankingType.Friendly) == 45,
+    "started friendly match releases a disconnected slot after the short reconnect window");
+Check(GameInstance.EffectiveReconnectGraceSeconds(30, true, GameRankingType.Friendly) == 30,
+    "friendly reconnect window never extends a shorter configured grace");
+Check(GameInstance.EffectiveReconnectGraceSeconds(180, true, GameRankingType.Ranked) == 180,
+    "ranked reconnect grace remains unchanged");
+Check(GameInstance.EffectiveReconnectGraceSeconds(180, false, GameRankingType.Friendly) == 180,
+    "lobby reconnect grace remains unchanged");
 
 Console.WriteLine("Backfill reentry suite passed.");

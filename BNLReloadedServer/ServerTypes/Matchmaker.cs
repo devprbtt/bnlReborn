@@ -20,7 +20,7 @@ public class Matchmaker(AsyncTaskTcpServer server)
     private const double MaxSecondWaitTimeTillForcedInLobby = 420;
     private const double MinimumMatchQuality = 0.3;
     private const double SquadBoost = 1.07;
-    private const double QueueCheckSeconds = 30;
+    private const double QueueCheckSeconds = 5;
     private const uint NumBalChecks = 8;
     private const int AbortDelay = 2000;
     private const bool ShowQueueMessages = true;
@@ -279,6 +279,11 @@ public class Matchmaker(AsyncTaskTcpServer server)
         foreach (var queue in _queues.Values.Where(x => x.Players.Any(p => p.PlayerId == playerId)).ToList())
         {
             queue.DoBackfilling[playerId] = value;
+            // Joining the queue happens before the client receives InQueue and sends its
+            // backfill preference. Recheck as soon as that preference arrives instead of
+            // leaving an open roster slot idle until the periodic queue scan.
+            if (value && queue.IsPop is PopStatus.None)
+                QueueCheck(queue);
         }
         QueueChanged();
     }
@@ -338,7 +343,7 @@ public class Matchmaker(AsyncTaskTcpServer server)
         QueueChanged();
     }
 
-    private static (PlayerQueueData? Team1Backfill, PlayerQueueData? Team2Backfill) DoBackfillBalance(QueueData queue, double minQuality,
+    private static (PlayerQueueData? Team1Backfill, PlayerQueueData? Team2Backfill) DoBackfillBalance(QueueData queue,
         BackfillInfo backfillInfo)
     {
         var validPlayers = queue.Players
@@ -420,18 +425,13 @@ public class Matchmaker(AsyncTaskTcpServer server)
             return (player, otherPlayer, quality);
         }).MaxBy(q => q.quality);
 
-        if (quality >= minQuality)
+        return (checkTeam1, checkTeam2) switch
         {
-            return (checkTeam1, checkTeam2) switch
-            {
-                (true, true) => (p1, p2),
-                (true, false) => (p1, null),
-                (false, true) => (null, p1),
-                _ => (null, null)
-            };
-        }
-
-        return (null, null);
+            (true, true) => (p1, p2),
+            (true, false) => (p1, null),
+            (false, true) => (null, p1),
+            _ => (null, null)
+        };
     }
 
     private static List<List<PlayerQueueData>>? DoQueueBalance(QueueData queue, bool force = false)
@@ -666,14 +666,14 @@ public class Matchmaker(AsyncTaskTcpServer server)
         if (queue.IsPop is PopStatus.None)
         {
             ShowQueueMessage($"Attempting to create match for {queue.GameModeCard.Id}...");
-            var minQuality = (DateTimeOffset.Now - queue.LastJoinTime).TotalSeconds > MaxSecondWaitTimeWithFullLobby
-                ? 0
-                : MinimumMatchQuality;
             foreach (var info in Databases.RegionServerDatabase.GetBackfillNeeded(queue.GameModeKey)
                          .Select(tuple => new BackfillInfo(tuple.team1, tuple.team2, tuple.instanceId,
                              tuple.participantHistory)))
             {
-                var (team1Backfill, team2Backfill) = DoBackfillBalance(queue, minQuality, info);
+                // A running friendly match already has a real vacancy. Use rating quality to
+                // choose the best eligible candidate(s), but do not withhold the slot while
+                // waiting for the new-match quality threshold to expire.
+                var (team1Backfill, team2Backfill) = DoBackfillBalance(queue, info);
                 if (team1Backfill is not null || team2Backfill is not null)
                 {
                     queue.IsPop = PopStatus.Backfill;

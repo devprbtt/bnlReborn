@@ -14,6 +14,8 @@ namespace BNLReloadedServer.Database;
 
 public partial class GameInstance : IGameInstance
 {
+    private const int FriendlyReconnectGraceSeconds = 45;
+
     private class MatchConnectionInfo(Guid guid, Guid regionGuid, TeamType team, ulong? squadId)
     {
         public Guid Guid { get; set; } = guid;
@@ -242,7 +244,8 @@ public partial class GameInstance : IGameInstance
 
     private void StartDisconnectTimer(uint userId)
     {
-        var grace = Databases.ConfigDatabase.ReconnectGraceSeconds();
+        var ranking = GameInitiator.GetGameMode().GetCard<CardGameMode>()?.Ranking;
+        var grace = EffectiveReconnectGraceSeconds(Databases.ConfigDatabase.ReconnectGraceSeconds(), IsStarted, ranking);
         if (grace <= 0) return;
 
         var timer = new Timer(grace * 1000d) { AutoReset = false };
@@ -259,6 +262,11 @@ public partial class GameInstance : IGameInstance
         _disconnectTimers[userId] = timer;
         timer.Start();
     }
+
+    internal static int EffectiveReconnectGraceSeconds(int configuredSeconds, bool matchStarted,
+        GameRankingType? ranking) => matchStarted && ranking is GameRankingType.Friendly
+        ? Math.Min(configuredSeconds, FriendlyReconnectGraceSeconds)
+        : configuredSeconds;
 
     private void CancelDisconnectTimer(uint userId)
     {
