@@ -27,6 +27,10 @@ public class ImpactData
     // recovered wire format so unmodified clients remain protocol-compatible.
     internal DamageCreditType DamageCredit { get; set; }
 
+    // Server-only provenance for damage produced by a constant effect's timer.
+    // Periodic ticks retain kill/damage attribution but must not count as a new weapon hit.
+    internal bool PeriodicEffect { get; set; }
+
     public void Write(BinaryWriter writer)
     {
         new BitField(true, true, CasterUnitId.HasValue, CasterPlayerId.HasValue, Impact.HasValue, SourceKey.HasValue,
@@ -88,6 +92,14 @@ public class ImpactData
           HitUnits = HitUnits?.ToList(),
           ShotPos = ShotPos,
           Crit = Crit,
-          DamageCredit = DamageCredit
+          DamageCredit = DamageCredit,
+          PeriodicEffect = PeriodicEffect
       };
+
+    internal ImpactData AsPeriodicEffect()
+    {
+        var periodic = Clone();
+        periodic.PeriodicEffect = true;
+        return periodic;
+    }
 }

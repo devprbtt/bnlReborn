@@ -21,11 +21,14 @@ var hero = new CardUnit { Id = "fixture_hb_hero", Data = new UnitDataPlayer(), H
 var opponents = new EffectTargeting { AffectedTeam = RelativeTeamType.Opponent, AffectedUnits = [UnitType.Player] };
 var bane = new CardEffect { Id = "fixture_hb_bane", Positive = true, Effect = new ConstEffectBuff { Targeting = new EffectTargeting { AffectedTeam = RelativeTeamType.Both }, Buffs = new() { [BuffType.HealBane] = 1 } } };
 var debuff = new CardEffect { Id = "effect_heal_bane_debuff", Positive = false, Duration = 10, Effect = new ConstEffectBuff { Targeting = opponents, Buffs = new() { [BuffType.HealthGain] = -0.6f } } };
-catalogue.Replicate([hero, bane, debuff, new CardGlobalLogic { Id = "global_logic" }]);
+var gear = new CardGear { Id = "fixture_hb_gear" };
+catalogue.Replicate([hero, bane, debuff, gear, new CardGlobalLogic { Id = "global_logic" }]);
 Check(CatalogueHelper.HealBaneDebuff.GetCard<CardEffect>() is { } card && card.Key == debuff.Key, "the server's debuff key resolves to the catalogue card effect_heal_bane_debuff");
 Unit Create(uint id, TeamType team, uint? player = null) => new(id, new UnitInit { Key = hero.Key, Team = team, PlayerId = player ?? id, OwnerId = id }, updater);
 var applies = typeof(BNLReloadedServer.ServerTypes.GameZone).GetMethod("OnHitApplies", BindingFlags.Static | BindingFlags.NonPublic)!;
 bool Applies(Unit a, Unit t) => (bool)applies.Invoke(null, new object[] { a, t })!;
+var baneApplies = typeof(BNLReloadedServer.ServerTypes.GameZone).GetMethod("HealBaneApplies", BindingFlags.Static | BindingFlags.NonPublic)!;
+bool BaneApplies(ImpactData impact) => (bool)baneApplies.Invoke(null, new object[] { impact })!;
 
 var attacker = Create(1, TeamType.Team1);
 var victim = Create(2, TeamType.Team2);
@@ -50,4 +53,12 @@ ally.AddEffects([new ConstEffectInfo(CatalogueHelper.HealBaneDebuff)], attacker.
 Check(!ally.ActiveEffects.Any(e => e.Key == debuff.Key), "the debuff card's opponent targeting refuses allies");
 var block = new Unit(4, new UnitInit { Key = hero.Key, Team = TeamType.Team2, PlayerId = null, OwnerId = 9 }, updater);
 Check(!Applies(attacker, block) && !Applies(attacker, attacker), "blocks/devices and self never qualify");
+var directWeaponHit = new ImpactData { SourceKey = gear.Key };
+Check(BaneApplies(directWeaponHit), "a direct weapon hit applies or refreshes heal bane");
+var periodicEffect = typeof(ImpactData).GetProperty("PeriodicEffect", BindingFlags.Instance | BindingFlags.NonPublic)!;
+var asPeriodic = typeof(ImpactData).GetMethod("AsPeriodicEffect", BindingFlags.Instance | BindingFlags.NonPublic)!;
+var periodicWeaponDamage = (ImpactData)asPeriodic.Invoke(directWeaponHit, null)!;
+Check(!BaneApplies(periodicWeaponDamage), "bleed and burn ticks do not refresh heal bane");
+Check(!(bool)periodicEffect.GetValue(directWeaponHit)!, "marking an interval does not mutate the original weapon hit");
+Check((bool)periodicEffect.GetValue(periodicWeaponDamage.Clone())!, "periodic provenance survives nested effect clones");
 Console.WriteLine($"Heal bane fixture passed: {checks} checks.");

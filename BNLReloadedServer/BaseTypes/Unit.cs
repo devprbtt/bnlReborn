@@ -699,7 +699,7 @@ public partial class Unit
                     },
                     (units, instEffects) =>
                     {
-                        var impact = CreateImpactData();
+                        var impact = CreateImpactData().AsPeriodicEffect();
                         _updater.OnApplyInstEffect(GetSelfSource(impact), units, instEffects, impact);
                     });
                 break;
@@ -710,7 +710,8 @@ public partial class Unit
                     (units, instEffects) =>
                     {
                         var source = _effectSources.GetValueOrDefault(constKey)?.First() ?? GetSelfSource(CreateImpactData());
-                        _updater.OnApplyInstEffect(source, units, instEffects, source.Impact ?? CreateImpactData());
+                        var impact = (source.Impact ?? CreateImpactData()).AsPeriodicEffect();
+                        _updater.OnApplyInstEffect(source, units, instEffects, impact);
                     });
                 break;
             case ConstEffectSelf { Interval: > 0, IntervalEffects: not null } self:
@@ -719,7 +720,7 @@ public partial class Unit
                     () => [this],
                     (units, instEffects) =>
                     {
-                        var impact = CreateImpactData();
+                        var impact = CreateImpactData().AsPeriodicEffect();
                         _updater.OnApplyInstEffect(GetSelfSource(impact), units, instEffects, impact);
                     });
                 break;

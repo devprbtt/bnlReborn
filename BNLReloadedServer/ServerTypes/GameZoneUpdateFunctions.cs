@@ -1647,11 +1647,11 @@ public partial class GameZone
 
         // On-hit perks trigger only for the player's own gear, never for their turrets, devices,
         // trap blocks or abilities.
-        if (attackerPlayer is not null && OnHitApplies(attackerPlayer, target) && IsToolDamage(impact) && AreOpponents(target, attackerPlayer))
+        if (attackerPlayer is not null && OnHitApplies(attackerPlayer, target) && AreOpponents(target, attackerPlayer))
         {
-            if (attackerPlayer.GetBuff(BuffType.LifeSteal) > 0)
+            if (attackerPlayer.GetBuff(BuffType.LifeSteal) > 0 && IsToolDamage(impact))
                 attackerPlayer.AddHealth(attackerPlayer.LifeStealAmount(damage));
-            if (attackerPlayer.IsBuff(BuffType.HealBane) && !target.IsDead)
+            if (attackerPlayer.IsBuff(BuffType.HealBane) && !target.IsDead && HealBaneApplies(impact))
                 target.AddEffects([new ConstEffectInfo(CatalogueHelper.HealBaneDebuff)], attackerPlayer.Team, attackerPlayer.GetSelfSource());
         }
 
@@ -1681,6 +1681,13 @@ public partial class GameZone
     internal static bool IsToolDamage(ImpactData impact) =>
         impact.SourceKey is { } source &&
         (source.GetCard<CardGear>() is not null || source.GetCard<CardUnit>()?.Data is UnitDataProjectile);
+
+    /// <summary>
+    /// Heal Bane starts or refreshes on a direct weapon hit. Damage-over-time intervals keep the
+    /// original weapon attribution for damage statistics, but are not additional weapon hits.
+    /// </summary>
+    internal static bool HealBaneApplies(ImpactData impact) =>
+        !impact.PeriodicEffect && IsToolDamage(impact);
 
     private void UnitIsKilled(Unit target, ImpactData impact, bool mining = false)
     {
