@@ -12,4 +12,3 @@ Owner: Prbtt, SteamID64 `76561197990315750` (resolved from the supplied Steam co
 Validation: `dotnet run --project tests/BNLReloadedServer.PrivateSkinsFixture -c Release` passes 53 assertions covering registration, access, forged selection, wrong-hero selection and stored loadouts.
 
 Deployment is pending. Deploy only with a matching client containing both generated skins, their portraits, and the new Nigel FPS/weapon assets. This branch does not publish a client feed or release a shop offer.
-
