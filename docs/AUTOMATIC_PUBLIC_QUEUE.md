@@ -2,6 +2,8 @@
 
 Casual and Ranked queue requests share one regional player pool.
 
+Each queued player retains the mode they selected when entering. Public queue snapshots expose that choice as `CASUAL` or `RANKED` for roster display while matchmaking still uses the combined population.
+
 - Fewer than 8 players: keep waiting.
 - 8 or 9 players: start a 30-second grace period.
 - 10 or more players during the grace period: offer a 5v5 Ranked match immediately.

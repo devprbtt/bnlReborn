@@ -1,5 +1,7 @@
 using BNLReloadedServer.BaseTypes;
+using BNLReloadedServer.ProtocolHelpers;
 using BNLReloadedServer.ServerTypes;
+using System.Text.Json;
 
 var checks = 0;
 void Check(bool condition, string name)
@@ -36,5 +38,9 @@ Check(AutomaticPublicQueuePolicy.IsPublicMode(new CardGameMode { Ranking = GameR
       AutomaticPublicQueuePolicy.IsPublicMode(new CardGameMode { Ranking = GameRankingType.Ranked }) &&
       !AutomaticPublicQueuePolicy.IsPublicMode(new CardGameMode { Ranking = GameRankingType.None }),
     "Casual and Ranked are the shared public queue modes");
+var queuePlayerJson = JsonSerializer.Serialize(
+    new QueuedPlayerSnapshot(1, "Player", 123, false, "RANKED"), JsonHelper.DefaultSerializerSettings);
+Check(JsonDocument.Parse(queuePlayerJson).RootElement.GetProperty("mode").GetString() == "RANKED",
+    "queue snapshot exposes each player's selected entry mode");
 
 Console.WriteLine($"Automatic public queue fixture passed: {checks} checks.");

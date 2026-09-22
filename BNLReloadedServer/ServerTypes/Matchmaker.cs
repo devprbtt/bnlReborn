@@ -133,8 +133,10 @@ public class Matchmaker(AsyncTaskTcpServer server)
         QueueChanged();
     }
 
-    public void AddPlayer(Key gameModeKey, uint playerId, Guid guid, Rating rating, ulong? squadId, IServiceMatchmaker matchmakerService)
+    public void AddPlayer(Key gameModeKey, uint playerId, Guid guid, Rating rating, ulong? squadId,
+        IServiceMatchmaker matchmakerService, Key? requestedGameModeKey = null)
     {
+        requestedGameModeKey ??= gameModeKey;
         gameModeKey = NormalizeQueueKey(gameModeKey);
         if (!_queues.ContainsKey(gameModeKey))
         {
@@ -143,7 +145,8 @@ public class Matchmaker(AsyncTaskTcpServer server)
 
         if (!_queues.TryGetValue(gameModeKey, out var queue)) return;
         queue.Players.RemoveAll(p => p.PlayerId == playerId);
-        queue.Players.Add(new PlayerQueueData(playerId, guid, rating, DateTimeOffset.Now, squadId));
+        queue.Players.Add(new PlayerQueueData(playerId, guid, rating, DateTimeOffset.Now, squadId,
+            requestedGameModeKey.Value));
         queue.LastJoinTime = DateTimeOffset.Now;
         queue.Sender.Subscribe(guid);
         matchmakerService.SendMatchmakerUpdate(new MatchmakerUpdate
@@ -299,7 +302,10 @@ public class Matchmaker(AsyncTaskTcpServer server)
                         p.PlayerId,
                         Databases.PlayerDatabase.GetPlayerDataNoWait(p.PlayerId)?.Nickname,
                         p.JoinTime.ToUnixTimeMilliseconds(),
-                        popped.Contains(p.PlayerId))).ToList()));
+                        popped.Contains(p.PlayerId),
+                        p.RequestedGameModeKey.GetCard<CardGameMode>()?.Ranking is GameRankingType.Ranked
+                            ? CatalogueHelper.ModeNameRanked
+                            : CatalogueHelper.ModeNameFriendly)).ToList()));
             }
             catch (Exception)
             {
@@ -1002,7 +1008,7 @@ public class Matchmaker(AsyncTaskTcpServer server)
                         serviceMatchmaker is not null)
                     {
                         AddPlayer(queue.GameModeKey, player.PlayerId, player.PlayerGuid, player.Rating, player.SquadId,
-                            serviceMatchmaker);
+                            serviceMatchmaker, player.RequestedGameModeKey);
                         SetDoBackfilling(player.PlayerId, doBackfilling);
                     }
                 }

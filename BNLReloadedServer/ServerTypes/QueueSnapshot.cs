@@ -12,4 +12,5 @@ public record QueuedPlayerSnapshot(
     uint PlayerId,
     string? Nickname,
     long JoinTime,
-    bool Confirming);
+    bool Confirming,
+    string Mode);

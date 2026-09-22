@@ -7,4 +7,5 @@ public record PlayerQueueData(
     Guid PlayerGuid,
     Rating Rating,
     DateTimeOffset JoinTime,
-    ulong? SquadId);
+    ulong? SquadId,
+    BNLReloadedServer.BaseTypes.Key RequestedGameModeKey);

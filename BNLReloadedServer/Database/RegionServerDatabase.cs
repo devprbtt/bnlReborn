@@ -1226,7 +1226,7 @@ public class RegionServerDatabase(AsyncTaskTcpServer server, AsyncTaskTcpServer 
             .Select(c => new PublicMap(c!.Id ?? "", c.Name?.Text ?? c.Id ?? "Map")).ToArray();
         var pool = CatalogueHelper.MapList;
         return new PublicPlaySnapshot(DateTimeOffset.UtcNow.ToUnixTimeSeconds(),
-            queues.SelectMany(q => q.Players.Select(p => new PublicQueuePlayer(p.PlayerId, p.Nickname ?? $"Player {p.PlayerId}", p.JoinTime / 1000, q.ModeName ?? q.ModeId,
+            queues.SelectMany(q => q.Players.Select(p => new PublicQueuePlayer(p.PlayerId, p.Nickname ?? $"Player {p.PlayerId}", p.JoinTime / 1000, p.Mode,
                 (GetGameInstance(p.PlayerId) as GameInstance)?.GameInstanceId == _waitingArenaInstanceId && _waitingArenaInstanceId != null))).ToArray(),
             matches.ToArray(), Maps(pool?.Friendly), Maps(pool?.Ranked));
     }
