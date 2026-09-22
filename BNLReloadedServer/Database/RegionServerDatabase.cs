@@ -332,9 +332,10 @@ public class RegionServerDatabase(AsyncTaskTcpServer server, AsyncTaskTcpServer 
 
     public async Task NotifyFriends(uint playerId)
     {
-        foreach (var friend in (await _playerDatabase.GetFriends(playerId)).Select(p => p.PlayerId))
+        var currentFriends = await _playerDatabase.GetFriends(playerId);
+        foreach (var friend in FriendUpdateRecipients(playerId, currentFriends))
         {
-            var info = await _playerDatabase.GetFriends(friend);
+            var info = friend == playerId ? currentFriends : await _playerDatabase.GetFriends(friend);
             if (UserConnected(friend, out var friendInfo) &&
                 GetService<IServicePlayer>(friendInfo.Guid, ServiceId.ServicePlayer, out var servicePlayer))
             {
@@ -345,6 +346,12 @@ public class RegionServerDatabase(AsyncTaskTcpServer server, AsyncTaskTcpServer 
             }
         }
     }
+
+    // The owner must receive their own list after an add/remove. Once a relationship is removed,
+    // neither player appears in the other's current list, so notifying current friends alone leaves
+    // both clients displaying the deleted relationship until reconnect.
+    internal static IEnumerable<uint> FriendUpdateRecipients(uint playerId, IEnumerable<FriendInfo> currentFriends) =>
+        currentFriends.Select(friend => friend.PlayerId).Append(playerId).Distinct();
 
     public void NotifyLeague(uint playerId, League league)
     {
