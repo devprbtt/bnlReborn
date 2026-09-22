@@ -2166,6 +2166,41 @@ public partial class GameZone
         ApplyInstEffect(unit.GetSelfSource(placeImpact), [], shower.HitEffect, placeImpact, BlockShift.Top);
     }
 
+    private void SpawnYuriNIceIgloo(Unit unit)
+    {
+        // The perk dummy is already replicated to legacy clients. Reusing it as the trigger
+        // keeps the feature server-only; clients receive ordinary authoritative block updates.
+        unit.ShowerStarted = true;
+
+        var centerX = (int)MathF.Floor(unit.Transform.Position.X);
+        var centerZ = (int)MathF.Floor(unit.Transform.Position.Z);
+        var ground = MapBinary.GetGroundBlockFromSky(centerX, centerZ);
+        if (ground is null) return;
+
+        var baseCenter = ground.Value + Vector3s.Up;
+        var updates = new Dictionary<Vector3s, BlockUpdate>();
+        foreach (var placement in YuriNIceIgloo.Build(baseCenter))
+        {
+            if (!MapBinary.ContainsBlock(placement.Position) || !MapBinary.ContainsBlock(placement.AttachTo))
+                continue;
+
+            foreach (var update in MapBinary.AddBlock(YuriNIceIgloo.BlockKey, placement.Position,
+                         placement.AttachTo, Direction2D.Left, unit))
+            {
+                updates[update.Key] = update.Value;
+            }
+        }
+
+        if (updates.Count > 0)
+        {
+            DoBlockUpdate(updates);
+        }
+
+        Log.Info(LogCat.Match,
+            $"Yuri 'n Ice igloo spawned: owner={unit.OwnerPlayerId}, center={baseCenter}, " +
+            $"planned=67, placed={updates.Count}");
+    }
+
     private void UpdateSpawnPoint(Unit unit)
     {
         if (unit.SpawnId is null) return;

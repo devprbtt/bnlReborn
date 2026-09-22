@@ -2481,7 +2481,14 @@ public partial class GameZone : Updater
                         break;
 
                     case UnitDataShower showerData when !unit.ShowerStarted:
-                        unit.StartShower(rand => OnShower(unit, showerData, rand));
+                        if (unit.Key == YuriNIceIgloo.UnitKey)
+                        {
+                            SpawnYuriNIceIgloo(unit);
+                        }
+                        else
+                        {
+                            unit.StartShower(rand => OnShower(unit, showerData, rand));
+                        }
                         break;
                 }
 
