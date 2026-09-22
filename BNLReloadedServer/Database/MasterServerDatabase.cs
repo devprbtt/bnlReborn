@@ -574,6 +574,9 @@ public class MasterServerDatabase : IMasterServerDatabase
 
     public async Task<bool> SetLoadoutForPlayer(uint playerId, Key hero, LobbyLoadout loadout)
     {
+        if (loadout.HeroKey != hero) return false;
+        CatalogueHelper.RepairHeroSpecialDevice(hero, loadout.Devices, out _, out _);
+
         await _asyncLock.WaitAsync();
         try
         {

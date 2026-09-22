@@ -354,10 +354,12 @@ public class PlayerDatabase : IPlayerDatabase
             };
         }
 
+        var devices = loadout.Devices?.ToDictionary();
+        CatalogueHelper.RepairHeroSpecialDevice(heroKey, devices, out _, out _);
         return new LobbyLoadout
         {
             HeroKey = loadout.HeroKey,
-            Devices = loadout.Devices?.ToDictionary(),
+            Devices = devices,
             Perks = loadout.Perks?.ToList(),
             SkinKey = loadout.SkinKey
         };

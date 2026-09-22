@@ -145,6 +145,31 @@ public static class CatalogueHelper
         };
     }
 
+    public static bool IsHeroSpecialDevice(Key heroKey, Key deviceKey) =>
+        Databases.Catalogue.GetCard<CardUnit>(heroKey)?.Data is UnitDataPlayer
+        {
+            SpecialDevices: { Count: > 0 } specialDevices
+        } && specialDevices.Contains(deviceKey);
+
+    public static bool RepairHeroSpecialDevice(Key heroKey, Dictionary<int, Key>? devices,
+        out Key replacedDevice, out Key defaultDevice)
+    {
+        replacedDevice = Key.None;
+        defaultDevice = Key.None;
+        if (devices == null ||
+            Databases.Catalogue.GetCard<CardUnit>(heroKey)?.Data is not UnitDataPlayer
+            {
+                SpecialDevices: { Count: > 0 } specialDevices
+            }) return false;
+
+        devices.TryGetValue(1, out replacedDevice);
+        if (specialDevices.Contains(replacedDevice)) return false;
+
+        defaultDevice = specialDevices[0];
+        devices[1] = defaultDevice;
+        return true;
+    }
+
     public static Dictionary<int, Key>? GetCourseDevices(TimeTrialCourse course)
     {
         var devices = GetDefaultDevices(course.Hero);

@@ -208,6 +208,10 @@ public class GameLobby : Updater
     public void UpdateDeviceSlot(uint playerId, int slot, Key? deviceKey)
     {
         if (!LobbyData.Players.TryGetValue(playerId, out var player) || player.Devices == null) return;
+        if (slot is < 1 or > 6 ||
+            deviceKey is { } selectedDevice && selectedDevice.GetCard<CardDevice>() == null ||
+            slot == 1 && (deviceKey == null || !CatalogueHelper.IsHeroSpecialDevice(player.Hero, deviceKey.Value)))
+            return;
         if (deviceKey != null)
         {
             player.Devices[slot] = deviceKey.Value;
