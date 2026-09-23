@@ -42,5 +42,12 @@ var queuePlayerJson = JsonSerializer.Serialize(
     new QueuedPlayerSnapshot(1, "Player", 123, false, "RANKED"), JsonHelper.DefaultSerializerSettings);
 Check(JsonDocument.Parse(queuePlayerJson).RootElement.GetProperty("mode").GetString() == "RANKED",
     "queue snapshot exposes each player's selected entry mode");
+Check(MatchmakerBalanceSafety.IsCompleteCandidate([1, 1, 2, 2, 2], 8),
+    "complete squad candidate is accepted for balancing");
+Check(!MatchmakerBalanceSafety.IsCompleteCandidate([1, 2, 2, 2, 2], 10),
+    "incomplete nine-player candidate is rejected before partition repair");
+Check(MatchmakerBalanceSafety.MoveReducesImbalance(6, 4, 1) &&
+      !MatchmakerBalanceSafety.MoveReducesImbalance(5, 4, 1),
+    "partition repair only makes moves that reduce the team-size difference");
 
 Console.WriteLine($"Automatic public queue fixture passed: {checks} checks.");

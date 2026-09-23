@@ -416,7 +416,7 @@ public class Matchmaker(AsyncTaskTcpServer server)
             checkTeam1 = false;
         }
 
-        var (p1, p2, quality) = validPlayers.AsParallel().Select(player =>
+        var (p1, p2, quality) = validPlayers.Select(player =>
         {
             var otherPlayers = validPlayers.Except([player]).ToList();
             PlayerQueueData? otherPlayer;
@@ -624,19 +624,34 @@ public class Matchmaker(AsyncTaskTcpServer server)
             }
         }
 
-        var (possibleBalance, quality) = playerPool.AsParallel().Select(g =>
+        // Candidate construction is greedy when squads are present, so a candidate can contain
+        // fewer players than the requested even-sized match. Passing an odd/incomplete line-up
+        // into the repair loop can move the same squad back and forth forever (for example 5/4
+        // becomes 4/5 and then 5/4). This previously let PLINQ occupy every CPU indefinitely.
+        // Reject incomplete candidates and keep this small, bounded search on the caller thread so
+        // match creation can never starve live game-zone queues.
+        var (possibleBalance, quality) = playerPool
+            .Where(g => MatchmakerBalanceSafety.IsCompleteCandidate(
+                g.Select(s => s.Players.Count), playersForQueue))
+            .Select(g =>
             {
                 var groupArr = g.ToArray();
                 var maxTeamPlayers = playersForQueue / 2;
                 var partitioning = KarmarkarKarp.Heuristic(groupArr, g.Select(s => s.RatingMean).ToArray(), 2, true);
+                var movesRemaining = groupArr.Length;
                 while (partitioning.Partition[0].Sum(s => s.Players.Count) is var team1Count &&
                        partitioning.Partition[1].Sum(s => s.Players.Count) is var team2Count &&
                        team1Count != team2Count)
                 {
+                    if (movesRemaining-- <= 0)
+                        return null;
+
                     if (team1Count > team2Count)
                     {
                         var worstPlayer = partitioning.Partition[0]
-                            .Where(q => q.Players.Count <= maxTeamPlayers - team2Count)
+                            .Where(q => q.Players.Count <= maxTeamPlayers - team2Count &&
+                                        MatchmakerBalanceSafety.MoveReducesImbalance(
+                                            team1Count, team2Count, q.Players.Count))
                             .DefaultIfEmpty()
                             .MinBy(s => s?.RatingMean);
                         if (worstPlayer is not null)
@@ -652,7 +667,9 @@ public class Matchmaker(AsyncTaskTcpServer server)
                     else
                     {
                         var worstPlayer = partitioning.Partition[1]
-                            .Where(q => q.Players.Count <= maxTeamPlayers - team1Count)
+                            .Where(q => q.Players.Count <= maxTeamPlayers - team1Count &&
+                                        MatchmakerBalanceSafety.MoveReducesImbalance(
+                                            team2Count, team1Count, q.Players.Count))
                             .DefaultIfEmpty()
                             .MinBy(s => s?.RatingMean);
                         if (worstPlayer is not null)
