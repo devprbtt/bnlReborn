@@ -1081,13 +1081,7 @@ public partial class GameZone : Updater
         if (!active)
             return _activeHeroEmotes.Remove(playerId);
 
-        if (emoteIndex is < 0 or > 15 || player.IsDead || !player.IsActive || player.IsRecall ||
-            player.Team is not (TeamType.Team1 or TeamType.Team2) ||
-            player.CurrentBuildInfo is not null || player.CurrentChannelData is not null ||
-            player.AbilityTriggered || player.StartChargeTime is not null ||
-            player.Transform.IsCrouch || player.Transform.IsJump || player.Transform.IsWallClimb ||
-            player.Transform.IsDash || player.Transform.IsGroundSlam ||
-            HorizontalVelocitySquared(player.Transform.GetLocalVelocity()) > 0.01f)
+        if (!CanStartHeroEmote(player, emoteIndex, _gameInitiator is WaitingArenaInitiator))
             return false;
 
         var now = DateTimeOffset.UtcNow;
@@ -1099,6 +1093,16 @@ public partial class GameZone : Updater
         _activeHeroEmotes.Add(playerId);
         return true;
     }
+
+    // Queue deathmatch players are all Neutral on the wire; everywhere else an emote needs a real team.
+    public static bool CanStartHeroEmote(Unit player, int emoteIndex, bool freeForAll) =>
+        emoteIndex is >= 0 and <= 15 && !player.IsDead && player.IsActive && !player.IsRecall &&
+        (player.Team is TeamType.Team1 or TeamType.Team2 || freeForAll && player.Team == TeamType.Neutral) &&
+        player.CurrentBuildInfo is null && player.CurrentChannelData is null &&
+        !player.AbilityTriggered && player.StartChargeTime is null &&
+        !player.Transform.IsCrouch && !player.Transform.IsJump && !player.Transform.IsWallClimb &&
+        !player.Transform.IsDash && !player.Transform.IsGroundSlam &&
+        HorizontalVelocitySquared(player.Transform.GetLocalVelocity()) <= 0.01f;
 
     private static float HorizontalVelocitySquared(Vector3 velocity) =>
         velocity.X * velocity.X + velocity.Z * velocity.Z;
