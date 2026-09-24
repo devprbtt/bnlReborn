@@ -683,6 +683,7 @@ public partial class GameZone
         }
 
         if (player.CurrentGear?.Tools[toolIndex].Tool is not ToolDash tool) return;
+        if (DashHitPolicy.IsMiss(MapBinary, hitData)) return;
         var impactData = player.CreateImpactData(hitData.InsidePoint, player.Transform.Position, hitData.Normal,
             hitData.Crit ?? false, player.CurrentGear.Key);
 
