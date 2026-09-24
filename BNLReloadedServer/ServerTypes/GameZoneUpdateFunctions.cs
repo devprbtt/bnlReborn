@@ -214,6 +214,14 @@ public partial class GameZone
     private const float ImpactImprecision = 0.05f;
     private const float ImpactImprecisionInv = 1 - ImpactImprecision;
 
+    private bool UnitsClear(Unit unit, Vector3 pos) => CollidingWithUnit(unit, pos).All(u =>
+        (u.UnitCard?.Size ?? Vector3s.Zero) == Vector3s.Zero);
+
+    private bool PointUnitsClear(Vector3 pos, uint? ignoredUnitId) =>
+        _unitOctree.GetColliding(new BoundingBoxEx(pos, new Vector3(0.01f)))
+            .Where(u => u.Id != ignoredUnitId && u.Key != CatalogueHelper.SmokeBomb).All(u =>
+                (u.UnitCard?.Size ?? Vector3s.Zero) == Vector3s.Zero);
+
     private bool ApplyInstEffect(EffectSource source, IEnumerable<Unit> affectedUnits, InstEffect effect,
         ImpactData impactData, BlockShift? shift = null, Direction2D? sourceDirection = null, ResourceType? resourceType = null,
         bool damageBlock = true)
@@ -1286,59 +1294,14 @@ public partial class GameZone
 
             case InstEffectTeleportTo when unitSource is not null:
                 var midpoint = unitSource.GetMidpoint();
-                var dist = Vector3.Distance(impactPoint, midpoint);
-                if (dist == 0) return true;
+                if (Vector3.Distance(impactPoint, midpoint) == 0) return true;
 
-                for (var i = 0; i < dist; i++)
-                {
-                    var telePos = Vector3.Lerp(impactPoint, midpoint, i / dist);
-                    var doYCheck = true;
-                    if (telePos.Y < _zoneData.PlanePosition)
-                    {
-                        telePos.Y = _zoneData.PlanePosition + UnitSizeHelper.ImprecisionVector.Y;
-                        doYCheck = false;
-                    }
+                var teleportPosition = TeleportPlacement.FindTeleportTo(MapBinary, unitSource, impactPoint, midpoint,
+                    shift, _zoneData.PlanePosition, pos => UnitsClear(unitSource, pos), PointUnitsClear);
+                if (teleportPosition is null) return false;
 
-                    if (CanFit(telePos))
-                    {
-                        var teleToManeuver = new ManeuverTeleport
-                        {
-                            Position = unitSource.PlayerId != null ? telePos with { Y = telePos.Y - 0.95f } : telePos
-                        };
-                        _serviceZone.SendUnitManeuver(unitSource.Id, teleToManeuver);
-                        return true;
-                    }
-
-                    var adjustedPosition = i == 0 ? GetShiftedPos(telePos, doYCheck) : telePos;
-
-                    if (i == 0 && CanFit(adjustedPosition))
-                    {
-                        var teleToManeuver = new ManeuverTeleport
-                        {
-                            Position = unitSource.PlayerId != null ? adjustedPosition with { Y = adjustedPosition.Y - 0.95f } : adjustedPosition
-                        };
-                        _serviceZone.SendUnitManeuver(unitSource.Id, teleToManeuver);
-                        return true;
-                    }
-
-                    var newPos = GetAdjustedPos(adjustedPosition, unitSource);
-                    if (newPos is null)
-                    {
-                        continue;
-                    }
-
-                    if (CanFit(newPos.Value))
-                    {
-                        var teleToManeuver = new ManeuverTeleport
-                        {
-                            Position = unitSource.PlayerId != null ? newPos.Value with { Y = newPos.Value.Y - 0.95f } : newPos.Value
-                        };
-                        _serviceZone.SendUnitManeuver(unitSource.Id, teleToManeuver);
-                        return true;
-                    }
-                }
-
-                return false;
+                _serviceZone.SendUnitManeuver(unitSource.Id, new ManeuverTeleport { Position = teleportPosition.Value });
+                return true;
 
             case InstEffectUnitSpawn instEffectUnitSpawn:
                 var uCard = Databases.Catalogue.GetCard<CardUnit>(instEffectUnitSpawn.UnitKey);
@@ -1412,135 +1375,10 @@ public partial class GameZone
                 return true;
         }
 
-        bool CanFit(Vector3 pos) => MapBinary.GetCanFit(unitSource, pos) && CollidingWithUnit(unitSource, pos).All(u =>
-            (u.UnitCard?.Size ?? Vector3s.Zero) == Vector3s.Zero);
+        Vector3 GetShiftedPos(Vector3 pos, bool doYCheck) => TeleportPlacement.ShiftOffBlock(pos, shift, doYCheck);
 
-        bool CanFitPoint(Vector3 pos, uint? ignoredUnitId) =>
-            (!MapBinary.ContainsBlock((Vector3s)pos) ||
-             MapBinary[(Vector3s)pos].Card.Passable == BlockPassableType.Any) &&
-            _unitOctree.GetColliding(new BoundingBoxEx(pos, new Vector3(0.01f)))
-                .Where(u => u.Id != ignoredUnitId && u.Key != CatalogueHelper.SmokeBomb).All(u =>
-                    (u.UnitCard?.Size ?? Vector3s.Zero) == Vector3s.Zero);
-
-        Vector3 GetShiftedPos(Vector3 pos, bool doYCheck) =>
-            shift switch
-            {
-                BlockShift.Left when pos.X - float.Truncate(pos.X) < ImpactImprecision
-                    => pos with
-                    {
-                        X = pos.X - ImpactImprecision
-                    },
-                BlockShift.Right when pos.X - float.Truncate(pos.X) > ImpactImprecisionInv
-                    => pos with
-                    {
-                        X = pos.X + ImpactImprecision
-                    },
-                BlockShift.Bottom when pos.Y - float.Truncate(pos.Y) < ImpactImprecision && doYCheck
-                    => pos with
-                    {
-                        Y = pos.Y - ImpactImprecision
-                    },
-                BlockShift.Top when pos.Y - float.Truncate(pos.Y) > ImpactImprecisionInv && doYCheck
-                    => pos with
-                    {
-                        Y = pos.Y + ImpactImprecision
-                    },
-                BlockShift.Back when pos.Z - float.Truncate(pos.Z) < ImpactImprecision
-                    => pos with
-                    {
-                        Z = pos.Z - ImpactImprecision
-                    },
-                BlockShift.Front when pos.Z - float.Truncate(pos.Z) > ImpactImprecisionInv
-                    => pos with
-                    {
-                        Z = pos.Z + ImpactImprecision
-                    },
-                _ => pos
-            };
-
-        Vector3? GetAdjustedPos(Vector3 pos, Unit? placementUnit, Vector3s? sizeOverride = null)
-        {
-            var uSize = sizeOverride ?? placementUnit?.UnitCard?.Size ?? Vector3s.Zero;
-            var isPlayer = placementUnit?.PlayerId != null;
-            var vecX = isPlayer ? 0.25f : uSize.x * 0.5f;
-            var vecY = isPlayer
-                ? placementUnit!.Transform.IsCrouch ? 0.45f : 0.95f
-                : uSize.y * 0.5f;
-            var vecZ = isPlayer ? vecX : uSize.z * 0.5f;
-            var ignoredUnitId = placementUnit?.Id;
-
-
-            var fitXPos = CanFitPoint(pos with
-            {
-                X = pos.X + vecX - UnitSizeHelper.HalfImprecisionVector.X
-            }, ignoredUnitId);
-
-            var fitXNeg = CanFitPoint(pos with
-            {
-                X = pos.X - vecX + UnitSizeHelper.HalfImprecisionVector.X
-            }, ignoredUnitId);
-
-            if (!fitXPos && !fitXNeg)
-            {
-                return null;
-            }
-            if (!fitXPos)
-            {
-                pos.X = float.Floor(pos.X + vecX) - vecX;
-            }
-            else if (!fitXNeg)
-            {
-                pos.X = float.Ceiling(pos.X - vecX) + vecX;
-            }
-
-            var fitYPos = CanFitPoint(pos with
-            {
-                Y = pos.Y + vecY - UnitSizeHelper.HalfImprecisionVector.Y
-            }, ignoredUnitId);
-
-            var fitYNeg = CanFitPoint(pos with
-            {
-                Y = pos.Y - vecY + UnitSizeHelper.HalfImprecisionVector.Y
-            }, ignoredUnitId);
-
-            if (!fitYPos && !fitYNeg)
-            {
-                return null;
-            }
-            if (!fitYPos)
-            {
-                pos.Y = float.Floor(pos.Y + vecY) - vecY;
-            }
-            else if (!fitYNeg)
-            {
-                pos.Y = float.Ceiling(pos.Y - vecY) + vecY;
-            }
-
-            var fitZPos = CanFitPoint(pos with
-            {
-                Z = pos.Z + vecZ - UnitSizeHelper.HalfImprecisionVector.Z
-            }, ignoredUnitId);
-
-            var fitZNeg = CanFitPoint(pos with
-            {
-                Z = pos.Z - vecZ + UnitSizeHelper.HalfImprecisionVector.Z
-            }, ignoredUnitId);
-
-            if (!fitZPos && !fitZNeg)
-            {
-                return null;
-            }
-            if (!fitZPos)
-            {
-                pos.Z = float.Floor(pos.Z + vecZ) - vecZ;
-            }
-            else if (!fitZNeg)
-            {
-                pos.Z = float.Ceiling(pos.Z - vecZ) + vecZ;
-            }
-
-            return pos;
-        }
+        Vector3? GetAdjustedPos(Vector3 pos, Unit? placementUnit, Vector3s? sizeOverride = null) =>
+            TeleportPlacement.AdjustToFit(MapBinary, pos, placementUnit, sizeOverride, PointUnitsClear);
     }
 
     private HashSet<ConstEffectInfo> GetTeamEffects(TeamType team) => _teamEffects[(int)team];
