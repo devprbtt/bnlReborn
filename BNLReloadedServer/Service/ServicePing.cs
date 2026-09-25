@@ -1,4 +1,5 @@
 ﻿using BNLReloadedServer.Database;
+using System.Diagnostics;
 using BNLReloadedServer.Servers;
 using BNLReloadedServer.Logging;
 
@@ -23,6 +24,11 @@ public class ServicePing(ISender sender) : IServicePing
     }
 
     private int _missedProbes;
+    private readonly Queue<long> _probeTimestamps = new();
+    private readonly object _probeLock = new();
+    private int _roundTripMilliseconds = -1;
+
+    public int RoundTripMilliseconds => Volatile.Read(ref _roundTripMilliseconds);
 
     public void SendServerPing()
     {
@@ -34,6 +40,10 @@ public class ServicePing(ISender sender) : IServicePing
     public int SendLivenessProbe()
     {
         var missed = Interlocked.Increment(ref _missedProbes);
+        lock (_probeLock)
+        {
+            _probeTimestamps.Enqueue(Stopwatch.GetTimestamp());
+        }
         SendServerPing();
         return missed;
     }
@@ -41,6 +51,13 @@ public class ServicePing(ISender sender) : IServicePing
     private void ReceiveServerPong(BinaryReader reader)
     {
         Interlocked.Exchange(ref _missedProbes, 0);
+        long started;
+        lock (_probeLock)
+        {
+            if (!_probeTimestamps.TryDequeue(out started)) return;
+        }
+        var elapsed = Stopwatch.GetElapsedTime(started).TotalMilliseconds;
+        Volatile.Write(ref _roundTripMilliseconds, (int)Math.Clamp(Math.Round(elapsed), 0, ushort.MaxValue - 1));
     }
 
     private void ReceiveClientPing(BinaryReader reader)

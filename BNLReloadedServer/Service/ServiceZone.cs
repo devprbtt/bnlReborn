@@ -7,7 +7,7 @@ using BNLReloadedServer.Logging;
 
 namespace BNLReloadedServer.Service;
 
-public partial class ServiceZone(ISender sender) : IServiceZone
+public partial class ServiceZone(ISender sender, Func<System.Net.IPAddress?>? peerAddress = null) : IServiceZone
 {
     private enum ServiceZoneId : byte
     {
@@ -115,14 +115,16 @@ public partial class ServiceZone(ISender sender) : IServiceZone
         MessageReceiveHeroEmote = 101,
         MessageHeroEmote = 102,
         MessageReceiveBuildPreview = 103,
-        MessageBuildPreview = 104
+        MessageBuildPreview = 104,
+        MessageReceiveScoreboardMetadata = 105,
+        MessageScoreboardMetadata = 106
     }
 
     private IRegionServerDatabase ServerDatabase => Databases.RegionServerDatabase;
     private IGameInstance? GameInstance => Databases.RegionServerDatabase.GetGameInstance(sender.AssociatedPlayerId);
 
     private const uint TeamPingCapabilityMagic = 0x42504E47u;
-    private const int TeamPingProtocolVersion = 3;
+    private const int TeamPingProtocolVersion = 4;
     private const int TeamPingMinimumProtocolVersion = 1;
 
     public bool SupportsTeamPing { get; private set; }
@@ -155,6 +157,7 @@ public partial class ServiceZone(ISender sender) : IServiceZone
                 SupportsTeamPing = true;
                 SupportsHeroEmote = version >= 2;
                 SupportsBuildPreview = version >= 3;
+                SupportsScoreboardMetadata = version >= 4;
                 SendTeamPingCapability(Math.Min(version, TeamPingProtocolVersion));
             }
         }
@@ -1401,6 +1404,9 @@ public partial class ServiceZone(ISender sender) : IServiceZone
                 break;
             case ServiceZoneId.MessageReceiveBuildPreview:
                 ReceiveBuildPreview(reader);
+                break;
+            case ServiceZoneId.MessageReceiveScoreboardMetadata:
+                ReceiveScoreboardMetadata();
                 break;
             default:
                 Log.Warn(LogCat.Net, $"Zone service received unsupported serviceId: {Log.EnumName(zoneEnum, serviceZoneId)}");

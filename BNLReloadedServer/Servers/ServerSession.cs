@@ -27,6 +27,7 @@ public abstract class ServerSession : TcpSession
     // colons of its own, and folded back to v4 when the accept came in v4-mapped, so a dual-stack
     // listener does not file one client under two addresses.
     private volatile IPAddress? _peerAddress;
+    private readonly ProxyProtocolV1Reader _proxyProtocol = new();
 
     protected IPAddress? PeerAddress => _peerAddress ??= ReadPeerAddress();
 
@@ -169,6 +170,27 @@ public abstract class ServerSession : TcpSession
     protected override void OnReceived(byte[] buffer, long offset, long size)
     {
         if (size <= 0) return;
+
+        if (!_proxyProtocol.IsResolved)
+        {
+            var initial = _proxyProtocol.Accept(buffer.AsSpan(checked((int)offset), checked((int)size)));
+            if (!initial.Ready) return;
+            if (initial.Invalid)
+            {
+                Log.Warn(LogCat.Conn, $"{Label} session {Describe} sent an invalid PROXY protocol header");
+                Disconnect();
+                return;
+            }
+            if (initial.Address != null)
+            {
+                _peerAddress = initial.Address;
+                _peer = initial.Peer;
+            }
+            if (initial.Payload.Length == 0) return;
+            using var initialPeer = Log.WithPeer(Peer);
+            Reader.ProcessPacket(initial.Payload, 0, initial.Payload.Length);
+            return;
+        }
 
         using var peer = Log.WithPeer(Peer);
         Reader.ProcessPacket(buffer, offset, size);

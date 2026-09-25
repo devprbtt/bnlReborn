@@ -861,6 +861,24 @@ public partial class GameInstance : IGameInstance
             }
         });
 
+    public void ScoreboardMetadata(uint playerId, IServiceZone requester)
+    {
+        if (!_connectedUsers.ContainsKey(playerId) || !requester.SupportsScoreboardMetadata) return;
+
+        var snapshot = new List<ScoreboardPlayerNetworkInfo>(_connectedUsers.Count);
+        foreach (var (connectedPlayerId, connection) in _connectedUsers)
+        {
+            if (!_services.TryGetValue(connection.Guid, out var services)) continue;
+            var ping = services.GetValueOrDefault(ServiceId.ServicePing) as IServicePing;
+            var zone = services.GetValueOrDefault(ServiceId.ServiceZone) as IServiceZone;
+            snapshot.Add(new ScoreboardPlayerNetworkInfo(
+                connectedPlayerId,
+                ping?.RoundTripMilliseconds ?? -1,
+                zone?.CountryCode ?? string.Empty));
+        }
+        requester.SendScoreboardMetadata(snapshot);
+    }
+
     public void StartRecall(uint playerId) =>
         Zone?.EnqueueAction(() => Zone?.ReceivedStartRecallRequest(playerId));
 

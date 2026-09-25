@@ -18,7 +18,7 @@ public class MatchServiceDispatcher : IServiceDispatcher
     public MatchServiceDispatcher(ISender sender, Guid sessionId, Func<IPAddress?> peerAddress)
     {
         _serviceLogin = new ServiceLogin(sender, sessionId, peerAddress);
-        _serviceZone = new ServiceZone(sender);
+        _serviceZone = new ServiceZone(sender, peerAddress);
         _serviceLobby = new ServiceLobby(sender);
         _servicePing = new ServicePing(sender);
         _serviceMediator = new ServiceMediator(sender);
