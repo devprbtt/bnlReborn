@@ -38,17 +38,17 @@ public class PlayerDatabase : IPlayerDatabase
         var globalLogic = CatalogueHelper.GlobalLogic;
 
         var inventory = new List<InventoryItem>();
-        var deviceCards = CatalogueHelper.GetCards<CardDevice>(CardCategory.Device);
-        var heroCards = CatalogueHelper.GetHeroes().Select(h => h.GetCard<CardUnit>()).OfType<CardUnit>();
-        var skinCards = CatalogueHelper.GetCards<CardSkin>(CardCategory.Skin)
-            .Where(skin => PrivateSkinAccess.CanUse(player.SteamId, skin.Key));
+        bool Owned(Card card) => PlayerInventory.Owns(playerId, card.Key);
+        var deviceCards = CatalogueHelper.GetCards<CardDevice>(CardCategory.Device).Where(Owned);
+        var heroCards = CatalogueHelper.GetHeroes().Select(h => h.GetCard<CardUnit>()).OfType<CardUnit>().Where(Owned);
+        var skinCards = CatalogueHelper.GetCards<CardSkin>(CardCategory.Skin).Where(Owned);
 
         var offPerks = globalLogic.Perks?.Offensive?.Select(p => p.GetCard<CardPerk>()).OfType<CardPerk>() ?? [];
         var defPerks = globalLogic.Perks?.Defensive?.Select(p => p.GetCard<CardPerk>()).OfType<CardPerk>() ?? [];
         var heroPerks = globalLogic.Perks?.Heroes?.SelectMany(p => p.Value.Select(perk => perk.GetCard<CardPerk>())).OfType<CardPerk>() ?? [];
 
-        var perkCards = heroPerks.Union(offPerks.Union(defPerks));
-        var badgeCards = globalLogic.AvailableBadges?.Select(b => b.GetCard<CardBadge>()).OfType<CardBadge>() ?? [];
+        var perkCards = heroPerks.Union(offPerks.Union(defPerks)).Where(Owned);
+        var badgeCards = (globalLogic.AvailableBadges?.Select(b => b.GetCard<CardBadge>()).OfType<CardBadge>() ?? []).Where(Owned);
 
         if (player.Role is not PlayerRole.Core)
         {
@@ -362,7 +362,7 @@ public class PlayerDatabase : IPlayerDatabase
             HeroKey = loadout.HeroKey,
             Devices = devices,
             Perks = loadout.Perks?.ToList(),
-            SkinKey = PrivateSkinAccess.SafeSkin(player.SteamId, heroKey, loadout.SkinKey)
+            SkinKey = PlayerInventory.SafeSkin(playerId, heroKey, loadout.SkinKey)
         };
     }
 
@@ -684,6 +684,13 @@ public class PlayerDatabase : IPlayerDatabase
             player.RequestsFromMe = update.RequestsFromMe.Select(p => p.PlayerId).ToList();
         }
         ControlPanelEvents.Publish(ControlPanelEvent.Players);
+    }
+
+    // Grants change while players are online; the client replaces its whole inventory on this update.
+    public void RefreshInventory(uint playerId)
+    {
+        if (!_players.ContainsKey(playerId)) return;
+        Databases.RegionServerDatabase.NotifyInventory(playerId, GetInventory(playerId));
     }
 
     public void UpdateLoadout(uint playerId, Key hero, LobbyLoadout loadout) =>

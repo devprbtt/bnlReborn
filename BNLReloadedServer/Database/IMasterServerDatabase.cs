@@ -44,5 +44,8 @@ public interface IMasterServerDatabase
     public Task<Dictionary<Key, List<TtLeaderboardRecord>>> GetTimeTrialLeaderboard();
     public Task<List<PlayerData>> GetAllPlayersAsync();
     public Task<bool> UpdatePlayerAsync(uint playerId, PlayerData updated);
+    public Task<List<InventoryGrantRecord>> GetInventoryGrants(uint playerId);
+    public Task<InventoryChange> GrantItem(uint playerId, string itemId, string grantedBy, string? note);
+    public Task<InventoryChange> RevokeItem(uint playerId, string itemId);
 
 }

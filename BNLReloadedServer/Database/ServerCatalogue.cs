@@ -46,7 +46,6 @@ public class ServerCatalogue : Catalogue
         {
             ConquestMapRegistration.Register(cards);
             TeamPingRegistration.Register(cards);
-            PrivateSkinRegistration.Register(cards);
             var tempDict = new Dictionary<Key, Card>(KeyEqualityComparer.Instance);
             foreach (var card in cards)
             {

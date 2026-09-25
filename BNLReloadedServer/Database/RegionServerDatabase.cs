@@ -365,6 +365,15 @@ public class RegionServerDatabase(AsyncTaskTcpServer server, AsyncTaskTcpServer 
         }
     }
 
+    public void NotifyInventory(uint playerId, List<InventoryItem> inventory)
+    {
+        if (UserConnected(playerId, out var playerInfo) &&
+            GetService<IServicePlayer>(playerInfo.Guid, ServiceId.ServicePlayer, out var servicePlayer))
+        {
+            servicePlayer.SendPlayerUpdate(new PlayerUpdate { Inventory = inventory });
+        }
+    }
+
     public async Task NotifyRequests(uint playerId, bool requestsForMe, bool requestsFromMe)
     {
         if (!UserConnected(playerId, out var playerInfo) ||

@@ -40,6 +40,7 @@ public interface IPlayerDatabase
     public void SetFriendsInfo(uint playerId, List<uint>? friends, List<uint>? requestsFor, List<uint>? requestsFrom);
     public void SetSteamFriends(uint playerId, List<ulong> steamFriends);
     public void UpdatePlayer(uint playerId, PlayerUpdate update);
+    public void RefreshInventory(uint playerId);
     public void UpdateLoadout(uint playerId, Key hero, LobbyLoadout loadout);
     public void UpdateLookingForFriends(uint playerId, bool lookingForFriends);
     public void UpdateLastPlayedHero(uint playerId, Key heroKey);

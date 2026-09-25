@@ -287,6 +287,22 @@ public sealed class ControlPanelServer : IDisposable
             }
 
             if (path.StartsWith("/api/players/") &&
+                path.EndsWith("/inventory", StringComparison.Ordinal) &&
+                uint.TryParse(path["/api/players/".Length..^"/inventory".Length], out var inventoryPlayerId))
+            {
+                if (method == "GET")
+                {
+                    await ServeInventoryGrants(ctx, inventoryPlayerId);
+                    return;
+                }
+                if (method == "POST")
+                {
+                    await HandleInventoryChange(ctx, inventoryPlayerId);
+                    return;
+                }
+            }
+
+            if (path.StartsWith("/api/players/") &&
                 path.EndsWith("/notification", StringComparison.OrdinalIgnoreCase) &&
                 uint.TryParse(path["/api/players/".Length..^"/notification".Length], out var notificationPlayerId) &&
                 method == "POST")
@@ -1545,6 +1561,65 @@ public sealed class ControlPanelServer : IDisposable
 
             ControlPanelEvents.Publish(ControlPanelEvent.Players);
             await WriteJson(ctx, new { message = "Player updated" });
+        }
+        catch (Exception ex)
+        {
+            ctx.Response.StatusCode = 500;
+            await WriteJson(ctx, new { error = ex.Message });
+        }
+    }
+
+    // Grants are private data, so these routes are not on the public read list.
+    private static async Task ServeInventoryGrants(HttpListenerContext ctx, uint playerId)
+    {
+        var grants = await Databases.MasterServerDatabase.GetInventoryGrants(playerId);
+        var privateItems = Databases.Catalogue.All.Where(PlayerInventory.RequiresGrant)
+            .Select(card => new { id = card.Id, category = card.Category.ToString() }).OrderBy(i => i.id);
+        await WriteJson(ctx, new
+        {
+            grants = grants.Select(g => new { item = g.Item, grantedAt = g.GrantedAt, grantedBy = g.GrantedBy, note = g.Note }),
+            privateItems
+        });
+    }
+
+    private async Task HandleInventoryChange(HttpListenerContext ctx, uint playerId)
+    {
+        try
+        {
+            using var reader = new StreamReader(ctx.Request.InputStream);
+            using var doc = JsonDocument.Parse(await reader.ReadToEndAsync());
+            var root = doc.RootElement;
+            var item = root.TryGetProperty("item", out var itemProp) ? itemProp.GetString()?.Trim() : null;
+            var action = root.TryGetProperty("action", out var actionProp) ? actionProp.GetString() : null;
+            var note = root.TryGetProperty("note", out var noteProp) ? noteProp.GetString()?.Trim() : null;
+            if (string.IsNullOrEmpty(item) || action is not ("grant" or "revoke"))
+            {
+                ctx.Response.StatusCode = 400;
+                await WriteJson(ctx, new { error = "Expected {\"item\": \"<card id>\", \"action\": \"grant\" | \"revoke\"}" });
+                return;
+            }
+
+            var actor = SessionUsername(ctx) ?? "control-panel";
+            var result = action == "grant"
+                ? await Databases.MasterServerDatabase.GrantItem(playerId, item, actor, string.IsNullOrEmpty(note) ? null : note)
+                : await Databases.MasterServerDatabase.RevokeItem(playerId, item);
+            ctx.Response.StatusCode = result switch
+            {
+                InventoryChange.UnknownPlayer or InventoryChange.UnknownItem => 404,
+                InventoryChange.PublicItem => 400,
+                _ => 200
+            };
+            if (result is InventoryChange.Granted or InventoryChange.Revoked)
+            {
+                Log.Info(LogCat.Panel, $"{actor} {(action == "grant" ? "granted" : "revoked")} {item} for player {playerId} from {ClientIp(ctx)}");
+                ControlPanelEvents.Publish(ControlPanelEvent.Players);
+            }
+            await WriteJson(ctx, new { result = result.ToString() });
+        }
+        catch (JsonException)
+        {
+            ctx.Response.StatusCode = 400;
+            await WriteJson(ctx, new { error = "Invalid JSON" });
         }
         catch (Exception ex)
         {

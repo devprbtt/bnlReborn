@@ -3,6 +3,7 @@ using System.Net;
 using System.Text;
 using BNLReloadedServer.BaseTypes;
 using BNLReloadedServer.ControlPanel;
+using BNLReloadedServer.Logging;
 using BNLReloadedServer.Service;
 using BNLReloadedServer.ProtocolHelpers;
 using Moserware.Skills;
@@ -39,7 +40,126 @@ public class MasterServerDatabase : IMasterServerDatabase
         EnsureMatchArchiveColumns().Wait();
         _playerDb.ExecuteAsync("CREATE INDEX IF NOT EXISTS IX_MatchPlayers_Player ON MatchPlayers(player_id)").Wait();
         _playerDb.ExecuteAsync("CREATE INDEX IF NOT EXISTS IX_MatchPresences_Player ON MatchPresences(player_id)").Wait();
+        _playerDb.CreateTableAsync<InventoryGrantRecord>().Wait();
+        _playerDb.CreateTableAsync<AppliedMigrationRecord>().Wait();
         BackfillRankEligibility().Wait();
+        ImportLegacyPrivateSkinGrants().Wait();
+        var grants = _playerDb.Table<InventoryGrantRecord>().ToListAsync().Result;
+        PlayerInventory.Load(grants);
+        ReportGrantsWithoutPrivateCards(grants);
+    }
+
+    // A grant whose card is missing or public means the catalogue was not published before this server started:
+    // logins would then strip those skins from saved loadouts. The "<3>" prefix makes journald record the line at
+    // error priority, which the deploy health gate treats as a failed start and rolls back.
+    private static void ReportGrantsWithoutPrivateCards(IEnumerable<InventoryGrantRecord> grants)
+    {
+        var orphaned = grants.Select(g => g.Item).Distinct()
+            .Where(item => Catalogue.Key(item).GetCard<Card>() is not { Scope: ScopeType.Private }).ToList();
+        if (orphaned.Count == 0) return;
+        var message = $"Inventory grants name items that are not private cards in the catalogue: {string.Join(", ", orphaned)}";
+        Log.Error(LogCat.Catalogue, message);
+        Console.Error.WriteLine("<3>" + message);
+    }
+
+    private const string LegacySkinGrantMigration = "private_skin_grants_file_v1";
+
+    // The skins the old grant file could name, and the account the old code always treated as their owner.
+    private static readonly string[] LegacyPrivateSkins = ["skin_hunter_arctic_wolf_private", "skin_boxer_demon_private"];
+    private const ulong LegacyRecoveryOwnerSteamId = 76561197990315750;
+
+    /// <summary>
+    /// Moves ownership from the retired per-skin JSON file into InventoryGrants once. Recorded as applied so a
+    /// later revoke is not undone by the file on the next start; the file itself is left untouched.
+    /// </summary>
+    private async Task ImportLegacyPrivateSkinGrants()
+    {
+        if (await _playerDb.FindAsync<AppliedMigrationRecord>(LegacySkinGrantMigration) != null) return;
+
+        var path = Environment.GetEnvironmentVariable("BNL_PRIVATE_SKIN_GRANTS_PATH") is { Length: > 0 } configured
+            ? configured
+            : Path.Combine(Databases.ConfigsFolderPath, "private_skin_grants.json");
+        var owners = LegacyPrivateSkins.ToDictionary(skin => skin, _ => new HashSet<ulong> { LegacyRecoveryOwnerSteamId });
+        if (File.Exists(path))
+        {
+            // A malformed file must stop the start rather than silently import nothing and mark itself done.
+            var document = System.Text.Json.JsonSerializer.Deserialize<Dictionary<string, string[]>>(await File.ReadAllTextAsync(path)) ?? [];
+            foreach (var (skin, steamIds) in document)
+            {
+                if (!owners.TryGetValue(skin, out var set)) continue;
+                foreach (var value in steamIds)
+                    if (ulong.TryParse(value, out var steamId) && steamId != 0) set.Add(steamId);
+            }
+        }
+
+        var now = DateTimeOffset.UtcNow;
+        var imported = new List<string>();
+        var unresolved = new List<string>();
+        await _playerDb.RunInTransactionAsync(db =>
+        {
+            foreach (var (skin, steamIds) in owners)
+            foreach (var steamId in steamIds)
+            {
+                var player = db.Table<PlayerRecord>().FirstOrDefault(p => p.SteamId == steamId);
+                if (player == null)
+                {
+                    unresolved.Add($"{skin}:{steamId}");
+                    continue;
+                }
+
+                db.Execute("INSERT OR IGNORE INTO InventoryGrants (player_id, item, granted_at, granted_by, note) VALUES (?, ?, ?, ?, ?)",
+                    player.PlayerId, skin, now, "migration", $"imported from {Path.GetFileName(path)}");
+                imported.Add($"{skin}:{player.PlayerId}");
+            }
+
+            db.Insert(new AppliedMigrationRecord { Name = LegacySkinGrantMigration, AppliedAt = now });
+        });
+
+        Log.Info(LogCat.Player, $"Imported {imported.Count} legacy private skin grants [{string.Join(", ", imported)}]" +
+                          (unresolved.Count > 0 ? $"; no account for [{string.Join(", ", unresolved)}]" : string.Empty));
+    }
+
+    public async Task<List<InventoryGrantRecord>> GetInventoryGrants(uint playerId) =>
+        await _playerDb.Table<InventoryGrantRecord>().Where(g => g.PlayerId == playerId).OrderBy(g => g.GrantedAt).ToListAsync();
+
+    public async Task<InventoryChange> GrantItem(uint playerId, string itemId, string grantedBy, string? note) =>
+        await ChangeInventory(playerId, itemId, async () =>
+            await _playerDb.ExecuteAsync(
+                "INSERT OR IGNORE INTO InventoryGrants (player_id, item, granted_at, granted_by, note) VALUES (?, ?, ?, ?, ?)",
+                playerId, itemId, DateTimeOffset.UtcNow, grantedBy, note) > 0, InventoryChange.Granted);
+
+    public async Task<InventoryChange> RevokeItem(uint playerId, string itemId) =>
+        await ChangeInventory(playerId, itemId, async () =>
+            await _playerDb.ExecuteAsync("DELETE FROM InventoryGrants WHERE player_id = ? AND item = ?", playerId, itemId) > 0,
+            InventoryChange.Revoked);
+
+    private async Task<InventoryChange> ChangeInventory(uint playerId, string itemId, Func<Task<bool>> write, InventoryChange done)
+    {
+        // Granting needs a real private card; revoking must still work after the card left the catalogue or went public.
+        if (done == InventoryChange.Granted)
+        {
+            var card = Catalogue.Key(itemId).GetCard<Card>();
+            if (card == null) return InventoryChange.UnknownItem;
+            if (!PlayerInventory.RequiresGrant(card)) return InventoryChange.PublicItem;
+        }
+
+        await _asyncLock.WaitAsync();
+        try
+        {
+            if (await _playerDb.Table<PlayerRecord>().Where(p => p.PlayerId == playerId).CountAsync() == 0)
+                return InventoryChange.UnknownPlayer;
+            if (!await write()) return InventoryChange.Unchanged;
+
+            var owned = await _playerDb.Table<InventoryGrantRecord>().Where(g => g.PlayerId == playerId).ToListAsync();
+            PlayerInventory.Set(playerId, owned.Select(g => g.Item));
+        }
+        finally
+        {
+            _asyncLock.Release();
+        }
+
+        Databases.PlayerDatabase.RefreshInventory(playerId);
+        return done;
     }
 
     private async Task EnsureMatchArchiveColumns()
@@ -584,7 +704,7 @@ public class MasterServerDatabase : IMasterServerDatabase
             if (record == null) return false;
 
             var pData = PlayerData.FromPlayerRecord(record);
-            if (loadout.HeroKey != hero || !PrivateSkinAccess.CanEquip(pData.SteamId, hero, loadout.SkinKey)) return false;
+            if (loadout.HeroKey != hero || !PlayerInventory.CanEquipSkin(playerId, hero, loadout.SkinKey)) return false;
             pData.HeroLoadouts[hero] = loadout;
             var newLoadouts = pData.HeroLoadouts;
             record = pData.ToPlayerRecord();

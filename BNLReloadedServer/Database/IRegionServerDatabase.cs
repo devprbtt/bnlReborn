@@ -26,6 +26,7 @@ public interface IRegionServerDatabase
     public Task NotifyFriends(uint playerId);
     public Task NotifyRequests(uint playerId, bool requestsForMe, bool requestsFromMe);
     public void NotifyLeague(uint playerId, League league);
+    public void NotifyInventory(uint playerId, List<InventoryItem> inventory);
     public List<CustomGameInfo> GetCustomGames();
     public ulong? AddCustomGame(string name, string password, uint playerId);
     public bool RemoveCustomGame(ulong gameId);
