@@ -42,7 +42,9 @@ try
     await using (var gzip = new GZipStream(file, CompressionMode.Compress))
     await using (var writer = new StreamWriter(gzip, Encoding.UTF8))
     {
-        await writer.WriteLineAsync("\"1.0.0.0\",\"1.0.0.255\",\"AU\"");
+        // DB-IP's current Country Lite download is unquoted CSV. Keep a quoted row too so both
+        // vendor variants remain supported.
+        await writer.WriteLineAsync("1.0.0.0,1.0.0.255,AU");
         await writer.WriteLineAsync("\"8.8.8.0\",\"8.8.8.255\",\"US\"");
         await writer.WriteLineAsync("\"2001:4860::\",\"2001:4860:ffff:ffff:ffff:ffff:ffff:ffff\",\"US\"");
     }

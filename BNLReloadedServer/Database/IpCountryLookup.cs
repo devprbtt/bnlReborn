@@ -64,7 +64,7 @@ public static class IpCountryLookup
             using var reader = new StreamReader(gzip);
             while (reader.ReadLine() is { } line)
             {
-                var fields = line.Trim().Trim('"').Split("\",\"");
+                var fields = ParseCsvFields(line);
                 if (fields.Length != 3 || fields[2].Length != 2 ||
                     !IPAddress.TryParse(fields[0], out var start) ||
                     !IPAddress.TryParse(fields[1], out var end) ||
@@ -85,6 +85,14 @@ public static class IpCountryLookup
             Log.Error(LogCat.Server, $"Failed to load IP country database '{path}'", exception);
             return null;
         }
+    }
+
+    private static string[] ParseCsvFields(string line)
+    {
+        var fields = line.Trim().Split(',');
+        for (var index = 0; index < fields.Length; index++)
+            fields[index] = fields[index].Trim().Trim('"');
+        return fields;
     }
 
     private static UInt128 ToUInt128(IPAddress address)
