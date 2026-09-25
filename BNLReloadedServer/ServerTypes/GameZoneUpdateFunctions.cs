@@ -14,7 +14,8 @@ public partial class GameZone
     private void UnitCreated(Unit unit, UnitInit unitInit, IServiceZone? creatorService = null)
     {
         // On respawn ChangeId has already re-registered the unit under its new id, so TryAdd fails here.
-        if (_units.TryAdd(unit.Id, unit) && unitInit.PlayerId != null)
+        var isNewUnit = _units.TryAdd(unit.Id, unit);
+        if (isNewUnit && unitInit.PlayerId != null)
         {
             _playerUnits.Add(unit.Id, unit);
             _playerIdToUnitId.Add(unitInit.PlayerId.Value, unit.Id);
@@ -30,6 +31,10 @@ public partial class GameZone
 
         if (unitInit.Transform is not null)
         {
+            // The octree keeps duplicates, so a respawn must drop the death-position entry or it lingers
+            // as a phantom body that later spawn and placement checks treat as occupied.
+            if (!isNewUnit)
+                while (_unitOctree.Remove(unit)) { }
             AddUnitToOctree(unit, unitInit.Transform);
         }
 

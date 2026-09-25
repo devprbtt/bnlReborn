@@ -469,12 +469,54 @@ public partial class GameZone : Updater
 
     private Vector3 GetSpawnPosition(Vector3 spawnPoint, float spawnRadius)
     {
-        if (spawnRadius < 1) return spawnPoint with { Y = spawnPoint.Y + UnitSpawnYOffset };
-
-        var spawnBlocks = (int)float.Floor(spawnRadius);
+        // Respawn devices have no side shift, so every player choosing one used to land on the exact same spot.
+        var searchBlocks = Math.Max(1, (int)float.Floor(spawnRadius));
         var blockedPositions = MapBinary.GetContainedInUnits(
-            _unitOctree.GetColliding(new BoundingBoxEx(spawnPoint, new Vector3(spawnBlocks * 2, 2, spawnBlocks * 2)))
-                .Where(u => u.UnitCard?.Labels?.Contains(UnitLabel.RespawnPoint) is not true).ToList());
+            _unitOctree.GetColliding(new BoundingBoxEx(spawnPoint, new Vector3(searchBlocks * 2, 2, searchBlocks * 2)))
+                .Where(u => !u.IsDead && u.UnitCard?.Labels?.Contains(UnitLabel.RespawnPoint) is not true).ToList());
+
+        return spawnRadius < 1
+            ? PickExactSpawnPosition(MapBinary, blockedPositions, spawnPoint, new Random())
+            : PickAreaSpawnPosition(MapBinary, blockedPositions, spawnPoint, spawnRadius, new Random());
+    }
+
+    // Keeps the exact spot when it is free; otherwise the closest free neighbouring cell, so players
+    // spawning together never share a body. Falls back to the exact spot when every neighbour is walled in.
+    public static Vector3 PickExactSpawnPosition(MapBinary map, IReadOnlySet<Vector3s> blockedPositions,
+        Vector3 spawnPoint, Random rand)
+    {
+        var exact = spawnPoint with { Y = spawnPoint.Y + UnitSpawnYOffset };
+        if (!blockedPositions.Contains((Vector3s)exact)) return exact;
+
+        var free = new List<Vector3>();
+        foreach (var diagonal in new[] { false, true })
+        {
+            for (var dx = -1; dx <= 1; dx++)
+            {
+                for (var dz = -1; dz <= 1; dz++)
+                {
+                    if ((dx == 0 && dz == 0) || (dx != 0 && dz != 0) != diagonal) continue;
+                    var pos = exact + new Vector3(dx, 0, dz);
+                    if (!blockedPositions.Contains((Vector3s)pos) && CanStandAt(map, pos)) free.Add(pos);
+                }
+            }
+
+            if (free.Count != 0) return rand.GetItems(free.ToArray(), 1)[0];
+        }
+
+        return exact;
+    }
+
+    private static bool CanStandAt(MapBinary map, Vector3 pos) =>
+        map.ContainsBlock((Vector3s)pos) &&
+        map[(Vector3s)pos].Card.Passable is BlockPassableType.Any &&
+        (!map.ContainsBlock((Vector3s)(pos + Vector3.UnitY)) ||
+         map[(Vector3s)(pos + Vector3.UnitY)].Card.Passable is BlockPassableType.Any);
+
+    public static Vector3 PickAreaSpawnPosition(MapBinary map, IReadOnlySet<Vector3s> blockedPositions,
+        Vector3 spawnPoint, float spawnRadius, Random rand)
+    {
+        var spawnBlocks = (int)float.Floor(spawnRadius);
 
         List<Vector3> validPositions = [];
         for (var x = spawnPoint.X - spawnBlocks; x <= spawnPoint.X + spawnBlocks; x++)
@@ -482,17 +524,13 @@ public partial class GameZone : Updater
             for (var z = spawnPoint.Z - spawnBlocks; z <= spawnPoint.Z + spawnBlocks; z++)
             {
                 var pos = new Vector3(x, spawnPoint.Y + UnitSpawnYOffset, z);
-                if (!blockedPositions.Contains((Vector3s)pos) &&
-                    MapBinary[(Vector3s)pos].Card.Passable is BlockPassableType.Any &&
-                    (!MapBinary.ContainsBlock((Vector3s)(pos + Vector3.UnitY)) ||
-                     MapBinary[(Vector3s)(pos + Vector3.UnitY)].Card.Passable is BlockPassableType.Any))
+                if (!blockedPositions.Contains((Vector3s)pos) && CanStandAt(map, pos))
                 {
                     validPositions.Add(pos);
                 }
             }
         }
 
-        var rand = new Random();
         if (validPositions.Count != 0) return rand.GetItems(validPositions.ToArray(), 1)[0];
 
         var spawnX = rand.Next(-spawnBlocks, spawnBlocks + 1);
