@@ -848,6 +848,19 @@
               <div class="ban-status" id="gyBanStatus">Loading&hellip;</div>
             </div>
           </div>
+
+          <!-- What this account owns. Public items belong to every player; private ones only to
+         players granted them here. Counts come from the same list the game client receives. -->
+          <section class="edit-card" id="inventoryCard">
+            <h3>Inventory</h3>
+            <div class="inv-counts" id="invCounts"></div>
+            <div class="inv-note">
+              <label class="ident-label" for="invNote">Reason for a grant (optional)</label>
+              <input id="invNote" type="text" maxlength="200" placeholder="e.g. event prize" />
+            </div>
+            <div class="inv-list" id="invPrivate"></div>
+            <div class="inv-list" id="invStale"></div>
+          </section>
           <!-- ADMIN-END -->
 
           <!-- Reference data comes first, so a player's current build is immediately visible. -->

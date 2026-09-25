@@ -17,11 +17,23 @@ skin of that hero they do own.
 
 ## Granting and revoking
 
-Use the control panel API with a logged-in panel session. Both routes require authentication.
+In the control panel, open a player (Players → Edit). The admin-only **Inventory** section shows:
+
+- counts of everything the account owns, from the same list the game sends at login;
+- every private item, with who granted it, when and why, and a Grant or Revoke button;
+- any leftover grants for items that are no longer private or no longer in the catalogue, so they can be
+  cleaned up.
+
+The optional reason is stored with the grant. Visitors who are not logged in never receive this section.
+
+The same actions are available as an API. Both routes require a logged-in panel session. JSON field
+names are snake_case, like the rest of the panel API:
 
 ```
 GET  /api/players/{playerId}/inventory
-     -> { grants: [{item, grantedAt, grantedBy, note}], privateItems: [{id, category}] }
+     -> { player: {id, nickname}, owned_counts: {Skin: n, ...},
+          private_items: [{id, name, category, hero, owned, grant: {granted_at, granted_by, note} | null}],
+          stale_grants: [{item, granted_at, granted_by, note}] }
 
 POST /api/players/{playerId}/inventory
      { "item": "skin_hunter_arctic_wolf_private", "action": "grant", "note": "optional reason" }
@@ -42,7 +54,7 @@ catalogue.
    `--apply` writes revision-checked documents and keeps a rollback snapshot under
    `/root/config-backups`.
 2. Reload the catalogue (control panel "refresh CDB", or the change watcher).
-3. Grant it to players through the API.
+3. Grant it to players from their Inventory section in the control panel (or the API).
 
 No server code change and no server deploy are needed. A new skin still needs its assets in the client.
 
@@ -80,4 +92,5 @@ the new server is redeployed.
 `dotnet run --project tests/BNLReloadedServer.PlayerInventoryFixture -c Release` runs the real
 `MasterServerDatabase` on a temporary SQLite file: the one-time import, grant and revoke, restarts, the
 live push to an online player, inventory for every category, loadout rules and the startup check
-(39 checks). Removing any one of those behaviours makes it fail.
+(39 checks), then the real control panel over HTTP: login, the viewer data, grant and revoke attributed to the
+signed-in admin, and admin-only serving (53 checks in total). Removing any one of those behaviours makes it fail.

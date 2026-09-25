@@ -13,6 +13,9 @@ var root = Path.Combine(Path.GetTempPath(), "bnl-inventory-fixture-" + Guid.NewG
 Directory.CreateDirectory(Path.Combine(root, "PlayerData"));
 Directory.CreateDirectory(Path.Combine(root, "Configs"));
 Directory.SetCurrentDirectory(root); // Databases resolves every path from the working directory on first use
+File.WriteAllText(Path.Combine(root, "Configs", "configs.json"),
+    """{"master_host":"127.0.0.1","master_public_host":"127.0.0.1","region_name":"fixture","region_icon":"fixture"}""");
+File.WriteAllText(Path.Combine(root, "Configs", "control_panel_users.json"), """[{"username":"fixture-admin","password":"fixture-pw"}]""");
 
 int checks = 0;
 void Check(bool pass, string name) { if (!pass) throw new Exception("FAIL " + name); checks++; Console.WriteLine("PASS " + name); }
@@ -141,6 +144,81 @@ foreach (var (id, keep) in new[] { (A, true), (B, false) })
     data.SanitizeAgainstCatalogue();
     Check(data.HeroLoadouts.ContainsKey(hunter) == keep, $"saved loadout with a private skin {(keep ? "kept for owner" : "stripped for non-owner")}");
 }
+
+// 7. The admin panel, over real HTTP: login, the inventory viewer's data, grant/revoke, and who can see it.
+var port = new System.Net.Sockets.TcpListener(System.Net.IPAddress.Loopback, 0);
+port.Start(); var panelPort = ((System.Net.IPEndPoint)port.LocalEndpoint).Port; port.Stop();
+T Unused<T>() => (T)System.Runtime.CompilerServices.RuntimeHelpers.GetUninitializedObject(typeof(T)); // never touched by these routes
+var panel = new BNLReloadedServer.ControlPanel.ControlPanelServer($"http://localhost:{panelPort}/", null,
+    Unused<BNLReloadedServer.Servers.RegionServer>(), Unused<BNLReloadedServer.Servers.MatchServer>(),
+    Unused<CouchCatalogueStore>(), catalogue);
+panel.Start();
+// No cookie jar: every request carries exactly the session it names, so "not logged in" really is.
+using var http = new HttpClient(new HttpClientHandler { UseCookies = false }) { BaseAddress = new Uri($"http://localhost:{panelPort}/") };
+async Task<(int status, System.Text.Json.JsonElement json)> Call(HttpMethod method, string path, object? body = null, string? cookie = null)
+{
+    using var req = new HttpRequestMessage(method, path);
+    if (cookie != null) req.Headers.Add("Cookie", cookie);
+    if (body != null) req.Content = new StringContent(System.Text.Json.JsonSerializer.Serialize(body), System.Text.Encoding.UTF8, "application/json");
+    using var res = await http.SendAsync(req);
+    var text = await res.Content.ReadAsStringAsync();
+    var json = text.TrimStart().StartsWith('{') ? System.Text.Json.JsonDocument.Parse(text).RootElement.Clone() : default;
+    return ((int)res.StatusCode, json);
+}
+Check((await Call(HttpMethod.Get, $"api/players/{A}/inventory")).status == 401, "inventory is not readable without a panel login");
+Check((await Call(HttpMethod.Post, $"api/players/{C}/inventory", new { item = "skin_hunter_arctic_wolf_private", action = "grant" })).status == 401,
+    "inventory cannot be changed without a panel login");
+
+using (var login = new HttpRequestMessage(HttpMethod.Post, "api/login")
+       { Content = new StringContent("""{"username":"fixture-admin","password":"fixture-pw"}""", System.Text.Encoding.UTF8, "application/json") })
+{
+    using var res = await http.SendAsync(login);
+    var setCookie = res.Headers.GetValues("Set-Cookie").First();
+    var session = setCookie[..setCookie.IndexOf(';')];
+
+    var (status, inv) = await Call(HttpMethod.Get, $"api/players/{A}/inventory", cookie: session);
+    Check(status == 200 && inv.GetProperty("player").GetProperty("id").GetUInt32() == A, "viewer loads a player's inventory");
+    var counts = inv.GetProperty("owned_counts");
+    Check(counts.GetProperty("Skin").GetInt32() == 4 && counts.GetProperty("Badge").GetInt32() == 2 && counts.GetProperty("Unit").GetInt32() == 2,
+        "owned counts are the game's own inventory list (4 skins incl. 2 private, 2 badges incl. 1 private, 2 heroes)");
+    var wolfRow = inv.GetProperty("private_items").EnumerateArray().Single(i => i.GetProperty("id").GetString() == "skin_hunter_arctic_wolf_private");
+    Check(wolfRow.GetProperty("owned").GetBoolean() && wolfRow.GetProperty("grant").GetProperty("granted_by").GetString() == "migration" &&
+          wolfRow.GetProperty("hero").GetString() == "unit_hero_hunter",
+        "private items show ownership, grant origin and hero");
+
+    (status, var change) = await Call(HttpMethod.Post, $"api/players/{B}/inventory", new { item = "skin_boxer_demon_private", action = "grant", note = "panel test" }, session);
+    Check(status == 200 && change.GetProperty("result").GetString() == "Granted", "panel grant succeeds");
+    (_, inv) = await Call(HttpMethod.Get, $"api/players/{B}/inventory", cookie: session);
+    var demonRow = inv.GetProperty("private_items").EnumerateArray().Single(i => i.GetProperty("id").GetString() == "skin_boxer_demon_private");
+    Check(demonRow.GetProperty("owned").GetBoolean() && demonRow.GetProperty("grant").GetProperty("granted_by").GetString() == "fixture-admin" &&
+          demonRow.GetProperty("grant").GetProperty("note").GetString() == "panel test",
+        "a panel grant is attributed to the signed-in admin with its reason");
+    Check((await Call(HttpMethod.Post, $"api/players/{B}/inventory", new { item = "skin_hunter_s1", action = "grant" }, session)).status == 400,
+        "panel refuses to grant a public item");
+    Check((await Call(HttpMethod.Post, $"api/players/{B}/inventory", new { item = "x", action = "delete" }, session)).status == 400,
+        "panel rejects an unknown action");
+    (status, change) = await Call(HttpMethod.Post, $"api/players/{B}/inventory", new { item = "skin_boxer_demon_private", action = "revoke" }, session);
+    Check(status == 200 && change.GetProperty("result").GetString() == "Revoked" && !PlayerInventory.Owns(B, demon), "panel revoke succeeds");
+    Check((await Call(HttpMethod.Get, "api/players/999/inventory", cookie: session)).status == 404, "unknown player is a 404");
+
+    // A grant whose card has gone is still listed, so it can be revoked.
+    using (var db2 = new SQLiteConnection(Databases.PlayerDatabaseFile))
+        db2.Execute("INSERT INTO InventoryGrants (player_id, item, granted_at, granted_by) VALUES (?, 'skin_retired_private', ?, 'fixture')", C, DateTimeOffset.UtcNow);
+    (_, inv) = await Call(HttpMethod.Get, $"api/players/{C}/inventory", cookie: session);
+    Check(inv.GetProperty("stale_grants").EnumerateArray().Any(g => g.GetProperty("item").GetString() == "skin_retired_private"),
+        "grants for items no longer in the catalogue are listed");
+    Check((await Call(HttpMethod.Post, $"api/players/{C}/inventory", new { item = "skin_retired_private", action = "revoke" }, session))
+          .json.GetProperty("result").GetString() == "Revoked", "and can be revoked");
+
+    using var adminPage = new HttpRequestMessage(HttpMethod.Get, "/");
+    adminPage.Headers.Add("Cookie", session);
+    var adminHtml = await (await http.SendAsync(adminPage)).Content.ReadAsStringAsync();
+    using var anonymous = new HttpClient(new HttpClientHandler { UseCookies = false }) { BaseAddress = http.BaseAddress };
+    var publicHtml = await anonymous.GetStringAsync("/");
+    Check(adminHtml.Contains("id=\"inventoryCard\"") && !publicHtml.Contains("id=\"inventoryCard\""),
+        "the inventory section is served to admins only");
+}
+panel.Stop();
 
 Directory.SetCurrentDirectory(Path.GetTempPath());
 SQLiteAsyncConnection.ResetPool();

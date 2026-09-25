@@ -493,9 +493,159 @@ async function loadPlayer(id) {
 
     renderProfile(p.badges, p.badge_icons);
     renderLoadouts(p.loadouts || []);
+    if (window.controlPanelAdmin) loadInventory(id);
   } catch (e) {
     showToast("error", "Failed to load player: " + e.message);
   }
+}
+
+/* ---------- inventory (admin) ---------- */
+
+const INVENTORY_CATEGORY = {
+  Unit: "heroes",
+  Skin: "skins",
+  Device: "devices",
+  Perk: "perks",
+  Badge: "badges",
+};
+
+async function loadInventory(id) {
+  const counts = document.getElementById("invCounts");
+  const list = document.getElementById("invPrivate");
+  const stale = document.getElementById("invStale");
+  counts.textContent = "Loading…";
+  list.innerHTML = "";
+  stale.innerHTML = "";
+  try {
+    const res = await fetch("/api/players/" + id + "/inventory");
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || res.statusText);
+    if (currentPlayerId !== id) return; // drawer moved on while we waited
+    renderInventory(data);
+  } catch (e) {
+    counts.textContent = "Inventory unavailable: " + e.message;
+  }
+}
+
+function grantLine(g) {
+  const when = fmtUntil(Date.parse(g.granted_at));
+  return (
+    "Granted " +
+    esc(when) +
+    " by " +
+    esc(g.granted_by) +
+    (g.note ? " · " + esc(g.note) : "")
+  );
+}
+
+// Card ids and names only ever go into attributes, never inline script, so catalogue text cannot break out.
+function attr(s) {
+  return esc(s).replace(/"/g, "&quot;");
+}
+
+function invButton(cls, action, item, name, label) {
+  return (
+    '<button class="' +
+    cls +
+    '" data-inv-action="' +
+    action +
+    '" data-inv-item="' +
+    attr(item) +
+    '" data-inv-name="' +
+    attr(name) +
+    '">' +
+    label +
+    "</button>"
+  );
+}
+
+document.getElementById("inventoryCard")?.addEventListener("click", (e) => {
+  const b = e.target.closest("button[data-inv-action]");
+  if (b) changeInventory(b.dataset.invItem, b.dataset.invAction, b.dataset.invName);
+});
+
+function renderInventory(data) {
+  const counts = Object.entries(data.owned_counts || {})
+    .map(([cat, n]) => n + " " + (INVENTORY_CATEGORY[cat] || cat.toLowerCase()))
+    .join(" · ");
+  document.getElementById("invCounts").textContent =
+    "Owns " + (counts || "nothing") + ".";
+
+  const items = data.private_items || [];
+  document.getElementById("invPrivate").innerHTML = items.length
+    ? items
+        .map((i) => {
+          const kind =
+            (i.hero ? esc(i.hero) + " " : "") +
+            esc((INVENTORY_CATEGORY[i.category] || i.category).replace(/s$/, ""));
+          const detail = i.grant
+            ? grantLine(i.grant)
+            : i.owned
+              ? "Owned"
+              : "Not owned";
+          const action = i.grant
+            ? invButton("ban-btn", "revoke", i.id, i.name, "Revoke")
+            : invButton("save-btn", "grant", i.id, i.name, "Grant");
+          return (
+            '<div class="inv-row' +
+            (i.owned ? " owned" : "") +
+            '"><div class="inv-item"><span class="inv-name">' +
+            esc(i.name) +
+            '</span><span class="inv-kind">' +
+            kind +
+            " · <code>" +
+            esc(i.id) +
+            '</code></span><span class="inv-detail">' +
+            detail +
+            "</span></div>" +
+            action +
+            "</div>"
+          );
+        })
+        .join("")
+    : '<p class="inv-empty">No private items exist. Mark a card <code>"scope": "private"</code> in the catalogue to make it grantable.</p>';
+
+  const stale = data.stale_grants || [];
+  document.getElementById("invStale").innerHTML = stale.length
+    ? '<span class="ident-label">Grants for items no longer private or in the catalogue</span>' +
+      stale
+        .map(
+          (g) =>
+            '<div class="inv-row"><div class="inv-item"><span class="inv-name"><code>' +
+            esc(g.item) +
+            '</code></span><span class="inv-detail">' +
+            grantLine(g) +
+            "</span></div>" +
+            invButton("ban-btn", "revoke", g.item, g.item, "Revoke") +
+            "</div>",
+        )
+        .join("")
+    : "";
+}
+
+async function changeInventory(item, action, name) {
+  const id = currentPlayerId;
+  if (id == null) return;
+  if (action === "revoke" && !confirm("Revoke " + (name || item) + " from this player?"))
+    return;
+  const noteInput = document.getElementById("invNote");
+  const body = { item, action };
+  if (action === "grant" && noteInput.value.trim()) body.note = noteInput.value.trim();
+  try {
+    const res = await fetch("/api/players/" + id + "/inventory", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || data.result || res.statusText);
+    const done = { Granted: "Granted.", Revoked: "Revoked.", Unchanged: "Nothing to change." };
+    showToast("success", done[data.result] || data.result);
+    if (action === "grant") noteInput.value = "";
+  } catch (e) {
+    showToast("error", "Inventory change failed: " + e.message);
+  }
+  if (currentPlayerId === id) loadInventory(id);
 }
 
 let currentLoadouts = [];

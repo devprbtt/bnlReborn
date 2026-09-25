@@ -1,13 +1,17 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
-# Managed-code and panel-only release; preserves deployed data and dependencies.
+# Managed code plus the whole ControlPanel folder; preserves deployed data and dependencies.
+# Same guard rails as deploy-code-hotfix.sh, plus the panel archive and a check that production did
+# not move since the release was staged. Any failure, including the health gate, restores the previous
+# release (EXIT trap: the gate's explicit `exit 1` does not fire an ERR trap).
 
-release_id=${1:?Usage: deploy-server-panel-release.sh RELEASE_ID UPLOAD_DIR DLL_SHA256 PDB_SHA256 PANEL_SHA256 BASE_RELEASE}
-upload=${2:?Usage: deploy-server-panel-release.sh RELEASE_ID UPLOAD_DIR DLL_SHA256 PDB_SHA256 PANEL_SHA256 BASE_RELEASE}
-dll_sha256=${3:?Usage: deploy-server-panel-release.sh RELEASE_ID UPLOAD_DIR DLL_SHA256 PDB_SHA256 PANEL_SHA256 BASE_RELEASE}
-pdb_sha256=${4:?Usage: deploy-server-panel-release.sh RELEASE_ID UPLOAD_DIR DLL_SHA256 PDB_SHA256 PANEL_SHA256 BASE_RELEASE}
-panel_sha256=${5:?Panel SHA256 required}
-base_release=${6:?Expected current release required}
+usage='Usage: deploy-server-panel-release.sh RELEASE_ID UPLOAD_DIR DLL_SHA256 PDB_SHA256 PANEL_TAR_SHA256 BASE_RELEASE'
+release_id=${1:?$usage}
+upload=${2:?$usage}
+dll_sha256=${3:?$usage}
+pdb_sha256=${4:?$usage}
+panel_sha256=${5:?$usage}
+base_release=${6:?$usage}
 root=/opt/bnlreloaded
 current=$root/current
 release=$root/releases/$release_id
@@ -25,7 +29,7 @@ rollback() {
   fi
   exit "$status"
 }
-trap rollback ERR
+trap rollback EXIT
 
 [[ $(id -u) -eq 0 ]] || { echo 'Run through sudo.' >&2; exit 1; }
 [[ $release_id =~ ^[0-9a-f]{12}$ ]] || { echo 'Invalid release identifier.' >&2; exit 1; }
@@ -35,16 +39,25 @@ trap rollback ERR
 }
 [[ -L $current ]] || { echo 'Current release pointer is not a symlink.' >&2; exit 1; }
 previous=$(readlink -f "$current")
-[[ $base_release =~ ^[0-9a-f]{12}$ && $previous == "$root/releases/$base_release" ]] || { echo "Production changed since staging." >&2; exit 1; }
 [[ $previous == "$root"/releases/* ]] || { echo 'Current release target is invalid.' >&2; exit 1; }
-[[ -f $upload/BNLReloadedServer.dll && -f $upload/BNLReloadedServer.pdb && -f $upload/REVISION && -f $upload/index.html ]] || {
-  echo 'Hotfix upload is incomplete.' >&2
+[[ $base_release =~ ^[0-9a-f]{12}$ && $previous == "$root/releases/$base_release" ]] || {
+  echo "Production changed since staging (live is $previous)." >&2
+  exit 1
+}
+[[ -f $upload/BNLReloadedServer.dll && -f $upload/BNLReloadedServer.pdb && -f $upload/REVISION && -f $upload/panel.tar ]] || {
+  echo 'Release upload is incomplete.' >&2
   exit 1
 }
 echo "$dll_sha256  $upload/BNLReloadedServer.dll" | sha256sum -c -
 echo "$pdb_sha256  $upload/BNLReloadedServer.pdb" | sha256sum -c -
-echo "$panel_sha256  $upload/index.html" | sha256sum -c -
+echo "$panel_sha256  $upload/panel.tar" | sha256sum -c -
 [[ $(<"$upload/REVISION") == "$release_id"* ]] || { echo 'Revision marker mismatch.' >&2; exit 1; }
+# The archive must hold exactly one top-level ControlPanel folder and nothing that escapes it.
+if tar -tf "$upload/panel.tar" | grep -Ev '^ControlPanel(/|$)' | grep -q .; then
+  echo 'Panel archive contains paths outside ControlPanel/.' >&2
+  exit 1
+fi
+tar -tf "$upload/panel.tar" | grep -Fxq 'ControlPanel/index.html' || { echo 'Panel archive has no index.html.' >&2; exit 1; }
 systemctl is-active --quiet bnlreloaded.service
 
 install -d -o root -g root -m 0700 "$backup"
@@ -55,14 +68,22 @@ if [[ -e $release ]]; then
   [[ -d $release ]] || { echo 'Existing release path is not a directory.' >&2; exit 1; }
   echo "$dll_sha256  $release/BNLReloadedServer.dll" | sha256sum -c -
   echo "$pdb_sha256  $release/BNLReloadedServer.pdb" | sha256sum -c -
-  echo "$panel_sha256  $release/ControlPanel/index.html" | sha256sum -c -
+  [[ $(<"$release/PANEL_SHA256") == "$panel_sha256" ]] || { echo 'Existing release has a different panel.' >&2; exit 1; }
   cmp -s "$upload/REVISION" "$release/REVISION"
 else
+  staging=$(mktemp -d "$root/.panel-staging-XXXXXX")
+  tar -xf "$upload/panel.tar" -C "$staging" --no-same-owner --no-same-permissions
+  chown -R root:root "$staging/ControlPanel"
+  find "$staging/ControlPanel" -type d -exec chmod 0755 {} +
+  find "$staging/ControlPanel" -type f -exec chmod 0644 {} +
   cp -a --reflink=auto "$previous" "$release"
   install -o root -g root -m 0644 "$upload/BNLReloadedServer.dll" "$release/BNLReloadedServer.dll"
   install -o root -g root -m 0644 "$upload/BNLReloadedServer.pdb" "$release/BNLReloadedServer.pdb"
   install -o root -g root -m 0644 "$upload/REVISION" "$release/REVISION"
-  install -o root -g root -m 0644 "$upload/index.html" "$release/ControlPanel/index.html"
+  rm -rf "$release/ControlPanel"
+  mv "$staging/ControlPanel" "$release/ControlPanel"
+  rmdir "$staging"
+  printf '%s\n' "$panel_sha256" >"$release/PANEL_SHA256"
 fi
 
 started_at=$(date --iso-8601=seconds)
@@ -93,5 +114,5 @@ if journalctl -q -u bnlreloaded.service --since "$started_at" --no-pager -p err.
 fi
 
 changed=0
-trap - ERR
+trap - EXIT
 printf 'ACTIVE_RELEASE=%s\nROLLBACK_SNAPSHOT=%s\n' "$release" "$backup"

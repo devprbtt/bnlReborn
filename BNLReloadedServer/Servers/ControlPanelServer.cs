@@ -385,18 +385,21 @@ public sealed class ControlPanelServer : IDisposable
         return new
         {
             key = card?.Id ?? hash.ToString(),
-            name = card switch
-            {
-                CardMap map => map.Name?.Text ?? map.Id,
-                CardUnit unit => unit.Name?.Text ?? unit.Id,
-                CardDevice device => device.Name?.Text ?? device.Id,
-                CardPerk perk => perk.Name?.Text ?? perk.Id,
-                CardSkin skin => skin.Name?.Text ?? skin.Id,
-                CardGameMode mode => mode.Name ?? mode.Id,
-                _ => card?.Id ?? hash.ToString()
-            }
+            name = card != null ? CardName(card) : hash.ToString()
         };
     }
+
+    private static string CardName(Card card) => card switch
+    {
+        CardMap map => map.Name?.Text,
+        CardUnit unit => unit.Name?.Text,
+        CardDevice device => device.Name?.Text,
+        CardPerk perk => perk.Name?.Text,
+        CardSkin skin => skin.Name?.Text,
+        CardBadge badge => badge.Name?.Text,
+        CardGameMode mode => mode.Name,
+        _ => null
+    } ?? card.Id ?? card.Key.ToString();
 
     private static string? DescribeArchivePortrait(long skinHash) => Databases.Catalogue.All
         .OfType<CardSkin>().FirstOrDefault(card => card.Key.Hash == (uint)skinHash)?.IconPortrait;
@@ -1569,16 +1572,44 @@ public sealed class ControlPanelServer : IDisposable
         }
     }
 
-    // Grants are private data, so these routes are not on the public read list.
+    // Grants are private data, so these routes are not on the public read list. The owned counts come from the
+    // same builder the game uses at login, so the panel shows exactly what the player's client is told.
     private static async Task ServeInventoryGrants(HttpListenerContext ctx, uint playerId)
     {
-        var grants = await Databases.MasterServerDatabase.GetInventoryGrants(playerId);
-        var privateItems = Databases.Catalogue.All.Where(PlayerInventory.RequiresGrant)
-            .Select(card => new { id = card.Id, category = card.Category.ToString() }).OrderBy(i => i.id);
+        var player = Databases.PlayerDatabase.GetPlayerDataNoWait(playerId) ??
+                     await Databases.MasterServerDatabase.GetPlayer(playerId);
+        if (player == null)
+        {
+            ctx.Response.StatusCode = 404;
+            await WriteJson(ctx, new { error = "Player not found" });
+            return;
+        }
+
+        var grants = (await Databases.MasterServerDatabase.GetInventoryGrants(playerId)).ToDictionary(g => g.Item);
+        var owned = PlayerInventory.Build(playerId, player.Role).Select(i => i.Item).ToHashSet();
+        var privateCards = Databases.Catalogue.All.Where(PlayerInventory.RequiresGrant).ToList();
+        object? Grant(string? id) => id != null && grants.TryGetValue(id, out var g)
+            ? new { grantedAt = g.GrantedAt, grantedBy = g.GrantedBy, note = g.Note }
+            : null;
         await WriteJson(ctx, new
         {
-            grants = grants.Select(g => new { item = g.Item, grantedAt = g.GrantedAt, grantedBy = g.GrantedBy, note = g.Note }),
-            privateItems
+            player = new { id = playerId, nickname = player.Nickname },
+            ownedCounts = owned.Select(key => key.GetCard<Card>()).OfType<Card>()
+                .GroupBy(card => card.Category.ToString()).OrderBy(g => g.Key).ToDictionary(g => g.Key, g => g.Count()),
+            privateItems = privateCards
+                .OrderBy(card => card.Category).ThenBy(CardName)
+                .Select(card => new
+                {
+                    id = card.Id,
+                    name = CardName(card),
+                    category = card.Category.ToString(),
+                    hero = card is CardSkin skin && skin.HeroKey.GetCard<CardUnit>() is { } hero ? CardName(hero) : null,
+                    owned = owned.Contains(card.Key),
+                    grant = Grant(card.Id)
+                }),
+            // Grants whose card left the catalogue or went public: nothing in game, but still revocable.
+            staleGrants = grants.Values.Where(g => privateCards.All(card => card.Id != g.Item))
+                .Select(g => new { item = g.Item, grantedAt = g.GrantedAt, grantedBy = g.GrantedBy, note = g.Note })
         });
     }
 

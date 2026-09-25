@@ -621,3 +621,63 @@
   border-left-color: color-mix(in srgb, var(--alarm) 60%, transparent);
   color: var(--alarm-ink);
 }
+
+/* ---------- inventory (admin) ---------- */
+.inv-counts {
+  font-size: 13px;
+  color: var(--ink-2);
+}
+.inv-note {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 12px 0 4px;
+}
+.inv-list {
+  display: flex;
+  flex-direction: column;
+}
+.inv-list:empty {
+  display: none;
+}
+.inv-list > .ident-label {
+  margin-top: 12px;
+}
+.inv-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 0;
+  border-top: 1px solid var(--line);
+}
+.inv-row:first-child {
+  margin-top: 8px;
+}
+.inv-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  flex: 1;
+}
+.inv-name {
+  font-weight: 600;
+  color: var(--ink);
+}
+.inv-row:not(.owned) .inv-name {
+  color: var(--ink-2);
+}
+.inv-kind,
+.inv-detail {
+  font-size: 12.5px;
+  color: var(--ink-3);
+  overflow-wrap: anywhere;
+}
+.inv-row.owned .inv-detail {
+  color: var(--ok-ink);
+}
+.inv-empty {
+  margin: 8px 0 0;
+  font-size: 13px;
+  color: var(--ink-3);
+}

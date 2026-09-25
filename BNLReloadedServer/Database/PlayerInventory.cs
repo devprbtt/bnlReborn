@@ -32,6 +32,38 @@ public static class PlayerInventory
             .FirstOrDefault(candidate => CanEquipSkin(playerId, hero, candidate)) ?? Key.None;
     }
 
+    /// <summary>Everything the client is told this player owns: the same list at login, on a grant change and in the panel.</summary>
+    public static List<InventoryItem> Build(uint playerId, PlayerRole role)
+    {
+        var globalLogic = CatalogueHelper.GlobalLogic;
+
+        var inventory = new List<InventoryItem>();
+        bool Owned(Card card) => PlayerInventory.Owns(playerId, card.Key);
+        var deviceCards = CatalogueHelper.GetCards<CardDevice>(CardCategory.Device).Where(Owned);
+        var heroCards = CatalogueHelper.GetHeroes().Select(h => h.GetCard<CardUnit>()).OfType<CardUnit>().Where(Owned);
+        var skinCards = CatalogueHelper.GetCards<CardSkin>(CardCategory.Skin).Where(Owned);
+
+        var offPerks = globalLogic.Perks?.Offensive?.Select(p => p.GetCard<CardPerk>()).OfType<CardPerk>() ?? [];
+        var defPerks = globalLogic.Perks?.Defensive?.Select(p => p.GetCard<CardPerk>()).OfType<CardPerk>() ?? [];
+        var heroPerks = globalLogic.Perks?.Heroes?.SelectMany(p => p.Value.Select(perk => perk.GetCard<CardPerk>())).OfType<CardPerk>() ?? [];
+
+        var perkCards = heroPerks.Union(offPerks.Union(defPerks)).Where(Owned);
+        var badgeCards = (globalLogic.AvailableBadges?.Select(b => b.GetCard<CardBadge>()).OfType<CardBadge>() ?? []).Where(Owned);
+
+        if (role is not PlayerRole.Core)
+        {
+            badgeCards = badgeCards.Where(b => b.Id != "badge_icon_community_representative");
+        }
+
+        var purchaseTime = (ulong)DateTimeOffset.Now.ToUnixTimeMilliseconds();
+        inventory.AddRange(deviceCards.Select(deviceCard => new InventoryItem { Item = deviceCard.Key }).ToList());
+        inventory.AddRange(heroCards.Select(heroCard => new InventoryItem { Item = heroCard.Key, PurchaseTime = purchaseTime }).ToList());
+        inventory.AddRange(skinCards.Select(skinCard => new InventoryItem { Item = skinCard.Key, PurchaseTime = purchaseTime }).ToList());
+        inventory.AddRange(perkCards.Select(perkCard => new InventoryItem { Item = perkCard.Key, PurchaseTime = purchaseTime }).ToList());
+        inventory.AddRange(badgeCards.Select(badgeCard => new InventoryItem { Item = badgeCard.Key }).ToList());
+        return inventory;
+    }
+
     public static IReadOnlySet<Key> GrantsFor(uint playerId) =>
         Grants.TryGetValue(playerId, out var owned) ? owned : FrozenSet<Key>.Empty;
 
