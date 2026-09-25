@@ -1,15 +1,23 @@
 using System.Linq.Expressions;
+using System.Reflection;
+using System.Runtime.CompilerServices;
 using System.Text.Json;
 using BNLReloadedServer.BaseTypes;
 using BNLReloadedServer.Database;
 using BNLReloadedServer.ProtocolHelpers;
+using BNLReloadedServer.ServerTypes;
+using BNLReloadedServer.Service;
 
 int checks = 0;
 void Check(bool ok, string message) { if (!ok) throw new Exception(message); checks++; Console.WriteLine("PASS " + message); }
 var updates = new List<(UnitUpdate Data, bool Immediate)>();
+var deliveryOrder = new List<string>();
 var ctor = typeof(UnitUpdater).GetConstructors().Single();
 var callbacks = ctor.GetParameters().Select(p => {
-    if (p.ParameterType == typeof(OnUnitUpdate)) return (object)(OnUnitUpdate)((_, u, immediate) => updates.Add((u, immediate)));
+    if (p.ParameterType == typeof(OnUnitUpdate)) return (object)(OnUnitUpdate)((_, u, immediate) => {
+        updates.Add((u, immediate));
+        if (u.Ammo != null) deliveryOrder.Add("ammo");
+    });
     var invoke = p.ParameterType.GetMethod("Invoke")!;
     var parameters = invoke.GetParameters().Select(a => Expression.Parameter(a.ParameterType, a.Name)).ToArray();
     return (object)Expression.Lambda(p.ParameterType, Expression.Default(invoke.ReturnType), parameters).Compile();
@@ -52,6 +60,20 @@ updates.Clear(); unit.AddAmmoPercent(.1f);
 Check(updates.Single().Data.Ammo![blitz].Single().Mag==null, "percentage reserve refill cannot overwrite loaded charges");
 State(0,4); unit.ReloadAmmo(); unit.SetGear(graviton); unit.ReloadAmmo(); unit.SetGear(blitz);
 Check(unit.GetGearByKey(blitz)!.Ammo[0].Mag==2 && unit.GetGearByKey(graviton)!.Ammo[0].Mag==1, "reload/swap preserves both magazines");
+State(0,4);
+var zone = (GameZone)RuntimeHelpers.GetUninitializedObject(typeof(GameZone));
+typeof(GameZone).GetField("_playerUnits", BindingFlags.Instance | BindingFlags.NonPublic)!
+    .SetValue(zone, new Dictionary<uint, Unit> { [unit.Id] = unit });
+typeof(GameZone).GetField("_playerIdToUnitId", BindingFlags.Instance | BindingFlags.NonPublic)!
+    .SetValue(zone, new Dictionary<uint, uint> { [unit.PlayerId!.Value] = unit.Id });
+var reloadService = DispatchProxy.Create<IServiceZone, RecordingZoneProxy>();
+((RecordingZoneProxy)(object)reloadService).Invoked = (method, arguments) => {
+    if (method.Name == nameof(IServiceZone.SendReload)) deliveryOrder.Add($"rpc:{arguments![1]}");
+};
+deliveryOrder.Clear();
+zone.ReceivedReloadRequest(7, unit.PlayerId.Value, reloadService);
+Check(deliveryOrder.SequenceEqual(["ammo", "rpc:True"]), "authoritative magazine is delivered before reload acceptance");
+Check(updates.Single().Immediate && unit.CurrentGear!.Ammo[0].Mag == 2, "accepted reload publishes its refill immediately");
 var now=DateTimeOffset.UtcNow;
 State(2,4);
 Check(!unit.DashCharge.Finish(unit,1,now,out _), "end-charge without accepted start rejected");
@@ -75,3 +97,16 @@ State(2,4); unit.DashCharge.Start(unit,1,now);
 Check(!unit.DashCharge.Finish(unit,0,now.AddSeconds(1),out _), "different tool cannot finish charge");
 Check(!unit.DashCharge.Start(unit,255,now), "out-of-range tool safely rejected");
 Console.WriteLine($"SS ammo repair: {checks} checks passed");
+
+public class RecordingZoneProxy : DispatchProxy
+{
+    public Action<MethodInfo, object?[]?>? Invoked { get; set; }
+
+    protected override object? Invoke(MethodInfo? targetMethod, object?[]? args)
+    {
+        Invoked?.Invoke(targetMethod!, args);
+        return targetMethod!.ReturnType == typeof(void)
+            ? null
+            : targetMethod.ReturnType.IsValueType ? Activator.CreateInstance(targetMethod.ReturnType) : null;
+    }
+}

@@ -246,8 +246,11 @@ public partial class GameZone
         }
         else
         {
-            reloaderService.SendReload(rpcId, true);
             player.ReloadAmmo();
+            // The client completes the reload action as soon as it receives this RPC and may immediately
+            // run a queued action. Publish the authoritative magazine first so that action cannot observe
+            // the pre-reload empty magazine and schedule a second automatic reload.
+            reloaderService.SendReload(rpcId, true);
         }
 
         var reloadEffects = player.ActiveEffects.GetEffectsOfType<ConstEffectOnReload>();
