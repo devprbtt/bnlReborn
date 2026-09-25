@@ -1,4 +1,3 @@
-﻿using System.Threading.Channels;
 using NetCoreServer;
 using BNLReloadedServer.Logging;
 
@@ -6,49 +5,39 @@ namespace BNLReloadedServer.Servers;
 
 public class AsyncSenderTask
 {
-    private readonly Channel<byte[]> _packetBuffer = Channel.CreateUnbounded<byte[]>();
+    private readonly TcpSession _session;
+    private int _stopped;
+
     public Guid Id { get; }
 
     public AsyncSenderTask(TcpSession session)
     {
+        _session = session;
         Id = session.Id;
-        _ = RunSendTask(session, _packetBuffer.Reader);
     }
 
-    public void SendPacket(byte[] packet) => _packetBuffer.Writer.TryWrite(packet);
-
-    private static async Task RunSendTask(TcpSession session, ChannelReader<byte[]> packets)
+    public void SendPacket(byte[] packet)
     {
+        if (Volatile.Read(ref _stopped) != 0) return;
+
         try
         {
-            await foreach (var packet in packets.ReadAllAsync())
-            {
-                try
-                {
-                    session.Send(packet);
-                }
-                catch (OperationCanceledException)
-                {
-                }
-                // One bad packet must not take the queue down with it. Send() tears the session
-                // down itself on a socket error, so a dead session means there is nothing left
-                // to drain and anything else is worth a line in the log.
-                catch (Exception e)
-                {
-                    if (!session.IsConnected) break;
-                    Log.Error(LogCat.Net, $"Failed to send packet on session {session.Id}", e);
-                }
-            }
+            // NetCoreServer's asynchronous send path owns a per-session lock and ordered buffer.
+            // Queue into it directly from the caller. The previous extra Channel required a
+            // ThreadPool continuation before even a CheckVersion reply could reach the socket;
+            // under transient worker starvation that left new instance sessions connected but
+            // silent until clients timed out and retried.
+            _session.SendAsync(packet);
         }
         catch (OperationCanceledException)
         {
-
         }
         catch (Exception e)
         {
-            Log.Error(LogCat.Net, "Send queue failed", e);
+            if (_session.IsConnected)
+                Log.Error(LogCat.Net, $"Failed to queue packet on session {_session.Id}", e);
         }
     }
 
-    public void Stop() => _packetBuffer.Writer.TryComplete();
+    public void Stop() => Interlocked.Exchange(ref _stopped, 1);
 }
