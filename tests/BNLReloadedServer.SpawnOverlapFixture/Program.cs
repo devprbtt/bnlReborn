@@ -1,150 +1,179 @@
-// Players who choose the same spawn at the same moment must never be placed inside each other.
-// Respawn devices have no side shift, so every spawner used to get the device's exact position; the fixture
-// spawns players one after another onto real units, checks each landing is free, standable and apart
-// from everyone already there, and pins the octree duplicate that left phantom bodies after a respawn.
-using System.Linq.Expressions;
+// Players whose respawn timers run out in the same tick and who chose the same respawn device must not
+// spawn inside each other. The device locks as PlayerBlocked while someone stands on it; the fixture runs a
+// real GameZone tick with three dead players on one device and requires exactly one to spawn, the rest to
+// wait in the death cam until the device clears, and a waiting player to be free to pick another spawn.
+using System.Collections.Concurrent;
 using System.Numerics;
+using System.Reflection;
 using BNLReloadedServer.BaseTypes;
 using BNLReloadedServer.Database;
 using BNLReloadedServer.Octree_Extensions;
 using BNLReloadedServer.ProtocolHelpers;
 using BNLReloadedServer.ServerTypes;
+using BNLReloadedServer.Servers;
+using BNLReloadedServer.Service;
+using MatchType = BNLReloadedServer.BaseTypes.MatchType;
 using Octree;
 
 const ushort AirId = 0, FloorId = 1;
 const int SizeX = 16, SizeY = 8, SizeZ = 16, FloorTop = 3;
-// Client player CharacterController radius 0.32: two bodies overlap when their centres are closer than this.
-const float MinSeparation = 0.64f;
+const BindingFlags Any = BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public;
 
 int checks = 0;
 void Check(bool pass, string name) { if (!pass) throw new Exception("FAIL " + name); checks++; Console.WriteLine("PASS " + name); }
 
 var catalogue = (ServerCatalogue)Databases.Catalogue;
+var gear = new CardGear { Id = "fixture_spawn_gear" };
 var hero = new CardUnit { Id = "fixture_spawn_hero", Data = new UnitDataPlayer(), Size = new Vector3s(1, 2, 1), PivotType = UnitPivotType.CenterBottom };
+var device = new CardUnit
+{
+    Id = "fixture_spawn_device", Data = new UnitDataCommon(), Size = new Vector3s(1, 1, 1), PivotType = UnitPivotType.Center,
+    Labels = [UnitLabel.RespawnPoint], SpawnPoint = new UnitSpawnPoint { SideShift = 0 }
+};
+var match = new CardMatch { Id = "fixture_spawn_match", Data = new MatchDataShieldCapture() };
+var mode = new CardGameMode { Id = "game_mode_friendly" };
 catalogue.Replicate([
-    hero,
+    gear, hero, device, match, mode, new CardGameMode { Id = "game_mode_custom" },
     new CardBlock { Id = "fixture_air", BlockId = AirId, Passable = BlockPassableType.Any, Transparent = true, LightTransparent = true, SkylightTransparent = true },
     new CardBlock { Id = "fixture_floor", BlockId = FloorId, Passable = BlockPassableType.None, Solid = true, Grounded = true }
 ]);
 
-var constructor = typeof(UnitUpdater).GetConstructors().Single(c => c.GetParameters().Length == 20);
-var updater = (UnitUpdater)constructor.Invoke(constructor.GetParameters().Select(p =>
-{
-    var invoke = p.ParameterType.GetMethod("Invoke")!;
-    return (object)Expression.Lambda(p.ParameterType, Expression.Default(invoke.ReturnType),
-        invoke.GetParameters().Select(a => Expression.Parameter(a.ParameterType, a.Name))).Compile();
-}).ToArray());
+((UnitDataPlayer)hero.Data!).Gears = [gear.Key]; // keys exist only after Replicate
 
-MapBinary BuildMap(Func<int, int, int, bool> solid)
+var blocks = new byte[SizeX * SizeY * SizeZ * 6];
+for (var x = 0; x < SizeX; x++)
+for (var y = 0; y < FloorTop; y++)
+for (var z = 0; z < SizeZ; z++)
+    BitConverter.TryWriteBytes(blocks.AsSpan(((x * SizeY + y) * SizeZ + z) * 6, 2), FloorId);
+
+var devicePos = new Vector3(8.5f, FloorTop + 0.5f, 8.5f);
+var mapData = new MapData
 {
-    var data = new byte[6 + SizeX * SizeY * SizeZ * 6];
-    BitConverter.TryWriteBytes(data.AsSpan(0, 2), (ushort)SizeX);
-    BitConverter.TryWriteBytes(data.AsSpan(2, 2), (ushort)SizeY);
-    BitConverter.TryWriteBytes(data.AsSpan(4, 2), (ushort)SizeZ);
-    for (var x = 0; x < SizeX; x++)
-    for (var y = 0; y < SizeY; y++)
-    for (var z = 0; z < SizeZ; z++)
+    Match = MatchType.ShieldCapture,
+    Properties = new MapDataProps(),
+    Size = new Vector3s(SizeX, SizeY, SizeZ),
+    BlocksData = blocks.Zip(0).ToArray(),
+    SpawnPoints = [new MapSpawnPoint { Team = TeamType.Team1, Label = SpawnPointLabel.Base, Position = new Vector3(3f, FloorTop, 3f) }],
+    Units = [new MapUnit { UnitKey = device.Key, Team = TeamType.Team1, Position = devicePos }]
+};
+
+var players = new ConcurrentDictionary<uint, PlayerLobbyState>();
+foreach (var id in new uint[] { 1, 2, 3 })
+    players[id] = new PlayerLobbyState { PlayerId = id, Team = TeamType.Team1, Hero = hero.Key, Nickname = $"p{id}" };
+
+var zone = new GameZone(Stub<IServiceZone>(), Stub<IServiceZone>(), Stub<IBuffer>(), Stub<ISender>(), mapData,
+    Stub<IGameInitiator>(new() { ["GetGameMode"] = mode.Key, ["get_GameInstanceId"] = "fixture" }), players);
+
+T Field<T>(string name) => (T)typeof(GameZone).GetField(name, Any)!.GetValue(zone)!;
+object? Call(string name, params object?[] args) => typeof(GameZone).GetMethod(name, Any)!.Invoke(zone, args);
+void Tick(ulong n) => ((Action)Call("OnTick", n)!)();
+
+// Everything runs on the zone's own action queue, exactly as live ticks do.
+T OnZone<T>(Func<T> body)
+{
+    var done = new TaskCompletionSource<T>();
+    zone.EnqueueAction(() => { try { done.SetResult(body()); } catch (Exception e) { done.SetException(e); } });
+    return done.Task.WaitAsync(TimeSpan.FromSeconds(10)).GetAwaiter().GetResult();
+}
+
+var zoneData = Field<ZoneData>("_zoneData");
+var deviceSpawnId = OnZone(() => Field<Dictionary<uint, Unit>>("_playerSpawnPoints").Keys.Single());
+var baseSpawnId = OnZone(() => zoneData.SpawnPoints.Keys.Single(k => k != deviceSpawnId));
+var units = OnZone(() => new uint[] { 1, 2, 3 }.Select(id => (Unit)Call("CreatePlayerUnit", id, Stub<IServiceZone>())!).ToList());
+foreach (var u in units) u.ZoneService = Stub<IServiceZone>(); // as SendLoadZone does for a joined player
+Check(units.All(u => u.PlayerId is not null && !u.IsDead), "three live player units created through the zone");
+
+// Die together, all on the device, all timers already expired: the reported situation.
+OnZone(() =>
+{
+    foreach (var u in units)
     {
-        var id = y < FloorTop || solid(x, y, z) ? FloorId : AirId;
-        BitConverter.TryWriteBytes(data.AsSpan(6 + ((x * SizeY + y) * SizeZ + z) * 6, 2), id);
+        u.IsDead = true;
+        u.IsDropped = true;
+        u.RespawnTime = DateTimeOffset.Now.AddSeconds(-1);
+        zoneData.UpdatePlayerSelectedSpawn(u.PlayerId!.Value, deviceSpawnId);
     }
-    return new MapBinary(data.Zip(0).ToArray(), 0f, new MapUpdater((_, _) => { }, (_, _) => { }, _ => { }, _ => true));
-}
+    Tick(1);
+    return 0;
+});
 
-uint nextId = 1;
-Unit PlayerAt(Vector3 feet)
-{
-    var id = nextId++;
-    var unit = new Unit(id, new UnitInit { Key = hero.Key, Team = TeamType.Team1, PlayerId = id, OwnerId = id }, updater);
-    unit.Transform.Position = feet;
-    return unit;
-}
+bool SameBody(Unit a, Unit b) => Vector2.Distance(new(a.Transform.Position.X, a.Transform.Position.Z),
+    new(b.Transform.Position.X, b.Transform.Position.Z)) < 0.64f && MathF.Abs(a.Transform.Position.Y - b.Transform.Position.Y) < 1.9f;
 
-bool Standable(MapBinary map, Vector3 feet)
-{
-    var cell = new Vector3s((int)MathF.Floor(feet.X), (int)MathF.Floor(feet.Y), (int)MathF.Floor(feet.Z));
-    return map.ContainsBlock(cell) && map[cell].Card.Passable is BlockPassableType.Any &&
-           map[cell + new Vector3s(0, 1, 0)].Card.Passable is BlockPassableType.Any;
-}
+var alive = units.Where(u => !u.IsDead).ToList();
+Check(alive.Count == 1, $"exactly one of three spawns on the device in the shared tick (spawned {alive.Count})");
+var first = alive[0];
+Check(Vector2.Distance(new(first.Transform.Position.X, first.Transform.Position.Z), new(devicePos.X, devicePos.Z)) < 0.01f,
+    "the one who spawned is on the device");
+Check(zoneData.SpawnPoints[deviceSpawnId].Lock == SpawnPointLockType.PlayerBlocked, "the device now reports PlayerBlocked to clients");
 
-// Spawns `count` players in turn at one point, each seeing the bodies placed before it, as the tick loop does.
-List<Vector3> SpawnInTurn(MapBinary map, Vector3 spawnPoint, float radius, int count, int seed)
+OnZone(() => { Tick(2); Tick(3); return 0; });
+Check(units.Count(u => !u.IsDead) == 1, "the others keep waiting while the device is occupied");
+
+// A waiting player may give up and pick the base; they spawn there without waiting for the device.
+var switcher = units.First(u => u.IsDead);
+OnZone(() => { zoneData.UpdatePlayerSelectedSpawn(switcher.PlayerId!.Value, baseSpawnId); Tick(4); return 0; });
+Check(!switcher.IsDead, "a waiting player who picks another spawn spawns there");
+Check(!SameBody(switcher, first), "and not inside the player on the device");
+
+// The first player walks off; the device frees and the last waiting player spawns on it.
+var last = units.Single(u => u.IsDead);
+OnZone(() =>
 {
-    var rand = new Random(seed);
-    var placed = new List<Unit>();
-    var landings = new List<Vector3>();
-    for (var i = 0; i < count; i++)
+    first.Transform.Position = first.Transform.Position + new Vector3(3, 0, 0);
+    typeof(GameZone).GetMethod("UnitMoved", Any)!.Invoke(zone, [first, 0UL, first.Transform, devicePos]);
+    Tick(5); Tick(6);
+    return 0;
+});
+Check(!last.IsDead, "the last player spawns once the device clears");
+Check(units.Where(u => !u.IsDead).SelectMany((a, i) => units.Where(u => !u.IsDead).Skip(i + 1).Select(b => (a, b))).All(p => !SameBody(p.a, p.b)),
+    "no two live players share a body");
+
+// A respawn must not leave the old body in the octree: exactly one entry per player unit.
+var octree = Field<BoundsOctreeEx<Unit>>("_unitOctree");
+var entries = OnZone(() => units.Sum(u => octree.GetColliding(new BoundingBoxEx(new Vector3(SizeX / 2f, SizeY / 2f, SizeZ / 2f),
+    new Vector3(SizeX, SizeY, SizeZ) * 4)).Count(e => e == u)));
+Check(entries == 3, $"one octree entry per respawned player (found {entries})");
+
+// A player who died standing on the device must not lock it against their own respawn.
+OnZone(() =>
+{
+    first.Transform.Position = devicePos with { Y = FloorTop + 0.08f };
+    typeof(GameZone).GetMethod("UnitMoved", Any)!.Invoke(zone, [first, 0UL, first.Transform, first.Transform.Position]);
+    foreach (var u in units.Where(u => u != first)) // clear the others off the device
     {
-        var blocked = map.GetContainedInUnits(placed);
-        var feet = radius < 1
-            ? GameZone.PickExactSpawnPosition(map, blocked, spawnPoint, rand)
-            : GameZone.PickAreaSpawnPosition(map, blocked, spawnPoint, radius, rand);
-        landings.Add(feet);
-        placed.Add(PlayerAt(feet));
+        u.Transform.Position = new Vector3(2.5f + u.PlayerId!.Value, FloorTop, 12.5f);
+        typeof(GameZone).GetMethod("UnitMoved", Any)!.Invoke(zone, [u, 0UL, u.Transform, u.Transform.Position]);
     }
-    return landings;
-}
+    first.IsDead = true;
+    first.IsDropped = true;
+    first.RespawnTime = DateTimeOffset.Now.AddSeconds(-1);
+    zoneData.UpdatePlayerSelectedSpawn(first.PlayerId!.Value, deviceSpawnId);
+    Tick(7); Tick(8);
+    return 0;
+});
+Check(!first.IsDead, "a player who died on the device can still respawn on it");
 
-float MinPairDistance(List<Vector3> feet) =>
-    feet.SelectMany((a, i) => feet.Skip(i + 1).Select(b => Vector2.Distance(new(a.X, a.Z), new(b.X, b.Z)))).DefaultIfEmpty(float.MaxValue).Min();
-
-var device = new Vector3(8.5f, FloorTop, 8.5f); // respawn device bottom-centre, as GameZone derives it
-
-// Baseline: the pre-fix rule returned this for every spawner, so any two players shared a body.
-var oldRule = device with { Y = device.Y + 0.08f };
-
-var open = BuildMap((_, _, _) => false);
-var first = SpawnInTurn(open, device, 0, 1, 1)[0];
-Check(first == oldRule, "a lone spawner still lands exactly on the device");
-
-var pair = SpawnInTurn(open, device, 0, 2, 1);
-Check(pair[0] == oldRule, "first of two keeps the exact spot");
-Check(pair[1] != pair[0], "second of two no longer lands on the first (the reported bug)");
-Check(MinPairDistance(pair) >= MinSeparation, $"two spawners are apart (min {MinPairDistance(pair):F2})");
-Check(MathF.Abs(pair[1].X - pair[0].X) + MathF.Abs(pair[1].Z - pair[0].Z) == 1, "second takes an adjacent side cell before a diagonal");
-Check(pair[1].Y == pair[0].Y, "second spawns at the device's height");
-
-for (var seed = 0; seed < 50; seed++)
-{
-    var nine = SpawnInTurn(open, device, 0, 9, seed);
-    if (nine.Distinct().Count() != 9 || MinPairDistance(nine) < MinSeparation || !nine.All(f => Standable(open, f)))
-        Check(false, $"nine spawners on an open device stay apart and standable (seed {seed})");
-}
-Check(true, "nine spawners on an open device stay apart and standable (50 seeds)");
-
-// Corridor one block wide along x: the only free neighbours are ahead and behind, never inside the walls.
-var corridor = BuildMap((_, y, z) => y >= FloorTop && z != 8);
-for (var seed = 0; seed < 50; seed++)
-{
-    var three = SpawnInTurn(corridor, device, 0, 3, seed);
-    if (!three.All(f => Standable(corridor, f)) || MinPairDistance(three) < MinSeparation)
-        Check(false, $"corridor spawners stay out of the walls (seed {seed})");
-}
-Check(true, "corridor spawners stay out of the walls and apart (50 seeds)");
-
-// Sealed pocket: no neighbour is standable, so the device's own spot is the only place that is not a wall.
-var pocket = BuildMap((x, y, z) => y >= FloorTop && !(x == 8 && z == 8));
-var sealedIn = SpawnInTurn(pocket, device, 0, 2, 1);
-Check(sealedIn.All(f => f == oldRule), "a walled-in device falls back to its own spot rather than a wall");
-
-// Map spawn areas already avoided bodies; the refactor must keep that for every seed.
-var spawnArea = new Vector3(8f, FloorTop, 8f);
-for (var seed = 0; seed < 50; seed++)
-{
-    var group = SpawnInTurn(open, spawnArea, 2, 10, seed);
-    if (group.Distinct().Count() != 10 || MinPairDistance(group) < MinSeparation || !group.All(f => Standable(open, f)))
-        Check(false, $"map spawn area keeps ten spawners apart (seed {seed})");
-}
-Check(true, "map spawn area keeps ten spawners apart (50 seeds)");
-
-// The octree stores duplicates and Remove drops one; a respawn that only re-added left the old body behind.
-var octree = new BoundsOctreeEx<Unit>(64, Vector3.Zero, 1, 1.2f);
-var body = PlayerAt(new Vector3(2.5f, FloorTop, 2.5f));
-octree.Add(body, new BoundingBox(new Vector3(2.5f, FloorTop + 1, 2.5f), new Vector3(0.5f, 1.9f, 0.5f)));
-octree.Add(body, new BoundingBox(new Vector3(8.5f, FloorTop + 1, 8.5f), new Vector3(0.5f, 1.9f, 0.5f)));
-octree.Remove(body);
-Check(octree.Count == 1, "premise: one Remove leaves a duplicate behind");
-while (octree.Remove(body)) { }
-Check(octree.Count == 0, "draining Remove clears every entry for the unit");
-
+zone.Stop();
 Console.WriteLine($"Spawn overlap fixture passed: {checks} checks.");
+
+static T Stub<T>(Dictionary<string, object?>? returns = null) where T : class
+{
+    var proxy = DispatchProxy.Create<T, StubProxy>();
+    ((StubProxy)(object)proxy).Returns = returns ?? [];
+    return proxy;
+}
+
+public class StubProxy : DispatchProxy
+{
+    public Dictionary<string, object?> Returns = [];
+    protected override object? Invoke(MethodInfo? method, object?[]? args)
+    {
+        if (method is null) return null;
+        if (Returns.TryGetValue(method.Name, out var value)) return value;
+        var type = method.ReturnType;
+        if (type == typeof(void)) return null;
+        if (type == typeof(bool)) return method.Name is "UsesPhaseBarriers" or "AllowsTeamCommunication";
+        return type.IsValueType ? Activator.CreateInstance(type) : null;
+    }
+}
