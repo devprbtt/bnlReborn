@@ -17,10 +17,17 @@ public abstract class ConstEffect : IJsonFactory<ConstEffect>
 
     public abstract void Read(BinaryReader reader);
 
+    /// <summary>
+    /// What the client is sent for this effect. The client only displays effects and parses every variant it
+    /// is given, so a server-only trigger must reach it as a type it knows.
+    /// </summary>
+    public virtual ConstEffect ClientView() => this;
+
     public static void WriteVariant(BinaryWriter writer, ConstEffect value)
     {
-        writer.WriteByteEnum(value.Type);
-        value.Write(writer);
+        var view = value.ClientView();
+        writer.WriteByteEnum(view.Type);
+        view.Write(writer);
     }
 
     public static ConstEffect ReadVariant(BinaryReader reader)
@@ -52,6 +59,7 @@ public abstract class ConstEffect : IJsonFactory<ConstEffect>
             ConstEffectType.OnReload => new ConstEffectOnReload(),
             ConstEffectType.Interval => new ConstEffectInterval(),
             ConstEffectType.OnNearbyBlock => new ConstEffectOnNearbyBlock(),
+            ConstEffectType.OnHit => new ConstEffectOnHit(),
             ConstEffectType.OnLeading => throw new ArgumentOutOfRangeException(nameof(type), type, "OnLeading ConstEffect not supported"),
             _ => throw new ArgumentOutOfRangeException(nameof(type), type, "Invalid variant tag")
         };

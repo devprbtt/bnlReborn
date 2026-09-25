@@ -65,6 +65,22 @@ public static class CatalogueValidator
             }
         }
 
+        // An on_hit effect is only as good as the effects it names: a typo would silently turn a perk like
+        // Heal Bane into nothing, so reject it here where the id is still readable.
+        foreach (var card in cards.OfType<CardEffect>())
+        {
+            if (card.Effect is not ConstEffectOnHit onHit) continue;
+            if (onHit.Effect == null)
+            {
+                problems.Add($"on_hit effect '{card.Id}' has no effect to apply");
+                continue;
+            }
+
+            foreach (var key in ConstantEffects(onHit.Effect).Where(key =>
+                         !byKey.TryGetValue(key.Hash, out var id) || byId[id] is not CardEffect))
+                problems.Add($"on_hit effect '{card.Id}' applies an effect that is not in the catalogue ({key})");
+        }
+
         foreach (var (id, type) in RequiredCards)
         {
             if (!byId.TryGetValue(id, out var card))
@@ -79,4 +95,8 @@ public static class CatalogueValidator
 
         return problems;
     }
+
+    private static IEnumerable<Key> ConstantEffects(InstEffect effect) => effect is InstEffectBunch bunch
+        ? (bunch.Constant ?? []).Concat((bunch.Instant ?? []).SelectMany(ConstantEffects))
+        : [];
 }

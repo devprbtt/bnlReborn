@@ -1494,8 +1494,14 @@ public partial class GameZone
         {
             if (attackerPlayer.GetBuff(BuffType.LifeSteal) > 0 && IsToolDamage(impact))
                 attackerPlayer.AddHealth(attackerPlayer.LifeStealAmount(damage));
-            if (attackerPlayer.IsBuff(BuffType.HealBane) && !target.IsDead && HealBaneApplies(impact))
-                target.AddEffects([new ConstEffectInfo(CatalogueHelper.HealBaneDebuff)], attackerPlayer.Team, attackerPlayer.GetSelfSource());
+            if (!target.IsDead && OnHitEffectsApply(impact))
+            {
+                // Run exactly like on_kill, but on the player who was hit: the effect's own targeting and
+                // constant effects decide what lands, e.g. Heal Bane's debuff.
+                var selfImpact = attackerPlayer.CreateImpactData();
+                foreach (var effect in attackerPlayer.ActiveEffects.GetEffectsOfType<ConstEffectOnHit>().Select(hit => hit.Effect).OfType<InstEffect>())
+                    ApplyInstEffect(attackerPlayer.GetSelfSource(selfImpact), [target], effect, selfImpact);
+            }
         }
 
         var targetTeam = target.Team;
@@ -1510,7 +1516,7 @@ public partial class GameZone
     }
 
     /// <summary>
-    /// On-hit perks (life steal, heal bane) only trigger for damage a living player deals to another
+    /// On-hit perks (life steal, on_hit effects such as Heal Bane) only trigger for damage a living player deals to another
     /// player's unit, never for blocks, devices or the attacker's own unit.
     /// </summary>
     internal static bool OnHitApplies(Unit attackerPlayer, Unit target) =>
@@ -1526,10 +1532,10 @@ public partial class GameZone
         (source.GetCard<CardGear>() is not null || source.GetCard<CardUnit>()?.Data is UnitDataProjectile);
 
     /// <summary>
-    /// Heal Bane starts or refreshes on a direct weapon hit. Damage-over-time intervals keep the
-    /// original weapon attribution for damage statistics, but are not additional weapon hits.
+    /// on_hit effects fire on a direct weapon hit. Damage-over-time intervals keep the original weapon
+    /// attribution for damage statistics, but are not additional weapon hits.
     /// </summary>
-    internal static bool HealBaneApplies(ImpactData impact) =>
+    internal static bool OnHitEffectsApply(ImpactData impact) =>
         !impact.PeriodicEffect && IsToolDamage(impact);
 
     private void UnitIsKilled(Unit target, ImpactData impact, bool mining = false)

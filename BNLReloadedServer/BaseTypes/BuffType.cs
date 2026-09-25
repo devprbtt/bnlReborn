@@ -60,6 +60,7 @@ public enum BuffType
     ToolWorldDamage = 56,
     // Share of damage dealt to enemy players returned to the attacker as health (snake case: life_steal).
     LifeSteal = 57,
-    // 1 if active: each hit on an enemy player applies CatalogueHelper.HealBaneDebuff to the victim.
+    // Retired: Heal Bane is now an on_hit effect on its perk card. Kept only so a catalogue that still
+    // carries "heal_bane" parses (an unknown buff name fails the whole load); it does nothing.
     HealBane = 58
 }

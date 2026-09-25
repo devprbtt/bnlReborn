@@ -183,7 +183,6 @@ public static class BuffHelper
             BuffType.Confusion or
             BuffType.InfiniteAmmo or
             BuffType.SlipperyImmunity or
-            BuffType.HealBane or
             BuffType.KnockbackIgnore => 1,
 
               // Can be -Inf -> 1, final multiplier is (1 - buff)

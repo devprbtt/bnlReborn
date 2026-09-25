@@ -20,5 +20,7 @@ public enum ConstEffectType
     Pull = 16,
     OnReload = 17,
     Interval = 18,
-    OnNearbyBlock = 19
+    OnNearbyBlock = 19,
+    // Reborn, server-only: the client has no such type, so ConstEffectOnHit reaches it as an empty buff.
+    OnHit = 20
 }
