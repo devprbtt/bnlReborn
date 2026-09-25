@@ -94,3 +94,16 @@ the new server is redeployed.
 live push to an online player, inventory for every category, loadout rules and the startup check
 (39 checks), then the real control panel over HTTP: login, the viewer data, grant and revoke attributed to the
 signed-in admin, and admin-only serving (53 checks in total). Removing any one of those behaviours makes it fail.
+
+## Making released skins available to everyone
+
+`tools/publish_public_skin_access.py` changes only `scope` to `public` for Nigel Arctic Wolf and
+Sweet Science Darklord (the catalogue name is Demon). It checks their hero lists and preserves
+IDs, names and asset routes. Run on the VPS without arguments to review, then with `--apply`.
+It stores revision-checked card snapshots and archives the two skins' redundant InventoryGrants
+rows under a private `/root/config-backups/public-custom-skins-*` directory before removing those
+rows. This avoids the current startup validator rejecting grants for public cards; the completed
+legacy import marker remains untouched. Other items and grants are unchanged.
+
+The catalogue watcher applies the change without a restart. Public scope covers existing and
+future accounts; already-connected clients should reconnect for their inventory to refresh.
