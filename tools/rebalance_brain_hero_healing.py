@@ -52,7 +52,7 @@ ORB_UNIT_IDS = {
 ORB_HEAL_AURA = "effect_hero_djinn_heavy_orb_heal_aura"
 ORB_HEAL_RADIUS = 3
 ORB_HEAL_INTERVAL = 0.2
-ORB_HEAL_PER_TICK = BRAINS_REGEN_PER_SECOND * ORB_HEAL_INTERVAL
+ORB_HEAL_PER_TICK = 2  # Doubled by double_brain_hero_healing.py (was 1, Trondson's rate).
 ORB_DEATH_IMPACT = "impact_explosion_djinn_orbs_secondary"
 SPEED_BALL_TEXT_IDS = ("perk_hero_djinn_speed_ball", "shop_item_perk_hero_djinn_speed_ball")
 SPEED_BALL_OLD_TEXT = ("Ifrit's Grudge alt fire moves 100% faster and deals 3 burn damage for 3s / "
@@ -70,7 +70,7 @@ ORB_GEAR_NEW_TEXT = ("Explode your enemies with explosive magic orbs! <BINDING_C
 
 # Tony
 CAULK_ID = "gear_engineer_caulk_gun"
-CAULK_PLAYER_HEAL = 3
+CAULK_PLAYER_HEAL = 6  # Doubled from the Healing Caulk value 3.
 CAULK_OLD_TEXT = ("Amazing tool that fixes blocks and slows your enemies. Alt-Fire to repair faster at the cost "
                   "of more ammo. Repairing your own turrets buffs their damage output.")
 CAULK_NEW_TEXT = ("Amazing tool that fixes blocks, heals allied Heroes and slows your enemies. Alt-Fire to repair "
@@ -82,7 +82,7 @@ DELETE_IDS = (HEALING_CAULK_SHOP_ITEM, HEALING_CAULK_PERK, HEALING_CAULK_GEAR)
 
 # Vander
 GLOVES_ID = "gear_magnus_static_gloves"
-GLOVES_BEAM_HEAL = 1
+GLOVES_BEAM_HEAL = 2  # Doubled from 1.
 GLOVES_OLD_TEXT = ("Unleash bolts of lightning that deal moderate damage to enemies or activate Tesla Coils. "
                    "Hold <BINDING_CAST2> to channel a continuous beam of lightning for close range combat.")
 GLOVES_NEW_TEXT = ("Unleash bolts of lightning that deal moderate damage to enemies or activate Tesla Coils. "
@@ -91,7 +91,7 @@ GLOVES_NEW_TEXT = ("Unleash bolts of lightning that deal moderate damage to enem
 
 # Doc
 GLOBE_IDS = ("gear_doc_eliza_bubble_gun", "gear_doc_eliza_bubble_gun_beautiful_bubbles")
-GLOBE_HEAL = 6
+GLOBE_HEAL = 12  # Doubled from 6.
 GLOBE_HEAL_RADIUS = 2.5
 GLOBE_OLD_TEXT = "Launches globes of corrosive acid in a ballistic arc. <BINDING_CAST2> for a close range lob."
 GLOBE_NEW_TEXT = ("Launches globes of corrosive acid in a ballistic arc that heal allied Heroes where they burst. "
@@ -268,11 +268,10 @@ def migrate_caulk(card, healing_variant):
         if any(is_ally_heal(e, CAULK_PLAYER_HEAL) for e in effects):
             continue
         assert healing_variant is not None, "Healing Caulk variant is gone but the base gun does not heal"
-        source = [e for e in healing_variant["tools"][index]["interval_effects"]
-                  if is_ally_heal(e, CAULK_PLAYER_HEAL)]
+        source = [e for e in healing_variant["tools"][index]["interval_effects"] if is_ally_heal(e, 3)]
         assert len(source) == 1, f"Healing Caulk tool {index} has no single ally heal"
         world_heal = next(i for i, e in enumerate(effects) if e["type"] == "heal")
-        effects.insert(world_heal + 1, copy.deepcopy(source[0]))
+        effects.insert(world_heal + 1, dict(copy.deepcopy(source[0]), player_heal=CAULK_PLAYER_HEAL))
     set_text(changed, "description", CAULK_OLD_TEXT, CAULK_NEW_TEXT)
     return changed
 
@@ -388,7 +387,6 @@ def audit(docs):
                                        "regen_per_second": regen, "regen_seconds": staff_effect["duration"]}
     aura = docs[ORB_HEAL_AURA]["effect"]
     orb_rate = aura["interval_effects"][0]["player_heal"] / aura["interval"]
-    assert abs(orb_rate - regen) < 1e-9, "orb heal rate differs from Trondson's regen"
     for card_id in ORB_UNIT_IDS:
         data = docs[card_id]["data"]
         assert docs[card_id]["init_effects"] == [ORB_HEAL_AURA]
