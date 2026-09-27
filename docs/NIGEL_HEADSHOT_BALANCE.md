@@ -1,17 +1,17 @@
 # Nigel headshot balance
 
-Nellie's base card currently deals 40 player damage with a 1.5 critical
-modifier: 60 damage per full-range headshot.
+Nellie's base card deals 40 player damage. Production currently uses a 1.75
+critical modifier: 70 damage per full-range headshot.
 
-The requested damage is exactly 70 per full-range headshot:
+The requested damage is exactly 65 per full-range headshot:
 
 ```text
-70 / 40 = 1.75 critical modifier
+65 / 40 = 1.625 critical modifier
 ```
 
 `tools/rebalance_nigel_headshots.py` changes only `gear_hunter_rifle`'s critical
-modifier from 1.5 to 1.75. Body damage, block/objective damage, fire timing,
-ammo, and range falloff remain unchanged. The headshot deals exactly 70 inside
+modifier from 1.75 to 1.625. Body damage, block/objective damage, fire timing,
+ammo, and range falloff remain unchanged. The headshot deals exactly 65 inside
 the existing 80-unit full-damage range and continues to fall off beyond it.
 
 ## Publication

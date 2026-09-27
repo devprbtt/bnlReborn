@@ -1,7 +1,7 @@
-"""Set Nigel's base-rifle full-damage headshot to exactly 70 damage.
+"""Set Nigel's base-rifle full-damage headshot to exactly 65 damage.
 
-The base Nellie body shot remains 40.  Its critical modifier changes from 1.5
-to 1.75, making a full-damage headshot exactly 70.
+The base Nellie body shot remains 40. Its critical modifier changes from the
+currently published 1.75 to 1.625, making a full-damage headshot exactly 65.
 
 Run on the production host.  The default mode is read-only and prints the
 plan.  ``--apply`` writes the revision-checked rifle document, saves a private
@@ -24,9 +24,9 @@ from pathlib import Path
 
 RIFLE = "gear_hunter_rifle"
 EXPECTED_BODY_DAMAGE = 40
-OLD_CRIT_MODIFIER = 1.5
-NEW_CRIT_MODIFIER = 1.75
-TARGET_HEADSHOT_DAMAGE = 70
+OLD_CRIT_MODIFIERS = (1.5, 1.75)
+NEW_CRIT_MODIFIER = 1.625
+TARGET_HEADSHOT_DAMAGE = 65
 
 
 def shot_effect(card):
@@ -47,7 +47,7 @@ def migrate(rifle):
         f"unexpected body damage: {damage['player_damage']}"
     if math.isclose(effect["crit_modifier"], NEW_CRIT_MODIFIER):
         return rifle
-    assert math.isclose(effect["crit_modifier"], OLD_CRIT_MODIFIER), \
+    assert any(math.isclose(effect["crit_modifier"], value) for value in OLD_CRIT_MODIFIERS), \
         f"unexpected critical modifier: {effect['crit_modifier']}"
     changed = copy.deepcopy(rifle)
     shot_effect(changed)["crit_modifier"] = NEW_CRIT_MODIFIER
@@ -115,7 +115,7 @@ if "--apply" not in sys.argv or after == before:
     sys.exit()
 
 backup = Path("/root/config-backups") / (
-    "nigel-70-headshots-" + time.strftime("%Y%m%dT%H%M%SZ", time.gmtime())
+    "nigel-65-headshots-" + time.strftime("%Y%m%dT%H%M%SZ", time.gmtime())
 )
 backup.mkdir(mode=0o700)
 (backup / "before.json").write_text(
