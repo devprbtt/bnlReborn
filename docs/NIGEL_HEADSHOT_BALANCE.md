@@ -9,16 +9,10 @@ The requested damage is exactly 70 per full-range headshot:
 70 / 40 = 1.75 critical modifier
 ```
 
-`tools/rebalance_nigel_headshots.py` changes `gear_hunter_rifle`'s critical
-modifier from 1.5 to 1.75 and increases the falloff start by 20%:
-
-```text
-80 * 1.20 = 96 units
-```
-
-Body damage, block/objective damage, fire timing, ammo, the 0.7 minimum-damage
-coefficient, and the 100-unit outer range remain unchanged. The headshot deals
-exactly 70 through 96 units, then falls off between 96 and 100 units.
+`tools/rebalance_nigel_headshots.py` changes only `gear_hunter_rifle`'s critical
+modifier from 1.5 to 1.75. Body damage, block/objective damage, fire timing,
+ammo, and range falloff remain unchanged. The headshot deals exactly 70 inside
+the existing 80-unit full-damage range and continues to fall off beyond it.
 
 ## Publication
 

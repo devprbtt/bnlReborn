@@ -1,8 +1,7 @@
-"""Set Nigel's headshot to 70 and extend its full-damage range by 20%.
+"""Set Nigel's base-rifle full-damage headshot to exactly 70 damage.
 
 The base Nellie body shot remains 40.  Its critical modifier changes from 1.5
-to 1.75, making a full-damage headshot exactly 70.  Falloff starts at 96
-instead of 80 units; its 100-unit minimum-damage and maximum ranges remain.
+to 1.75, making a full-damage headshot exactly 70.
 
 Run on the production host.  The default mode is read-only and prints the
 plan.  ``--apply`` writes the revision-checked rifle document, saves a private
@@ -28,10 +27,6 @@ EXPECTED_BODY_DAMAGE = 40
 OLD_CRIT_MODIFIER = 1.5
 NEW_CRIT_MODIFIER = 1.75
 TARGET_HEADSHOT_DAMAGE = 70
-OLD_FALLOFF_START = 80
-NEW_FALLOFF_START = 96
-EXPECTED_MIN_DAMAGE_RANGE = 100
-EXPECTED_MAX_RANGE = 100
 
 
 def shot_effect(card):
@@ -50,20 +45,12 @@ def migrate(rifle):
     damage = effect["damage"]
     assert damage["player_damage"] == EXPECTED_BODY_DAMAGE, \
         f"unexpected body damage: {damage['player_damage']}"
-    falloff = effect["falloff"]
-    assert falloff["min_damage_range"] == EXPECTED_MIN_DAMAGE_RANGE
-    assert falloff["max_range"] == EXPECTED_MAX_RANGE
-    assert effect["crit_modifier"] in (OLD_CRIT_MODIFIER, NEW_CRIT_MODIFIER), \
-        f"unexpected critical modifier: {effect['crit_modifier']}"
-    assert falloff["max_damage_range"] in (OLD_FALLOFF_START, NEW_FALLOFF_START), \
-        f"unexpected falloff start: {falloff['max_damage_range']}"
-    if (math.isclose(effect["crit_modifier"], NEW_CRIT_MODIFIER)
-            and falloff["max_damage_range"] == NEW_FALLOFF_START):
+    if math.isclose(effect["crit_modifier"], NEW_CRIT_MODIFIER):
         return rifle
+    assert math.isclose(effect["crit_modifier"], OLD_CRIT_MODIFIER), \
+        f"unexpected critical modifier: {effect['crit_modifier']}"
     changed = copy.deepcopy(rifle)
-    changed_effect = shot_effect(changed)
-    changed_effect["crit_modifier"] = NEW_CRIT_MODIFIER
-    changed_effect["falloff"]["max_damage_range"] = NEW_FALLOFF_START
+    shot_effect(changed)["crit_modifier"] = NEW_CRIT_MODIFIER
     return changed
 
 
@@ -71,15 +58,11 @@ def audit(rifle):
     effect = shot_effect(rifle)
     per_headshot = effect["damage"]["player_damage"] * effect["crit_modifier"]
     assert math.isclose(per_headshot, TARGET_HEADSHOT_DAMAGE), per_headshot
-    falloff = effect["falloff"]
-    assert falloff["max_damage_range"] == NEW_FALLOFF_START
     return {
         "body_shot": effect["damage"]["player_damage"],
         "crit_modifier": effect["crit_modifier"],
         "headshot": per_headshot,
-        "falloff_start": falloff["max_damage_range"],
-        "min_damage_range": falloff["min_damage_range"],
-        "max_range": falloff["max_range"],
+        "full_damage_range": effect["falloff"]["max_damage_range"],
     }
 
 
@@ -132,7 +115,7 @@ if "--apply" not in sys.argv or after == before:
     sys.exit()
 
 backup = Path("/root/config-backups") / (
-    "nigel-70-headshots-range-" + time.strftime("%Y%m%dT%H%M%SZ", time.gmtime())
+    "nigel-70-headshots-" + time.strftime("%Y%m%dT%H%M%SZ", time.gmtime())
 )
 backup.mkdir(mode=0o700)
 (backup / "before.json").write_text(
