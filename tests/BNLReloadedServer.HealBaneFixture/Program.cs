@@ -34,6 +34,12 @@ var perk = OnHitPerk("effect_perk_heal_bane_pos", "effect_heal_bane_debuff");
 // A second tuning, to show a perk variant is just two cards: no server code knows either id.
 var weakDebuff = Debuff("fixture_weak_heal_bane_debuff", -0.3f, 2);
 var weakPerk = OnHitPerk("fixture_weak_heal_bane_pos", "fixture_weak_heal_bane_debuff");
+// Bleed as heroes carry it: a timed buff debuff that ticks damage through the buff loop, credited to the hit.
+var bleed = new CardEffect
+{
+    Id = "fixture_hb_bleed", Positive = false, Duration = 5,
+    Effect = new ConstEffectBuff { Targeting = opponents, Buffs = new() { [BuffType.Bleeding] = 5f } }
+};
 
 var gear = new CardGear { Id = "fixture_hb_gear" };
 var device = Catalogue.Key("fixture_hb_turret"); // turrets, devices and abilities stamp their own keys, not gear
@@ -45,7 +51,7 @@ var hero = new CardUnit
 var mode = new CardGameMode { Id = "game_mode_friendly" };
 var catalogue = (ServerCatalogue)Databases.Catalogue;
 catalogue.Replicate([
-    gear, hero, debuff, perk, weakDebuff, weakPerk, mode, new CardGameMode { Id = "game_mode_custom" },
+    gear, hero, debuff, perk, weakDebuff, weakPerk, bleed, mode, new CardGameMode { Id = "game_mode_custom" },
     new CardMatch { Id = "fixture_hb_match", Data = new MatchDataShieldCapture() },
     new CardBlock { Id = "fixture_air", BlockId = 0, Passable = BlockPassableType.Any, Transparent = true, LightTransparent = true, SkylightTransparent = true },
     new CardGlobalLogic { Id = "global_logic" }
@@ -104,7 +110,20 @@ Check(victim.ActiveEffects.Count(e => e.Key == debuff.Key) == 1, "a second hit r
 
 Reset(other);
 Hit(other, gear.Key, periodic: true);
-Check(!Baned(other, debuff), "bleed and burn ticks do not apply it");
+Check(!Baned(other, debuff), "interval and aura ticks do not apply it");
+
+// A bleed debuff left by a weapon hit, ticking through the real buff loop as the zone tick runs it.
+Reset(other);
+var bleedHealthBefore = other.HealthPercentage;
+OnZone(() =>
+{
+    var weaponHit = new ImpactData { SourceKey = gear.Key, CasterPlayerId = attacker.PlayerId, CasterUnitId = attacker.Id };
+    other.AddEffect(new ConstEffectInfo(bleed.Key), attacker.Team, attacker.GetSelfSource(weaponHit));
+    other.ApplyBuffEffects(1f);
+    return 0;
+});
+Check(Baned(other, bleed) && other.HealthPercentage < bleedHealthBefore, "the bleed debuff ticked damage");
+Check(!Baned(other, debuff), "bleed, burn and poison debuff ticks do not apply it");
 Hit(other, device);
 Check(!Baned(other, debuff), "ability and device damage does not apply it");
 Reset(ally);

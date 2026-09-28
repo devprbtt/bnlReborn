@@ -389,7 +389,8 @@ public partial class Unit
         var newHealth = Math.Max(0.0f, currHealth - amount);
         update.Health = newHealth;
         var actualDamage = DamageAccounting.Removed(currHealth, newHealth);
-        var impact = source?.Impact ?? new ImpactData
+        // Buff damage (bleed, burn, poison, decay) keeps the inflicting hit's attribution, but a tick is not a new hit.
+        var impact = source?.Impact?.AsPeriodicEffect() ?? new ImpactData
         {
             InsidePoint = GetMidpoint(),
             Normal = Vector3s.Zero,
