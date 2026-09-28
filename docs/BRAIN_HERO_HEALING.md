@@ -5,7 +5,7 @@ teammates.
 
 | Hero | Change |
 | --- | --- |
-| Trondson | Echo Pulse (Sonic Staff alt fire) heals allies in its radius: 15 HP instantly plus 5 HP/s for 4 s (recasting refreshes the timer). Pulse cost 5 -> 20 ammo; Echo-Location keeps its +6 penalty (11 -> 26). Enemy spotting is unchanged. |
+| Trondson | Echo Pulse (Sonic Staff alt fire) heals allies in its radius: 15 HP instantly plus 5 HP/s for 4 s (recasting refreshes the timer). Pulse cost 5 -> 20 ammo; Echo-Location keeps its +6 penalty (11 -> 26). The pulse no longer reveals enemies (2026-09-28); its regen is applied through a friendly-targeted bunch because `self` wrappers are targeted relative to their holder. |
 | Genie | The heavy orb no longer damages anything. It passes through enemies, stops on the first teammate it touches, and heals allies within 3 m at 5 HP/s. Speed Ball is the same orb at double speed; its burn and damage text is replaced. |
 | Tony | The base Caulk Gun heals allied Heroes (3 HP per tick: 10 HP/s primary, 20 HP/s alt) and keeps its slow. The Healing Caulk perk, shop item and gear variant are removed. |
 | Vander | The Static Gloves beam heals allied Heroes 1 HP per 0.1 s tick (10 HP/s). |

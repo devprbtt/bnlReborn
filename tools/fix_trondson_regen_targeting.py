@@ -58,7 +58,8 @@ def audit(cards):
         pulse = cards[card_id]["tools"][1]["hit_effect"]
         assert REGEN not in pulse["constant"], card_id + " still applies the regen to every unit"
         assert pulse["instant"].count(FRIENDLY_REGEN) == 1, card_id + " lacks the friendly regen bunch"
-        assert pulse["constant"] == ["effect_hero_trondson_sonic_staff_marker"], card_id + " constant changed"
+        # The reveal marker was removed afterwards by rebalance_brain_hero_healing.py.
+        assert pulse["constant"] in (["effect_hero_trondson_sonic_staff_marker"], []), card_id + " constant changed"
         result[card_id] = {"constant": pulse["constant"],
                            "instant": [e["type"] + ":" + (e.get("targeting") or {}).get("affected_team", "-")
                                        for e in pulse["instant"]]}

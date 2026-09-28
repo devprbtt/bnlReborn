@@ -43,6 +43,7 @@ STAFF_REGEN_EFFECT = "effect_hero_trondson_sonic_staff_regen"
 BRAINS_REGEN_BUFF = "effect_status_regen_health_brains_5"
 BRAINS_REGEN_PER_SECOND = 5
 STAFF_REGEN_DURATION = 4
+STAFF_PULSE_TEXT = "heals nearby allies."
 
 # Genie
 ORB_UNIT_IDS = {
@@ -224,7 +225,11 @@ def migrate_staff(card):
     pulse = changed["tools"][1]
     bunch = pulse["hit_effect"]
     assert pulse["type"] == "shot" and bunch["type"] == "all_units_bunch"
-    assert "effect_hero_trondson_sonic_staff_marker" in bunch["constant"]
+    # The pulse no longer reveals enemies (user request 2026-09-28).
+    assert bunch["constant"] in (["effect_hero_trondson_sonic_staff_marker"], [], [STAFF_REGEN_EFFECT],
+                                 ["effect_hero_trondson_sonic_staff_marker", STAFF_REGEN_EFFECT]), \
+        f"unexpected pulse constants on {card['_id']}"
+    bunch["constant"] = []
     assert pulse["ammo"]["rate"] in (old_cost, new_cost), f"unexpected pulse cost on {card['_id']}"
     pulse["ammo"]["rate"] = new_cost
     if not any(is_ally_heal(e, STAFF_BURST_HEAL) for e in bunch["instant"]):
@@ -235,12 +240,13 @@ def migrate_staff(card):
     friendly_regen = staff_regen_bunch()
     if friendly_regen not in bunch["instant"]:
         bunch["instant"].append(friendly_regen)
-    set_text(changed, "description",
-             "Trondson's trusty Sonic Staff acts as a multi-purpose tool and weapon. <BINDING_CAST1> fires pulses "
-             "of destructive sonic energy while <BINDING_CAST2> briefly detects all enemies around Trondson.",
-             "Trondson's trusty Sonic Staff acts as a multi-purpose tool and weapon. <BINDING_CAST1> fires pulses "
-             "of destructive sonic energy while <BINDING_CAST2> briefly detects all enemies around Trondson and "
-             "heals nearby allies.")
+    prefix = ("Trondson's trusty Sonic Staff acts as a multi-purpose tool and weapon. <BINDING_CAST1> fires "
+              "pulses of destructive sonic energy while <BINDING_CAST2> ")
+    current = changed["description"]["text"]
+    assert current in (prefix + "briefly detects all enemies around Trondson.",
+                       prefix + "briefly detects all enemies around Trondson and heals nearby allies.",
+                       prefix + STAFF_PULSE_TEXT), f"unexpected staff description on {card['_id']}"
+    changed["description"]["text"] = prefix + STAFF_PULSE_TEXT
     return changed
 
 
