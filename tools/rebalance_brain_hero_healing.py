@@ -200,6 +200,24 @@ def desired_new_cards(docs):
     return {BRAINS_REGEN_BUFF: regen, STAFF_REGEN_EFFECT: staff, ORB_HEAL_AURA: aura}
 
 
+def staff_regen_bunch():
+    return {
+        "type": "bunch",
+        "interrupt": None,
+        "targeting": {
+            "affected_labels": None,
+            "affected_units": ["player"],
+            "affected_team": "friendly",
+            "caster_owned_only": False,
+            "ignore_caster": True,
+        },
+        "impact": None,
+        "break_on_effect_fail": False,
+        "instant": [],
+        "constant": [STAFF_REGEN_EFFECT],
+    }
+
+
 def migrate_staff(card):
     old_cost, new_cost = STAFF_IDS[card["_id"]]
     changed = copy.deepcopy(card)
@@ -212,8 +230,11 @@ def migrate_staff(card):
     if not any(is_ally_heal(e, STAFF_BURST_HEAL) for e in bunch["instant"]):
         assert not any(e.get("type") == "heal" for e in bunch["instant"]), f"unexpected heal on {card['_id']}"
         bunch["instant"].append(ally_heal(STAFF_BURST_HEAL))
-    if STAFF_REGEN_EFFECT not in bunch["constant"]:
-        bunch["constant"].append(STAFF_REGEN_EFFECT)
+    # A self wrapper's targeting is holder-relative, so it must be filtered by a
+    # friendly bunch first (see fix_trondson_regen_targeting.py).
+    friendly_regen = staff_regen_bunch()
+    if friendly_regen not in bunch["instant"]:
+        bunch["instant"].append(friendly_regen)
     set_text(changed, "description",
              "Trondson's trusty Sonic Staff acts as a multi-purpose tool and weapon. <BINDING_CAST1> fires pulses "
              "of destructive sonic energy while <BINDING_CAST2> briefly detects all enemies around Trondson.",
@@ -382,7 +403,8 @@ def audit(docs):
         bunch = pulse["hit_effect"]
         assert pulse["ammo"]["rate"] == cost
         assert sum(is_ally_heal(e, STAFF_BURST_HEAL) for e in bunch["instant"]) == 1
-        assert STAFF_REGEN_EFFECT in bunch["constant"]
+        assert STAFF_REGEN_EFFECT not in bunch["constant"]
+        assert bunch["instant"].count(staff_regen_bunch()) == 1
         result["trondson"][card_id] = {"pulse_cost": cost, "radius": bunch["range"], "burst": STAFF_BURST_HEAL,
                                        "regen_per_second": regen, "regen_seconds": staff_effect["duration"]}
     aura = docs[ORB_HEAL_AURA]["effect"]
