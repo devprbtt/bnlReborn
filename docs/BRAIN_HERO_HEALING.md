@@ -6,10 +6,10 @@ teammates.
 | Hero | Change |
 | --- | --- |
 | Trondson | Echo Pulse (Sonic Staff alt fire) heals allies in its radius: 15 HP instantly plus 5 HP/s for 4 s (recasting refreshes the timer). Pulse cost 5 -> 20 ammo; Echo-Location keeps its +6 penalty (11 -> 26). The pulse no longer reveals enemies (2026-09-28); its regen is applied through a friendly-targeted bunch because `self` wrappers are targeted relative to their holder. |
-| Genie | The heavy orb no longer damages anything. It passes through enemies, stops on the first teammate it touches, and heals allies within 3 m at 5 HP/s. Speed Ball is the same orb at double speed; its burn and damage text is replaced. |
-| Tony | The base Caulk Gun heals allied Heroes (3 HP per tick: 10 HP/s primary, 20 HP/s alt) and keeps its slow. The Healing Caulk perk, shop item and gear variant are removed. |
-| Vander | The Static Gloves beam heals allied Heroes 1 HP per 0.1 s tick (10 HP/s). |
-| Doc | Each Globe Gun globe heals allied Heroes within 2.5 m of its burst for 6 HP (Doc excluded). |
+| Genie | The heavy orb no longer damages anything. It passes through enemies, stops on the first teammate it touches, and heals allies within 3 m at 10 HP/s (2 HP per 0.2 s after the 2026-09-28 doubling). Speed Ball is the same orb at double speed; its burn and damage text is replaced. |
+| Tony | The base Caulk Gun heals allied Heroes (6 HP per tick: 20 HP/s primary, 40 HP/s alt, doubled 2026-09-28) and keeps its slow. The Healing Caulk perk, shop item and gear variant are removed. |
+| Vander | The Static Gloves beam heals allied Heroes 2 HP per 0.1 s tick (20 HP/s, doubled 2026-09-28). |
+| Doc | Each Globe Gun globe heals allied Heroes within 2.5 m of its burst for 12 HP (Doc excluded; doubled 2026-09-28). |
 
 ## Why these work without server code
 
