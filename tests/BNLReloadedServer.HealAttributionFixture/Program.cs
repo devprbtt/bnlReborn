@@ -143,6 +143,33 @@ Check(gained > 0 && regenImpacts.Count == 2, $"one regen tick healed {gained:0.#
 Check(Near(fromStation + fromStaff, gained), "the regen attributions add up to the health gained");
 Check(Near(fromStation, 2f * fromStaff), "the split follows each healer's regen rate (10 vs 5)");
 
+// A heal station nobody owns (placed with the map): the attribution names the station unit, with no player.
+var mapStation = OnZone(() =>
+{
+    var before = units.Keys.ToHashSet();
+    var origin = new Vector3(8, 8, 8);
+    Call("CreateProjectileUnit", orb.Key, 0f, new ShotData { TargetPos = origin + Vector3.UnitX }, origin, null);
+    return units.Values.Single(u => !before.Contains(u.Id) && u.Key == orb.Key);
+});
+var (mapImpacts, mapGained) = OnZone(() =>
+{
+    teammate.RemoveEffects([new ConstEffectInfo(stationRegen.Key, null), new ConstEffectInfo(staffRegen.Key, null)],
+        TeamType.Team1, new UnitSource(station, station.CreateImpactData()));
+    teammate.RemoveEffects([new ConstEffectInfo(staffRegen.Key, null)], TeamType.Team1, new UnitSource(staff, staff.CreateImpactData()));
+    teammate.UpdateData(new UnitUpdate { Health = 40f });
+    teammate.AddEffects([new ConstEffectInfo(stationRegen.Key)], TeamType.Team1, new UnitSource(mapStation, mapStation.CreateImpactData()));
+    var before = teammate.HealthPercentage;
+    calls.Clear();
+    teammate.ApplyBuffEffects(1f);
+    var impacts = calls.Where(c => c.Name == "SendImpact").Select(c => (ImpactData)c.Args[0]!).ToList();
+    return (impacts, (teammate.HealthPercentage - before) * 100f);
+});
+Check(mapStation.OwnerPlayerId is null && mapStation.PlayerId is null, "the map station has no owner");
+Check(mapGained > 0 && mapImpacts.Count == 1 && mapImpacts[0].CasterPlayerId is null &&
+      mapImpacts[0].CasterUnitId == mapStation.Id && mapImpacts[0].Impact is null &&
+      mapImpacts[0].HitUnits is [var mapHit] && mapHit == teammate.Id && Near(mapImpacts[0].ShotPos.X, mapGained),
+    "an unowned station's regen is attributed to the station unit with the amount and no player");
+
 zone.Stop();
 Console.WriteLine($"BNL_HEAL_ATTRIBUTION_FIXTURE_OK checks={checks}");
 

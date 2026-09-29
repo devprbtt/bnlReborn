@@ -979,9 +979,9 @@ public partial class GameZone
                             ? GetPlayerFromPlayerId(impactData.CasterPlayerId.Value)
                             : null;
                         unit.Healed(hpGain, source, healerPlayer);
-                        if (Unit.IsHealAttribution(source, healerPlayer, unit))
+                        if (Unit.HealCredit(source, healerPlayer, unit) is { } credit)
                         {
-                            unit.SendHealAttribution(healerPlayer!, hpGain, impactData.SourceKey);
+                            unit.SendHealAttribution(credit, hpGain, impactData.SourceKey);
                         }
                     }
                 }

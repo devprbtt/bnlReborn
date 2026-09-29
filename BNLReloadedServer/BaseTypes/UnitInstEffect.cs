@@ -48,17 +48,25 @@ public partial class Unit
     // Reborn heal attribution. Every heal on a player that has a player behind it (a hero, its projectile, or
     // the heal station or block it placed) sends an impact without a card naming that player as caster, the
     // healed player as the only hit unit, and the amount in ShotPos.X, so clients can show who is healing
-    // them and how much, with several healers at once. Released clients ignore card-less impacts on
-    // players: every hit handler requires an impact card. Heals whose source is the healed player itself
-    // (own perks and abilities) are not attributed.
-    public static bool IsHealAttribution(EffectSource? source, Unit? healerPlayer, Unit healed) =>
-        healerPlayer is { PlayerId: not null } && healed.PlayerId is not null &&
-        !(source is UnitSource { Unit: var sourceUnit } && sourceUnit.Id == healed.Id);
+    // them and how much, with several healers at once. A heal from a unit with no player behind it (a heal
+    // station placed with the map, or one whose builder has left) names that unit as caster with no player,
+    // so clients can show its icon. Released clients
+    // ignore card-less impacts on players: every hit handler requires an impact card. Heals whose source is
+    // the healed player itself (own perks and abilities) are not attributed.
+    public static Unit? HealCredit(EffectSource? source, Unit? healerPlayer, Unit healed)
+    {
+        if (healed.PlayerId is null || source is UnitSource { Unit: var self } && self.Id == healed.Id) return null;
+        if (healerPlayer is { PlayerId: not null }) return healerPlayer;
+        return source is UnitSource { Unit: { PlayerId: null } unowned } ? unowned : null;
+    }
 
-    public void SendHealAttribution(Unit healerPlayer, float amount, Key? sourceKey)
+    public static bool IsHealAttribution(EffectSource? source, Unit? healerPlayer, Unit healed) =>
+        HealCredit(source, healerPlayer, healed) is not null;
+
+    public void SendHealAttribution(Unit credit, float amount, Key? sourceKey)
     {
         if (amount <= 0) return;
-        _updater.OnImpactOccur(GetMidpoint(), new Vector3(amount, 0, 0), false, healerPlayer, sourceKey, null, [Id]);
+        _updater.OnImpactOccur(GetMidpoint(), new Vector3(amount, 0, 0), false, credit, sourceKey, null, [Id]);
     }
 
     // Splits one regeneration tick across every active regeneration effect by its rate, and each effect's
@@ -76,8 +84,12 @@ public partial class Unit
             }
 
             var sources = _effectSources.GetValueOrDefault(effect.Key);
+            // One share per player, or per unowned unit (a map heal station), applying this effect.
             var byPlayer = sources is { Count: > 0 }
-                ? sources.GroupBy(s => s.Impact?.CasterPlayerId).Select(g => (EffectSource?)g.First()).ToList()
+                ? sources.GroupBy(s => s.Impact?.CasterPlayerId is { } player
+                        ? (long)player
+                        : s is UnitSource { Unit: var u } ? -1L - u.Id : long.MinValue)
+                    .Select(g => (EffectSource?)g.First()).ToList()
                 : [null];
             foreach (var source in byPlayer)
             {
@@ -89,11 +101,11 @@ public partial class Unit
         if (total <= 0) return;
         foreach (var (source, weight) in shares)
         {
-            if (source?.Impact?.CasterPlayerId is not { } playerId) continue;
-            var healer = _updater.GetPlayerFromPlayerId(playerId);
-            if (IsHealAttribution(source, healer, this))
+            if (source is null) continue;
+            var healer = source.Impact?.CasterPlayerId is { } playerId ? _updater.GetPlayerFromPlayerId(playerId) : null;
+            if (HealCredit(source, healer, this) is { } credit)
             {
-                SendHealAttribution(healer!, healAmount * weight / total, source.Impact.SourceKey);
+                SendHealAttribution(credit, healAmount * weight / total, source.Impact?.SourceKey);
             }
         }
     }
