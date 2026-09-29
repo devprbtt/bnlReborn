@@ -14,6 +14,15 @@ public class ToolChannel : Tool
 
     public List<Key>? ConstantEffects { get; set; }
 
+    // Reborn, server-only: ammo taken per pulse while the channel is on a block or
+    // a non-player unit (device). Read from the catalogue as block_ammo_rate and
+    // never written to clients, whose ToolChannel record has no such field. Null
+    // falls back to Ammo.Rate, which stays the drain while channelling a player.
+    public float? BlockAmmoRate { get; set; }
+
+    public float? AmmoRateFor(bool targetIsPlayer) =>
+        Ammo == null ? null : targetIsPlayer ? Ammo.Rate : BlockAmmoRate ?? Ammo.Rate;
+
     public override void Write(BinaryWriter writer)
     {
         new BitField(Ammo != null, true, true, IntervalEffects != null, true, ConstantEffects != null).Write(writer);

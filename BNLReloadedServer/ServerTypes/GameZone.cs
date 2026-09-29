@@ -2146,7 +2146,8 @@ public partial class GameZone : Updater
                 {
                     if (unit.CurrentGear?.Tools[channelData.ToolIndex] is { Tool: ToolChannel channel } currToolLogic)
                     {
-                        if (currToolLogic.IsEnoughAmmoToUse())
+                        var channelAmmoRate = ChannelAmmoRate(channel, channelData);
+                        if (currToolLogic.IsEnoughAmmoToUse(channelAmmoRate))
                         {
                             if (!ApplyChannelIntervalEffects(unit, channelData, channel))
                             {
@@ -2155,7 +2156,7 @@ public partial class GameZone : Updater
                                 continue;
                             }
 
-                            var ammoUpdate = currToolLogic.TakeAmmoUpdate();
+                            var ammoUpdate = currToolLogic.TakeAmmoUpdate(channelAmmoRate);
                             if (ammoUpdate is not null)
                             {
                                 unit.UpdateData(new UnitUpdate

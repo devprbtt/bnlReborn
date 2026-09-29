@@ -21,10 +21,10 @@ public class ToolLogic(GearData data, byte index)
 
     public Ammo? TakeAmmoUpdate(float? rate = null) => GetAmmoData()?.TakeAmmoUpdate(rate ?? Tool?.Ammo?.Rate ?? 0);
 
-    public bool IsEnoughAmmoToUse()
+    public bool IsEnoughAmmoToUse(float? rate = null)
     {
         var ammoData = GetAmmoData();
-        return ammoData == null || ammoData.IsEnoughAmmoToUse(Tool?.Ammo?.Rate ?? 0);
+        return ammoData == null || ammoData.IsEnoughAmmoToUse(rate ?? Tool?.Ammo?.Rate ?? 0);
     }
 
     public bool IsAvailableToEquip()

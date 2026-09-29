@@ -428,8 +428,8 @@ public partial class GameZone
             return;
         }
 
-        if (player.CurrentGear?.Tools[channelData.ToolIndex] is { } toolLogic && toolLogic.IsEnoughAmmoToUse() &&
-            toolLogic.Tool is ToolChannel channel)
+        if (player.CurrentGear?.Tools[channelData.ToolIndex] is { } toolLogic &&
+            toolLogic.Tool is ToolChannel channel && toolLogic.IsEnoughAmmoToUse(ChannelAmmoRate(channel, channelData)))
         {
             if (channelData.TargetUnit is { } targetId && !_units.TryGetValue(targetId, out var target))
             {
@@ -463,7 +463,7 @@ public partial class GameZone
             channelService.SendStartChannel(rpcId, true);
             _unbufferedZone.SendDoStartChannel(playerUnitId, channelData);
             ApplyChannelIntervalEffects(player, channelData, channel);
-            var ammoUpdate = toolLogic.TakeAmmoUpdate();
+            var ammoUpdate = toolLogic.TakeAmmoUpdate(ChannelAmmoRate(channel, channelData));
             if (ammoUpdate is not null)
             {
                 player.UpdateData(new UnitUpdate
@@ -508,6 +508,11 @@ public partial class GameZone
         player.TicksPerChannel = 0;
         player.NextChannelPulseTick = 0;
     }
+
+    // Players (either team) drain Ammo.Rate; blocks and devices drain block_ammo_rate when set.
+    private float? ChannelAmmoRate(ToolChannel channel, ChannelData channelData) =>
+        channel.AmmoRateFor(channelData.TargetUnit is { } targetId &&
+                            _units.TryGetValue(targetId, out var target) && target.PlayerId.HasValue);
 
     private bool ApplyChannelIntervalEffects(Unit caster, ChannelData channelData, ToolChannel channel)
     {
