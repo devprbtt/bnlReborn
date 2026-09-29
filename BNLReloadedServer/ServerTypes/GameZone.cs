@@ -373,34 +373,44 @@ public partial class GameZone : Updater
             freeForAll: _gameInitiator is WaitingArenaInitiator);
         if (newUnit == null) return newUnit;
 
-        if (unit.CountLimit is { Limit: > 0 })
-        {
-            var existingUnits = unit.CountLimit.Scope switch
-            {
-                UnitLimitScope.World => _units.Values.Where(u => u.Key == unit.Key).ToList(),
-
-                UnitLimitScope.Team => _units.Values.Where(u => u.Key == unit.Key && RelationshipApplies(u, newUnit, newUnit.Team, RelativeTeamType.Friendly)).ToList(),
-
-                UnitLimitScope.Owner when newUnit.OwnerPlayerId is not null => _units.Values
-                    .Where(u => u.Key == unit.Key && u.OwnerPlayerId == newUnit.OwnerPlayerId)
-                    .ToList(),
-
-                _ => []
-            };
-
-            if (existingUnits.Count > unit.CountLimit.Limit)
-            {
-                existingUnits.Sort((u1, u2) => u1.CreationTime.CompareTo(u2.CreationTime));
-                var oldestUnit = existingUnits[0];
-                oldestUnit.Killed(oldestUnit.CreateBlankImpactData());
-            }
-        }
+        ApplyCountLimit(unit, newUnit);
 
         if (unit.Data is not UnitDataPortal || newUnit.OwnerPlayerId is null) return newUnit;
 
         LinkPortal(newUnit);
 
         return newUnit;
+    }
+
+    /// <summary>
+    /// A card's count_limit: when this unit takes its scope over the limit, the oldest one dies (with its
+    /// normal death effect). Shared by built/spawned units and projectile units, such as Genie's heavy orb.
+    /// </summary>
+    private void ApplyCountLimit(CardUnit unit, Unit newUnit)
+    {
+        if (unit.CountLimit is not { Limit: > 0 }) return;
+        // Killed units can stay registered briefly; counting them would "remove" an already dead unit
+        // and leave one too many alive.
+        var living = _units.Values.Where(u => u.Key == unit.Key && !u.IsDead);
+        var existingUnits = unit.CountLimit.Scope switch
+        {
+            UnitLimitScope.World => living.ToList(),
+
+            UnitLimitScope.Team => living.Where(u => RelationshipApplies(u, newUnit, newUnit.Team, RelativeTeamType.Friendly)).ToList(),
+
+            UnitLimitScope.Owner when newUnit.OwnerPlayerId is not null => living
+                .Where(u => u.OwnerPlayerId == newUnit.OwnerPlayerId)
+                .ToList(),
+
+            _ => []
+        };
+
+        if (existingUnits.Count > unit.CountLimit.Limit)
+        {
+            existingUnits.Sort((u1, u2) => u1.CreationTime.CompareTo(u2.CreationTime));
+            var oldestUnit = existingUnits[0];
+            oldestUnit.Killed(oldestUnit.CreateBlankImpactData());
+        }
     }
 
     private bool RelationshipApplies(Unit target, Unit? source, TeamType sourceTeam, RelativeTeamType relationship)
@@ -448,8 +458,10 @@ public partial class GameZone : Updater
         var transform = ZoneTransformHelper.ToZoneTransform(shotPos, QuaternionExtensions.LookRotation(vecDir));
         transform.SetLocalVelocity(Vector3.Normalize(vecDir) * speed);
 
-        CatalogueFactory.CreateUnit(NewUnitId(), projectileKey, transform, creator?.Team ?? TeamType.Neutral,
+        var projectile = CatalogueFactory.CreateUnit(NewUnitId(), projectileKey, transform, creator?.Team ?? TeamType.Neutral,
             creator, updater, speed, freeForAll: _gameInitiator is WaitingArenaInitiator);
+        if (projectile != null && projectileKey.GetCard<CardUnit>() is { } projectileCard)
+            ApplyCountLimit(projectileCard, projectile);
     }
 
     private void CreateSupplyUnit(Key supplyKey, Vector3 position)
