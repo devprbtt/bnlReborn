@@ -979,9 +979,9 @@ public partial class GameZone
                             ? GetPlayerFromPlayerId(impactData.CasterPlayerId.Value)
                             : null;
                         unit.Healed(hpGain, source, healerPlayer);
-                        if (effect.Impact is null && IsHeroHealAttribution(source, healerPlayer, unit))
+                        if (Unit.IsHealAttribution(source, healerPlayer, unit))
                         {
-                            SendHealAttribution(impactData, healerPlayer!, unit);
+                            unit.SendHealAttribution(healerPlayer!, hpGain, impactData.SourceKey);
                         }
                     }
                 }
@@ -1396,32 +1396,6 @@ public partial class GameZone
         _conquest != null ? ConquestObjectiveShielded(team, labels) :
         _zoneData.MatchCard.Data?.Type == MatchType.TimeTrial || !labels.Contains(
             _objectiveConquest[(int)team].Count > 0 ? _objectiveConquest[(int)team].Peek() : UnitLabel.Objective);
-
-    // Reborn heal attribution: a hero heal whose effect has no impact card (Vander, Genie, Doc, Trondson) sends
-    // an impact without a card naming the healer and the healed player, so clients can show who healed them.
-    // Released clients ignore a card-less impact on a player (every hit handler needs an impact card), and
-    // heals that already carry an impact (the Caulk Gun spray) are left alone. Heal stations and other
-    // devices are not heroes, so only the hero or its projectile (orb, globe) counts as the source.
-    internal static bool IsHeroHealAttribution(EffectSource source, Unit? healerPlayer, Unit healed) =>
-        healerPlayer is { PlayerId: not null } && healed.PlayerId is not null && healerPlayer.Id != healed.Id &&
-        source is UnitSource { Unit: var sourceUnit } &&
-        (sourceUnit.PlayerId is not null || sourceUnit.UnitCard?.Data is UnitDataProjectile);
-
-    private void SendHealAttribution(ImpactData heal, Unit healerPlayer, Unit healed)
-    {
-        ImpactOccur(new ImpactData
-        {
-            InsidePoint = healed.GetMidpoint(),
-            Normal = Vector3s.Zero,
-            CasterUnitId = healerPlayer.Id,
-            CasterPlayerId = healerPlayer.PlayerId,
-            Impact = null,
-            SourceKey = heal.SourceKey,
-            HitUnits = [healed.Id],
-            ShotPos = heal.ShotPos,
-            Crit = false
-        });
-    }
 
     private void ImpactOccur(ImpactData impactData)
     {

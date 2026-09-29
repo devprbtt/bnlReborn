@@ -1,5 +1,7 @@
-// A hero heal with no impact card sends a card-less impact naming the healer and the healed player, so clients
-// can show who is healing them. Drives GameZone.ApplyInstEffect with real player units and records SendImpact.
+// Every heal on a player with a player behind it (hero, projectile, their station or block) sends a card-less
+// impact naming that player, with the amount in ShotPos.X, so clients can show who is healing them and how much,
+// several healers at once. Drives GameZone.ApplyInstEffect and Unit.ApplyBuffEffects with real units and
+// records SendImpact.
 using System.Collections.Concurrent;
 using System.Numerics;
 using System.Reflection;
@@ -28,9 +30,16 @@ var orb = new CardUnit
     Data = new UnitDataProjectile { MaxSpeed = 0, Acceleration = 0, TriggerRadius = 0.1f, CollideWith = RelativeTeamType.Friendly }
 };
 var sprayImpact = new CardImpact { Id = "fixture_ha_spray" };
+CardEffect Regen(string id, float rate) => new()
+{
+    Id = id, Positive = true,
+    Effect = new ConstEffectBuff { Buffs = new Dictionary<BuffType, float> { [BuffType.HealthRegen] = rate } }
+};
+var stationRegen = Regen("fixture_ha_station_regen", 10f);
+var staffRegen = Regen("fixture_ha_staff_regen", 5f);
 var mode = new CardGameMode { Id = "game_mode_friendly" };
 ((ServerCatalogue)Databases.Catalogue).Replicate([
-    gear, hero, orb, sprayImpact, mode, new CardGameMode { Id = "game_mode_custom" },
+    gear, hero, orb, sprayImpact, stationRegen, staffRegen, mode, new CardGameMode { Id = "game_mode_custom" },
     new CardMatch { Id = "fixture_ha_match", Data = new MatchDataShieldCapture() },
     new CardBlock { Id = "fixture_air", BlockId = 0, Passable = BlockPassableType.Any, Transparent = true, LightTransparent = true, SkylightTransparent = true },
     new CardGlobalLogic { Id = "global_logic" }
@@ -38,7 +47,7 @@ var mode = new CardGameMode { Id = "game_mode_friendly" };
 ((UnitDataPlayer)hero.Data!).Gears = [gear.Key];
 
 var players = new ConcurrentDictionary<uint, PlayerLobbyState>();
-foreach (var (id, team) in new[] { (1u, TeamType.Team1), (2u, TeamType.Team1) })
+foreach (var (id, team) in new[] { (1u, TeamType.Team1), (2u, TeamType.Team1), (3u, TeamType.Team1) })
     players[id] = new PlayerLobbyState { PlayerId = id, Team = team, Hero = hero.Key, Nickname = $"p{id}" };
 var map = new MapData
 {
@@ -59,6 +68,7 @@ T OnZone<T>(Func<T> body)
 }
 var units = (IDictionary<uint, Unit>)typeof(GameZone).GetField("_units", Any)!.GetValue(zone)!;
 var (healer, teammate) = OnZone(() => ((Unit)Call("CreatePlayerUnit", 1u, Stub<IServiceZone>())!, (Unit)Call("CreatePlayerUnit", 2u, Stub<IServiceZone>())!));
+var thirdHealer = OnZone(() => (Unit)Call("CreatePlayerUnit", 3u, Stub<IServiceZone>())!);
 var calls = ((StubProxy)(object)service).Calls;
 
 // Applies one heal tick and returns the impacts it sent.
@@ -74,11 +84,13 @@ List<ImpactData> Heal(EffectSource source, Unit target, float amount, Key? impac
         return calls.Where(c => c.Name == "SendImpact").Select(c => (ImpactData)c.Args[0]!).ToList();
     });
 }
-bool IsAttribution(ImpactData i) => i.Impact is null && i.CasterPlayerId == healer.PlayerId &&
-    i.CasterUnitId == healer.Id && i.HitUnits is [var hit] && hit == teammate.Id;
+bool IsAttribution(ImpactData i, Unit by) => i.Impact is null && i.CasterPlayerId == by.PlayerId &&
+    i.CasterUnitId == by.Id && i.HitUnits is [var hit] && hit == teammate.Id;
+bool Near(float a, float b) => Math.Abs(a - b) < 0.01f;
 
 var direct = Heal(new UnitSource(healer), teammate, 10);
-Check(direct.Count == 1 && IsAttribution(direct[0]), "a hero's own heal on a hurt teammate sends one card-less attribution impact");
+Check(direct.Count == 1 && IsAttribution(direct[0], healer), "a hero's own heal on a hurt teammate sends one card-less attribution impact");
+Check(Near(direct[0].ShotPos.X, 10f), "the attribution carries the amount healed (10)");
 Check(direct[0].SourceKey == gear.Key, "the attribution carries the heal's source gear");
 
 Check(Heal(new UnitSource(healer), teammate, 10, startHealth: 100f).Count == 0, "no attribution when the teammate is at full health");
@@ -92,15 +104,44 @@ var orbUnit = OnZone(() =>
     return units.Values.Single(u => !before.Contains(u.Id) && u.Key == orb.Key);
 });
 var fromOrb = Heal(new UnitSource(orbUnit), teammate, 2);
-Check(fromOrb.Count == 1 && IsAttribution(fromOrb[0]), "a heal from the hero's projectile (orb, globe) is attributed to its owner");
+Check(fromOrb.Count == 1 && IsAttribution(fromOrb[0], healer), "a heal from the hero's projectile (orb, globe) is attributed to its owner");
 
 var fromBlock = Heal(new BlockSource(new Vector3s(4, 4, 4), new Block()), teammate, 10);
-Check(OnZone(() => teammate.HealthPercentage) > 0.45f, "the block-source heal itself was applied (40 -> 50)");
-Check(fromBlock.Count == 0, "a block source (heal station) is not a hero heal");
+Check(fromBlock.Count == 1 && IsAttribution(fromBlock[0], healer) && Near(fromBlock[0].ShotPos.X, 10f),
+    "a heal from a block or station a player placed is attributed to that player");
 
 var sprayed = Heal(new UnitSource(healer), teammate, 4.2f, sprayImpact.Key);
-Check(sprayed.Count == 1 && sprayed[0].Impact == sprayImpact.Key,
-    "a heal that already has an impact card (Caulk Gun spray) sends only its own impact");
+Check(sprayed.Count == 2 && sprayed.Any(i => i.Impact == sprayImpact.Key) &&
+      sprayed.Any(i => IsAttribution(i, healer) && Near(i.ShotPos.X, 4.2f)),
+    "a heal with its own impact card (Caulk Gun spray) keeps it and adds the attribution with the amount");
+
+// Regeneration from two players' auras at once: a station (10/s) placed by one and Trondson-style regen (5/s)
+// from another. One tick is split 2:1 between them and adds up to the health actually gained.
+Unit Owned(Unit owner) => OnZone(() =>
+{
+    var before = units.Keys.ToHashSet();
+    var origin = new Vector3(6, 8, 6);
+    Call("CreateProjectileUnit", orb.Key, 0f, new ShotData { TargetPos = origin + Vector3.UnitX }, origin, owner);
+    return units.Values.Single(u => !before.Contains(u.Id) && u.Key == orb.Key);
+});
+var station = Owned(healer);
+var staff = Owned(thirdHealer);
+var (regenImpacts, gained) = OnZone(() =>
+{
+    teammate.UpdateData(new UnitUpdate { Health = 40f });
+    teammate.AddEffects([new ConstEffectInfo(stationRegen.Key)], TeamType.Team1, new UnitSource(station, station.CreateImpactData()));
+    teammate.AddEffects([new ConstEffectInfo(staffRegen.Key)], TeamType.Team1, new UnitSource(staff, staff.CreateImpactData()));
+    var before = teammate.HealthPercentage;
+    calls.Clear();
+    teammate.ApplyBuffEffects(1f);
+    var impacts = calls.Where(c => c.Name == "SendImpact").Select(c => (ImpactData)c.Args[0]!).ToList();
+    return (impacts, (teammate.HealthPercentage - before) * 100f);
+});
+var fromStation = regenImpacts.Where(i => IsAttribution(i, healer)).Sum(i => i.ShotPos.X);
+var fromStaff = regenImpacts.Where(i => IsAttribution(i, thirdHealer)).Sum(i => i.ShotPos.X);
+Check(gained > 0 && regenImpacts.Count == 2, $"one regen tick healed {gained:0.##} and sent one attribution per healer");
+Check(Near(fromStation + fromStaff, gained), "the regen attributions add up to the health gained");
+Check(Near(fromStation, 2f * fromStaff), "the split follows each healer's regen rate (10 vs 5)");
 
 zone.Stop();
 Console.WriteLine($"BNL_HEAL_ATTRIBUTION_FIXTURE_OK checks={checks}");

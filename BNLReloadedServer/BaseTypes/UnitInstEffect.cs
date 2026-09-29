@@ -45,6 +45,59 @@ public partial class Unit
             Crit = false
         };
 
+    // Reborn heal attribution. Every heal on a player that has a player behind it (a hero, its projectile, or
+    // the heal station or block it placed) sends an impact without a card naming that player as caster, the
+    // healed player as the only hit unit, and the amount in ShotPos.X, so clients can show who is healing
+    // them and how much, with several healers at once. Released clients ignore card-less impacts on
+    // players: every hit handler requires an impact card. Heals whose source is the healed player itself
+    // (own perks and abilities) are not attributed.
+    public static bool IsHealAttribution(EffectSource? source, Unit? healerPlayer, Unit healed) =>
+        healerPlayer is { PlayerId: not null } && healed.PlayerId is not null &&
+        !(source is UnitSource { Unit: var sourceUnit } && sourceUnit.Id == healed.Id);
+
+    public void SendHealAttribution(Unit healerPlayer, float amount, Key? sourceKey)
+    {
+        if (amount <= 0) return;
+        _updater.OnImpactOccur(GetMidpoint(), new Vector3(amount, 0, 0), false, healerPlayer, sourceKey, null, [Id]);
+    }
+
+    // Splits one regeneration tick across every active regeneration effect by its rate, and each effect's
+    // share evenly across the players whose auras or abilities applied it (two heal stations, or a station
+    // and Trondson's regen, each get their part).
+    private void AttributeRegen(BuffType buffKey, float healAmount)
+    {
+        var shares = new List<(EffectSource? Source, float Weight)>();
+        foreach (var effect in ActiveEffects)
+        {
+            if (effect.Card?.Effect is not ConstEffectBuff { Buffs: { } buffs } ||
+                !buffs.TryGetValue(buffKey, out var rate) || rate <= 0)
+            {
+                continue;
+            }
+
+            var sources = _effectSources.GetValueOrDefault(effect.Key);
+            var byPlayer = sources is { Count: > 0 }
+                ? sources.GroupBy(s => s.Impact?.CasterPlayerId).Select(g => (EffectSource?)g.First()).ToList()
+                : [null];
+            foreach (var source in byPlayer)
+            {
+                shares.Add((source, rate / byPlayer.Count));
+            }
+        }
+
+        var total = shares.Sum(s => s.Weight);
+        if (total <= 0) return;
+        foreach (var (source, weight) in shares)
+        {
+            if (source?.Impact?.CasterPlayerId is not { } playerId) continue;
+            var healer = _updater.GetPlayerFromPlayerId(playerId);
+            if (IsHealAttribution(source, healer, this))
+            {
+                SendHealAttribution(healer!, healAmount * weight / total, source.Impact.SourceKey);
+            }
+        }
+    }
+
     public void ApplyBuffEffects(float multiplier)
     {
         var unitUpdate = new UnitUpdate();
@@ -83,6 +136,11 @@ public partial class Unit
                                         ? _updater.GetPlayerFromPlayerId(hSource.Impact.CasterPlayerId.Value)
                                         : null);
                             }
+                        }
+
+                        if (PlayerId is not null)
+                        {
+                            AttributeRegen(buffKey, healAmount);
                         }
                     }
                     hasUpdate = hasUpdate || unitUpdate.Health != null;
