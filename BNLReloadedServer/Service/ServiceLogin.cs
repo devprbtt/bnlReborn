@@ -331,13 +331,20 @@ public class ServiceLogin(ISender sender, Guid sessionId, Func<IPAddress?> peerA
     private void ReceiveLoginMasterXxx(BinaryReader reader)
     {
         var rpcId = reader.ReadUInt16();
-        var id = reader.ReadString();
+        var id = ClientVersionGate.SplitProtocol(reader.ReadString(), out var clientVersion);
         var token = reader.ReadString();
         var validator = RebornGameTicketValidator.Shared;
         if (!validator.TryValidateAndConsume(id, token, out var identity, out var error) || identity is null)
         {
             Log.Warn(LogCat.Conn, $"Rejected Reborn login from {peerAddress()}: {error}");
             SendLoginMasterXxx(rpcId, null, error: error);
+            return;
+        }
+
+        if (ClientVersionGate.Shared.Refusal(clientVersion) is { } outdated)
+        {
+            Log.Info(LogCat.Conn, $"Refused outdated client {clientVersion ?? "(unreported)"} for {identity.SteamId} from {peerAddress()}");
+            SendLoginMasterXxx(rpcId, null, error: outdated);
             return;
         }
 
