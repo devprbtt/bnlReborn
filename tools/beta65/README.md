@@ -53,8 +53,7 @@ below the map. These are deliberately limited local practice mechanics.
 Hits must correspond to a recent accepted shot, satisfy range/trajectory checks,
 and pass a voxel obstruction test. Voxel checking approximates each solid voxel
 as a cube, so sloped/partial geometry is not exact. Movement remains client predicted;
-this is not an authoritative multiplayer simulator. Critical hits, rocket splash,
-grenades, regular falling/drowning damage, opponent AI, objectives, results,
+this is not an authoritative multiplayer simulator. Critical hits, regular falling/drowning damage, opponent AI, objectives, results,
 persistence and multiplayer remain unimplemented. This is not match ready.
 The service remains loopback-only and does not change or deploy the live server.
 
@@ -67,3 +66,23 @@ build actions; it does NOT test mouse/keyboard input. Run it with the same argum
 as server.py in an isolated test, then restore server.py for interactive use.
 The launcher never invokes this scripted driver. `/health` includes a packet
 revision so a newly generated catalogue does not silently reuse old loaded data.
+
+
+Sarge loadout expansion: slots 1-6 contain crates, sandbags, landmines, respawn
+point, radar and Sarge bomb, using supplied level-one definitions. Construction
+uses each definition's cost/delay, with per-live-device cost increases. Mines trigger
+near the opposing practice target; bombs use their supplied fuse; radar marks the
+nearby target; the latest surviving spawn point is used after player death. Local
+practice starts with 5,000 resources so the full set can be exercised.
+
+F equips the frag ability with three charges and the supplied recharge interval.
+Ability RPCs validate the assigned key, origin, charge count and shot ID. Rocket
+and grenade hit reports resolve nested explosion effects against units and voxels,
+with recovered impact references supplied by the private catalogue. Grenade hits
+allow bounded travel after bounces; they are not constrained to a straight ray.
+Self-knockback uses the old ManeuverKnockback message. This remains a local,
+client-predicted approximation: enemy knockback, precise curved/slope occlusion,
+wall attachment orientation and production server-authoritative physics remain
+outside the implementation. `smoke_loadout.py` explicitly exercises all six slots,
+projectile rendering, explosions, recharge and deployed respawn in the old player.
+It is a scripted test, never launched by the normal user launcher.

@@ -250,6 +250,7 @@ def main():
         packets["equipment"] = {path.read_bytes(): (args.packets / ("equip-" + path.name[4:])).read_bytes()
                                 for path in args.packets.glob("key-*.bin")}
     if "hero-create" in packets and (args.packets / "practice.json").exists():
+        packets["device-templates"] = {path.stem[7:]:path.read_bytes() for path in args.packets.glob("device-*.bin")}
         packets["practice"] = json.loads((args.packets / "practice.json").read_text())
         packets["keys"] = {path.stem[4:]:path.read_bytes() for path in args.packets.glob("key-*.bin")}
         for name in ("target-create", "target-state", "terrain", "brick-key"):

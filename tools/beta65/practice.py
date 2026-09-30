@@ -4,6 +4,7 @@ import math
 import struct
 import time
 import zlib
+from loadout import LoadoutSystems
 
 
 def pack(fmt, *values):
@@ -38,7 +39,7 @@ def health(unit, value):
     return b'\x06\x09' + pack('I', unit) + b'\x40\x00\x00' + pack('f', value)
 
 
-class Practice:
+class Practice(LoadoutSystems):
     def __init__(self, packets, send, event, clock=time.monotonic):
         self.packets, self.send, self.event, self.clock = packets, send, event, clock
         self.position = (14.5, 5, 23.5)
@@ -58,11 +59,12 @@ class Practice:
         self.blocks = bytearray(raw[6:])
         self.block_cards = {b["block_id"]:b for b in packets["practice"].get("blocks",[])}
         self.block_damage = {}
-        self.resources = 500
+        self.resources = packets['practice'].get('initial_resources',500)
         self.build_at = None
         self.build_cell = None
         if len(self.blocks) != math.prod(self.size)*4: raise ValueError('Terrain size mismatch')
         self.passable = set(packets['practice']['passable'])
+        self.init_systems()
 
     def start(self):
         self.send(self.packets['target-create']); self.send(self.packets['target-state'])
@@ -78,17 +80,22 @@ class Practice:
 
     def tick(self):
         now = self.clock()
+        self.tick_systems()
         self.shots = {k:v for k,v in self.shots.items() if now-v[0] < 5}
         if self.player_respawn_at is not None and now>=self.player_respawn_at:
-            self.player_respawn_at=None;self.position=(14.5,5,23.5)
+            self.player_respawn_at=None;self.position=self.spawn_position;self.player_health=160
             self.current=self.packets['keys']['gear_sarge_stone_m60']
-            self.send(self.packets['hero-create']);self.send(self.packets['hero-state'])
+            hero=self.packets['hero-create']
+            if self.spawn_position!=(14.5,5,23.5):hero=hero.replace(pack('fff',14.5,5,23.5),pack('fff',*self.spawn_position))
+            self.send(hero);self.send(self.packets['hero-state']);self.send_loadout()
             self.send(self.ammo_packet());self.send_resource()
+            if self.ability:self.ability_update()
             self.event('player_respawned')
         if self.build_at is not None and now>=self.build_at:
             cell=self.build_cell; self.build_at=None; self.build_cell=None
-            if math.dist(self.position,tuple(v+.5 for v in cell))<4 and self.blocks[self.cell_index(cell)]==0 and self.resources>=5:
-                self.set_block(cell,7);self.resources-=5;self.send_resource();self.event('block_built',cell=cell)
+            if math.dist(self.position,tuple(v+.5 for v in cell))<4 and self.blocks[self.cell_index(cell)]==0 and self.pending_device:
+                self.complete_build(cell,self.pending_device)
+            self.pending_device=None
             self.send(b'\x06\x3b'+pack('I',1))
         if self.reload_at is not None and now >= self.reload_at:
             mag,pool = self.ammo[self.current]
@@ -153,12 +160,14 @@ class Practice:
         else:
             self.set_block(cell,card['block_id'],min(254,int(255*total/hp['max_health'])))
 
-    def clear_line(self, start, end):
+    def clear_line(self, start, end, ignore_start=False, ignore_end=False):
         distance = math.dist(start,end)
         for i in range(1,max(2,math.ceil(distance*8))):
             t = i/max(2,math.ceil(distance*8))
             x,y,z = (math.floor(a+(b-a)*t) for a,b in zip(start,end))
             if not (0<=x<self.size[0] and 0<=y<self.size[1] and 0<=z<self.size[2]): return False
+            if ignore_start and (x,y,z)==tuple(math.floor(v) for v in start):continue
+            if ignore_end and (x,y,z)==tuple(math.floor(v) for v in end):continue
             if self.blocks[((x*self.size[1]+y)*self.size[2]+z)*4] not in self.passable: return False
         return True
 
@@ -167,6 +176,7 @@ class Practice:
         if self.player_respawn_at is not None and fn in (30,31,33,56):
             if fn in (33,56): self.send(packet[:4]+b'\x00\x00')
             return True
+        if fn == 47:return self.cast_ability(packet)
         if fn == 56:
             r=Reader(packet[4:])
             if r.read('B')!=0xf8: raise ValueError('Invalid build fields')
@@ -175,10 +185,12 @@ class Practice:
             index=self.cell_index(cell);base_index=self.cell_index(base)
             tools=self.weapons[self.current]['tools']
             occupied=any(abs(cell[0]+.5-p[0])<.8 and abs(cell[2]+.5-p[2])<.8 and p[1]-1<cell[1]<p[1]+2 for p in (self.position,self.target_position))
-            accepted=(self.build_at is None and tool_index<len(tools) and tools[tool_index]['type']=='build' and device==self.packets.get('brick-key') and self.resources>=5 and index is not None and base_index is not None and self.blocks[index]==0 and self.blocks[base_index] not in self.passable and sum(abs(a-b) for a,b in zip(cell,base))==1 and math.dist(self.position,outside)<4 and not occupied and self.clear_line(tuple(a+b for a,b in zip(self.position,(0,1.5,0))),outside))
+            definition=self.build_definition(device)
+            occupied=occupied or any(d['cell']==cell for d in self.placed.values())
+            accepted=(definition is not None and (not definition.get('ground_only') or base[1]==cell[1]-1) and self.build_at is None and tool_index<len(tools) and tools[tool_index]['type']=='build' and self.resources>=self.build_cost(definition) and index is not None and base_index is not None and self.blocks[index]==0 and self.blocks[base_index] not in self.passable and sum(abs(a-b) for a,b in zip(cell,base))==1 and math.dist(self.position,outside)<4 and not occupied and self.clear_line(tuple(a+b for a,b in zip(self.position,(0,1.5,0))),outside))
             self.send(packet[:4]+bytes([0,accepted]))
             if accepted:
-                self.build_at=now+.2;self.build_cell=cell
+                self.build_at=now+(definition.get('build_time') or 0);self.build_cell=cell;self.pending_device=definition
                 self.send(b'\x06\x3a'+pack('I',1)+packet[4:])
             return True
         if fn == 57:
@@ -235,15 +247,25 @@ class Practice:
             for shot,point,target in hits:
                 record=self.shots.pop(shot,None)
                 if not record: continue
-                _,origin,tool,key,aim=record
+                shot_time,origin,tool,key,aim=record
                 if math.dist(origin,point)>tool.get('range',0)+.1: continue
                 vector=tuple(b-a for a,b in zip(origin,aim));length=sum(v*v for v in vector)
                 if length<.001: continue
                 projection=sum((b-a)*v for a,b,v in zip(origin,point,vector))/length
                 closest=tuple(a+max(0,projection)*v for a,v in zip(origin,vector))
-                if math.dist(closest,point)>1: continue
+                if tool.get('grenade'):
+                    if math.dist(origin,point)>tool['speed']*(now-shot_time+.5)+4:continue
+                elif math.dist(closest,point)>1: continue
+                effect=tool.get('hit_effect',{})
+                if effect.get('type') in ('bunch','splash_damage'):
+                    if not tool.get('grenade') and not self.clear_line(origin,point,ignore_end=True):continue
+                    self.apply_effect(effect,point,origin,key,target);continue
                 if target is None:
                     self.damage_block(point,tool,origin);continue
+                if target in self.placed:
+                    if math.dist(point,self.placed[target]['position'])<2 and self.clear_line(origin,point):
+                        damage=effect.get('damage',{}).get('world_damage',0);self.damage_entity(target,damage,key)
+                    continue
                 if target!=2 or self.target_health<=0: continue
                 if math.dist(point,self.target_position)>2.5 or math.dist(origin,point)>tool.get('range',0) or not self.clear_line(origin,point): continue
                 effect=tool.get('hit_effect',{})
