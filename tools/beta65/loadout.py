@@ -2,6 +2,7 @@
 import math
 import struct
 import time
+from gameclock import millis
 import zlib
 
 
@@ -17,14 +18,15 @@ class LoadoutSystems:
         self.device_definitions={d['_id']:d for d in config.get('unit_devices',[])}
         self.placed={};self.next_device=100;self.pending_device=None
         self.spawn_position=(14.5,5,23.5)
-        self.ability=config.get('ability');self.charges=self.ability['charges']['max_charges'] if self.ability else 0
+        self.ability=config.get('ability');self.charges=(self.ability.get('charges') or {}).get('max_charges',1) if self.ability else 0
         self.charge_at=None;self.last_ability=-100
-        self.player_health=160
+        self.max_health=config.get('max_health',160)
+        self.player_health=self.max_health
         self.radar_marked=False
 
     def ability_update(self):
         if self.player_respawn_at is not None:return
-        end=0 if self.charge_at is None else int(time.time()*1000+max(0,self.charge_at-self.clock())*1000)
+        end=0 if self.charge_at is None else int(millis()+max(0,self.charge_at-self.clock())*1000)
         self.send(b'\x06\x09'+pack('I',1)+b'\x00\xe0\x00'+key(self.ability['_id'])+pack('iQ',self.charges,end))
 
     def cast_ability(self,packet):
@@ -35,7 +37,7 @@ class LoadoutSystems:
         for _ in range(r.size()):
             aim=r.vector();shot=r.read('Q') if r.read('?') else None;shots.append((aim,shot))
         r.end();now=self.clock()
-        accepted=bool(self.ability and ability_key==key(self.ability['_id']) and self.charges>0 and self.player_respawn_at is None and now-self.last_ability>.35 and math.dist(origin,self.position)<4 and len(shots)==1 and shots[0][1] is not None and shots[0][1] not in self.shots)
+        accepted=bool(self.ability and self.ability.get('application',{}).get('type')=='projectile' and ability_key==key(self.ability['_id']) and self.charges>0 and self.player_respawn_at is None and now-self.last_ability>.35 and math.dist(origin,self.position)<4 and len(shots)==1 and shots[0][1] is not None and shots[0][1] not in self.shots)
         self.send(packet[:4]+bytes([0,accepted]))
         if accepted:
             aim,shot=shots[0];self.charges-=1;self.last_ability=now
@@ -151,7 +153,7 @@ class LoadoutSystems:
             self.placed[unit]={'device':definition['_id'],'definition':built,'position':position,'cell':cell,'health':hp,'created':self.clock()}
             self.send(packet);self.send(health(unit,hp))
             if built.get('data',{}).get('type')=='bomb':
-                deadline=int(time.time()*1000+built['data']['timeout']*1000)
+                deadline=int(millis()+built['data']['timeout']*1000)
                 self.send(b'\x06\x09'+pack('I',unit)+b'\x00\x00\x10'+pack('Q',deadline))
             if built.get('spawn_point') is not None:self.spawn_position=(cell[0]+.5,cell[1]+1.2,cell[2]+.5)
             self.event('device_built',device=definition['_id'],unit=unit)

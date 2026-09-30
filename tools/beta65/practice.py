@@ -45,8 +45,8 @@ class Practice(LoadoutSystems):
         self.position = (14.5, 5, 23.5)
         self.target_position = tuple(packets['practice']['target_position'])
         self.weapons = {packets['keys'][w['id']]: w['data'] for w in packets['practice']['weapons']}
-        self.current = packets['keys']['gear_sarge_stone_m60']
-        self.ammo = {k: [w['ammo'][0]['mag_size'], w['ammo'][0]['pool']['pool_size']] for k,w in self.weapons.items() if w.get('ammo')}
+        self.current = packets['keys'][packets['practice'].get('current_gear','gear_sarge_stone_m60')]
+        self.ammo = {k: [w['ammo'][0].get('mag_size'), w['ammo'][0]['pool']['pool_size']] for k,w in self.weapons.items() if w.get('ammo')}
         self.target_health = 160
         self.respawn_at = None
         self.reload_at = None
@@ -75,7 +75,12 @@ class Practice(LoadoutSystems):
         result = b'\x06\x09' + pack('I',1) + b'\x02\x00\x00' + bytes([len(self.weapons)])
         for key in self.weapons:
             result += key
-            result += b'\x01\xe0' + pack('iff',0,*self.ammo[key]) if key in self.ammo else b'\x00'
+            if key in self.ammo:
+                mag,pool=self.ammo[key]
+                result += b'\x01' + bytes([0xe0 if mag is not None else 0xa0]) + pack('i',0)
+                if mag is not None: result += pack('f',mag)
+                result += pack('f',pool)
+            else: result += b'\x00'
         return result
 
     def tick(self):
@@ -83,8 +88,8 @@ class Practice(LoadoutSystems):
         self.tick_systems()
         self.shots = {k:v for k,v in self.shots.items() if now-v[0] < 5}
         if self.player_respawn_at is not None and now>=self.player_respawn_at:
-            self.player_respawn_at=None;self.position=self.spawn_position;self.player_health=160
-            self.current=self.packets['keys']['gear_sarge_stone_m60']
+            self.player_respawn_at=None;self.position=self.spawn_position;self.player_health=self.max_health
+            self.current=self.packets['keys'][self.packets['practice'].get('current_gear','gear_sarge_stone_m60')]
             hero=self.packets['hero-create']
             if self.spawn_position!=(14.5,5,23.5):hero=hero.replace(pack('fff',14.5,5,23.5),pack('fff',*self.spawn_position))
             self.send(hero);self.send(self.packets['hero-state']);self.send_loadout()
@@ -199,7 +204,7 @@ class Practice(LoadoutSystems):
             accepted = self.current in self.ammo and self.reload_at is None
             if accepted:
                 mag,pool = self.ammo[self.current]
-                accepted = pool>0 and mag<self.weapons[self.current]['ammo'][0]['mag_size']
+                accepted = mag is not None and pool>0 and mag<self.weapons[self.current]['ammo'][0]['mag_size']
             self.send(packet[:4]+bytes([0,accepted]))
             if accepted:
                 self.reload_at = now+self.weapons[self.current]['reload']['reload_time']
@@ -222,15 +227,17 @@ class Practice(LoadoutSystems):
             if tool_index>=len(tools): return True
             tool=tools[tool_index]
             interval=tool.get('timing',{}).get('attack_time',0.125)
-            valid=tool['type']=='shot' and self.reload_at is None and now-self.last_cast>=interval*0.85 and math.dist(origin,self.position)<4 and len(shots)==1
-            if self.current in self.ammo: valid=valid and self.ammo[self.current][0]>=1
+            count=(tool.get('bullets') or {}).get('count',1)
+            cost=(tool.get('ammo') or {}).get('rate',0)
+            valid=tool['type'] in ('shot','spinup','throw') and self.reload_at is None and now-self.last_cast>=interval*0.85 and math.dist(origin,self.position)<4 and len(shots)==count
+            ammo_index=0 if self.current in self.ammo and self.ammo[self.current][0] is not None else 1
+            if self.current in self.ammo: valid=valid and self.ammo[self.current][ammo_index]>=cost
             if not valid: self.send(self.ammo_packet()); return True
-            direction,shot=shots[0]
-            if shot is None or shot in self.shots: return True
+            if any(shot is None or shot in self.shots for _,shot in shots) or len({shot for _,shot in shots})!=len(shots): return True
             self.last_cast=now
-            self.shots[shot]=(now,origin,tool,self.current,direction)
-            if self.current in self.ammo:
-                self.ammo[self.current][0]-=1; self.send(self.ammo_packet())
+            for direction,shot in shots:self.shots[shot]=(now,origin,tool,self.current,direction)
+            if self.current in self.ammo and cost:
+                self.ammo[self.current][ammo_index]-=cost; self.send(self.ammo_packet())
             self.event('shot_accepted', tool=tool_index)
             return True
         if fn == 31:

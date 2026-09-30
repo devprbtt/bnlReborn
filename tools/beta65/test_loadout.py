@@ -6,7 +6,7 @@ from practice import pack
 class LoadoutTests(unittest.TestCase):
     def setUp(self):
         fixtures.PracticeTests.setUp(self)
-        self.s.ability={'_id':'ability_sarge_frag_grenade','charges':{'max_charges':3,'charge_cooldown':15},'application':{'speed':15},'hit_effect':{'type':'splash_damage','radius':3,'damage':{'player_damage':30,'world_damage':30}}}
+        self.s.ability={'_id':'ability_sarge_frag_grenade','charges':{'max_charges':3,'charge_cooldown':15},'application':{'type':'projectile','speed':15},'hit_effect':{'type':'splash_damage','radius':3,'damage':{'player_damage':30,'world_damage':30}}}
         self.s.charges=3
     def ability(self,shot):
         return self.s.handle(b'\x06\x2f\x01\x00\xe0'+key('ability_sarge_frag_grenade')+pack('fff',1,1,2)+b'\x01'+pack('fff',5,1,2)+b'\x01'+pack('Q',shot))

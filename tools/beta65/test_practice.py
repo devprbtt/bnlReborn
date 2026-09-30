@@ -7,7 +7,7 @@ class PracticeTests(unittest.TestCase):
     def setUp(self):
         self.now=0; self.sent=[]; self.events=[]
         weapon={'ammo':[{'mag_size':2,'pool':{'pool_size':4}}], 'reload':{'reload_time':2},
-                'tools':[{'type':'shot','range':20,'timing':{'attack_time':0.1},
+                'tools':[{'type':'shot','ammo':{'rate':1},'range':20,'timing':{'attack_time':0.1},
                           'hit_effect':{'type':'damage','damage':{'player_damage':80}}}]}
         self.key=pack('I',123)
         self.packets={'practice':{'target_position':[5,1,2],'passable':[0],
@@ -94,5 +94,33 @@ class PracticeTests(unittest.TestCase):
 
     def test_beta_health_fixture(self):
         self.assertEqual(health(2,160).hex(),'06090200000040000000002043')
+
+    def test_pool_only_weapon_consumes_pool_and_rejects_reload(self):
+        self.s.weapons[self.key]['ammo'][0]['mag_size']=None
+        self.s.ammo[self.key]=[None,4]
+        self.shoot()
+        self.assertEqual(self.s.ammo[self.key],[None,3])
+        self.assertIn(b'\x01\xa0'+pack('if',0,3),self.s.ammo_packet())
+        self.s.handle(b'\x06\x21\x01\x00')
+        self.assertIsNone(self.s.reload_at)
+
+    def test_multi_pellet_cast_consumes_one_round_and_rejects_duplicate_ids(self):
+        self.s.weapons[self.key]['tools'][0]['bullets']={'count':2}
+        header=b'\x06\x1e\xe0\x00'+pack('fff',1,1,2)+b'\x02'
+        def shot(i):return pack('fff',5,1,2)+b'\x01'+pack('Q',i)
+        self.s.handle(header+shot(1)+shot(1))
+        self.assertEqual(self.s.shots,{})
+        self.s.handle(header+shot(1)+shot(2))
+        self.assertEqual(set(self.s.shots),{1,2})
+        self.assertEqual(self.s.ammo[self.key],[1,4])
+
+    def test_selected_hero_health_and_skin_survive_respawn(self):
+        self.packets['practice'].update(max_health=210,current_gear='gear_sarge_stone_m60')
+        self.packets.update({'hero-create':b'gold-robot','hero-state':b'robot-state'})
+        self.s=Practice(self.packets,self.sent.append,lambda *a,**k:None,lambda:self.now)
+        self.assertEqual(self.s.player_health,210)
+        self.s.move((1,-5,2));self.now=4;self.s.tick()
+        self.assertEqual(self.s.player_health,210)
+        self.assertIn(b'gold-robot',self.sent)
 
 if __name__=='__main__': unittest.main()

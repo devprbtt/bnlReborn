@@ -12,6 +12,7 @@ from lobby import Lobby
 import struct
 import threading
 import time
+from gameclock import millis
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
@@ -80,6 +81,7 @@ class MenuServer:
         self.terrain_test = terrain_test
         self.lock = threading.Lock()
         self.send_lock = threading.Lock()
+        self.frame_timeout = 600
 
     def event(self, kind, **fields):
         # Never log wire payloads, login credentials, or session tokens.
@@ -113,12 +115,16 @@ class MenuServer:
         last_movement_log = 0
         try:
             with connection:
-                connection.settimeout(600)
+                connection.settimeout(self.frame_timeout)
                 while True:
+                    if room and instance and room.state == 'lobby':
+                        room.tick(lambda p: self.send(connection,p))
                     if practice:
                         practice.tick()
-                        if not select.select([connection], [], [], 0.1)[0]:
-                            continue
+                    # Waiting in a menu is not a broken connection. Only start the
+                    # framed read once bytes arrive; retain a timeout for partial frames.
+                    if not select.select([connection], [], [], 0.1)[0]:
+                        continue
                     packet = receive(connection)
                     service, function = packet[:2]
                     if (service, function) != (6, 15):
@@ -159,6 +165,7 @@ class MenuServer:
                         if 'lobby' in self.packets and not self.terrain_test:
                             room = Lobby(self.packets, lambda p: self.send(connection, p), self.enter_instance, self.event)
                         self.send(connection, packet[:4] + b"\x00\x00")
+                        self.send(connection, b"\x03\x00" + struct.pack("<q", millis()))
                         for name in ("catalogue", "player", "server-update"):
                             self.send(connection, self.packets[name])
                         self.send(connection, b"\x01\x0b")
@@ -176,7 +183,7 @@ class MenuServer:
                             expiry = self.instance_tokens.pop(token, 0)
                         if isinstance(expiry, tuple):
                             expiry, room, stage = expiry
-                            session_packets = room.practice_packets()
+                            if stage != 'lobby': session_packets = room.practice_packets()
                         if reader.read() or expiry < time.monotonic():
                             self.send(connection, packet[:4] + b"\xff" + string("Terrain test session expired."))
                             return
@@ -205,8 +212,8 @@ class MenuServer:
                         self.event("terrain_ready")
                         self.send(connection, self.packets["zone-start"])
                         for name in ("hero-create", "hero-state"):
-                            if name in self.packets:
-                                self.send(connection, self.packets[name])
+                            if name in session_packets:
+                                self.send(connection, session_packets[name])
                         if "practice" in self.packets:
                             practice = Practice(session_packets, lambda p: self.send(connection,p), self.event)
                             practice.start()
@@ -246,7 +253,7 @@ class MenuServer:
                         # Empty local leaderboard; optional 'me' is absent for top queries.
                         self.send(connection, packet[:4] + b"\x00\x00" + (b"\x00" if function in (0, 2) else b""))
                     elif (service, function) == (3, 1):
-                        self.send(connection, packet[:4] + b"\x00" + struct.pack("<q", int(time.time()*1000)))
+                        self.send(connection, packet[:4] + b"\x00" + struct.pack("<q", millis()))
                     elif service == 5 and function in (6, 7, 8, 19, 27):
                         pass  # Client metadata; no personal data persisted.
                     else:
@@ -293,6 +300,8 @@ def main():
     if (args.packets / 'lobby.json').exists():
         packets['lobby'] = json.loads((args.packets / 'lobby.json').read_text())
         packets['lobby-scene'] = (args.packets / 'lobby-scene.bin').read_bytes()
+        packets['skin-packets'] = {p.stem[6:]:p.read_bytes() for p in args.packets.glob('spawn-*.bin')}
+        packets['hero-states'] = {p.stem[6:]:p.read_bytes() for p in args.packets.glob('state-*.bin')}
     args.events.parent.mkdir(parents=True, exist_ok=True)
     class Feed(BaseHTTPRequestHandler):
         def do_GET(self):

@@ -44,14 +44,29 @@ class Protocol65LoginTests(unittest.TestCase):
         region, _ = self.connect()
         self.send(region, b"\x01\x09\x01\x00" + string(token))
         self.assertEqual(receive(region), b"\x01\x09\x01\x00\x00\x00")
+        origin = receive(region)
+        self.assertEqual(origin[:2], b"\x03\x00")
+        from gameclock import millis
+        self.assertLess(abs(struct.unpack("<q",origin[2:])[0]-millis()),1000)
         packets = [receive(region) for _ in range(5)]
         self.assertEqual(packets[3], b"\x01\x0b")
         self.assertEqual(packets[4], self.server.packets["scene"])
+        self.send(region,b"\x03\x01\x07\x00")
+        sync=receive(region)
+        self.assertEqual(sync[:5],b"\x03\x01\x07\x00\x00")
+        self.assertLess(abs(struct.unpack("<q",sync[5:])[0]-millis()),1000)
         self.send(region, b"\x0c\x02\x02\x00" + struct.pack("<iii", 0, 0, 0))
         self.assertEqual(receive(region), b"\x0c\x02\x02\x00\x00\x00\x00")
         replay, _ = self.connect()
         self.send(replay, b"\x01\x09\x01\x00" + string(token))
         self.assertEqual(receive(replay)[4], 255)
+
+    def test_idle_connection_survives_frame_timeout(self):
+        self.server.frame_timeout = .05
+        client, _ = self.connect()
+        time.sleep(.25)
+        self.send(client, b"\x01\x01\x01\x00" + string("BetaLocal") + string("local-diagnostic-only"))
+        self.assertEqual(receive(client)[4], 0)
 
     def test_modern_version_rejected(self):
         _, version = self.connect(310)
@@ -66,7 +81,7 @@ class Protocol65LoginTests(unittest.TestCase):
         self.server.tokens['region']=time.monotonic()+30
         region,_=self.connect()
         self.send(region,b'\x01\x09\x01\x00'+string('region'))
-        for _ in range(6):receive(region)
+        for _ in range(7):receive(region)
         self.send(region,b'\x0b\x00'+key('beta_menu_friendly'))
         self.assertEqual(receive(region),self.server.packets['lobby-scene'])
         token=receive(region)[-64:].decode()

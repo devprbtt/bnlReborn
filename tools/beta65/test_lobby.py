@@ -1,4 +1,5 @@
 import unittest
+from unittest.mock import patch
 from lobby import Lobby
 from loadout import key, pack
 from server import string
@@ -73,6 +74,38 @@ class LobbyTests(unittest.TestCase):
         self.room.handle_region(b'\x0b\x0c\x10\x01')
         self.assertEqual(self.region[0],self.room.room_update())
         self.assertEqual(self.region[1][:2],b'\x02\x03')
+
+    def test_timer_expiry_repairs_incomplete_loadout_and_starts_once(self):
+        with patch('lobby.millis',return_value=1000): self.room.open_lobby()
+        self.assertEqual(self.room.selection_end,121000)
+        self.send(4,pack('i',2))
+        with patch('lobby.millis',return_value=120999): self.room.tick(self.instance.append)
+        self.assertEqual(self.room.state,'lobby')
+        with patch('lobby.millis',return_value=121000):
+            self.room.tick(self.instance.append);self.room.tick(self.instance.append)
+        self.assertEqual(self.room.devices,self.room.defaults)
+        self.assertEqual(self.region.count(b'zone'),1)
+
+    def test_hero_skin_validation_and_selected_spawn_snapshot(self):
+        heroes=[{'id':'cogwheel','skins':['gold','red'],'defaults':['device_'+str(i) for i in range(1,7)],
+                 'health':210,'gears':['tool','gun','cannon'],'ability':'mortar'}]
+        self.packets['lobby'].update(heroes=heroes,weapons=[{'id':'gun','data':{}}],
+                                    abilities=[{'_id':'mortar'}],unit_devices=[])
+        self.packets.update({'skin-packets':{'gold':b'gold-model','red':b'red-model'},
+                             'hero-states':{'cogwheel':b'robot-state'}})
+        self.room=Lobby(self.packets,self.region.append,lambda *a:None,lambda *a,**k:None)
+        self.room.open_lobby();self.send(2,key('unknown'))
+        self.assertEqual(self.room.hero,'sarge')
+        self.send(2,key('cogwheel'));self.send(8,key('unknown'))
+        self.assertEqual(self.room.skin,'gold')
+        self.send(8,key('red'));self.send(10)
+        snapshot=self.room.practice_packets()
+        self.assertEqual(snapshot['hero-create'],b'red-model')
+        self.assertEqual(snapshot['hero-state'],b'robot-state')
+        self.assertEqual(snapshot['practice']['max_health'],210)
+        self.assertEqual(snapshot['practice']['current_gear'],'gun')
+        self.assertEqual(snapshot['practice']['loadout'][0]['_id'],'device_1')
+        self.assertNotIn('max_health',self.packets['practice'])
 
 
 if __name__ == '__main__': unittest.main()

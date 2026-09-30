@@ -90,8 +90,11 @@ It is a scripted test, never launched by the normal user launcher.
 The private packet generator now supplies `lobby.json` and `lobby-scene.bin`.
 Without `--terrain-test`, these enable Play -> Local Practice -> Go or Custom ->
 Create Game -> Start Game, followed by the recovered hero/block/skin lobby.
-The supported roster is currently Sarge with his default skin. His six default
-devices plus brick are available, with add/remove/swap/recommendation validation.
+The recovered roster now includes Sarge, Cogwheel, Nigel, O.P. Juan, Eliza and
+Tony, with 21 skins verified against beta bundle paths and 23 block/device choices.
+Hero-specific default loadouts, skin selection and add/remove/swap/recommendation
+requests update the lobby. Selected model, FPS skin, weapons, health and loadout
+carry into practice and respawn.
 Six unique slots are required before Ready; their order carries into practice
 and survives respawn. Selections live for the current region session only.
 
@@ -104,6 +107,18 @@ empty list, create makes a local solo room, remote join/spectate are rejected,
 and team/settings changes return the supported fixed values with an explanation.
 Room passwords remain in memory only and are not logged or persisted.
 
-35 automated tests cover login, gameplay and the lobby state machine, including
+41 automated tests cover login, gameplay and the lobby state machine, including
 a socket-level menu/lobby/zone/exit handoff. Original-player mouse tests and
 serializer fixture comparisons are recorded in the separate recovery project.
+
+The lobby has a two-minute selection countdown and auto-starts at expiry; an
+incomplete loadout then falls back to that hero's defaults. Block In starts early.
+ServiceTime.SetOrigin and Sync use shared process-relative monotonic milliseconds,
+also used for ability/device deadlines. Idle sockets are polled before framed reads,
+so remaining in menus no longer triggers the old 600-second receive timeout.
+Partial frames still time out. Pool-only ammo and multi-pellet casts are supported.
+
+This expansion restores selection and spawning, not full hero mechanics. Non-Sarge
+abilities, channel/melee tools, special-device behaviors and historical balance are
+incomplete. All 23 devices are currently exposed to all heroes in this solo sandbox;
+hero-specific restrictions are not yet enforced. No multiplayer or deployment.
