@@ -122,3 +122,10 @@ This expansion restores selection and spawning, not full hero mechanics. Non-Sar
 abilities, channel/melee tools, special-device behaviors and historical balance are
 incomplete. All 23 devices are currently exposed to all heroes in this solo sandbox;
 hero-specific restrictions are not yet enforced. No multiplayer or deployment.
+
+Direct hero preview also binds the instance to its region room. ExitMatch stops
+practice and returns to the menu; a later Play request enters the normal lobby.
+The generator marks local zones as custom so the original Escape menu exposes
+Quit Match. Preview uses the full lobby packet set so Play remains enabled.
+Health reports the packet revision loaded at startup, not a regenerated disk
+manifest. Regression suite: 42 tests including direct preview exit/reentry.

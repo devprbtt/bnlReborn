@@ -101,6 +101,31 @@ class Protocol65LoginTests(unittest.TestCase):
         self.assertEqual(receive(region),b'\x0b\x11')
         self.assertEqual(receive(region),self.server.packets['scene'])
 
+    def test_direct_practice_exit_returns_to_menu_and_can_open_lobby(self):
+        from loadout import key
+        self.server.terrain_test=True
+        devices=[{'_id':'device_'+str(i)} for i in range(6)]
+        self.server.packets.update({'lobby':{'hero':'sarge','skin':'skin','devices':devices},
+            'practice':{'loadout':devices},'lobby-scene':b'\x02\x00lobby',
+            'terrain-scene':b'\x02\x00zone','zone-init':b'\x06\x00map'})
+        self.server.tokens['direct']=time.monotonic()+30
+        region,_=self.connect()
+        self.send(region,b'\x01\x09\x01\x00'+string('direct'))
+        for _ in range(6):receive(region)
+        self.assertEqual(receive(region),self.server.packets['terrain-scene'])
+        token=receive(region)[-64:].decode()
+        instance,_=self.connect()
+        self.send(instance,b'\x01\x0d\x01\x00'+string(token))
+        self.assertEqual(receive(instance)[4:],b'\x00')
+        self.assertEqual(receive(instance),self.server.packets['zone-init'])
+        self.send(instance,b'\x06\x05')
+        self.assertEqual(receive(instance),b'\x09\x01')
+        self.assertEqual(receive(region),b'\x0b\x11')
+        self.assertEqual(receive(region),self.server.packets['scene'])
+        self.send(region,b'\x0b\x00'+key('beta_menu_friendly'))
+        self.assertEqual(receive(region),self.server.packets['lobby-scene'])
+        self.assertEqual(receive(region)[:2],b'\x02\x02')
+
     def test_credentials_not_logged(self):
         client, _ = self.connect()
         self.send(client, b"\x01\x01\x01\x00" + string("wrong") + string("private-password"))

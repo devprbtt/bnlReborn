@@ -162,15 +162,22 @@ class MenuServer:
                             self.send(connection, packet[:4] + b"\xff" + string("Local session expired; relogin."))
                             return
                         authenticated = True
-                        if 'lobby' in self.packets and not self.terrain_test:
+                        if 'lobby' in self.packets:
                             room = Lobby(self.packets, lambda p: self.send(connection, p), self.enter_instance, self.event)
                         self.send(connection, packet[:4] + b"\x00\x00")
                         self.send(connection, b"\x03\x00" + struct.pack("<q", millis()))
                         for name in ("catalogue", "player", "server-update"):
                             self.send(connection, self.packets[name])
                         self.send(connection, b"\x01\x0b")
-                        self.send(connection, self.packets["terrain-scene"] if self.terrain_test else self.packets["scene"])
-                        if self.terrain_test:
+                        if self.terrain_test and room:
+                            # Direct preview still belongs to the region session so ExitMatch
+                            # can stop simulation and return to the normal menu/lobby flow.
+                            room.state = 'zone'
+                            room.zone_initialized = True
+                            self.enter_instance(room, 'zone')
+                        else:
+                            self.send(connection, self.packets["terrain-scene"] if self.terrain_test else self.packets["scene"])
+                        if self.terrain_test and not room:
                             token = secrets.token_hex(32)
                             with self.lock:
                                 self.instance_tokens[token] = time.monotonic() + 120
@@ -207,8 +214,9 @@ class MenuServer:
                         spawned = True
                         if room:
                             session_packets = room.practice_packets()
-                            self.send(connection, b'\x09\x00\x20\x01')
-                            self.send(connection, b'\x09\x0c\x01' + struct.pack('<If', 1, 1.0))
+                            if stage == 'lobby':
+                                self.send(connection, b'\x09\x00\x20\x01')
+                                self.send(connection, b'\x09\x0c\x01' + struct.pack('<If', 1, 1.0))
                         self.event("terrain_ready")
                         self.send(connection, self.packets["zone-start"])
                         for name in ("hero-create", "hero-state"):
@@ -303,10 +311,12 @@ def main():
         packets['skin-packets'] = {p.stem[6:]:p.read_bytes() for p in args.packets.glob('spawn-*.bin')}
         packets['hero-states'] = {p.stem[6:]:p.read_bytes() for p in args.packets.glob('state-*.bin')}
     args.events.parent.mkdir(parents=True, exist_ok=True)
+    # Report the revision actually loaded, even after the launcher regenerates files.
+    packet_revision = hashlib.sha256((args.packets / "provenance.json").read_bytes()).hexdigest() if (args.packets / "provenance.json").exists() else None
     class Feed(BaseHTTPRequestHandler):
         def do_GET(self):
             if self.path == "/health":
-                payload = json.dumps({"service":"bnl-beta65-menu","protocol":65,"matches":False,"mode":"terrain-test" if args.terrain_test else "menu","hero":"hero-create" in packets,"packet_revision":hashlib.sha256((args.packets / "provenance.json").read_bytes()).hexdigest() if (args.packets / "provenance.json").exists() else None}).encode()
+                payload = json.dumps({"service":"bnl-beta65-menu","protocol":65,"matches":False,"mode":"terrain-test" if args.terrain_test else "menu","hero":"hero-create" in packets,"packet_revision":packet_revision}).encode()
                 self.send_response(200)
                 self.send_header("Content-Type", "application/json")
                 self.send_header("Content-Length", str(len(payload)))
