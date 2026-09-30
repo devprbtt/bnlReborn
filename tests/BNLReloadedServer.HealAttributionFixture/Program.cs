@@ -94,7 +94,11 @@ Check(Near(direct[0].ShotPos.X, 10f), "the attribution carries the amount healed
 Check(direct[0].SourceKey == gear.Key, "the attribution carries the heal's source gear");
 
 Check(Heal(new UnitSource(healer), teammate, 10, startHealth: 100f).Count == 0, "no attribution when the teammate is at full health");
-Check(Heal(new UnitSource(healer), healer, 10).Count == 0, "no attribution for healing yourself");
+// Healing yourself (Miracle Cure's self heal, lifesteal perks) names you, so your own portrait shows.
+var self = Heal(new UnitSource(healer), healer, 10);
+Check(self.Count == 1 && self[0].Impact is null && self[0].CasterPlayerId == healer.PlayerId &&
+      self[0].CasterUnitId == healer.Id && self[0].HitUnits is [var selfHit] && selfHit == healer.Id && Near(self[0].ShotPos.X, 10f),
+    "a heal you give yourself is attributed to you with the amount");
 
 var orbUnit = OnZone(() =>
 {
@@ -169,6 +173,22 @@ Check(mapGained > 0 && mapImpacts.Count == 1 && mapImpacts[0].CasterPlayerId is 
       mapImpacts[0].CasterUnitId == mapStation.Id && mapImpacts[0].Impact is null &&
       mapImpacts[0].HitUnits is [var mapHit] && mapHit == teammate.Id && Near(mapImpacts[0].ShotPos.X, mapGained),
     "an unowned station's regen is attributed to the station unit with the amount and no player");
+
+// Self regeneration from your own passive or ability (True Grit's low-health regen, Power Surge, Miracle Cure),
+// applied with your own source: attributed to you. The on-low-health trigger uses the bare self source (no impact).
+var (selfRegen, selfGained) = OnZone(() =>
+{
+    healer.UpdateData(new UnitUpdate { Health = 20f });
+    healer.AddEffects([new ConstEffectInfo(staffRegen.Key)], TeamType.Team1, healer.GetSelfSource());
+    var before = healer.HealthPercentage;
+    calls.Clear();
+    healer.ApplyBuffEffects(1f);
+    var impacts = calls.Where(c => c.Name == "SendImpact").Select(c => (ImpactData)c.Args[0]!).ToList();
+    return (impacts, (healer.HealthPercentage - before) * 100f);
+});
+Check(selfGained > 0 && selfRegen.Count == 1 && selfRegen[0].Impact is null && selfRegen[0].CasterPlayerId == healer.PlayerId &&
+      selfRegen[0].HitUnits is [var selfRegenHit] && selfRegenHit == healer.Id && Near(selfRegen[0].ShotPos.X, selfGained),
+    $"your own passive regen ({selfGained:0.##}) is attributed to you with the amount");
 
 zone.Stop();
 Console.WriteLine($"BNL_HEAL_ATTRIBUTION_FIXTURE_OK checks={checks}");

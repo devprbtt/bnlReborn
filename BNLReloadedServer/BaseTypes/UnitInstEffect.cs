@@ -52,10 +52,12 @@ public partial class Unit
     // station placed with the map, or one whose builder has left) names that unit as caster with no player,
     // so clients can show its icon. Released clients
     // ignore card-less impacts on players: every hit handler requires an impact card. Heals whose source is
-    // the healed player itself (own perks and abilities) are not attributed.
+    // the healed player itself (its abilities, passives and perks: Miracle Cure, True Grit, Power Surge) name
+    // that player, so clients show its own portrait.
     public static Unit? HealCredit(EffectSource? source, Unit? healerPlayer, Unit healed)
     {
-        if (healed.PlayerId is null || source is UnitSource { Unit: var self } && self.Id == healed.Id) return null;
+        if (healed.PlayerId is null) return null;
+        if (source is UnitSource { Unit: var self } && self.Id == healed.Id) return healed;
         if (healerPlayer is { PlayerId: not null }) return healerPlayer;
         return source is UnitSource { Unit: { PlayerId: null } unowned } ? unowned : null;
     }
