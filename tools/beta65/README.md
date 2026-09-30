@@ -86,3 +86,24 @@ wall attachment orientation and production server-authoritative physics remain
 outside the implementation. `smoke_loadout.py` explicitly exercises all six slots,
 projectile rendering, explosions, recharge and deployed respawn in the old player.
 It is a scripted test, never launched by the normal user launcher.
+
+The private packet generator now supplies `lobby.json` and `lobby-scene.bin`.
+Without `--terrain-test`, these enable Play -> Local Practice -> Go or Custom ->
+Create Game -> Start Game, followed by the recovered hero/block/skin lobby.
+The supported roster is currently Sarge with his default skin. His six default
+devices plus brick are available, with add/remove/swap/recommendation validation.
+Six unique slots are required before Ready; their order carries into practice
+and survives respawn. Selections live for the current region session only.
+
+Lobby and zone reuse the same mediator connection. Region EnterScene after Ready
+triggers ZoneInit on that connection; issuing a second instance token here leaves
+this client stuck at 50%. Quit Match returns to the menu and stops simulation.
+Each region session has its own room and loadout; initial instance tokens remain
+expiring and one-use. This does not implement multiplayer: the browser returns an
+empty list, create makes a local solo room, remote join/spectate are rejected,
+and team/settings changes return the supported fixed values with an explanation.
+Room passwords remain in memory only and are not logged or persisted.
+
+35 automated tests cover login, gameplay and the lobby state machine, including
+a socket-level menu/lobby/zone/exit handoff. Original-player mouse tests and
+serializer fixture comparisons are recorded in the separate recovery project.

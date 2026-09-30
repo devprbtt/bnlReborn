@@ -8,6 +8,7 @@ import secrets
 import socket
 import select
 from practice import Practice
+from lobby import Lobby
 import struct
 import threading
 import time
@@ -78,6 +79,7 @@ class MenuServer:
         self.instance_tokens = {}
         self.terrain_test = terrain_test
         self.lock = threading.Lock()
+        self.send_lock = threading.Lock()
 
     def event(self, kind, **fields):
         # Never log wire payloads, login credentials, or session tokens.
@@ -85,9 +87,19 @@ class MenuServer:
             with self.event_path.open("a", encoding="utf-8") as f:
                 f.write(json.dumps({"time": time.time(), "kind": kind, **fields}) + "\n")
 
-    @staticmethod
-    def send(connection, packet):
-        connection.sendall(varint(len(packet)) + packet)
+    def send(self, connection, packet):
+        with self.send_lock:
+            connection.sendall(varint(len(packet)) + packet)
+
+    def enter_instance(self, room, stage):
+        token = secrets.token_hex(32)
+        with self.lock:
+            now = time.monotonic()
+            self.instance_tokens = {k:v for k,v in self.instance_tokens.items()
+                                    if (v[0] if isinstance(v,tuple) else v) > now}
+            self.instance_tokens[token] = (time.monotonic() + 120, room, stage)
+        room.send_region(self.packets['lobby-scene' if stage == 'lobby' else 'terrain-scene'])
+        room.send_region(b'\x02\x02' + string('127.0.0.1') + struct.pack('<i', self.port) + string(token))
 
     def session(self, connection):
         verified = False
@@ -95,6 +107,9 @@ class MenuServer:
         instance = False
         spawned = False
         practice = None
+        room = None
+        stage = 'zone'
+        session_packets = self.packets
         last_movement_log = 0
         try:
             with connection:
@@ -141,6 +156,8 @@ class MenuServer:
                             self.send(connection, packet[:4] + b"\xff" + string("Local session expired; relogin."))
                             return
                         authenticated = True
+                        if 'lobby' in self.packets and not self.terrain_test:
+                            room = Lobby(self.packets, lambda p: self.send(connection, p), self.enter_instance, self.event)
                         self.send(connection, packet[:4] + b"\x00\x00")
                         for name in ("catalogue", "player", "server-update"):
                             self.send(connection, self.packets[name])
@@ -152,33 +169,48 @@ class MenuServer:
                                 self.instance_tokens[token] = time.monotonic() + 120
                             self.send(connection, b"\x02\x02" + string("127.0.0.1") + struct.pack("<i",self.port) + string(token))
                         self.event("region_login_accepted")
-                    elif (service, function) == (1, 13) and self.terrain_test:
+                    elif (service, function) == (1, 13) and 'zone-init' in self.packets:
                         reader = io.BytesIO(packet[4:])
                         token = read_string(reader)
                         with self.lock:
                             expiry = self.instance_tokens.pop(token, 0)
+                        if isinstance(expiry, tuple):
+                            expiry, room, stage = expiry
+                            session_packets = room.practice_packets()
                         if reader.read() or expiry < time.monotonic():
                             self.send(connection, packet[:4] + b"\xff" + string("Terrain test session expired."))
                             return
                         authenticated = True
                         instance = True
+                        if room:
+                            room.send_instance = lambda p: self.send(connection, p)
                         self.send(connection, packet[:4] + b"\x00")
-                        self.send(connection, self.packets["zone-init"])
-                        self.event("terrain_instance_initialized")
+                        self.send(connection, room.update() if stage == 'lobby' else session_packets["zone-init"])
+                        self.event('lobby_instance_initialized' if stage == 'lobby' else 'terrain_instance_initialized')
                     elif not authenticated:
                         raise ValueError("Login required")
-                    elif self.terrain_test and instance and (service, function) == (6, 1):
+                    elif room and not instance and room.handle_region(packet):
+                        pass
+                    elif room and instance and room.handle_instance(packet, lambda p: self.send(connection, p)):
+                        if room.state == 'menu':
+                            practice = None
+                    elif instance and (stage == 'zone' or room and room.state == 'zone') and (service, function) == (6, 1):
                         if spawned:
                             raise ValueError("Duplicate zone readiness")
                         spawned = True
+                        if room:
+                            session_packets = room.practice_packets()
+                            self.send(connection, b'\x09\x00\x20\x01')
+                            self.send(connection, b'\x09\x0c\x01' + struct.pack('<If', 1, 1.0))
                         self.event("terrain_ready")
                         self.send(connection, self.packets["zone-start"])
                         for name in ("hero-create", "hero-state"):
                             if name in self.packets:
                                 self.send(connection, self.packets[name])
                         if "practice" in self.packets:
-                            practice = Practice(self.packets, lambda p: self.send(connection,p), self.event)
+                            practice = Practice(session_packets, lambda p: self.send(connection,p), self.event)
                             practice.start()
+                            practice.send_loadout()
                     elif practice and service == 6 and practice.handle(packet):
                         pass
                     elif instance and spawned and (service, function) == (6, 32):
@@ -204,7 +236,10 @@ class MenuServer:
                     elif self.terrain_test and instance and (service, function) == (9, 11):
                         pass  # Loader Ready messages; no lobby gameplay implemented.
                     elif (service, function) == (2, 1):
-                        self.event("terrain_scene_entered" if self.terrain_test else "main_menu_entered")
+                        if room and room.state == 'zone' and not room.zone_initialized:
+                            room.zone_initialized = True
+                            room.send_instance(self.packets['zone-init'])
+                        self.event(room.state + '_scene_entered' if room else "terrain_scene_entered" if self.terrain_test else "main_menu_entered")
                     elif (service, function) == (5, 31):
                         self.send(connection, packet[:4] + b"\x00" + self.packets["profile"][2:])
                     elif service == 12 and function in (0, 1, 2, 3):
@@ -239,9 +274,9 @@ def main():
     args = parser.parse_args()
     packets = {name: (args.packets / (name + ".bin")).read_bytes()
                for name in ("catalogue", "player", "scene", "server-update", "profile")}
-    if args.terrain_test:
+    if (args.packets / 'zone-init.bin').exists():
         packets.update({name: (args.packets / (name + ".bin")).read_bytes() for name in ("terrain-scene", "zone-init", "zone-start")})
-    if args.terrain_test:
+    if (args.packets / 'zone-init.bin').exists():
         for name in ("hero-create", "hero-state"):
             path = args.packets / (name + ".bin")
             if path.exists():
@@ -255,6 +290,9 @@ def main():
         packets["keys"] = {path.stem[4:]:path.read_bytes() for path in args.packets.glob("key-*.bin")}
         for name in ("target-create", "target-state", "terrain", "brick-key"):
             packets[name] = (args.packets / (name + ".bin")).read_bytes()
+    if (args.packets / 'lobby.json').exists():
+        packets['lobby'] = json.loads((args.packets / 'lobby.json').read_text())
+        packets['lobby-scene'] = (args.packets / 'lobby-scene.bin').read_bytes()
     args.events.parent.mkdir(parents=True, exist_ok=True)
     class Feed(BaseHTTPRequestHandler):
         def do_GET(self):
@@ -269,7 +307,7 @@ def main():
             if self.path.split("?")[0] != "/feed":
                 self.send_error(404)
                 return
-            payload = json.dumps({"channel": [{"title": "Local beta recovery", "description": "Menu compatibility preview; matches are unavailable.", "link": "", "items": []}]}).encode()
+            payload = json.dumps({"channel": [{"title": "Local beta recovery", "description": "Local practice with the recovered lobby and Sarge loadout.", "link": "", "items": []}]}).encode()
             self.send_response(200)
             self.send_header("Content-Type", "application/json")
             self.send_header("Content-Length", str(len(payload)))
