@@ -1,6 +1,7 @@
 """Loopback-only protocol-65 menu compatibility service. No match simulation."""
 import argparse
 import io
+import math
 import json
 import secrets
 import socket
@@ -66,11 +67,13 @@ def read_string(reader):
 
 
 class MenuServer:
-    def __init__(self, packets, event_path, port=27065):
+    def __init__(self, packets, event_path, port=27065, terrain_test=False):
         self.packets = packets
         self.event_path = event_path
         self.port = port
         self.tokens = {}
+        self.instance_tokens = {}
+        self.terrain_test = terrain_test
         self.lock = threading.Lock()
 
     def event(self, kind, **fields):
@@ -86,13 +89,17 @@ class MenuServer:
     def session(self, connection):
         verified = False
         authenticated = False
+        instance = False
+        spawned = False
+        last_movement_log = 0
         try:
             with connection:
                 connection.settimeout(600)
                 while True:
                     packet = receive(connection)
                     service, function = packet[:2]
-                    self.event("received", service=service, function=function)
+                    if (service, function) != (6, 15):
+                        self.event("received", service=service, function=function)
                     if (service, function) == (1, 0):
                         if len(packet) != 13 or packet[4] != 0xC0:
                             raise ValueError("Invalid version request")
@@ -130,12 +137,59 @@ class MenuServer:
                         for name in ("catalogue", "player", "server-update"):
                             self.send(connection, self.packets[name])
                         self.send(connection, b"\x01\x0b")
-                        self.send(connection, self.packets["scene"])
+                        self.send(connection, self.packets["terrain-scene"] if self.terrain_test else self.packets["scene"])
+                        if self.terrain_test:
+                            token = secrets.token_hex(32)
+                            with self.lock:
+                                self.instance_tokens[token] = time.monotonic() + 120
+                            self.send(connection, b"\x02\x02" + string("127.0.0.1") + struct.pack("<i",self.port) + string(token))
                         self.event("region_login_accepted")
+                    elif (service, function) == (1, 13) and self.terrain_test:
+                        reader = io.BytesIO(packet[4:])
+                        token = read_string(reader)
+                        with self.lock:
+                            expiry = self.instance_tokens.pop(token, 0)
+                        if reader.read() or expiry < time.monotonic():
+                            self.send(connection, packet[:4] + b"\xff" + string("Terrain test session expired."))
+                            return
+                        authenticated = True
+                        instance = True
+                        self.send(connection, packet[:4] + b"\x00")
+                        self.send(connection, self.packets["zone-init"])
+                        self.event("terrain_instance_initialized")
                     elif not authenticated:
                         raise ValueError("Login required")
+                    elif self.terrain_test and instance and (service, function) == (6, 1):
+                        if spawned:
+                            raise ValueError("Duplicate zone readiness")
+                        spawned = True
+                        self.event("terrain_ready")
+                        self.send(connection, self.packets["zone-start"])
+                        for name in ("hero-create", "hero-state"):
+                            if name in self.packets:
+                                self.send(connection, self.packets[name])
+                    elif instance and spawned and (service, function) == (6, 32):
+                        key = packet[4:]
+                        equipment = self.packets.get("equipment", {})
+                        accepted = key in equipment
+                        self.send(connection, packet[:4] + bytes([0, accepted]))
+                        if accepted:
+                            self.send(connection, equipment[key])
+                        self.event("gear_switch", accepted=accepted)
+                    elif instance and spawned and (service, function) == (6, 15):
+                        # Observe local prediction only; no authoritative physics implemented.
+                        if len(packet) != 46 or struct.unpack_from("<I", packet, 2)[0] != 1 or packet[14:16] != b"\xff\x80":
+                            raise ValueError("Invalid local unit movement")
+                        position = struct.unpack_from("<fff", packet, 16)
+                        if not all(math.isfinite(v) for v in position):
+                            raise ValueError("Non-finite movement")
+                        if time.monotonic() - last_movement_log > 5:
+                            self.event("local_movement_received", position=position)
+                            last_movement_log = time.monotonic()
+                    elif self.terrain_test and instance and (service, function) == (9, 11):
+                        pass  # Loader Ready messages; no lobby gameplay implemented.
                     elif (service, function) == (2, 1):
-                        self.event("main_menu_entered")
+                        self.event("terrain_scene_entered" if self.terrain_test else "main_menu_entered")
                     elif (service, function) == (5, 31):
                         self.send(connection, packet[:4] + b"\x00" + self.packets["profile"][2:])
                     elif service == 12 and function in (0, 1, 2, 3):
@@ -166,14 +220,25 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--packets", type=Path, required=True)
     parser.add_argument("--events", type=Path, required=True)
+    parser.add_argument("--terrain-test", action="store_true", help="Experimental spectator terrain loading only; NOT a playable match")
     args = parser.parse_args()
     packets = {name: (args.packets / (name + ".bin")).read_bytes()
                for name in ("catalogue", "player", "scene", "server-update", "profile")}
+    if args.terrain_test:
+        packets.update({name: (args.packets / (name + ".bin")).read_bytes() for name in ("terrain-scene", "zone-init", "zone-start")})
+    if args.terrain_test:
+        for name in ("hero-create", "hero-state"):
+            path = args.packets / (name + ".bin")
+            if path.exists():
+                packets[name] = path.read_bytes()
+    if "hero-create" in packets:
+        packets["equipment"] = {path.read_bytes(): (args.packets / ("equip-" + path.name[4:])).read_bytes()
+                                for path in args.packets.glob("key-*.bin")}
     args.events.parent.mkdir(parents=True, exist_ok=True)
     class Feed(BaseHTTPRequestHandler):
         def do_GET(self):
             if self.path == "/health":
-                payload = b'{"service":"bnl-beta65-menu","protocol":65,"matches":false}'
+                payload = json.dumps({"service":"bnl-beta65-menu","protocol":65,"matches":False,"mode":"terrain-test" if args.terrain_test else "menu","hero":"hero-create" in packets}).encode()
                 self.send_response(200)
                 self.send_header("Content-Type", "application/json")
                 self.send_header("Content-Length", str(len(payload)))
@@ -195,7 +260,7 @@ def main():
 
     with ThreadingHTTPServer(("127.0.0.1", 27066), Feed) as http:
         threading.Thread(target=http.serve_forever, daemon=True).start()
-        MenuServer(packets, args.events).run()
+        MenuServer(packets, args.events, terrain_test=args.terrain_test).run()
 
 
 if __name__ == "__main__":

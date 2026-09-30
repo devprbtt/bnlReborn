@@ -30,3 +30,21 @@ catalogue deserialized, and `ServiceScene.EnterScene` received for MainMenu. The
 original main-menu scene renders. Map loading, characters, inventory, matchmaking
 and matches are outside this milestone. Unsupported requests are logged by service
 and function only. Do not claim all menu tabs are functional.
+
+
+Experimental terrain / hero preview (`--terrain-test`): the private generator can
+supply `terrain-scene.bin`, `zone-init.bin`, and `zone-start.bin`. The service
+issues a separate one-use instance token, initializes the map, and waits for
+ZoneReady before starting the preview. Optional `hero-create.bin`, `hero-state.bin`
+and matched `key-*.bin` / `equip-*.bin` files spawn and equip one local hero.
+Only supplied equipment keys are accepted. Repeated ZoneReady is rejected.
+`/health` identifies menu versus terrain mode and whether hero packets are loaded.
+
+Verified in the original player: tutorial terrain loads, Sarge spawns with 160
+health, and his recovered first-person M60 renders. The input catalogue/map are
+adapted modern data, not an authenticated 2015 gameplay database. Movement packets
+are observed (finite coordinates, local unit ID); there is no authoritative physics.
+Gear switching has protocol tests; manual input validation is pending. Combat,
+damage, ammunition consumption/reload, building/destruction, respawning, objectives,
+match completion and multiplayer are NOT implemented. This is not match ready.
+The service remains loopback-only and does not change or deploy the live server.
