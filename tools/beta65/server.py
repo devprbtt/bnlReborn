@@ -1,10 +1,13 @@
-"""Loopback-only protocol-65 menu compatibility service. No match simulation."""
+"""Loopback-only protocol-65 menu and limited solo practice service. No production matches."""
 import argparse
+import hashlib
 import io
 import math
 import json
 import secrets
 import socket
+import select
+from practice import Practice
 import struct
 import threading
 import time
@@ -91,11 +94,16 @@ class MenuServer:
         authenticated = False
         instance = False
         spawned = False
+        practice = None
         last_movement_log = 0
         try:
             with connection:
                 connection.settimeout(600)
                 while True:
+                    if practice:
+                        practice.tick()
+                        if not select.select([connection], [], [], 0.1)[0]:
+                            continue
                     packet = receive(connection)
                     service, function = packet[:2]
                     if (service, function) != (6, 15):
@@ -168,10 +176,15 @@ class MenuServer:
                         for name in ("hero-create", "hero-state"):
                             if name in self.packets:
                                 self.send(connection, self.packets[name])
+                        if "practice" in self.packets:
+                            practice = Practice(self.packets, lambda p: self.send(connection,p), self.event)
+                            practice.start()
+                    elif practice and service == 6 and practice.handle(packet):
+                        pass
                     elif instance and spawned and (service, function) == (6, 32):
                         key = packet[4:]
                         equipment = self.packets.get("equipment", {})
-                        accepted = key in equipment
+                        accepted = key in equipment and (practice is None or practice.switch(key))
                         self.send(connection, packet[:4] + bytes([0, accepted]))
                         if accepted:
                             self.send(connection, equipment[key])
@@ -183,6 +196,8 @@ class MenuServer:
                         position = struct.unpack_from("<fff", packet, 16)
                         if not all(math.isfinite(v) for v in position):
                             raise ValueError("Non-finite movement")
+                        if practice:
+                            practice.move(position)
                         if time.monotonic() - last_movement_log > 5:
                             self.event("local_movement_received", position=position)
                             last_movement_log = time.monotonic()
@@ -220,7 +235,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--packets", type=Path, required=True)
     parser.add_argument("--events", type=Path, required=True)
-    parser.add_argument("--terrain-test", action="store_true", help="Experimental spectator terrain loading only; NOT a playable match")
+    parser.add_argument("--terrain-test", action="store_true", help="Experimental terrain/solo practice; NOT a production match")
     args = parser.parse_args()
     packets = {name: (args.packets / (name + ".bin")).read_bytes()
                for name in ("catalogue", "player", "scene", "server-update", "profile")}
@@ -234,11 +249,16 @@ def main():
     if "hero-create" in packets:
         packets["equipment"] = {path.read_bytes(): (args.packets / ("equip-" + path.name[4:])).read_bytes()
                                 for path in args.packets.glob("key-*.bin")}
+    if "hero-create" in packets and (args.packets / "practice.json").exists():
+        packets["practice"] = json.loads((args.packets / "practice.json").read_text())
+        packets["keys"] = {path.stem[4:]:path.read_bytes() for path in args.packets.glob("key-*.bin")}
+        for name in ("target-create", "target-state", "terrain", "brick-key"):
+            packets[name] = (args.packets / (name + ".bin")).read_bytes()
     args.events.parent.mkdir(parents=True, exist_ok=True)
     class Feed(BaseHTTPRequestHandler):
         def do_GET(self):
             if self.path == "/health":
-                payload = json.dumps({"service":"bnl-beta65-menu","protocol":65,"matches":False,"mode":"terrain-test" if args.terrain_test else "menu","hero":"hero-create" in packets}).encode()
+                payload = json.dumps({"service":"bnl-beta65-menu","protocol":65,"matches":False,"mode":"terrain-test" if args.terrain_test else "menu","hero":"hero-create" in packets,"packet_revision":hashlib.sha256((args.packets / "provenance.json").read_bytes()).hexdigest() if (args.packets / "provenance.json").exists() else None}).encode()
                 self.send_response(200)
                 self.send_header("Content-Type", "application/json")
                 self.send_header("Content-Length", str(len(payload)))

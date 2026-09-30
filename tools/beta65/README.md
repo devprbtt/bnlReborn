@@ -1,7 +1,7 @@
 # Protocol 65 local menu compatibility
 
 This standalone service supports the March 27, 2015 beta client. It does not
-modify the current server, connect to its database, or implement matches. It binds
+modify the current server, connect to its database, or implement production matches. It binds
 only `127.0.0.1:27065` (game protocol) and `127.0.0.1:27066` (local menu feed).
 Do not expose it as a public server.
 
@@ -44,7 +44,26 @@ Verified in the original player: tutorial terrain loads, Sarge spawns with 160
 health, and his recovered first-person M60 renders. The input catalogue/map are
 adapted modern data, not an authenticated 2015 gameplay database. Movement packets
 are observed (finite coordinates, local unit ID); there is no authoritative physics.
-Gear switching has protocol tests; manual input validation is pending. Combat,
-damage, ammunition consumption/reload, building/destruction, respawning, objectives,
-match completion and multiplayer are NOT implemented. This is not match ready.
+The user confirmed the initial interactive preview works. The subsequent practice
+simulation adds M60/direct-hit damage against a stationary opposing Sarge, server
+ammo counts, timed magazine reloads, target death/respawn, destructible voxel damage,
+mining rewards, timed brick placement with cost, and player respawn after falling
+below the map. These are deliberately limited local practice mechanics.
+
+Hits must correspond to a recent accepted shot, satisfy range/trajectory checks,
+and pass a voxel obstruction test. Voxel checking approximates each solid voxel
+as a cube, so sloped/partial geometry is not exact. Movement remains client predicted;
+this is not an authoritative multiplayer simulator. Critical hits, rocket splash,
+grenades, regular falling/drowning damage, opponent AI, objectives, results,
+persistence and multiplayer remain unimplemented. This is not match ready.
 The service remains loopback-only and does not change or deploy the live server.
+
+
+Validation: `python -m unittest discover -s tools/beta65 -v` covers ammunition,
+cooldowns, reload timing, replay rejection, damage/respawn, voxel obstruction,
+mining, building cost/occupancy/timing, and login. `smoke_player.py` is an opt-in
+scripted driver for a connected original player. It injects simulated cast/hit and
+build actions; it does NOT test mouse/keyboard input. Run it with the same arguments
+as server.py in an isolated test, then restore server.py for interactive use.
+The launcher never invokes this scripted driver. `/health` includes a packet
+revision so a newly generated catalogue does not silently reuse old loaded data.
