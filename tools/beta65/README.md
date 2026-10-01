@@ -268,3 +268,5 @@ LAN test. Client compatibility patch v6 grays out Block In while two maps are of
 The separate beta client supplies cached local Workshop previews and recovered map artwork.
 Winter variants reuse their base-map preview; no thumbnail HTTP access is needed in game.
 This is the local/LAN beta service; no production deployment performed.
+
+Beta loadouts now advertise and validate per-hero available_devices from the Reborn class lists, intersected with recovered beta content. Cosmetic variants share a base-device family; duplicate families cannot fill multiple slots. The native beta signature slot remains slot 6, restricted to that hero and its recovered variants. Removal, swapping and cross-class packet writes are rejected; timer expiry repairs invalid loadouts. Cogwheel radar cosmetics retain detection behavior. Validation: 135 beta65 tests, including class filtering, variant replacement, duplicate-family rejection, hero switching, corrupted-ready rejection and radar-skin behavior.

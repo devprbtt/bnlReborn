@@ -195,7 +195,7 @@ class LoadoutSystems(HeroSystems):
             at=packet.index(sentinel)
             packet=packet[:at]+pack('fffhhh',*position,*(rotations[face] if mounted else (0,0,0)))+packet[at+18:]
             hp=built['health']['health']['max_health']
-            self.placed[unit]={'device':definition['_id'],'definition':built,'position':position,'cell':cell,'health':hp,'created':self.clock(),'team':self.team(self.unit),'owner':self.unit}
+            self.placed[unit]={'device':definition['_id'],'base_device':definition.get('beta_base_device',definition['_id']),'definition':built,'position':position,'cell':cell,'health':hp,'created':self.clock(),'team':self.team(self.unit),'owner':self.unit}
             if mounted:self.placed[unit]['support']=tuple(c-n for c,n in zip(cell,normal));self.placed[unit]['rotation']=rotations[face]
             self.send(packet);self.send(health(unit,hp));self.unit_teams[unit]=self.team(self.unit)
             for effect in (built.get('init_effects') or [])+(built.get('enabled_effects') or []):self.add_status(unit,effect,built.get('lifetime') or 3600,owner=unit,check=False)
@@ -215,10 +215,10 @@ class LoadoutSystems(HeroSystems):
             self.ability_update();self.event('ability_recharged',charges=self.charges)
         if self.world and self.world.leader is not self:return
         if self.world:
-            marked={target for target in self.player_units() if self.alive(target) and any(d['device']=='device_generic_radar' and d['team']!=self.team(target) and math.dist(d['position'],self.unit_position(target))<=8 for d in self.placed.values())}
+            marked={target for target in self.player_units() if self.alive(target) and any(d.get('base_device',d['device'])=='device_generic_radar' and d['team']!=self.team(target) and math.dist(d['position'],self.unit_position(target))<=8 for d in self.placed.values())}
             changed=marked ^ self.world.radar_units;self.world.radar_units=marked
             for target in changed:self.publish_buffs(target)
-        radars=[d for d in self.placed.values() if d['device']=='device_generic_radar']
+        radars=[d for d in self.placed.values() if d.get('base_device',d['device'])=='device_generic_radar']
         marked=self.target_health>0 and any(math.dist(d['position'],self.target_position)<=8 for d in radars)
         if marked!=self.radar_marked:
             self.radar_marked=marked

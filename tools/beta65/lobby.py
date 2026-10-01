@@ -29,11 +29,32 @@ class Lobby:
         self.selection_start = 0
         self.selection_end = 0
 
+    def allowed_devices(self):
+        hero = self.heroes.get(key(self.hero), {})
+        allowed = hero.get('available_devices')
+        return self.available if allowed is None else {key(d):self.available[key(d)] for d in allowed if key(d) in self.available}
+
+    def special_devices(self):
+        return {key(d) for d in self.heroes.get(key(self.hero), {}).get('special_devices', [])}
+
+    def family(self, device):
+        card = self.available.get(device, {})
+        return card.get('beta_base_device', card.get('_id', device))
+
+    def valid_loadout(self):
+        allowed = self.allowed_devices(); specials = self.special_devices()
+        return (set(self.devices) == set(range(1,7))
+                and all(d in allowed for d in self.devices.values())
+                and len({self.family(d) for d in self.devices.values()}) == 6
+                and (not specials or self.devices.get(6) in specials
+                     and all(d not in specials for slot,d in self.devices.items() if slot != 6)))
+
     def player_state(self):
         from server import string, varint
         # PlayerLobbyState: all mandatory fields, absent SteamId.
         player = b'\xbf\xff\xc0' + pack('I', self.player_id) + string(self.nickname) + pack('ii', self.level, 0) + bytes([0,self.team])
-        player += key(self.hero) + varint(len(self.available)) + b''.join(self.available)
+        allowed = self.allowed_devices()
+        player += key(self.hero) + varint(len(allowed)) + b''.join(allowed)
         skins = self.heroes.get(key(self.hero),{}).get('skins',[self.skin])
         player += varint(len(skins)) + b''.join(key(s) for s in skins) + varint(len(self.devices))
         player += b''.join(pack('i', slot) + device for slot, device in sorted(self.devices.items()))
@@ -81,7 +102,7 @@ class Lobby:
         if self.group:map_voting.tick(self.group)
         if map_voting.active(self.group):return
         if self.state == 'lobby' and self.selection_end and millis() >= self.selection_end:
-            if set(self.devices) != set(range(1,7)):
+            if not self.valid_loadout():
                 self.devices = self.defaults.copy()
             self.handle_instance(b'\x09\x0a',send)
 
@@ -154,14 +175,19 @@ class Lobby:
             elif data != key(self.hero): return True
         elif fn == 3 and len(data) == 8:
             device, slot = data[:4], struct.unpack('<i', data[4:])[0]
-            if device not in self.available or slot not in range(1, 7): return True
-            self.devices = {s:d for s,d in self.devices.items() if d != device}
+            if device not in self.allowed_devices() or slot not in range(1, 7): return True
+            specials = self.special_devices()
+            if specials and ((slot == 6) != (device in specials)): return True
+            self.devices = {s:d for s,d in self.devices.items() if self.family(d) != self.family(device)}
             self.devices[slot] = device
         elif fn == 4 and len(data) == 4:
-            self.devices.pop(struct.unpack('<i', data)[0], None)
+            slot = struct.unpack('<i', data)[0]
+            if slot == 6 and self.special_devices(): return True
+            self.devices.pop(slot, None)
         elif fn == 5 and len(data) == 8:
             a, b = struct.unpack('<ii', data)
             if a not in range(1, 7) or b not in range(1, 7): return True
+            if self.special_devices() and 6 in (a,b): return True
             av, bv = self.devices.pop(a, None), self.devices.pop(b, None)
             if av is not None: self.devices[b] = av
             if bv is not None: self.devices[a] = bv
@@ -173,7 +199,7 @@ class Lobby:
             self.skin = skin;self.event('lobby_skin_selected',skin=skin)
         elif fn == 10:
             if self.group and len(self.group['members'])>1:
-                if set(self.devices)!=set(range(1,7)):return True
+                if not self.valid_loadout():return True
                 self.ready=True
                 for member in self.group['members']:
                     if member.send_instance:member.send_instance(member.update())
@@ -185,7 +211,7 @@ class Lobby:
                 for member in self.group['members']:
                     member.state='zone';member.send_region(member.map_packet('terrain-scene'))
                 return True
-            if set(self.devices) != set(range(1, 7)): return True
+            if not self.valid_loadout(): return True
             self.state = 'zone'
             self.send_region(self.map_packet('terrain-scene'))
             self.event('lobby_ready', map=self.map_id, hero=self.hero, skin=self.skin, devices=[self.available[d]['_id'] for _,d in sorted(self.devices.items())])
