@@ -92,6 +92,16 @@ class HeroSystems:
 
     def buffs_for(self,unit):
         buffs={}
+        player=self.world.players.get(unit) if self.world else self if unit==self.unit else None
+        # Wall climbing is an innate hero capability, not a timed status. Read
+        # its speed from the selected hero's passive card so purge/expiry and
+        # respawn do not remove it or grant it to other heroes.
+        if player is not None:
+            hero=self.definitions.get(player.packets['practice'].get('hero'),{})
+            for ident in hero.get('data',{}).get('passive') or []:
+                effect=self.definitions.get(ident,{}).get('effect',{})
+                speed=effect.get('buffs',{}).get('wall_climb',0) if effect.get('type')=='buff' else 0
+                if speed>0:buffs['wall_climb']=max(buffs.get('wall_climb',0),speed)
         for ident,end in self.statuses.get(unit,{}).items():
             if end<=self.clock():continue
             effect=self.definitions[ident].get('effect',{})
@@ -297,7 +307,7 @@ class HeroSystems:
                     if due:
                         for child in effect.get('interval_effects') or []:self.apply_effect(child,pos,origin,key(ident),target,owner)
                 if due:self.status_next[unit,ident]=now+max(.1,effect.get('interval') or .1)
-        for unit in self.statuses.keys()|self.buff_cache.keys():
+        for unit in self.statuses.keys()|self.buff_cache.keys()|set(self.player_units()):
             if unit in self.player_units() and not self.alive(unit):continue
             buffs=self.buffs_for(unit)
             self.publish_buffs(unit)

@@ -264,6 +264,7 @@ class Lobby:
     def practice_packets(self):
         packets = self.packets.copy()
         packets['practice'] = copy.deepcopy(packets['practice'])
+        packets['practice']['hero']=self.hero
         packets['practice']['team']=self.team
         packets['practice']['nickname']=self.nickname
         packets['practice']['player_id']=self.player_id
