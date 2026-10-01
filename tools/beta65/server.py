@@ -1,4 +1,4 @@
-"""Loopback-only protocol-65 menu and limited solo practice service. No production matches."""
+"""Protocol-65 local/LAN menu services and solo practice. No shared multiplayer matches."""
 import argparse
 import hashlib
 import io
@@ -9,6 +9,8 @@ import socket
 import select
 from practice import Practice
 from lobby import Lobby
+from profiles import Profiles, Social
+from matchmaking import Matchmaking
 import struct
 import threading
 import time
@@ -72,7 +74,11 @@ def read_string(reader):
 
 
 class MenuServer:
-    def __init__(self, packets, event_path, port=27065, terrain_test=False):
+    def __init__(self, packets, event_path, port=27065, terrain_test=False, state_path=None, bind="127.0.0.1", advertise_host="127.0.0.1"):
+        self.bind, self.advertise_host = bind, advertise_host
+        self.profiles = Profiles(state_path) if state_path is not None else None
+        self.social = Social(self.profiles) if self.profiles else None
+        self.matchmaking=Matchmaking(self.social) if self.social else None
         self.packets = packets
         self.event_path = event_path
         self.port = port
@@ -100,8 +106,8 @@ class MenuServer:
             self.instance_tokens = {k:v for k,v in self.instance_tokens.items()
                                     if (v[0] if isinstance(v,tuple) else v) > now}
             self.instance_tokens[token] = (time.monotonic() + 120, room, stage)
-        room.send_region(self.packets['lobby-scene'] if stage == 'lobby' else room.map_packet('terrain-scene'))
-        room.send_region(b'\x02\x02' + string('127.0.0.1') + struct.pack('<i', self.port) + string(token))
+        room.send_region(room.lobby_scene() if stage == 'lobby' else room.map_packet('terrain-scene'))
+        room.send_region(b'\x02\x02' + string(self.advertise_host) + struct.pack('<i', self.port) + string(token))
 
     def session(self, connection):
         verified = False
@@ -110,6 +116,7 @@ class MenuServer:
         spawned = False
         practice = None
         room = None
+        profile = None
         stage = 'zone'
         session_packets = self.packets
         last_movement_log = 0
@@ -117,6 +124,7 @@ class MenuServer:
             with connection:
                 connection.settimeout(self.frame_timeout)
                 while True:
+                    if self.matchmaking:self.matchmaking.tick()
                     if room and instance and room.state == 'lobby':
                         room.tick(lambda p: self.send(connection,p))
                     if practice:
@@ -142,32 +150,37 @@ class MenuServer:
                     elif (service, function) == (1, 1):
                         reader = io.BytesIO(packet[4:])
                         name, password = read_string(reader), read_string(reader)
-                        if reader.read() or name != "BetaLocal" or password != "local-diagnostic-only":
-                            self.send(connection, packet[:4] + b"\xff" + string("Use the local BetaLocal profile."))
+                        if reader.read():raise ValueError("Trailing login data")
+                        profile = self.profiles.login(name,password) if self.profiles else None
+                        if reader.read() or (profile is None if self.profiles else name != "BetaLocal" or password != "local-diagnostic-only"):
+                            self.send(connection, packet[:4] + b"\xff" + string("Invalid LAN profile name or password."))
                             return
                         token = secrets.token_hex(32)
                         with self.lock:
                             now = time.monotonic()
-                            self.tokens = {k: v for k, v in self.tokens.items() if v > now}
-                            self.tokens[token] = now + 30
-                        self.send(connection, packet[:4] + b"\x00" + struct.pack("<I", 1))
-                        self.send(connection, b"\x01\x08" + string("127.0.0.1") + struct.pack("<i", self.port) + string(token))
+                            self.tokens = {k: v for k, v in self.tokens.items() if (v[0] if isinstance(v,tuple) else v) > now}
+                            self.tokens[token] = (now + 30,profile) if profile else now+30
+                        self.send(connection, packet[:4] + b"\x00" + struct.pack("<I", profile["id"] if profile else 1))
+                        self.send(connection, b"\x01\x08" + string(self.advertise_host) + struct.pack("<i", self.port) + string(token))
                         self.event("master_login_accepted")
                     elif (service, function) == (1, 9):
                         reader = io.BytesIO(packet[4:])
                         token = read_string(reader)
                         with self.lock:
                             expiry = self.tokens.pop(token, 0)
+                        if isinstance(expiry,tuple):expiry,profile=expiry
                         if reader.read() or expiry < time.monotonic():
                             self.send(connection, packet[:4] + b"\xff" + string("Local session expired; relogin."))
                             return
                         authenticated = True
                         if 'lobby' in self.packets:
                             room = Lobby(self.packets, lambda p: self.send(connection, p), self.enter_instance, self.event)
+                        if room and profile:
+                            room.player_id=profile['id'];room.nickname=profile['name'];room.level=profile['level'];room.social=self.social
                         self.send(connection, packet[:4] + b"\x00\x00")
                         self.send(connection, b"\x03\x00" + struct.pack("<q", millis()))
                         for name in ("catalogue", "player", "server-update"):
-                            self.send(connection, self.packets[name])
+                            self.send(connection, self.social.player_packet(profile["id"]) if name=="player" and profile else self.packets[name])
                         self.send(connection, b"\x01\x0b")
                         if self.terrain_test and room:
                             # Direct preview still belongs to the region session so ExitMatch
@@ -181,7 +194,8 @@ class MenuServer:
                             token = secrets.token_hex(32)
                             with self.lock:
                                 self.instance_tokens[token] = time.monotonic() + 120
-                            self.send(connection, b"\x02\x02" + string("127.0.0.1") + struct.pack("<i",self.port) + string(token))
+                            self.send(connection, b"\x02\x02" + string(self.advertise_host) + struct.pack("<i",self.port) + string(token))
+                        if room and self.social:self.social.connect(room)
                         self.event("region_login_accepted")
                     elif (service, function) == (1, 13) and 'zone-init' in self.packets:
                         reader = io.BytesIO(packet[4:])
@@ -205,11 +219,16 @@ class MenuServer:
                         raise ValueError("Login required")
                     elif room and not instance and (service,function)==(7,7) and getattr(room,"practice",None):
                         room.practice.chat(packet)
+                    elif room and not instance and self.social and self.social.handle(room,packet):
+                        pass
+                    elif room and not instance and self.matchmaking and self.matchmaking.handle(room,packet):
+                        pass
                     elif room and not instance and room.handle_region(packet):
                         pass
                     elif room and instance and room.handle_instance(packet, lambda p: self.send(connection, p)):
                         if room.state == 'menu':
                             practice = None
+                            if self.matchmaking:self.matchmaking.leave(room)
                     elif instance and (stage == 'zone' or room and room.state == 'zone') and (service, function) == (6, 1):
                         if spawned:
                             raise ValueError("Duplicate zone readiness")
@@ -218,9 +237,11 @@ class MenuServer:
                             session_packets = room.practice_packets()
                             if stage == 'lobby':
                                 self.send(connection, b'\x09\x00\x20\x01')
-                                self.send(connection, b'\x09\x0c\x01' + struct.pack('<If', 1, 1.0))
+                                self.send(connection, b'\x09\x0c\x01' + struct.pack('<If', room.player_id, 1.0))
                         self.event("terrain_ready")
                         self.send(connection, self.packets["zone-start"])
+                        if room:
+                            self.send(connection,b"\x06\x07\x04\x02"+struct.pack("<I",room.player_id)+b"\xa0"+string(room.nickname)+b"\x00"+struct.pack("<I",0)+b"\xa0"+string("Practice target")+b"\x00")
                         for name in ("hero-create", "hero-state"):
                             if name in session_packets:
                                 self.send(connection, session_packets[name])
@@ -278,11 +299,16 @@ class MenuServer:
         except (OSError, ValueError) as error:
             self.event("connection_error", error=type(error).__name__)
 
+        finally:
+            if room and not instance and self.social:
+                self.matchmaking.leave(room)
+                self.social.disconnect(room)
+
     def run(self):
         with socket.socket() as listener:
-            listener.bind(("127.0.0.1", self.port))
-            listener.listen(4)
-            self.event("listening", address="127.0.0.1", port=self.port)
+            listener.bind((self.bind, self.port))
+            listener.listen(32)
+            self.event("listening", address=self.bind, port=self.port)
             while True:
                 connection, _ = listener.accept()
                 threading.Thread(target=self.session, args=(connection,), daemon=True).start()
@@ -293,7 +319,12 @@ def main():
     parser.add_argument("--packets", type=Path, required=True)
     parser.add_argument("--events", type=Path, required=True)
     parser.add_argument("--terrain-test", action="store_true", help="Experimental terrain/solo practice; NOT a production match")
+    parser.add_argument("--bind", default="127.0.0.1")
+    parser.add_argument("--advertise-host", default="127.0.0.1")
+    parser.add_argument("--state", type=Path, help="Private SQLite LAN profiles; first login registers a name")
     args = parser.parse_args()
+    if args.bind != "127.0.0.1" and (not args.state or args.advertise_host in ("127.0.0.1","0.0.0.0")):
+        parser.error("LAN mode requires --state and a reachable --advertise-host")
     packets = {name: (args.packets / (name + ".bin")).read_bytes()
                for name in ("catalogue", "player", "scene", "server-update", "profile")}
     if (args.packets / 'zone-init.bin').exists():
@@ -332,7 +363,7 @@ def main():
     class Feed(BaseHTTPRequestHandler):
         def do_GET(self):
             if self.path == "/health":
-                payload = json.dumps({"service":"bnl-beta65-menu","protocol":65,"matches":False,"mode":"terrain-test" if args.terrain_test else "menu","hero":"hero-create" in packets,"packet_revision":packet_revision}).encode()
+                payload = json.dumps({"service":"bnl-beta65-menu","protocol":65,"matches":False,"mode":"terrain-test" if args.terrain_test else "menu","hero":"hero-create" in packets,"packet_revision":packet_revision,"lan_profiles":bool(args.state),"shared_match_simulation":False}).encode()
                 self.send_response(200)
                 self.send_header("Content-Type", "application/json")
                 self.send_header("Content-Length", str(len(payload)))
@@ -354,7 +385,7 @@ def main():
 
     with ThreadingHTTPServer(("127.0.0.1", 27066), Feed) as http:
         threading.Thread(target=http.serve_forever, daemon=True).start()
-        MenuServer(packets, args.events, terrain_test=args.terrain_test).run()
+        MenuServer(packets, args.events, terrain_test=args.terrain_test, state_path=args.state, bind=args.bind, advertise_host=args.advertise_host).run()
 
 
 if __name__ == "__main__":

@@ -162,3 +162,41 @@ practice: full objective shield progression/victory, multiplayer, AI opponents,
 and the complete wider catalogue are not implemented. No production deployment.
 53 unit tests pass; the private recovery project additionally runs 17 checks
 against the generated catalogue and original-player injected rendering tests.
+
+## Local/LAN menu services (2026-10-01)
+
+`--state <private.sqlite>` enables persistent local profiles (first successful
+login registers a name), player search, friend requests/accept/remove, online
+presence and expiring squad invitations. Passwords use salted scrypt. State and
+logs must stay outside Git. These are separate accounts from Reborn/Steam.
+
+The original protocol sends debug-login credentials without TLS. This runner is
+for a trusted LAN only; do not expose it to the public Internet or reuse an
+online-account password. Host with `--bind 0.0.0.0 --advertise-host <LAN-IP>` plus
+`--state`; redirects advertise that IP. Default binding remains loopback. HTTP
+health/feed remains loopback-only. No firewall or production deployment changes
+are performed automatically.
+
+Friendly queue pairs equal-sized parties, keeps squads together, requires both
+sides to confirm within 30 seconds and removes disconnected/cancelled entries.
+Custom rooms are shared in memory: listing, password joins, host map selection,
+team switching, kicks and host succession. The selection lobby shares heroes,
+skins and six-block loadouts. Team selection carries into solo practice spawns,
+unit ownership, objective protection, devices and chat.
+
+**This is a pre-match implementation, not shared multiplayer gameplay.** More
+than one player in a lobby cannot Block In: the existing Practice simulation is
+per connection. Do not remove that guard without implementing one authoritative
+world and translating unit/player IDs correctly. Ranked and backfill remain
+unavailable. No XP is awarded by normal gameplay yet. The server-only idempotent
+reward ledger is tested but intentionally not called by clients or solo exits.
+Its provisional local rule is 500 XP per completed Friendly match, +250 winner
+bonus, one player level per 1000 XP. Customs, practice, aborted matches and
+one-sided rosters receive none. This is not a recovered historical XP formula.
+History/hero statistics are still empty; friend/profile persistence works.
+
+Run all protocol, gameplay and LAN service tests:
+
+```powershell
+python -m unittest discover -s tools/beta65 -p test_*.py
+```

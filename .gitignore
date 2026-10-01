@@ -9,3 +9,8 @@ riderModule.iml
 /Logs/
 /extracted/conquest-inputs/
 __pycache__/
+
+# Local beta account state (never commit credentials or sessions)
+*.sqlite
+*.sqlite-shm
+*.sqlite-wal

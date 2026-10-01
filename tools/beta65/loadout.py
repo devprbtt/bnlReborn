@@ -72,7 +72,7 @@ class LoadoutSystems(HeroSystems):
     def damage_entity(self,unit,amount,source):
         if amount<=0:return
         if unit in self.placed and 'objective' in self.placed[unit]['definition'].get('labels',[]):
-            if self.team(unit)==1 or self.phase_end is not None:return
+            if self.team(unit)==self.team(1) or self.phase_end is not None:return
         if unit==1:self.cancel_recall()
         if unit==2:
             if self.target_health<=0:return
@@ -170,8 +170,8 @@ class LoadoutSystems(HeroSystems):
         elif built is None:return
         elif built['category']=='block':
             visual=built.get('visual',{})
-            self.set_block(cell,built['block_id'],vdata=getattr(self,'build_face',1) if visual.get('face_align') else 0,ldata=1 if built.get('has_team') else 0)
-            self.block_teams[cell]=1
+            self.set_block(cell,built['block_id'],vdata=getattr(self,'build_face',1) if visual.get('face_align') else 0,ldata=self.team(1) if built.get('has_team') else 0)
+            self.block_teams[cell]=self.team(1)
         else:
             template=self.packets['device-templates'][definition['_id']]
             sentinel=pack('fff',101.25,102.5,103.75)
@@ -187,9 +187,9 @@ class LoadoutSystems(HeroSystems):
             at=packet.index(sentinel)
             packet=packet[:at]+pack('fffhhh',*position,*(rotations[face] if mounted else (0,0,0)))+packet[at+18:]
             hp=built['health']['health']['max_health']
-            self.placed[unit]={'device':definition['_id'],'definition':built,'position':position,'cell':cell,'health':hp,'created':self.clock(),'team':1}
+            self.placed[unit]={'device':definition['_id'],'definition':built,'position':position,'cell':cell,'health':hp,'created':self.clock(),'team':self.team(1)}
             if mounted:self.placed[unit]['support']=tuple(c-n for c,n in zip(cell,normal));self.placed[unit]['rotation']=rotations[face]
-            self.send(packet);self.send(health(unit,hp));self.unit_teams[unit]=1
+            self.send(packet);self.send(health(unit,hp));self.unit_teams[unit]=self.team(1)
             for effect in (built.get('init_effects') or [])+(built.get('enabled_effects') or []):self.add_status(unit,effect,built.get('lifetime') or 3600,owner=unit,check=False)
             if built.get('data',{}).get('type')=='bomb':
                 deadline=int(millis()+built['data']['timeout']*1000)

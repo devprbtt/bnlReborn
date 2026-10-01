@@ -12,7 +12,7 @@ class HeroSystems:
     def init_heroes(self):
         self.definitions={c['_id']:c for c in self.packets.get('definitions',[])}
         self.statuses={};self.buff_cache={};self.delayed=[];self.mortar_flights={};self.fire_cells={};self.next_projectile=0x7000000000000000;self.channel=None;self.last_effect_tick=self.clock()
-        self.block_teams={};self.block_contact_at={};self.status_owner={};self.status_next={};self.unit_teams={1:1,2:2,-1:1,-2:2}
+        self.block_teams={};self.block_contact_at={};self.status_owner={};self.status_next={};self.unit_teams={1:self.packets['practice'].get('team',1),2:3-self.packets['practice'].get('team',1),-1:1,-2:2}
 
     def unit_position(self,unit):
         return self.position if unit==1 else self.target_position if unit==2 else self.placed.get(unit,{}).get('position')
@@ -26,7 +26,7 @@ class HeroSystems:
             return all(p-.35<=v<=p+size[a]+.35 for a,p,v in zip('xyz',pos,point))
         return math.dist(pos,point)<=3
 
-    def team(self,unit):return 1 if unit==1 else 2 if unit==2 else self.unit_teams.get(unit,self.placed.get(unit,{}).get('team',1))
+    def team(self,unit):return self.unit_teams.get(unit,self.placed.get(unit,{}).get('team',self.unit_teams[1]))
 
     def allowed(self,effect,target,owner=1):
         t=effect.get('targeting') or {};side=t.get('affected_team')
@@ -99,7 +99,7 @@ class HeroSystems:
         if kind=='unit_spawn':self.spawn_unit(effect['unit_key'],point,self.team(owner),owner=owner)
         elif kind=='teleport_to':self.teleport(point)
         elif kind=='teleport':
-            anchors=[(i,d) for i,d in self.placed.items() if effect['anchor'] in d['definition'].get('labels',[]) and d.get('team',1)==1]
+            anchors=[(i,d) for i,d in self.placed.items() if effect['anchor'] in d['definition'].get('labels',[]) and d.get('team',1)==self.team(owner)]
             if anchors:
                 unit,d=anchors[-1]
                 if self.teleport(tuple(a+b for a,b in zip(d['position'],(0,1,0)))) and effect.get('destroy_anchor'):self.remove_unit(unit)

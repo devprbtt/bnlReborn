@@ -10,6 +10,7 @@ from loadout import key, pack
 class Lobby:
     def __init__(self, packets, send_region, enter_instance, event):
         self.packets, self.send_region, self.enter_instance, self.event = packets, send_region, enter_instance, event
+        self.player_id=1;self.nickname='BetaLocal';self.level=1;self.team=1;self.social=None;self.group=None
         self.config = packets['lobby']
         self.hero = self.config['hero']
         self.skin = self.config['skin']
@@ -27,23 +28,31 @@ class Lobby:
         self.selection_start = 0
         self.selection_end = 0
 
-    def update(self):
+    def player_state(self):
         from server import string, varint
         # PlayerLobbyState: all mandatory fields, absent SteamId.
-        player = b'\xbf\xff\xc0' + pack('I', 1) + string('BetaLocal') + pack('ii', 1, 0) + b'\x00\x01'
+        player = b'\xbf\xff\xc0' + pack('I', self.player_id) + string(self.nickname) + pack('ii', self.level, 0) + bytes([0,self.team])
         player += key(self.hero) + varint(len(self.available)) + b''.join(self.available)
         skins = self.heroes.get(key(self.hero),{}).get('skins',[self.skin])
         player += varint(len(skins)) + b''.join(key(s) for s in skins) + varint(len(self.devices))
         player += b''.join(pack('i', slot) + device for slot, device in sorted(self.devices.items()))
         player += b'\x00\x00' + key(self.skin) + bytes([0, 1, 1, 0])
+        return player
+
+    def update(self):
+        from server import varint
+        players=self.group['members'] if self.group else [self]
+        player=b''.join(p.player_state() for p in players)
         timer = b'\xe0\x02' + pack('QQ', self.selection_start, self.selection_end)
-        return b'\x09\x00\xf8' + key('beta_practice_match') + b'\x01\xc0' + key(self.map_id) + b'\x00\x00' + timer + b'\x01' + player
+        return b'\x09\x00\xf8' + key('beta_practice_match') + b'\x01\xc0' + key(self.map_id) + b'\x00\x00' + timer + varint(len(players)) + player
 
     def room_update(self):
         from server import string
         settings = b'\xf8' + key(self.map_id) + pack('ff??', self.maps.get(key(self.map_id),{}).get('build_seconds',120), 1, False, False)
-        player = b'\xbf\x80' + pack('I', 1) + string('BetaLocal') + pack('ii', 1, 0) + bytes([0, 1, 1, 0])
-        return b'\x0b\x0f\xf0' + string(self.name) + string(self.password) + settings + b'\x01' + player
+        from server import varint
+        players=self.group['members'] if self.group else [self]
+        player=b''.join(b'\xbf\x80'+pack('I',p.player_id)+string(p.nickname)+pack('ii',p.level,0)+bytes([0,int(self.group is None or self.group['owner'] is p),p.team,0]) for p in players)
+        return b'\x0b\x0f\xf0' + string(self.name) + string(self.password) + settings + varint(len(players)) + player
 
     def open_lobby(self):
         self.state = 'lobby'
@@ -85,7 +94,11 @@ class Lobby:
                 self.map_id='beta_practice_map' if requested==key('beta_practice_map') else self.maps[requested]['id']
                 self.event('practice_map_selected',map=self.map_id)
             self.send_region(self.room_update())
-        elif fn in (12, 13) and self.state == 'room':
+        elif fn == 13 and self.state == 'room':
+            if self.map_id=='beta_practice_map':
+                self.notice('Choose a two-team map before switching sides.');return True
+            self.team=3-self.team;self.send_region(self.room_update())
+        elif fn == 12 and self.state == 'room':
             self.send_region(self.room_update())
             self.notice('Local practice currently uses one player and fixed match rules. Choose a map with the map arrows.')
         elif fn in (7, 19): self.send_region(packet[:4] + b'\x00\x05')
@@ -131,21 +144,40 @@ class Lobby:
             if skin is None:return True
             self.skin = skin;self.event('lobby_skin_selected',skin=skin)
         elif fn == 10:
+            if self.group and len(self.group['members'])>1:
+                self.selection_end=0
+                self.notice('LAN lobby connected. Shared match simulation is not available yet; multiplayer Block In is disabled.')
+                return True
             if set(self.devices) != set(range(1, 7)): return True
             self.state = 'zone'
             self.send_region(self.map_packet('terrain-scene'))
             self.event('lobby_ready', map=self.map_id, hero=self.hero, skin=self.skin, devices=[self.available[d]['_id'] for _,d in sorted(self.devices.items())])
             return True
         elif fn not in (7, 9): return False
-        send(self.update())
+        if self.group:
+            for member in self.group['members']:
+                if member.send_instance:member.send_instance(member.update())
+        else:send(self.update())
         return True
 
+    def lobby_scene(self):
+        packet=self.packets['lobby-scene']
+        if self.team==2 and len(packet)==9:
+            packet=packet[:4]+bytes([self.team])+packet[5:]
+        return packet
+
     def map_packet(self, name):
-        return self.packets.get('map-packets',{}).get(self.map_id,{}).get(name,self.packets.get(name))
+        packet=self.packets.get('map-packets',{}).get(self.map_id,{}).get(name,self.packets.get(name))
+        if name=='terrain-scene' and self.team==2 and len(packet)==14:
+            packet=packet[:-2]+bytes([self.team])+packet[-1:]
+        return packet
 
     def practice_packets(self):
         packets = self.packets.copy()
         packets['practice'] = copy.deepcopy(packets['practice'])
+        packets['practice']['team']=self.team
+        packets['practice']['nickname']=self.nickname
+        packets['practice']['player_id']=self.player_id
         packets['practice']['loadout'] = [self.available[d] for _, d in sorted(self.devices.items())]
         if self.heroes:
             hero = self.heroes[key(self.hero)]
@@ -157,7 +189,9 @@ class Lobby:
             packets['practice']['ability'] = next(a for a in self.config['abilities'] if a['_id']==hero['ability'])
             packets['practice']['unit_devices'] = self.config['unit_devices']
         if self.map_id != 'beta_practice_map':
-            m=self.maps[key(self.map_id)]
+            m=copy.deepcopy(self.maps[key(self.map_id)])
+            if self.team==2:
+                m['spawn_position']=m['team_spawns']['team2']
             packets.update(self.packets['map-packets'][self.map_id])
             packets['practice'].update({k:m[k] for k in ('spawn_position','target_position','kill_height','water_level','min_fall_height','max_fall_height','build_seconds','respawn_seconds') if k in m})
             packets['practice']['objectives']=m.get('objectives',[])
@@ -167,4 +201,8 @@ class Lobby:
                 packets[name]=packets[name].replace(before,pack('fff',*new))
         if self.map_id == 'beta_practice_map' and 'hero-create' in packets:
             packets['hero-create']=packets['hero-create'].replace(pack('fff',14.5,5,23.5),pack('fff',*packets['practice'].get('spawn_position',(14.5,5,23.5))))
+        from wire_units import set_identity
+        for name,team,pid in [("hero-create",self.team,self.player_id),("target-create",3-self.team,0)]:
+            if name in packets:packets[name]=set_identity(packets[name],team,pid)
+        packets["device-templates"]={k:set_identity(v,self.team) for k,v in packets.get("device-templates",{}).items()}
         return packets
