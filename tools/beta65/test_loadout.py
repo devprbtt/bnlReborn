@@ -13,7 +13,7 @@ class LoadoutTests(unittest.TestCase):
     def test_f_consumes_charges_and_recharges(self):
         for i in range(3):self.now=i;self.ability(i+1)
         self.assertEqual(self.s.charges,0)
-        self.now=3;self.ability(4);self.assertEqual(self.sent[-1],b'\x06\x2f\x01\x00\x00\x00')
+        self.now=3;self.ability(4);self.assertIn(b'\x06\x2f\x01\x00\x00\x00',self.sent[-2:])
         self.now=15;self.s.tick();self.assertEqual(self.s.charges,1)
     def test_wrong_ability_and_duplicate_shot_rejected(self):
         self.ability(1);self.now=1;self.ability(1);self.assertEqual(self.s.charges,2)

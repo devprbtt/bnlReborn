@@ -141,3 +141,24 @@ These are copied later map files adapted for protocol 65, not verified 2015 map
 revisions. Objective units, shield/base logic, pickups, map scripts and multiplayer
 are not restored by this change. Rules remain solo practice. 45 tests pass,
 including map validation, immutable snapshots and map-specific void respawn.
+
+
+Hero mechanics recovery (2026-09-30): the protocol-65 simulator now handles
+optional self/hitscan ability fields, charge consumption/recharge, timed buffs,
+aura/interval effects, melee hits, safe teleports, projectile throws, and caulk
+channels with ammo/range/target checks. Nigel scans expire; Ninja F requires a
+nest; Eliza heals and creates damaging gas; Tony grants a timed build-speed buff.
+Cogwheel deployed mortars render a server-driven approximate arc and apply the
+catalogue volley effect. Damaged/destroyed devices can spawn gas or loot; pickups
+expire and apply their effects. Enemy glue/bear traps affect players, while own
+traps ignore them. Block orientation and team metadata are preserved. Impact
+packets now include hit units to drive the original hitmarker/audio callbacks.
+Map objective units spawn once from the supplied placement metadata.
+
+The private generator must supply definitions.json, buff-ids.json and unit-*.bin
+alongside the existing packets. These definitions and visual substitutions are
+adapted from later data, not an authenticated 2015 CDB. This remains local solo
+practice: full objective shield progression/victory, multiplayer, AI opponents,
+and the complete wider catalogue are not implemented. No production deployment.
+53 unit tests pass; the private recovery project additionally runs 17 checks
+against the generated catalogue and original-player injected rendering tests.

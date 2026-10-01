@@ -69,6 +69,10 @@ class Practice(LoadoutSystems):
     def start(self):
         self.send(self.packets['target-create']); self.send(self.packets['target-state'])
         self.event('practice_target_spawned', unit=2)
+        for objective in ([] if getattr(self,'objectives_started',False) else self.packets['practice'].get('objectives',[])):
+            self.spawn_unit(objective['unit_key'],tuple(objective['position'][a] for a in 'xyz'),1 if objective['team']=='team1' else 2)
+
+        self.objectives_started=True
 
     def ammo_packet(self):
         # Only the two firearms have ammo. Melee has an empty list.
@@ -122,7 +126,7 @@ class Practice(LoadoutSystems):
     def move(self, position):
         self.position=position
         if position[1]<self.packets['practice'].get('kill_height',-3) and self.player_respawn_at is None:
-            self.player_respawn_at=self.clock()+3;self.reload_at=None;self.build_at=None;self.shots.clear()
+            self.player_respawn_at=self.clock()+3;self.reload_at=None;self.build_at=None;self.shots.clear();self.channel=None;self.statuses.pop(1,None);self.buff_cache.pop(1,None)
             self.send(health(1,0))
             self.send(b'\x06\x43\x00\x00'+pack('I',1)+self.current+b'\x00')
             self.send(b'\x06\x0a'+pack('I',1));self.event('player_void_death')
@@ -132,9 +136,10 @@ class Practice(LoadoutSystems):
         if not all(0<=a<b for a,b in zip(cell,self.size)): return None
         return ((x*self.size[1]+y)*self.size[2]+z)*4
 
-    def set_block(self, cell, block_id, damage=0):
+    def set_block(self, cell, block_id, damage=0, vdata=None, ldata=None):
         index=self.cell_index(cell)
-        vdata,ldata=self.blocks[index+2:index+4] if self.blocks[index]==block_id else (0,0)
+        oldv,oldl=self.blocks[index+2:index+4] if self.blocks[index]==block_id else (0,0)
+        vdata=oldv if vdata is None else vdata;ldata=oldl if ldata is None else ldata
         self.blocks[index:index+4]=bytes([block_id,damage,vdata,ldata])
         self.send(b'\x06\x06\x01'+pack('hhh',*cell)+bytes([0xf0,block_id,damage,vdata,ldata]))
 
@@ -181,6 +186,8 @@ class Practice(LoadoutSystems):
         if self.player_respawn_at is not None and fn in (30,31,33,56):
             if fn in (33,56): self.send(packet[:4]+b'\x00\x00')
             return True
+        if fn == 36:return self.channel_request(packet)
+        if fn == 37:self.channel=None;return True
         if fn == 47:return self.cast_ability(packet)
         if fn == 56:
             r=Reader(packet[4:])
@@ -195,7 +202,8 @@ class Practice(LoadoutSystems):
             accepted=(definition is not None and (not definition.get('ground_only') or base[1]==cell[1]-1) and self.build_at is None and tool_index<len(tools) and tools[tool_index]['type']=='build' and self.resources>=self.build_cost(definition) and index is not None and base_index is not None and self.blocks[index]==0 and self.blocks[base_index] not in self.passable and sum(abs(a-b) for a,b in zip(cell,base))==1 and math.dist(self.position,outside)<4 and not occupied and self.clear_line(tuple(a+b for a,b in zip(self.position,(0,1.5,0))),outside))
             self.send(packet[:4]+bytes([0,accepted]))
             if accepted:
-                self.build_at=now+(definition.get('build_time') or 0);self.build_cell=cell;self.pending_device=definition
+                self.build_face={(0,-1,0):1,(0,1,0):0,(-1,0,0):3,(1,0,0):2,(0,0,-1):5,(0,0,1):4}[tuple(a-b for a,b in zip(base,cell))]
+                self.build_at=now+(definition.get('build_time') or 0)/(1+max(0,self.buffs_for(1).get('build_speed',0)));self.build_cell=cell;self.pending_device=definition
                 self.send(b'\x06\x3a'+pack('I',1)+packet[4:])
             return True
         if fn == 57:
@@ -225,11 +233,14 @@ class Practice(LoadoutSystems):
             r.end()
             tools=self.weapons[self.current]['tools']
             if tool_index>=len(tools): return True
-            tool=tools[tool_index]
+            tool=tools[tool_index].copy()
+            bullet=tool.get('bullet') or {}
+            if bullet.get('type')=='projectile':tool.update(grenade=True,speed=bullet.get('max_speed') or bullet.get('min_speed',50))
+            if tool.get('type')=='throw':tool.setdefault('range',100)
             interval=tool.get('timing',{}).get('attack_time',0.125)
             count=(tool.get('bullets') or {}).get('count',1)
             cost=(tool.get('ammo') or {}).get('rate',0)
-            valid=tool['type'] in ('shot','spinup','throw') and self.reload_at is None and now-self.last_cast>=interval*0.85 and math.dist(origin,self.position)<4 and len(shots)==count
+            valid=tool['type'] in ('shot','spinup','throw','melee') and self.reload_at is None and now-self.last_cast>=interval*0.85 and math.dist(origin,self.position)<4 and (len(shots)<=32 if tool['type']=='melee' else len(shots)==count)
             ammo_index=0 if self.current in self.ammo and self.ammo[self.current][0] is not None else 1
             if self.current in self.ammo: valid=valid and self.ammo[self.current][ammo_index]>=cost
             if not valid: self.send(self.ammo_packet()); return True
@@ -263,15 +274,16 @@ class Practice(LoadoutSystems):
                 if tool.get('grenade'):
                     if math.dist(origin,point)>tool['speed']*(now-shot_time+.5)+4:continue
                 elif math.dist(closest,point)>1: continue
+                if target is not None and not self.hit_near_unit(target,point):continue
                 effect=tool.get('hit_effect',{})
-                if effect.get('type') in ('bunch','splash_damage'):
+                if effect.get('type') in ('bunch','splash_damage','unit_spawn','teleport_to'):
                     if not tool.get('grenade') and not self.clear_line(origin,point,ignore_end=True):continue
                     self.apply_effect(effect,point,origin,key,target);continue
                 if target is None:
                     self.damage_block(point,tool,origin);continue
                 if target in self.placed:
-                    if math.dist(point,self.placed[target]['position'])<2 and self.clear_line(origin,point):
-                        damage=effect.get('damage',{}).get('world_damage',0);self.damage_entity(target,damage,key)
+                    if self.hit_near_unit(target,point) and self.clear_line(origin,point):
+                        self.apply_effect(effect,point,origin,key,target)
                     continue
                 if target!=2 or self.target_health<=0: continue
                 if math.dist(point,self.target_position)>2.5 or math.dist(origin,point)>tool.get('range',0) or not self.clear_line(origin,point): continue
@@ -283,12 +295,13 @@ class Practice(LoadoutSystems):
                     span=falloff['min_damage_range']-falloff['max_damage_range']
                     fraction=max(0,min(1,(math.dist(origin,point)-falloff['max_damage_range'])/span)) if span else 0
                     damage*=1-fraction*falloff['reduction_coeff']
+                self.impact(point,origin,effect.get('impact') or 'impact_bullet_common',(2,))
                 self.target_health=max(0,self.target_health-damage)
                 self.send(health(2,self.target_health))
                 self.send(b'\x06\x44'+pack('I?Iff?',2,True,1,damage,damage,False))
                 self.event('target_damaged', health=self.target_health, damage=damage)
                 if self.target_health==0:
-                    self.kills+=1
+                    self.kills+=1;self.statuses.pop(2,None);self.buff_cache.pop(2,None)
                     self.send(b'\x06\x43'+pack('?I',True,1)+b'\x00'+pack('I',2)+key+b'\x01\x00')
                     self.send(b'\x06\x0a'+pack('I',2)); self.respawn_at=now+3
                     self.event('practice_kill', kills=self.kills)

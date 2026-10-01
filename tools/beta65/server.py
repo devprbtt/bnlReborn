@@ -310,6 +310,10 @@ def main():
         packets['lobby-scene'] = (args.packets / 'lobby-scene.bin').read_bytes()
         packets['skin-packets'] = {p.stem[6:]:p.read_bytes() for p in args.packets.glob('spawn-*.bin')}
         packets['hero-states'] = {p.stem[6:]:p.read_bytes() for p in args.packets.glob('state-*.bin')}
+    if (args.packets / 'definitions.json').exists():
+        packets['definitions']=json.loads((args.packets/'definitions.json').read_text())
+        packets['buff-ids']=json.loads((args.packets/'buff-ids.json').read_text())
+        packets['unit-templates']={p.stem[5:]:p.read_bytes() for p in args.packets.glob('unit-*.bin')}
     if (args.packets / 'maps.json').exists():
         packets['maps']=json.loads((args.packets / 'maps.json').read_text())
         packets['map-packets']={m['id']:{name:(args.packets / (prefix+m['id']+'.bin')).read_bytes()
