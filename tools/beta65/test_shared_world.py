@@ -40,6 +40,15 @@ class SharedWorldTests(unittest.TestCase):
         self.clock[0]=2;self.w.tick();self.assertEqual(self.enemy.player_health,0)
         self.clock[0]=3.2;self.w.tick();self.assertEqual(self.enemy.player_health,160)
         for packets in self.sent.values():self.assertTrue(any(p[:6]==b'\x06\x08'+pack('I',3) for p in packets))
+    def test_respawn_restores_only_dead_players_ammo_and_replicates(self):
+        self.assault()
+        self.a.ammo[self.a.current]=[1,2];self.enemy.ammo[self.enemy.current]=[0,0]
+        self.a.damage_entity(3,160,self.a.current)
+        self.clock[0]=3.2;self.w.tick()
+        self.assertEqual(self.enemy.ammo[self.enemy.current],[2,4])
+        self.assertEqual(self.a.ammo[self.a.current],[1,2])
+        for packets in self.sent.values():self.assertIn(self.enemy.ammo_packet(),packets)
+
     def test_hits_use_target_player_health_and_ammo_and_cannot_replay(self):
         self.assault();origin=self.a.position;target=self.enemy.position
         self.w.handle(self.rooms[0],b'\x06\x1e\xe0\x00'+pack('fff',*origin)+b'\x01'+pack('fff',*target)+b'\x01'+pack('Q',42))

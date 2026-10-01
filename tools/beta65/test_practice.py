@@ -18,6 +18,21 @@ class PracticeTests(unittest.TestCase):
         self.s=Practice(self.packets,self.sent.append,lambda kind,**kw:self.events.append((kind,kw)),lambda:self.now)
         self.s.position=(1,1,2)
 
+    def test_respawn_refills_all_weapons_and_cancels_pending_reload(self):
+        reserve=pack('I',124);melee=pack('I',125)
+        self.s.weapons[reserve]={'ammo':[{'pool':{'pool_size':12}}]}
+        self.s.weapons[melee]={'ammo':[]}
+        self.s.ammo={self.key:[0,1],reserve:[None,0]}
+        self.s.packets.update({'hero-create':b'hero','hero-state':b'hero-state'})
+        self.s.player_respawn_at=10;self.s.reload_at=10;self.s.player_health=0
+        self.now=9.9;self.s.tick();self.assertEqual(self.s.ammo[reserve],[None,0])
+        self.now=10;self.s.tick()
+        self.assertEqual(self.s.ammo,{self.key:[2,4],reserve:[None,12]})
+        self.assertIsNone(self.s.reload_at);self.assertNotIn(melee,self.s.ammo)
+        self.assertIn(self.s.ammo_packet(),self.sent)
+        self.s.ammo[self.key][0]=1;self.now=11;self.s.tick()
+        self.assertEqual(self.s.ammo[self.key],[1,4])
+
     def shoot(self, shot=1):
         self.s.handle(b'\x06\x1e\xe0\x00'+pack('fff',1,1,2)+b'\x01'+pack('fff',5,1,2)+b'\x01'+pack('Q',shot))
 

@@ -49,7 +49,7 @@ class Practice(LoadoutSystems, MatchSystems):
         self.target_position = tuple(packets['practice']['target_position'])
         self.weapons = {packets['keys'][w['id']]: w['data'] for w in packets['practice']['weapons']}
         self.current = packets['keys'][packets['practice'].get('current_gear','gear_sarge_stone_m60')]
-        self.ammo = {k: [w['ammo'][0].get('mag_size'), w['ammo'][0]['pool']['pool_size']] for k,w in self.weapons.items() if w.get('ammo')}
+        self.refill_ammo()
         self.target_health = 160
         self.respawn_at = None
         self.reload_at = None
@@ -85,6 +85,11 @@ class Practice(LoadoutSystems, MatchSystems):
 
         self.objectives_started=True
 
+    def refill_ammo(self):
+        self.ammo = {k: [w['ammo'][0].get('mag_size'), w['ammo'][0]['pool']['pool_size']]
+                     for k,w in self.weapons.items() if w.get('ammo')}
+        self.reload_at = None
+
     def ammo_packet(self):
         # Only the two firearms have ammo. Melee has an empty list.
         result = b'\x06\x09' + pack('I',self.unit) + b'\x02\x00\x00' + bytes([len(self.weapons)])
@@ -105,6 +110,7 @@ class Practice(LoadoutSystems, MatchSystems):
         self.shots = {k:v for k,v in self.shots.items() if now-v[0] < 5}
         if self.player_respawn_at is not None and now>=self.player_respawn_at:
             self.player_respawn_at=None;self.position=self.spawn_position;self.player_health=self.max_health
+            self.refill_ammo()
             self.current=self.packets['keys'][self.packets['practice'].get('current_gear','gear_sarge_stone_m60')]
             hero=self.packets['hero-create']
             if self.spawn_position!=self.base_spawn:hero=hero.replace(pack('fff',*self.base_spawn),pack('fff',*self.spawn_position))
