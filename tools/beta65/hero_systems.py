@@ -178,19 +178,24 @@ class HeroSystems:
 
     def fall_unit(self,unit,entry,dt):
         pos=entry['position'];velocity=entry.get('fall_velocity',0)-(entry['definition']['movement'].get('gravity') or 10)*dt
-        end=(pos[0],pos[1]+velocity*dt,pos[2]);collision=self.segment_collision(pos,end)
-        if collision is not None:end=(pos[0],math.floor(collision[1])+1.05,pos[2]);velocity=0
+        offset=entry['definition'].get('beta_falling_bottom_offset',0)
+        end=(pos[0],pos[1]+velocity*dt,pos[2])
+        collision=self.segment_collision((pos[0],pos[1]-offset,pos[2]),(end[0],end[1]-offset,end[2]),falling=True)
+        if collision is not None:end=(pos[0],math.floor(collision[1])+1.05+offset,pos[2]);velocity=0
         if end[1]<0:end=pos;velocity=0
         entry['fall_velocity']=velocity
         if math.dist(pos,end)>.001:
             entry['position']=end;entry['cell']=tuple(math.floor(v) for v in end)
             self.send(b'\x06\x0b'+pack('I',unit)+b'\xc0\x00'+pack('fffhhh',*end,0,0,0))
 
-    def segment_collision(self,start,end):
+    def segment_collision(self,start,end,falling=False):
         steps=max(1,math.ceil(math.dist(start,end)*12))
         for i in range(1,steps+1):
             point=tuple(a+(b-a)*i/steps for a,b in zip(start,end));index=self.cell_index(tuple(math.floor(v) for v in point))
-            if index is not None and self.blocks[index] not in self.passable:return point
+            if index is not None:
+                card=self.block_cards.get(self.blocks[index],{})
+                passes=card.get('passable_block_falling',self.blocks[index] in self.passable) if falling else self.blocks[index] in self.passable
+                if self.blocks[index] and not passes:return point
         return None
 
     def projectile_transform(self,point,velocity):

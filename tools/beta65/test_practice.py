@@ -82,7 +82,7 @@ class PracticeTests(unittest.TestCase):
         self.s.packets.update({'hero-create':b'hero','hero-state':b'hero-state'})
         self.s.move((1,-4,2));self.s.move((1,-5,2))
         self.assertEqual(sum(k=='player_void_death' for k,v in self.events),1)
-        self.now=3.1;self.s.tick()
+        self.now=5.1;self.s.tick()
         self.assertIsNone(self.s.player_respawn_at)
         self.assertEqual(self.s.position,(14.5,5,23.5))
         self.assertIn(b'hero',self.sent)
@@ -119,7 +119,7 @@ class PracticeTests(unittest.TestCase):
         self.packets.update({'hero-create':b'gold-robot','hero-state':b'robot-state'})
         self.s=Practice(self.packets,self.sent.append,lambda *a,**k:None,lambda:self.now)
         self.assertEqual(self.s.player_health,210)
-        self.s.move((1,-5,2));self.now=4;self.s.tick()
+        self.s.move((1,-5,2));self.now=5.1;self.s.tick()
         self.assertEqual(self.s.player_health,210)
         self.assertIn(b'gold-robot',self.sent)
 
@@ -130,7 +130,7 @@ class PracticeTests(unittest.TestCase):
         self.s=Practice(self.packets,self.sent.append,lambda *a,**k:None,lambda:self.now)
         self.assertEqual(self.s.position,spawn)
         self.s.move((2.5,1.4,2.5));self.assertIsNotNone(self.s.player_respawn_at)
-        self.now=4;self.s.tick()
+        self.now=5.1;self.s.tick()
         self.assertEqual(self.s.position,spawn)
         self.assertIn(b'hero'+pack('fff',*spawn),self.sent)
 

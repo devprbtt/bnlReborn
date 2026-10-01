@@ -41,7 +41,7 @@ class Lobby:
 
     def room_update(self):
         from server import string
-        settings = b'\xf8' + key(self.map_id) + pack('ff??', 0, 0, False, False)
+        settings = b'\xf8' + key(self.map_id) + pack('ff??', self.maps.get(key(self.map_id),{}).get('build_seconds',120), 1, False, False)
         player = b'\xbf\x80' + pack('I', 1) + string('BetaLocal') + pack('ii', 1, 0) + bytes([0, 1, 1, 0])
         return b'\x0b\x0f\xf0' + string(self.name) + string(self.password) + settings + b'\x01' + player
 
@@ -159,10 +159,12 @@ class Lobby:
         if self.map_id != 'beta_practice_map':
             m=self.maps[key(self.map_id)]
             packets.update(self.packets['map-packets'][self.map_id])
-            packets['practice'].update({k:m[k] for k in ('spawn_position','target_position','kill_height')})
+            packets['practice'].update({k:m[k] for k in ('spawn_position','target_position','kill_height','water_level','min_fall_height','max_fall_height','build_seconds','respawn_seconds') if k in m})
             packets['practice']['objectives']=m.get('objectives',[])
             for name,old,new in [('hero-create',(14.5,5,23.5),m['spawn_position']),('target-create',(18.5,4,23.5),m['target_position'])]:
                 before=pack('fff',*old)
                 if packets[name].count(before)!=1:raise ValueError('Spawn template mismatch: '+name)
                 packets[name]=packets[name].replace(before,pack('fff',*new))
+        if self.map_id == 'beta_practice_map' and 'hero-create' in packets:
+            packets['hero-create']=packets['hero-create'].replace(pack('fff',14.5,5,23.5),pack('fff',*packets['practice'].get('spawn_position',(14.5,5,23.5))))
         return packets

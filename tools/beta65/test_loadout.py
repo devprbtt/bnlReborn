@@ -50,7 +50,8 @@ class LoadoutTests(unittest.TestCase):
         radar={'device':'device_generic_radar','definition':{'data':{'type':'common'}},'position':(5,1,2),'created':0,'health':10,'cell':(5,1,2)}
         self.s.placed[100]=radar
         self.s.placed[101]=dict(radar,device='spawn',definition={'spawn_point':{},'data':{'type':'common'}})
-        self.s.tick();self.assertTrue(self.s.radar_marked);self.assertEqual(self.s.spawn_position,(5,1.7,2))
+        self.s.tick();self.assertTrue(self.s.radar_marked);self.assertEqual(self.s.spawn_position,self.s.base_spawn)
+        self.s.selected_spawn=101;self.s.update_spawns();self.assertEqual(self.s.spawn_position,(5,2,2))
         self.s.placed.clear();self.s.tick();self.assertFalse(self.s.radar_marked);self.assertEqual(self.s.spawn_position,(14.5,5,23.5))
 
     def test_radar_does_not_update_a_dropped_target(self):

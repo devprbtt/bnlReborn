@@ -203,6 +203,8 @@ class MenuServer:
                         self.event('lobby_instance_initialized' if stage == 'lobby' else 'terrain_instance_initialized')
                     elif not authenticated:
                         raise ValueError("Login required")
+                    elif room and not instance and (service,function)==(7,7) and getattr(room,"practice",None):
+                        room.practice.chat(packet)
                     elif room and not instance and room.handle_region(packet):
                         pass
                     elif room and instance and room.handle_instance(packet, lambda p: self.send(connection, p)):
@@ -224,8 +226,13 @@ class MenuServer:
                                 self.send(connection, session_packets[name])
                         if "practice" in self.packets:
                             practice = Practice(session_packets, lambda p: self.send(connection,p), self.event)
+                            if room:
+                                room.practice=practice;practice.chat_send=room.send_region
                             practice.start()
+                            practice.start_match()
                             practice.send_loadout()
+                    elif practice and (service,function)==(7,7):
+                        practice.chat(packet)
                     elif practice and service == 6 and practice.handle(packet):
                         pass
                     elif instance and spawned and (service, function) == (6, 32):

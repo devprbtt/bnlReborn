@@ -71,6 +71,9 @@ class LoadoutSystems(HeroSystems):
 
     def damage_entity(self,unit,amount,source):
         if amount<=0:return
+        if unit in self.placed and 'objective' in self.placed[unit]['definition'].get('labels',[]):
+            if self.team(unit)==1 or self.phase_end is not None:return
+        if unit==1:self.cancel_recall()
         if unit==2:
             if self.target_health<=0:return
             self.target_health=max(0,self.target_health-amount);remaining=self.target_health
@@ -84,13 +87,13 @@ class LoadoutSystems(HeroSystems):
         self.send(health(unit,remaining));self.send(b'\x06\x44'+pack('I?Iff?',unit,True,1,amount,amount,False))
         self.event('explosive_damage',unit=unit,health=remaining,damage=amount)
         if remaining==0:
-            self.send(b'\x06\x43'+pack('?I',True,1)+b'\x00'+pack('I',unit)+source+b'\x01\x00')
+            self.send(b'\x06\x43'+(b'\x00' if unit==1 else pack('?I',True,1))+b'\x00'+pack('I',unit)+source+b'\x00')
             if unit in (1,2):self.send(b'\x06\x0a'+pack('I',unit))
             self.statuses.pop(unit,None);self.buff_cache.pop(unit,None)
             if unit==2:
                 self.kills+=1;self.respawn_at=self.clock()+3;self.event('practice_kill',kills=self.kills)
             elif unit==1:
-                self.player_respawn_at=self.clock()+3;self.reload_at=None;self.build_at=None;self.shots.clear()
+                self.player_died()
             else:
                 self.remove_unit(unit,trigger=True)
 
@@ -183,7 +186,7 @@ class LoadoutSystems(HeroSystems):
             if built.get('data',{}).get('type')=='bomb':
                 deadline=int(millis()+built['data']['timeout']*1000)
                 self.send(b'\x06\x09'+pack('I',unit)+b'\x00\x00\x10'+pack('Q',deadline))
-            if built.get('spawn_point') is not None:self.spawn_position=(cell[0]+.5,cell[1]+1.2,cell[2]+.5)
+            if built.get('spawn_point') is not None:self.update_spawns()
             self.event('device_built',device=definition['_id'],unit=unit)
         self.resources-=cost;self.send_resource();self.send_loadout();self.event('block_built',cell=cell,device=definition['_id'])
 
@@ -194,8 +197,6 @@ class LoadoutSystems(HeroSystems):
             self.charges=min(self.ability['charges']['max_charges'],self.charges+1)
             self.charge_at=now+self.ability['charges']['charge_cooldown'] if self.charges<self.ability['charges']['max_charges'] else None
             self.ability_update();self.event('ability_recharged',charges=self.charges)
-        spawns=[d for d in self.placed.values() if d['definition'].get('spawn_point') is not None]
-        self.spawn_position=tuple(a+b for a,b in zip(spawns[-1]['position'],(0,.7,0))) if spawns else self.base_spawn
         radars=[d for d in self.placed.values() if d['device']=='device_generic_radar']
         marked=self.target_health>0 and any(math.dist(d['position'],self.target_position)<=8 for d in radars)
         if marked!=self.radar_marked:

@@ -5,6 +5,7 @@ import struct
 import time
 import zlib
 from loadout import LoadoutSystems
+from match_systems import MatchSystems
 
 
 def pack(fmt, *values):
@@ -39,7 +40,7 @@ def health(unit, value):
     return b'\x06\x09' + pack('I', unit) + b'\x40\x00\x00' + pack('f', value)
 
 
-class Practice(LoadoutSystems):
+class Practice(LoadoutSystems, MatchSystems):
     def __init__(self, packets, send, event, clock=time.monotonic):
         self.packets, self.send, self.event, self.clock = packets, send, event, clock
         self.position = tuple(packets['practice'].get('spawn_position',(14.5,5,23.5)))
@@ -65,6 +66,7 @@ class Practice(LoadoutSystems):
         if len(self.blocks) != math.prod(self.size)*4: raise ValueError('Terrain size mismatch')
         self.passable = set(packets['practice']['passable'])
         self.init_systems()
+        self.init_match()
 
     def start(self):
         self.send(self.packets['target-create']); self.send(self.packets['target-state'])
@@ -90,6 +92,7 @@ class Practice(LoadoutSystems):
     def tick(self):
         now = self.clock()
         self.tick_systems()
+        self.tick_match()
         self.shots = {k:v for k,v in self.shots.items() if now-v[0] < 5}
         if self.player_respawn_at is not None and now>=self.player_respawn_at:
             self.player_respawn_at=None;self.position=self.spawn_position;self.player_health=self.max_health
@@ -99,10 +102,10 @@ class Practice(LoadoutSystems):
             self.send(hero);self.send(self.packets['hero-state']);self.send_loadout()
             self.send(self.ammo_packet());self.send_resource()
             if self.ability:self.ability_update()
-            self.event('player_respawned')
+            self.drown_at=None;self.respawn_timer();self.event('player_respawned')
         if self.build_at is not None and now>=self.build_at:
             cell=self.build_cell; self.build_at=None; self.build_cell=None
-            if math.dist(self.position,tuple(v+.5 for v in cell))<4 and self.blocks[self.cell_index(cell)]==0 and self.pending_device:
+            if math.dist(self.position,tuple(v+.5 for v in cell))<4 and self.replaceable(self.cell_index(cell)) and self.pending_device:
                 self.complete_build(cell,self.pending_device)
             self.pending_device=None
             self.send(b'\x06\x3b'+pack('I',1))
@@ -125,11 +128,9 @@ class Practice(LoadoutSystems):
 
     def move(self, position):
         self.position=position
+        if self.recall_at is not None and math.dist(position,self.recall_origin)>.5:self.cancel_recall()
         if position[1]<self.packets['practice'].get('kill_height',-3) and self.player_respawn_at is None:
-            self.player_respawn_at=self.clock()+3;self.reload_at=None;self.build_at=None;self.shots.clear();self.channel=None;self.statuses.pop(1,None);self.buff_cache.pop(1,None)
-            self.send(health(1,0))
-            self.send(b'\x06\x43\x00\x00'+pack('I',1)+self.current+b'\x00')
-            self.send(b'\x06\x0a'+pack('I',1));self.event('player_void_death')
+            self.damage_entity(1,self.max_health,self.current);self.event('player_void_death')
 
     def cell_index(self, cell):
         x,y,z=cell
@@ -138,6 +139,9 @@ class Practice(LoadoutSystems):
 
     def set_block(self, cell, block_id, damage=0, vdata=None, ldata=None):
         index=self.cell_index(cell)
+        if self.blocks[index]!=block_id:
+            old=self.blocks[index];self.world_revision+=1
+            if old and block_id==0 and vdata!=2:self.collapse_seeds.update(self.neighbors(cell))
         oldv,oldl=self.blocks[index+2:index+4] if self.blocks[index]==block_id else (0,0)
         vdata=oldv if vdata is None else vdata;ldata=oldl if ldata is None else ldata
         self.blocks[index:index+4]=bytes([block_id,damage,vdata,ldata])
@@ -157,9 +161,7 @@ class Practice(LoadoutSystems):
         if hp.get('mining_only') and not damage.get('mining'): return
         if hp.get('melee_only') and not damage.get('melee'): return
         # Exclude the struck voxel from the occlusion trace.
-        distance=math.dist(origin,point)
-        endpoint=tuple(b+(a-b)*min(1,.15/max(distance,.001)) for a,b in zip(origin,point))
-        if not self.clear_line(origin,endpoint): return
+        if not self.clear_line(origin,point,ignore_end=True): return
         self.impact(point,origin,effect.get('impact') or 'impact_melee_common')
         total=self.block_damage.get(cell,0)+max(0,damage['world_damage']-hp.get('toughness',0))
         self.block_damage[cell]=total
@@ -184,6 +186,8 @@ class Practice(LoadoutSystems):
 
     def handle(self, packet):
         fn = packet[1]; now = self.clock()
+        if self.match_request(packet):return True
+        if fn in (30,36,47,56):self.cancel_recall()
         if self.player_respawn_at is not None and fn in (30,31,33,56):
             if fn in (33,56): self.send(packet[:4]+b'\x00\x00')
             return True
@@ -200,7 +204,7 @@ class Practice(LoadoutSystems):
             occupied=any(abs(cell[0]+.5-p[0])<.8 and abs(cell[2]+.5-p[2])<.8 and p[1]-1<cell[1]<p[1]+2 for p in (self.position,self.target_position))
             definition=self.build_definition(device)
             occupied=occupied or any(d['cell']==cell for d in self.placed.values())
-            accepted=(definition is not None and (not definition.get('ground_only') or base[1]==cell[1]-1) and self.build_at is None and tool_index<len(tools) and tools[tool_index]['type']=='build' and self.resources>=self.build_cost(definition) and index is not None and base_index is not None and self.blocks[index]==0 and self.blocks[base_index] not in self.passable and sum(abs(a-b) for a,b in zip(cell,base))==1 and math.dist(self.position,outside)<4 and not occupied and self.clear_line(tuple(a+b for a,b in zip(self.position,(0,1.5,0))),outside))
+            accepted=(definition is not None and (not definition.get('ground_only') or base[1]==cell[1]-1) and self.build_at is None and tool_index<len(tools) and tools[tool_index]['type']=='build' and self.resources>=self.build_cost(definition) and index is not None and base_index is not None and self.replaceable(index) and self.blocks[base_index] not in self.passable and sum(abs(a-b) for a,b in zip(cell,base))==1 and math.dist(self.position,outside)<4 and not occupied and self.clear_line(tuple(a+b for a,b in zip(self.position,(0,1.5,0))),outside))
             self.send(packet[:4]+bytes([0,accepted]))
             if accepted:
                 self.build_face={(0,-1,0):1,(0,1,0):0,(-1,0,0):3,(1,0,0):2,(0,0,-1):5,(0,0,1):4}[tuple(a-b for a,b in zip(base,cell))]
