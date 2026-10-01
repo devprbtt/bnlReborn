@@ -153,6 +153,27 @@ class Practice(LoadoutSystems, MatchSystems):
         return ((x*self.size[1]+y)*self.size[2]+z)*4
 
     def set_block(self, cell, block_id, damage=0, vdata=None, ldata=None):
+        # Iterative propagation also handles chains without recursive stack growth.
+        pending=[(cell,block_id,damage,vdata,ldata)]
+        while pending:
+            c,b,d,v,l=pending.pop()
+            removed=self.blocks[self.cell_index(c)]!=0 and b==0
+            self._set_block(c,b,d,v,l)
+            if not removed:continue
+            self.block_damage.pop(c,None);self.block_teams.pop(c,None)
+            for face,normal in enumerate(((0,-1,0),(0,1,0),(-1,0,0),(1,0,0),(0,0,-1),(0,0,1))):
+                attached=tuple(a+n for a,n in zip(c,normal));i=self.cell_index(attached)
+                if i is None or not self.blocks[i]:continue
+                card=self.block_cards.get(self.blocks[i],{})
+                # Solid prefabs use structural connectivity. Non-solid face-aligned
+                # pads depend on their mount face; grounded speed pads always
+                # depend on the cell below (their visual byte is not a face).
+                support_face= self.blocks[i+2] if card.get('visual',{}).get('face_align') else (1 if card.get('grounded') else None)
+                if (card.get('solid') is False and not card.get('can_stay_in_air')
+                    and support_face==face):
+                    pending.append((attached,0,0,1,0))
+
+    def _set_block(self, cell, block_id, damage=0, vdata=None, ldata=None):
         index=self.cell_index(cell)
         if self.blocks[index]!=block_id:
             old=self.blocks[index];self.world_revision+=1
