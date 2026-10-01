@@ -128,6 +128,22 @@ public class PlayerDatabase : IPlayerDatabase
         return removed;
     }
 
+    // Online players whose friend list shows this player, through the game list or Steam. Read it
+    // before RemovePlayer: afterwards the departed player's own lists are gone and nothing links back.
+    public List<uint> GetOnlinePlayersListing(uint playerId)
+    {
+        if (!_players.TryGetValue(playerId, out var player)) return [];
+        return PlayersListing(playerId, player.SteamId, _players.Values.Select(p =>
+            (p.PlayerId, (IReadOnlyCollection<uint>)p.Friends,
+                (IReadOnlyCollection<ulong>?)_steamFriends.GetValueOrDefault(p.PlayerId))));
+    }
+
+    internal static List<uint> PlayersListing(uint playerId, ulong steamId,
+        IEnumerable<(uint PlayerId, IReadOnlyCollection<uint> Friends, IReadOnlyCollection<ulong>? SteamFriends)> online) =>
+        online.Where(p => p.PlayerId != playerId &&
+                          (p.Friends.Contains(playerId) || (steamId != 0 && p.SteamFriends?.Contains(steamId) is true)))
+            .Select(p => p.PlayerId).Distinct().ToList();
+
     public (DateTimeOffset? OnlineSince, DateTimeOffset? LastOnline) GetPresence(uint playerId)
     {
         if (!_presence.TryGetValue(playerId, out var presence))

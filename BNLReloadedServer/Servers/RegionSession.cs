@@ -1,4 +1,5 @@
 using BNLReloadedServer.Database;
+using BNLReloadedServer.Logging;
 using BNLReloadedServer.Service;
 
 namespace BNLReloadedServer.Servers;
@@ -21,10 +22,13 @@ internal class RegionSession : ServerSession
 
     protected override void OnTeardown()
     {
-        if (Sender.AssociatedPlayerId != null)
+        if (Sender.AssociatedPlayerId is { } playerId)
         {
-            Databases.RegionServerDatabase.RemoveUser(Sender.AssociatedPlayerId.Value, Id);
-            Databases.PlayerDatabase.RemovePlayer(Sender.AssociatedPlayerId.Value);
+            var listedBy = Databases.PlayerDatabase.GetOnlinePlayersListing(playerId);
+            Databases.RegionServerDatabase.RemoveUser(playerId, Id);
+            if (Databases.PlayerDatabase.RemovePlayer(playerId))
+                Databases.RegionServerDatabase.NotifyFriendsOfDeparture(listedBy).ObserveFailure(LogCat.Player,
+                    $"Failed to notify friends that player {playerId} went offline");
         }
 
         Databases.RegionServerDatabase.RemoveServices(Id);
