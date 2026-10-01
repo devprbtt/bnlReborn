@@ -47,8 +47,8 @@ class Lobby:
         return (set(self.devices) == set(range(1,7))
                 and all(d in allowed for d in self.devices.values())
                 and len({self.family(d) for d in self.devices.values()}) == 6
-                and (not specials or self.devices.get(6) in specials
-                     and all(d not in specials for slot,d in self.devices.items() if slot != 6)))
+                and (not specials or self.devices.get(1) in specials
+                     and all(d not in specials for slot,d in self.devices.items() if slot != 1)))
 
     def player_state(self):
         from server import string, varint
@@ -207,17 +207,17 @@ class Lobby:
             device, slot = data[:4], struct.unpack('<i', data[4:])[0]
             if device not in self.allowed_devices() or slot not in range(1, 7): return True
             specials = self.special_devices()
-            if specials and ((slot == 6) != (device in specials)): return True
+            if specials and ((slot == 1) != (device in specials)): return True
             self.devices = {s:d for s,d in self.devices.items() if self.family(d) != self.family(device)}
             self.devices[slot] = device
         elif fn == 4 and len(data) == 4:
             slot = struct.unpack('<i', data)[0]
-            if slot == 6 and self.special_devices(): return True
+            if slot == 1 and self.special_devices(): return True
             self.devices.pop(slot, None)
         elif fn == 5 and len(data) == 8:
             a, b = struct.unpack('<ii', data)
             if a not in range(1, 7) or b not in range(1, 7): return True
-            if self.special_devices() and 6 in (a,b): return True
+            if self.special_devices() and 1 in (a,b): return True
             av, bv = self.devices.pop(a, None), self.devices.pop(b, None)
             if av is not None: self.devices[b] = av
             if bv is not None: self.devices[a] = bv
