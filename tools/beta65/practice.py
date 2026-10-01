@@ -42,7 +42,7 @@ def health(unit, value):
 class Practice(LoadoutSystems):
     def __init__(self, packets, send, event, clock=time.monotonic):
         self.packets, self.send, self.event, self.clock = packets, send, event, clock
-        self.position = (14.5, 5, 23.5)
+        self.position = tuple(packets['practice'].get('spawn_position',(14.5,5,23.5)))
         self.target_position = tuple(packets['practice']['target_position'])
         self.weapons = {packets['keys'][w['id']]: w['data'] for w in packets['practice']['weapons']}
         self.current = packets['keys'][packets['practice'].get('current_gear','gear_sarge_stone_m60')]
@@ -91,7 +91,7 @@ class Practice(LoadoutSystems):
             self.player_respawn_at=None;self.position=self.spawn_position;self.player_health=self.max_health
             self.current=self.packets['keys'][self.packets['practice'].get('current_gear','gear_sarge_stone_m60')]
             hero=self.packets['hero-create']
-            if self.spawn_position!=(14.5,5,23.5):hero=hero.replace(pack('fff',14.5,5,23.5),pack('fff',*self.spawn_position))
+            if self.spawn_position!=self.base_spawn:hero=hero.replace(pack('fff',*self.base_spawn),pack('fff',*self.spawn_position))
             self.send(hero);self.send(self.packets['hero-state']);self.send_loadout()
             self.send(self.ammo_packet());self.send_resource()
             if self.ability:self.ability_update()
@@ -121,7 +121,7 @@ class Practice(LoadoutSystems):
 
     def move(self, position):
         self.position=position
-        if position[1]<-3 and self.player_respawn_at is None:
+        if position[1]<self.packets['practice'].get('kill_height',-3) and self.player_respawn_at is None:
             self.player_respawn_at=self.clock()+3;self.reload_at=None;self.build_at=None;self.shots.clear()
             self.send(health(1,0))
             self.send(b'\x06\x43\x00\x00'+pack('I',1)+self.current+b'\x00')

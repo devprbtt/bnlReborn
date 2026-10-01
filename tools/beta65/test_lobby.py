@@ -107,5 +107,35 @@ class LobbyTests(unittest.TestCase):
         self.assertEqual(snapshot['practice']['loadout'][0]['_id'],'device_1')
         self.assertNotIn('max_health',self.packets['practice'])
 
+    def test_map_selection_validation_and_scene_handoff(self):
+        self.room.maps={key('bridge'):{'id':'bridge'}}
+        self.room.packets['map-packets']={'bridge':{'terrain-scene':b'bridge-scene','zone-init':b'bridge-world'}}
+        self.room.state='room'
+        self.room.handle_region(b'\x0b\x0c\x80'+key('unknown'))
+        self.assertEqual(self.room.map_id,'beta_practice_map')
+        self.room.handle_region(b'\x0b\x0c\x80'+key('bridge'))
+        self.assertEqual(self.room.map_id,'bridge')
+        self.assertIn(key('bridge'),self.region[-1])
+        self.room.open_lobby();self.assertIn(key('bridge'),self.room.update())
+        self.send(10);self.assertEqual(self.region[-1],b'bridge-scene')
+        self.assertEqual(self.room.map_packet('zone-init'),b'bridge-world')
+        self.room.handle_region(b'\x0b\x0c\x80'+key('beta_practice_map'))
+        self.assertEqual(self.room.map_id,'bridge')
+
+    def test_map_snapshot_relocates_player_target_and_preserves_shared_packets(self):
+        meta={'id':'bridge','spawn_position':[20.5,10.2,30.5],
+              'target_position':[25.5,10.1,30.5],'kill_height':4.5}
+        self.room.maps={key('bridge'):meta};self.room.map_id='bridge'
+        self.packets.update({'map-packets':{'bridge':{'terrain':b'bridge-terrain','zone-init':b'bridge-world'}},
+            'hero-create':b'hero'+pack('fff',14.5,5,23.5),
+            'target-create':b'target'+pack('fff',18.5,4,23.5)})
+        snapshot=self.room.practice_packets()
+        self.assertEqual(snapshot['hero-create'],b'hero'+pack('fff',20.5,10.2,30.5))
+        self.assertEqual(snapshot['target-create'],b'target'+pack('fff',25.5,10.1,30.5))
+        self.assertEqual(snapshot['terrain'],b'bridge-terrain')
+        self.assertEqual(snapshot['practice']['kill_height'],4.5)
+        self.assertNotIn('spawn_position',self.packets['practice'])
+        self.assertEqual(self.packets['hero-create'],b'hero'+pack('fff',14.5,5,23.5))
+
 
 if __name__ == '__main__': unittest.main()

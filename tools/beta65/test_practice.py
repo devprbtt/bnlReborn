@@ -123,4 +123,15 @@ class PracticeTests(unittest.TestCase):
         self.assertEqual(self.s.player_health,210)
         self.assertIn(b'gold-robot',self.sent)
 
+    def test_map_spawn_and_kill_plane_survive_respawn(self):
+        spawn=(2.5,3.2,2.5)
+        self.packets['practice'].update(spawn_position=spawn,kill_height=1.5)
+        self.packets.update({'hero-create':b'hero'+pack('fff',*spawn),'hero-state':b'state'})
+        self.s=Practice(self.packets,self.sent.append,lambda *a,**k:None,lambda:self.now)
+        self.assertEqual(self.s.position,spawn)
+        self.s.move((2.5,1.4,2.5));self.assertIsNotNone(self.s.player_respawn_at)
+        self.now=4;self.s.tick()
+        self.assertEqual(self.s.position,spawn)
+        self.assertIn(b'hero'+pack('fff',*spawn),self.sent)
+
 if __name__=='__main__': unittest.main()

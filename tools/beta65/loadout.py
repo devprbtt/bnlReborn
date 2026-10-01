@@ -17,7 +17,8 @@ class LoadoutSystems:
         self.loadout={key(d['_id']):d for d in config.get('loadout',[])}
         self.device_definitions={d['_id']:d for d in config.get('unit_devices',[])}
         self.placed={};self.next_device=100;self.pending_device=None
-        self.spawn_position=(14.5,5,23.5)
+        self.base_spawn=tuple(config.get('spawn_position',(14.5,5,23.5)))
+        self.spawn_position=self.base_spawn
         self.ability=config.get('ability');self.charges=(self.ability.get('charges') or {}).get('max_charges',1) if self.ability else 0
         self.charge_at=None;self.last_ability=-100
         self.max_health=config.get('max_health',160)
@@ -166,7 +167,7 @@ class LoadoutSystems:
             self.charge_at=now+self.ability['charges']['charge_cooldown'] if self.charges<self.ability['charges']['max_charges'] else None
             self.ability_update();self.event('ability_recharged',charges=self.charges)
         spawns=[d for d in self.placed.values() if d['definition'].get('spawn_point') is not None]
-        self.spawn_position=tuple(a+b for a,b in zip(spawns[-1]['position'],(0,.7,0))) if spawns else (14.5,5,23.5)
+        self.spawn_position=tuple(a+b for a,b in zip(spawns[-1]['position'],(0,.7,0))) if spawns else self.base_spawn
         radars=[d for d in self.placed.values() if d['device']=='device_generic_radar']
         marked=self.target_health>0 and any(math.dist(d['position'],self.target_position)<=8 for d in radars)
         if marked!=self.radar_marked:

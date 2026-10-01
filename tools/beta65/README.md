@@ -129,3 +129,15 @@ The generator marks local zones as custom so the original Escape menu exposes
 Quit Match. Preview uses the full lobby packet set so Play remains enabled.
 Health reports the packet revision loaded at startup, not a regenerated disk
 manifest. Regression suite: 42 tests including direct preview exit/reentry.
+
+Additional solo maps: The Bridge, Stronghold and Stone Temple. The private generator
+supplies maps.json and scene/zone-init/terrain packets for each map. Custom-room
+map arrows send the original map-only settings update; only registered keys are
+accepted, and map changes are restricted to the room before entering the lobby.
+Scene, lobby label, terrain, player/target placement, kill plane and respawn all
+use the selected map. Shared packet templates are never modified by a session.
+
+These are copied later map files adapted for protocol 65, not verified 2015 map
+revisions. Objective units, shield/base logic, pickups, map scripts and multiplayer
+are not restored by this change. Rules remain solo practice. 45 tests pass,
+including map validation, immutable snapshots and map-specific void respawn.

@@ -22,6 +22,8 @@ class Lobby:
         self.password = ''
         self.send_instance = None
         self.zone_initialized = False
+        self.map_id = 'beta_practice_map'
+        self.maps = {key(m['id']):m for m in packets.get('maps',[])}
         self.selection_start = 0
         self.selection_end = 0
 
@@ -35,11 +37,11 @@ class Lobby:
         player += b''.join(pack('i', slot) + device for slot, device in sorted(self.devices.items()))
         player += b'\x00\x00' + key(self.skin) + bytes([0, 1, 1, 0])
         timer = b'\xe0\x02' + pack('QQ', self.selection_start, self.selection_end)
-        return b'\x09\x00\xf8' + key('beta_practice_match') + b'\x01\xc0' + key('beta_practice_map') + b'\x00\x00' + timer + b'\x01' + player
+        return b'\x09\x00\xf8' + key('beta_practice_match') + b'\x01\xc0' + key(self.map_id) + b'\x00\x00' + timer + b'\x01' + player
 
     def room_update(self):
         from server import string
-        settings = b'\xf8' + key('beta_practice_map') + pack('ff??', 0, 0, False, False)
+        settings = b'\xf8' + key(self.map_id) + pack('ff??', 0, 0, False, False)
         player = b'\xbf\x80' + pack('I', 1) + string('BetaLocal') + pack('ii', 1, 0) + bytes([0, 1, 1, 0])
         return b'\x0b\x0f\xf0' + string(self.name) + string(self.password) + settings + b'\x01' + player
 
@@ -77,9 +79,15 @@ class Lobby:
             if packet[2:] == key('beta_menu_friendly'): self.open_lobby()
         elif fn == 11 and self.state == 'room':
             self.state = 'menu'; self.password = ''; self.send_region(b'\x0b\x11')
+        elif fn == 12 and self.state == 'room' and len(packet)==7 and packet[2]==0x80:
+            requested=packet[3:]
+            if requested==key('beta_practice_map') or requested in self.maps:
+                self.map_id='beta_practice_map' if requested==key('beta_practice_map') else self.maps[requested]['id']
+                self.event('practice_map_selected',map=self.map_id)
+            self.send_region(self.room_update())
         elif fn in (12, 13) and self.state == 'room':
             self.send_region(self.room_update())
-            self.notice('Local practice currently uses one player, the practice map and fixed match settings.')
+            self.notice('Local practice currently uses one player and fixed match rules. Choose a map with the map arrows.')
         elif fn in (7, 19): self.send_region(packet[:4] + b'\x00\x05')
         elif fn == 8: self.send_region(packet[:4] + b'\x00\x06')
         elif fn not in (1, 2, 3, 14, 18): return False
@@ -125,12 +133,15 @@ class Lobby:
         elif fn == 10:
             if set(self.devices) != set(range(1, 7)): return True
             self.state = 'zone'
-            self.send_region(self.packets['terrain-scene'])
-            self.event('lobby_ready', hero=self.hero, skin=self.skin, devices=[self.available[d]['_id'] for _,d in sorted(self.devices.items())])
+            self.send_region(self.map_packet('terrain-scene'))
+            self.event('lobby_ready', map=self.map_id, hero=self.hero, skin=self.skin, devices=[self.available[d]['_id'] for _,d in sorted(self.devices.items())])
             return True
         elif fn not in (7, 9): return False
         send(self.update())
         return True
+
+    def map_packet(self, name):
+        return self.packets.get('map-packets',{}).get(self.map_id,{}).get(name,self.packets.get(name))
 
     def practice_packets(self):
         packets = self.packets.copy()
@@ -145,4 +156,12 @@ class Lobby:
             packets['practice']['weapons'] = [w for w in self.config['weapons'] if w['id'] in hero['gears']]
             packets['practice']['ability'] = next(a for a in self.config['abilities'] if a['_id']==hero['ability'])
             packets['practice']['unit_devices'] = self.config['unit_devices']
+        if self.map_id != 'beta_practice_map':
+            m=self.maps[key(self.map_id)]
+            packets.update(self.packets['map-packets'][self.map_id])
+            packets['practice'].update({k:m[k] for k in ('spawn_position','target_position','kill_height')})
+            for name,old,new in [('hero-create',(14.5,5,23.5),m['spawn_position']),('target-create',(18.5,4,23.5),m['target_position'])]:
+                before=pack('fff',*old)
+                if packets[name].count(before)!=1:raise ValueError('Spawn template mismatch: '+name)
+                packets[name]=packets[name].replace(before,pack('fff',*new))
         return packets

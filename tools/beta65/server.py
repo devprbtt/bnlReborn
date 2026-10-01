@@ -100,7 +100,7 @@ class MenuServer:
             self.instance_tokens = {k:v for k,v in self.instance_tokens.items()
                                     if (v[0] if isinstance(v,tuple) else v) > now}
             self.instance_tokens[token] = (time.monotonic() + 120, room, stage)
-        room.send_region(self.packets['lobby-scene' if stage == 'lobby' else 'terrain-scene'])
+        room.send_region(self.packets['lobby-scene'] if stage == 'lobby' else room.map_packet('terrain-scene'))
         room.send_region(b'\x02\x02' + string('127.0.0.1') + struct.pack('<i', self.port) + string(token))
 
     def session(self, connection):
@@ -253,7 +253,7 @@ class MenuServer:
                     elif (service, function) == (2, 1):
                         if room and room.state == 'zone' and not room.zone_initialized:
                             room.zone_initialized = True
-                            room.send_instance(self.packets['zone-init'])
+                            room.send_instance(room.map_packet('zone-init'))
                         self.event(room.state + '_scene_entered' if room else "terrain_scene_entered" if self.terrain_test else "main_menu_entered")
                     elif (service, function) == (5, 31):
                         self.send(connection, packet[:4] + b"\x00" + self.packets["profile"][2:])
@@ -310,6 +310,11 @@ def main():
         packets['lobby-scene'] = (args.packets / 'lobby-scene.bin').read_bytes()
         packets['skin-packets'] = {p.stem[6:]:p.read_bytes() for p in args.packets.glob('spawn-*.bin')}
         packets['hero-states'] = {p.stem[6:]:p.read_bytes() for p in args.packets.glob('state-*.bin')}
+    if (args.packets / 'maps.json').exists():
+        packets['maps']=json.loads((args.packets / 'maps.json').read_text())
+        packets['map-packets']={m['id']:{name:(args.packets / (prefix+m['id']+'.bin')).read_bytes()
+            for name,prefix in [('zone-init','zone-init-'),('terrain-scene','scene-'),('terrain','terrain-')]}
+            for m in packets['maps']}
     args.events.parent.mkdir(parents=True, exist_ok=True)
     # Report the revision actually loaded, even after the launcher regenerates files.
     packet_revision = hashlib.sha256((args.packets / "provenance.json").read_bytes()).hexdigest() if (args.packets / "provenance.json").exists() else None
