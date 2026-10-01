@@ -187,12 +187,20 @@ class HeroSystems:
         if 'support' in entry:
             if self.structural(entry['support']):return
             entry.pop('support');entry.pop('rotation',None);entry['fall_velocity']=0
+        if 'ground_support' in entry:
+            index=self.cell_index(entry['ground_support'])
+            if index is not None:
+                block=self.blocks[index];card=self.block_cards.get(block,{})
+                if block and not card.get('passable_block_falling',block in self.passable):return
+            entry.pop('ground_support');entry['fall_velocity']=-entry['definition']['movement'].get('start_speed',0)
         pos=entry['position'];movement=entry['definition']['movement']
         velocity=(entry.get('fall_velocity') or -movement.get('start_speed',0))-movement.get('gravity',10)*dt
         offset=entry['definition'].get('beta_falling_bottom_offset',0)
         end=(pos[0],pos[1]+velocity*dt,pos[2])
         collision=self.segment_collision((pos[0],pos[1]-offset,pos[2]),(end[0],end[1]-offset,end[2]),falling=True)
-        if collision is not None:end=(pos[0],math.floor(collision[1])+1.05+offset,pos[2]);velocity=0
+        if collision is not None:
+            entry['ground_support']=tuple(math.floor(v) for v in collision)
+            end=(pos[0],entry['ground_support'][1]+1.05+offset,pos[2]);velocity=0
         if end[1]<0:end=pos;velocity=0
         entry['fall_velocity']=velocity
         if math.dist(pos,end)>.001:

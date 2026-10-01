@@ -37,4 +37,33 @@ class DevicePlacementTests(unittest.TestCase):
             self.assertGreaterEqual(entry['position'][1]-offset,1)
             self.assertLess(entry['position'][1]-offset,1.1)
 
+    def test_landed_device_is_motionless_across_small_ticks(self):
+        self.s.blocks[self.s.cell_index((3,0,3))]=1
+        entry={'definition':self.unit,'position':(3.5,2.5,3.5)}
+        for _ in range(30):self.s.fall_unit(100,entry,.1)
+        settled=entry['position'];count=len(self.sent)
+        for _ in range(200):self.s.fall_unit(100,entry,.016)
+        self.assertEqual(entry['position'],settled);self.assertEqual(len(self.sent),count)
+        self.assertEqual(entry['ground_support'],(3,0,3))
+
+    def test_settled_device_falls_again_only_when_support_removed(self):
+        self.s.blocks[self.s.cell_index((3,1,3))]=1
+        entry={'definition':self.unit,'position':(3.5,3.5,3.5)}
+        for _ in range(30):self.s.fall_unit(100,entry,.1)
+        settled=entry['position'];self.s.blocks[self.s.cell_index((3,1,3))]=0
+        self.s.fall_unit(100,entry,.1)
+        self.assertNotIn('ground_support',entry);self.assertLess(entry['position'][1],settled[1])
+
+    def test_centered_blockbuster_and_pickup_rest_on_top_of_voxel(self):
+        self.s.blocks[self.s.cell_index((3,0,3))]=1
+        for speed,gravity in ((60,0),(2,10)):
+            definition=dict(self.unit,movement={'type':'falling','start_speed':speed,'gravity':gravity})
+            entry={'definition':definition,'position':(3.5,3,3.5)}
+            for _ in range(50):self.s.fall_unit(100,entry,.05)
+            self.assertAlmostEqual(entry['position'][1],1.55)
+            self.assertAlmostEqual(entry['position'][1]-.5,1.05)
+            before=entry['position']
+            for _ in range(100):self.s.fall_unit(100,entry,.016)
+            self.assertEqual(entry['position'],before)
+
 if __name__=='__main__':unittest.main()

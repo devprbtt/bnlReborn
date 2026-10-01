@@ -244,3 +244,10 @@ Validation: 116 server tests; private recovery fixtures verify both new packet
 types against the original assembly and all five actual reward tiers. Native
 client checks use an accelerated diagnostic sequence and injected crate damage;
 production timings and profile database are untouched. No production deployment.
+
+Grounding follow-up: settled falling units now retain their collision support
+cell and emit no repeated downward/snap-back updates while it remains solid.
+Removing/replacing support with fall-passable material re-enables gravity. The
+private asset adapter measures pickup colliders too: both Block Buster models
+require a 0.5-unit origin-to-bottom offset. 119 server tests pass, including
+stationary small-timestep landing and falling again after support removal.
