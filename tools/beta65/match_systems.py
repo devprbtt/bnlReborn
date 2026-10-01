@@ -6,8 +6,11 @@ from gameclock import millis
 
 def pack(fmt,*v):return struct.pack('<'+fmt,*v)
 
-class MatchSystems:
+from supply_systems import SupplySystems
+
+class MatchSystems(SupplySystems):
     def init_match(self):
+        self.init_supplies()
         self.chat_send=self.send;self.match_started=False;self.phase_end=None;self.recall_at=None;self.recall_origin=None
         self.drown_at=None;self.drown_tick=0;self.selected_spawn=0;self.spawn_cache=None
         self.collapse_removals=deque();self.collapse_seeds=set();self.collapse_job=None;self.world_revision=0
@@ -103,6 +106,7 @@ class MatchSystems:
     def tick_match(self):
         now=self.clock()
         if self.phase_end is not None and now>=self.phase_end:self.phase_end=None;self.send_phase(3);self.send(b'\x06\x4a\x00');self.event('assault_started')
+        self.tick_supplies()
         if self.recall_at is not None:
             if math.dist(self.position,self.recall_origin)>.5:self.cancel_recall()
             elif now>=self.recall_at:

@@ -172,7 +172,7 @@ class Practice(LoadoutSystems, MatchSystems):
         # Exclude the struck voxel from the occlusion trace.
         if not self.clear_line(origin,point,ignore_end=True): return
         self.impact(point,origin,effect.get('impact') or 'impact_melee_common')
-        total=self.block_damage.get(cell,0)+max(0,damage['world_damage']-hp.get('toughness',0))
+        total=self.block_damage.get(cell,0)+max(0,self.damage_bonus(damage['world_damage'],'world_damage')-hp.get('toughness',0))
         self.block_damage[cell]=total
         if total>=hp['max_health']:
             self.set_block(cell,0,vdata=1);self.block_damage.pop(cell,None)

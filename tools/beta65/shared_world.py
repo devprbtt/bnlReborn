@@ -10,7 +10,7 @@ from loadout import key,pack
 from gameclock import millis
 from wire_units import set_identity
 
-SHARED=('definitions','blocks','block_damage','placed','next_device','statuses','buff_cache','delayed','mortar_flights','fire_cells','next_projectile','block_teams','block_contact_at','status_owner','status_next','unit_teams','collapse_removals','collapse_seeds','collapse_job','world_revision','phase_end')
+SHARED=('definitions','blocks','block_damage','placed','next_device','statuses','buff_cache','delayed','mortar_flights','fire_cells','next_projectile','block_teams','block_contact_at','status_owner','status_next','unit_teams','collapse_removals','collapse_seeds','collapse_job','world_revision','phase_end','supply_state')
 
 
 class Player(Practice):
@@ -50,6 +50,7 @@ class Player(Practice):
             if caster!=unit and team==self.team(unit):return
             # Enemy damage is disabled during construction; falls/lava/self damage still work.
             if caster!=unit and self.phase_end is not None:return
+            amount*=max(.5,1-self.buffs_for(unit).get('shield',0))
             victim.cancel_recall();actual=min(amount,victim.player_health);victim.player_health-=actual
             self.send(health(unit,victim.player_health))
             self.send(b'\x06\x44'+pack('I?Iff?',unit,caster>0,max(0,caster),actual,actual,False) if caster>0 else b'\x06\x44'+pack('I?ff?',unit,False,actual,actual,False))
@@ -179,7 +180,7 @@ class World:
             for unit,p in list(self.players.items()):
                 if unit in self.connections:p.tick()
             # Finite matches: a tie produces no rewards; remaining objective HP decides timeout.
-            if now-self.started_at>=1800:
+            if now-self.started_at>=3600:
                 totals={team:sum(d['health'] for d in self.state['placed'].values() if d['team']==team and 'objective' in d['definition'].get('labels',[])) for team in (1,2)}
                 self.finish(1 if totals[1]>totals[2] else 2 if totals[2]>totals[1] else 0)
 

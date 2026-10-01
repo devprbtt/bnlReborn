@@ -96,12 +96,13 @@ class HeroSystems:
             if end<=self.clock():continue
             effect=self.definitions[ident].get('effect',{})
             if effect.get('type')=='buff':
-                for name,value in effect.get('buffs',{}).items():buffs[name]=buffs.get(name,0)+value
+                for name,value in self.definitions[ident].get('beta_buffs',effect.get('buffs',{})).items():buffs[name]=buffs.get(name,0)+value
         return buffs
 
     def extra_effect(self,effect,point,origin,source,target,owner=None):
         if owner is None:owner=self.unit
         kind=effect.get('type')
+        if self.supply_effect(effect,target,owner):return True
         if kind=='unit_spawn':self.spawn_unit(effect['unit_key'],point,self.team(owner),owner=owner)
         elif kind=='teleport_to':self.teleport(point)
         elif kind=='teleport':
@@ -129,7 +130,7 @@ class HeroSystems:
         elif kind=='all_units_bunch':
             for unit in self.player_units()+list(self.placed):
                 p=self.unit_position(unit)
-                if p and math.dist(point,p)<=effect['range'] and self.allowed(effect,unit,owner):
+                if p and math.dist(point,p)<=effect.get('range',float('inf')) and self.allowed(effect,unit,owner):
                     child=dict(effect,type='bunch');self.apply_effect(child,p,origin,source,unit,owner)
         elif kind=='blocks_spawn':
             pattern=effect.get('pattern') or {};card=self.definitions.get(pattern.get('block_key'))
@@ -186,7 +187,8 @@ class HeroSystems:
         if 'support' in entry:
             if self.structural(entry['support']):return
             entry.pop('support');entry.pop('rotation',None);entry['fall_velocity']=0
-        pos=entry['position'];velocity=entry.get('fall_velocity',0)-(entry['definition']['movement'].get('gravity') or 10)*dt
+        pos=entry['position'];movement=entry['definition']['movement']
+        velocity=(entry.get('fall_velocity') or -movement.get('start_speed',0))-movement.get('gravity',10)*dt
         offset=entry['definition'].get('beta_falling_bottom_offset',0)
         end=(pos[0],pos[1]+velocity*dt,pos[2])
         collision=self.segment_collision((pos[0],pos[1]-offset,pos[2]),(end[0],end[1]-offset,end[2]),falling=True)
@@ -303,12 +305,13 @@ class HeroSystems:
             d=entry['definition'];data=d.get('data') or {};age=now-entry['created']
             if (d.get('movement') or {}).get('type')=='falling':self.fall_unit(unit,entry,dt)
             lifetime=d.get('lifetime') or data.get('timeout')
-            if data.get('type')!='bomb' and lifetime and age>=lifetime:self.remove_unit(unit);continue
+            if data.get('type')!='bomb' and lifetime and age>=lifetime:
+                self.remove_unit(unit,trigger='supply_blockbuster' in d.get('labels',[]) and data.get('type')!='pickup');continue
             if data.get('type')=='pickup':
                 for target in self.player_units():
                     pos=self.unit_position(target)
-                    if self.alive(target) and math.dist(entry['position'],pos)<1.8:
-                        self.apply_effect(data['take_effect'],pos,pos,key(d['_id']),target);self.remove_unit(unit);break
+                    if self.alive(target) and math.dist(entry['position'],pos)<1.8 and self.clear_line(entry['position'],pos):
+                        self.collect_pickup(unit,entry,target);break
 
         for target in self.player_units():
             if not self.alive(target):continue

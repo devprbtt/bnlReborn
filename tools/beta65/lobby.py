@@ -212,6 +212,7 @@ class Lobby:
             packets.update(self.packets['map-packets'][self.map_id])
             packets['practice'].update({k:m[k] for k in ('spawn_position','target_position','kill_height','water_level','min_fall_height','max_fall_height','build_seconds','respawn_seconds') if k in m})
             packets['practice']['objectives']=m.get('objectives',[])
+            packets['practice']['drop_points']=m.get('drop_points',[])
             for name,old,new in [('hero-create',(14.5,5,23.5),m['spawn_position']),('target-create',(18.5,4,23.5),m['target_position'])]:
                 before=pack('fff',*old)
                 if packets[name].count(before)!=1:raise ValueError('Spawn template mismatch: '+name)

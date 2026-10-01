@@ -217,3 +217,30 @@ exit/requeue. Objective damage is injected in that integration test. An original
 beta client with one scripted peer visually renders remote Sarge, Mountain
 Express lava, and native Victory results with +750 XP. This is not a completed
 two-physical-PC human playtest. No production deployment was performed.
+
+Supply Drops and Block Buster (2026-10-01)
+----------------------------------------
+The map importer now passes original drop markers. SupplySystems starts the
+copied Shield Rush supply sequence after construction: five-minute intervals,
+resources, resources, Lite, resources, Classic, resources, Extreme, then Uber
+repeats. Positions are selected once by the shared authority. Native SupplyInfo
+provides the warning countdown; units use their recovered descent parameters.
+A resource pickup awards 500 bricks to its team, including dead teammates, once.
+Closed Block Busters open on destruction or their 150-second lifetime; unclaimed
+pickups expire after 29 seconds. Recovered effects last 90 seconds. World and
+objective damage bonuses are 50/100/150/250 percent; player damage is unchanged.
+Classic/Extreme/Uber also grant a shield with damage reduction capped at 50%.
+Extreme/Uber team-zone effects resume after respawn until the original deadline.
+A new Block Buster replaces its team's previous tier, rather than stacking.
+All tiers use the collecting player's team, never the neutral crate's owner.
+Effect icons, timers and shield visuals use protocol-65 UnitUpdate.Effects.
+The private client adapter preserves server-only objective damage and zone reward
+metadata while emitting compatible old client cards and recovered prefab names.
+The provisional LAN timeout is now 60 minutes (formerly 30) so the late supply
+sequence is reachable. A missing marker skips that event without stopping later
+supplies. Ended/aborted worlds stop scheduling. These are compatible later
+catalogue rules, not an authenticated December balance reconstruction.
+Validation: 116 server tests; private recovery fixtures verify both new packet
+types against the original assembly and all five actual reward tiers. Native
+client checks use an accelerated diagnostic sequence and injected crate damage;
+production timings and profile database are untouched. No production deployment.

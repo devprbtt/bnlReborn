@@ -73,6 +73,7 @@ class LoadoutSystems(HeroSystems):
 
     def damage_entity(self,unit,amount,source,owner=None):
         if amount<=0:return
+        if unit in self.player_units():amount*=max(.5,1-self.buffs_for(unit).get('shield',0))
         if unit in self.placed and 'objective' in self.placed[unit]['definition'].get('labels',[]):
             if self.team(unit)==self.team(self.unit) or self.phase_end is not None:return
         if unit==self.unit:self.cancel_recall()
@@ -122,8 +123,10 @@ class LoadoutSystems(HeroSystems):
                     for z in range(math.floor(point[2]-radius),math.ceil(point[2]+radius)+1):
                         cell=(x,y,z);index=self.cell_index(cell);center=(x+.5,y+.5,z+.5)
                         if index is not None and self.blocks[index] and math.dist(center,point)<=radius and self.clear_line(point,center,ignore_start=True,ignore_end=True):cells.append(cell)
-            for i in visible:self.damage_entity(i,damage['player_damage'] if i in self.player_units() else damage['world_damage'],source,owner)
-            for cell in cells:self.blast_block(cell,damage)
+            for i in visible:
+                kind='player_damage' if i in self.player_units() else 'objective_damage' if 'objective' in self.placed.get(i,{}).get('definition',{}).get('labels',[]) else 'world_damage'
+                self.damage_entity(i,self.damage_bonus(damage.get(kind,0),kind,owner),source,owner)
+            for cell in cells:self.blast_block(cell,damage,owner)
             self.event('explosion',radius=radius,affected_units=visible,affected_cells=len(cells))
         elif kind=='knockback':
             distance=math.dist(tuple(a+b for a,b in zip(self.position,(0,1,0))),point)
@@ -132,17 +135,19 @@ class LoadoutSystems(HeroSystems):
                 scale=max(0,1-distance/radius) if effect.get('linear_falloff') else 1
                 self.send(b'\x06\x0d'+pack('I',self.unit)+b'\x02\xe0'+pack('fffff',*point,effect['force']*scale,effect['midair_force']*scale))
         elif kind=='damage':
-            if target is not None:self.damage_entity(target,effect['damage'].get('player_damage' if target in self.player_units() else 'objective_damage' if 'objective' in self.placed.get(target,{}).get('definition',{}).get('labels',[]) else 'world_damage',0),source,owner)
-            else:self.blast_block(tuple(math.floor(v) for v in point),effect['damage'])
+            if target is not None:
+                kind='player_damage' if target in self.player_units() else 'objective_damage' if 'objective' in self.placed.get(target,{}).get('definition',{}).get('labels',[]) else 'world_damage'
+                self.damage_entity(target,self.damage_bonus(effect['damage'].get(kind,0),kind,owner),source,owner)
+            else:self.blast_block(tuple(math.floor(v) for v in point),effect['damage'],owner)
 
-    def blast_block(self,cell,damage):
+    def blast_block(self,cell,damage,owner=None):
         index=self.cell_index(cell)
         if index is None:return
         card=self.block_cards.get(self.blocks[index]);hp=card.get('health') if card else None
         if not card or not card.get('destructible') or not hp:return
         if hp.get('mining_only') and not damage.get('mining'):return
         if hp.get('melee_only') and not damage.get('melee'):return
-        total=self.block_damage.get(cell,0)+max(0,damage['world_damage']-hp.get('toughness',0))
+        total=self.block_damage.get(cell,0)+max(0,self.damage_bonus(damage['world_damage'],'world_damage',owner)-hp.get('toughness',0))
         if total>=hp['max_health']:
             self.set_block(cell,0,vdata=1);self.block_damage.pop(cell,None);self.event('block_destroyed',cell=cell)
         else:
