@@ -5,6 +5,7 @@ import struct
 import time
 from gameclock import millis
 from loadout import key, pack
+import map_voting
 
 
 class Lobby:
@@ -44,7 +45,13 @@ class Lobby:
         players=self.group['members'] if self.group else [self]
         player=b''.join(p.player_state() for p in players)
         timer = b'\xe0\x02' + pack('QQ', self.selection_start, self.selection_end)
-        return b'\x09\x00\xf8' + key('beta_practice_match' if self.map_id=='beta_practice_map' else 'beta_lan_match') + b'\x01\xc0' + key(self.map_id) + b'\x00\x00' + timer + varint(len(players)) + player
+        ballot=self.group.get('map_vote') if self.group else None
+        candidates=ballot['candidates'] if map_voting.active(self.group) else [self.map_id]
+        maps=varint(len(candidates))
+        for ident in candidates:
+            voters=sorted(p for p,m in ballot['votes'].items() if m==ident) if ballot else []
+            maps+=b'\xc0'+key(ident)+varint(len(voters))+b''.join(pack('I',p) for p in voters)
+        return b'\x09\x00\xf8' + key('beta_practice_match' if self.map_id=='beta_practice_map' else 'beta_lan_match') + maps + b'\x00' + timer + varint(len(players)) + player
 
     def room_update(self):
         from server import string
@@ -60,10 +67,19 @@ class Lobby:
         self.zone_initialized = False
         self.selection_start = millis()
         self.selection_end = self.selection_start + 120000
+        if map_voting.active(self.group):
+            self.selection_start=self.group['map_vote']['start'];self.selection_end=self.group['map_vote']['end']
         self.enter_instance(self, 'lobby')
         self.event('lobby_opened')
 
     def tick(self, send):
+        if self.social:
+            with self.social.lock:return self._tick(send)
+        return self._tick(send)
+
+    def _tick(self, send):
+        if self.group:map_voting.tick(self.group)
+        if map_voting.active(self.group):return
         if self.state == 'lobby' and self.selection_end and millis() >= self.selection_end:
             if set(self.devices) != set(range(1,7)):
                 self.devices = self.defaults.copy()
@@ -121,6 +137,11 @@ class Lobby:
         if service != 9: return False
         if fn == 11: return True
         if self.state != 'lobby': return True
+        if fn==9:
+            if len(packet)==6:map_voting.vote(self,packet[2:])
+            return True
+        if self.group:map_voting.tick(self.group)
+        if map_voting.active(self.group) and fn==10:return True
         if self.ready and fn!=10:return True
         data = packet[2:]
         if fn == 2:

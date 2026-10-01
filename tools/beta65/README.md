@@ -251,3 +251,19 @@ Removing/replacing support with fall-passable material re-enables gravity. The
 private asset adapter measures pickup colliders too: both Block Buster models
 require a 0.5-unit origin-to-bottom offset. 119 server tests pass, including
 stationary small-timestep landing and falling again after support removal.
+
+Friendly map voting now uses the native two-map lobby panel. After queue acceptance,
+two distinct maps are sampled from the common pool (including Workshop recreations).
+Each player has one final vote; totals are broadcast to all lobby members. Voting
+ends after 30 seconds or when everyone votes. Highest tally wins; ties and zero-vote
+ballots use a random choice among the tied offered maps. One-map pools skip voting.
+Hero, skin and block selection remain available during voting; Block In is rejected
+until the ballot resolves. Then all players receive the same map and a fresh shared
+120-second selection timer. Custom rooms retain host map selection. Leaving removes
+the player's vote; a Friendly lobby with an empty team returns to the menu.
+Validation: 128 beta65 tests, including duplicate/invalid/late votes, abstentions,
+ties, shared timers, early readiness, disconnects and unchanged custom selection.
+Native beta UI verified with one client vote and a scripted peer vote; not a two-human
+LAN test. Client compatibility patch v6 grays out Block In while two maps are offered.
+Map thumbnail artwork for generated map cards is still absent; names and tallies show.
+This is the local/LAN beta service; no production deployment performed.

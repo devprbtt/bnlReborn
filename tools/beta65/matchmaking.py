@@ -4,6 +4,7 @@ import struct
 import threading
 from gameclock import millis
 from loadout import key
+import map_voting
 
 
 def pack(fmt,*v):return struct.pack('<'+fmt,*v)
@@ -34,6 +35,8 @@ class Matchmaking:
 
     def tick(self):
         with self.lock:
+            for group in list(self.groups.values()):
+                map_voting.tick(group)
             for ticket in list(self.pending.values()):
                 if millis()>=ticket['deadline'] and ticket['members'][0].player_id in self.pending:self.cancel(ticket['members'][0])
 
@@ -54,7 +57,16 @@ class Matchmaking:
                 room.world.detach(room);room.world=None;room.practice=None
             if not g:return
             g['members'].remove(room);room.group=None;room.state='menu'
+            if g.get('map_vote'):g['map_vote']['votes'].pop(room.player_id,None)
             if not g['members']:self.groups.pop(g['id']);return
+            if g.get('friendly') and not g.get('world') and {m.team for m in g['members']} != {1,2}:
+                for member in list(g['members']):
+                    member.group=None;member.ready=False;member.state='menu';member.selection_end=0
+                    try:
+                        if member.send_instance:member.send_instance(b'\x09\x01')
+                        member.send_region(member.packets['scene'])
+                    except OSError:pass
+                self.groups.pop(g['id']);return
             if g['owner'] is room:g['owner']=g['members'][0]
             self.broadcast_room(g)
 
@@ -97,9 +109,8 @@ class Matchmaking:
                     members=ticket['members']
                     for m in members:self.pending.pop(m.player_id,None);self.queue_update(m,1)
                     g=self.create_group(members,'LAN Friendly',friendly=True)
-                    for m in members:
-                        if m.maps:m.map_id=next(iter(m.maps.values()))['id']
-                        m.open_lobby()
+                    map_voting.begin(g)
+                    for m in members:m.open_lobby()
             elif fn==6:
                 rows=[]
                 for group in self.groups.values():
