@@ -1,5 +1,6 @@
 """Local hero abilities, channels, timed effects and spawned units for protocol 65."""
 import math
+from collections import deque
 import struct
 import zlib
 from gameclock import millis
@@ -10,7 +11,7 @@ def key(s):return pack('I',zlib.crc32(s.encode()))
 class HeroSystems:
     def init_heroes(self):
         self.definitions={c['_id']:c for c in self.packets.get('definitions',[])}
-        self.statuses={};self.buff_cache={};self.delayed=[];self.mortar_flights={};self.next_projectile=0x7000000000000000;self.channel=None;self.last_effect_tick=self.clock()
+        self.statuses={};self.buff_cache={};self.delayed=[];self.mortar_flights={};self.fire_cells={};self.next_projectile=0x7000000000000000;self.channel=None;self.last_effect_tick=self.clock()
         self.block_teams={};self.block_contact_at={};self.status_owner={};self.status_next={};self.unit_teams={1:1,2:2,-1:1,-2:2}
 
     def unit_position(self,unit):
@@ -47,9 +48,12 @@ class HeroSystems:
         if template.count(sentinel)!=1:raise ValueError('Unit template position missing')
         unit=self.next_device;self.next_device+=1;self.unit_teams[unit]=team
         self.send((template[:2]+pack('I',unit)+template[6:]).replace(sentinel,pack('fff',*position)))
+        data=definition.get('data') or {}
+        if data.get('type')=='cloud':self.fill_cloud(unit,position,data.get('range',5))
+        if data.get('type')=='bomb':self.send(b'\x06\x09'+pack('I',unit)+b'\x00\x00\x10'+pack('Q',int(millis()+data['timeout']*1000)))
         hp=((definition.get('health') or {}).get('health') or {}).get('max_health',1)
         self.placed[unit]={'device':device or ident,'definition':definition,'position':tuple(position),'cell':tuple(math.floor(v) for v in position),'health':hp,'created':self.clock(),'team':team,'owner':owner}
-        self.send(b'\x06\x09'+pack('I',unit)+b'\x40\x00\x00'+pack('f',hp))
+        if definition.get('health'):self.send(b'\x06\x09'+pack('I',unit)+b'\x40\x00\x00'+pack('f',hp))
         for effect in (definition.get('init_effects') or [])+(definition.get('enabled_effects') or []):self.add_status(unit,effect,definition.get('lifetime') or 3600,owner=unit,check=False)
         self.event('unit_spawned',unit=unit,key=ident)
         return unit
@@ -121,20 +125,78 @@ class HeroSystems:
                 p=self.unit_position(unit)
                 if p and math.dist(point,p)<=effect['range'] and self.allowed(effect,unit,owner):
                     child=dict(effect,type='bunch');self.apply_effect(child,p,origin,source,unit,owner)
+        elif kind=='blocks_spawn':
+            pattern=effect.get('pattern') or {};card=self.definitions.get(pattern.get('block_key'))
+            if pattern.get('type')=='sphere' and card:
+                radius=max(0,min(8,int(pattern['radius'])));base=tuple(math.floor(v) for v in point)
+                for x in range(base[0]-radius,base[0]+radius+1):
+                    for y in range(base[1]-radius,base[1]+radius+1):
+                        for z in range(base[2]-radius,base[2]+radius+1):
+                            cell=(x,y,z);index=self.cell_index(cell);below=self.cell_index((x,y-1,z))
+                            if index is None or below is None or math.dist(cell,base)>radius:continue
+                            if self.blocks[index]!=0 or self.blocks[below] in self.passable:continue
+                            self.set_block(cell,card['block_id'],ldata=self.team(owner));self.block_teams[cell]=self.team(owner)
+                            # The copied fire block has no lifetime. Use its health as seconds in this sandbox.
+                            self.fire_cells[cell]=(self.clock()+card['health']['max_health'],card['block_id'])
+                            self.event('fire_spawned',cell=cell)
         elif kind=='fire_mortars':
-            mortars=[d for d in self.placed.values() if d['device']=='device_cogwheel_mortar']
-            for n,d in enumerate(mortars):
-                duration=max(.6,effect.get('base_fire_delay',.5))+n*.2
-                self.delayed.append((self.clock()+duration,effect['hit_effect'],point,source))
-                shot=self.next_projectile;self.next_projectile+=1
+            mortars=[(u,d) for u,d in self.placed.items() if d['device']=='device_cogwheel_mortar' and self.team(u)==self.team(owner)]
+            for n,(unit,d) in enumerate(mortars):
                 start=tuple(a+b for a,b in zip(d['position'],(0,1,0)))
-                self.mortar_flights[shot]=(self.clock(),duration,start,point)
-                transform=b'\xc0\x00'+pack('fffhhh',*start,0,0,0)
-                self.send(b'\x06\x34'+pack('Q',shot)+b'\xf0'+key(d['definition']['data']['projectile_key'])+transform+pack('fI',0,1))
-                self.impact(d['position'],d['position'],'impact_explosion_mortar_primary')
-            self.event('mortars_fired',count=len(mortars))
+                dx,dy,dz=[b-a for a,b in zip(start,point)];distance=math.hypot(dx,dz)
+                # Solve a ballistic arc with the deployed mortar's configured elevation.
+                angle=math.radians(max(45,min(85,d['definition']['data'].get('angle',80))))
+                rise=max(1,distance*math.tan(angle)-dy);duration=max(.8,math.sqrt(2*rise/9.81))
+                velocity=(dx/duration,(dy+4.905*duration*duration)/duration,dz/duration)
+                shot=self.next_projectile;self.next_projectile+=1
+                self.mortar_flights[shot]={'launch':self.clock()+(effect.get('base_fire_delay') or .5)+n*.2,'duration':duration,'start':start,'end':point,'velocity':velocity,'effect':effect['hit_effect'],'source':source,'projectile':d['definition']['data']['projectile_key'],'owner':owner,'created':False,'last':start}
+            self.event('mortars_queued',count=len(mortars))
         else:return False
         return True
+
+    def publish_buffs(self,unit):
+        # Unit.UpdateData replaces the dictionary; IsBuff tests key presence, not value.
+        buffs=self.buffs_for(unit)
+        if unit==2 and self.radar_marked:buffs['vision_mark']=1
+        encoded={self.packets.get('buff-ids',{})[k]:v for k,v in buffs.items() if k in self.packets.get('buff-ids',{})}
+        if encoded!=self.buff_cache.get(unit,{}):
+            self.buff_cache[unit]=encoded
+            self.send(b'\x06\x09'+pack('I',unit)+b'\x00\x02\x00'+bytes([len(encoded)])+b''.join(pack('Bf',k,v) for k,v in encoded.items()))
+
+    def fill_cloud(self,unit,position,radius):
+        start=tuple(math.floor(v) for v in position);queue=deque([start]);seen={start};cells=[]
+        while queue and len(cells)<512:
+            cell=queue.popleft();index=self.cell_index(cell)
+            if index is None or self.blocks[index] not in self.passable or math.dist(tuple(v+.5 for v in cell),position)>radius:continue
+            cells.append(cell)
+            for d in ((1,0,0),(-1,0,0),(0,1,0),(0,-1,0),(0,0,1),(0,0,-1)):
+                neighbor=tuple(a+b for a,b in zip(cell,d))
+                if neighbor not in seen:seen.add(neighbor);queue.append(neighbor)
+        from server import varint
+        self.send(b'\x06\x09'+pack('I',unit)+b'\x00\x00\x40'+varint(len(cells))+b''.join(pack('hhh',*c) for c in cells))
+        self.event('cloud_filled',unit=unit,cells=len(cells))
+
+    def fall_unit(self,unit,entry,dt):
+        pos=entry['position'];velocity=entry.get('fall_velocity',0)-(entry['definition']['movement'].get('gravity') or 10)*dt
+        end=(pos[0],pos[1]+velocity*dt,pos[2]);collision=self.segment_collision(pos,end)
+        if collision is not None:end=(pos[0],math.floor(collision[1])+1.05,pos[2]);velocity=0
+        if end[1]<0:end=pos;velocity=0
+        entry['fall_velocity']=velocity
+        if math.dist(pos,end)>.001:
+            entry['position']=end;entry['cell']=tuple(math.floor(v) for v in end)
+            self.send(b'\x06\x0b'+pack('I',unit)+b'\xc0\x00'+pack('fffhhh',*end,0,0,0))
+
+    def segment_collision(self,start,end):
+        steps=max(1,math.ceil(math.dist(start,end)*12))
+        for i in range(1,steps+1):
+            point=tuple(a+(b-a)*i/steps for a,b in zip(start,end));index=self.cell_index(tuple(math.floor(v) for v in point))
+            if index is not None and self.blocks[index] not in self.passable:return point
+        return None
+
+    def projectile_transform(self,point,velocity):
+        pitch=-math.degrees(math.atan2(velocity[1],math.hypot(velocity[0],velocity[2])))
+        yaw=math.degrees(math.atan2(velocity[0],velocity[2]))
+        return b'\xc0\x00'+pack('fffhhh',*point,round(pitch*10),round(yaw*10),0)
 
     def channel_request(self,packet):
         from practice import Reader
@@ -154,10 +216,27 @@ class HeroSystems:
 
     def tick_heroes(self):
         now=self.clock();dt=min(.25,max(0,now-self.last_effect_tick));self.last_effect_tick=now
-        for shot,(start_time,duration,start,end) in list(self.mortar_flights.items()):
-            t=min(1,(now-start_time)/duration);pos=[a+(b-a)*t for a,b in zip(start,end)];pos[1]+=4*4*t*(1-t)
-            self.send(b'\x06\x35'+pack('Q',shot)+b'\xc0\x00'+pack('fffhhh',*pos,0,0,0))
-            if t>=1:self.send(b'\x06\x36'+pack('Q',shot));self.mortar_flights.pop(shot)
+        for shot,f in list(self.mortar_flights.items()):
+            elapsed=now-f['launch']
+            if elapsed<0:continue
+            if not f['created']:
+                f['created']=True
+                self.send(b'\x06\x34'+pack('Q',shot)+b'\xf0'+key(f['projectile'])+self.projectile_transform(f['start'],f['velocity'])+pack('fI',0,1))
+                self.event('mortar_launched',shot=shot,flight_seconds=f['duration'])
+            t=min(f['duration'],elapsed);v=f['velocity'];start=f['start']
+            pos=(start[0]+v[0]*t,start[1]+v[1]*t-4.905*t*t,start[2]+v[2]*t)
+            collision=self.segment_collision(f['last'],pos)
+            if collision is not None:pos=collision
+            self.send(b'\x06\x35'+pack('Q',shot)+self.projectile_transform(pos,(v[0],v[1]-9.81*t,v[2])))
+            f['last']=pos
+            if t>=f['duration'] or collision is not None:
+                self.send(b'\x06\x36'+pack('Q',shot));self.mortar_flights.pop(shot)
+                self.apply_effect(f['effect'],pos,start,f['source'],owner=f['owner'])
+        for cell,(end,block_id) in list(self.fire_cells.items()):
+            index=self.cell_index(cell)
+            if now>=end or index is None or self.blocks[index]!=block_id:
+                if index is not None and self.blocks[index]==block_id:self.set_block(cell,0)
+                self.fire_cells.pop(cell)
         for due,effect,point,source in list(self.delayed):
             if now>=due:self.delayed.remove((due,effect,point,source));self.apply_effect(effect,point,point,source)
         if self.channel:
@@ -189,15 +268,10 @@ class HeroSystems:
                     if due:
                         for child in effect.get('interval_effects') or []:self.apply_effect(child,pos,origin,key(ident),target,owner)
                 if due:self.status_next[unit,ident]=now+max(.1,effect.get('interval') or .1)
-        for unit in list(self.statuses):
+        for unit in self.statuses.keys()|self.buff_cache.keys():
             if unit==1 and self.player_respawn_at is not None or unit==2 and self.target_health<=0:continue
             buffs=self.buffs_for(unit)
-            encoded={self.packets.get('buff-ids',{}).get(k):v for k,v in buffs.items() if k in self.packets.get('buff-ids',{})}
-            # Send removed buffs as zero values: client updates its existing dictionary.
-            previous=self.buff_cache.get(unit,{})
-            if encoded!=previous:
-                values={k:encoded.get(k,0) for k in previous.keys()|encoded.keys()};self.buff_cache[unit]=encoded
-                self.send(b'\x06\x09'+pack('I',unit)+b'\x00\x02\x00'+bytes([len(values)])+b''.join(pack('Bf',k,v) for k,v in values.items()))
+            self.publish_buffs(unit)
             dot=sum(max(0,buffs.get(k,0)) for k in ('bleeding','burning','poisoned','decay'))
             if dot:self.damage_entity(unit,dot*dt,key('effect_status_bleed'))
             if unit==1 and buffs.get('ammo_regen',0)>0:
@@ -207,6 +281,7 @@ class HeroSystems:
                 self.player_health=min(self.max_health,self.player_health+buffs['health_regen']*dt);self.send(b'\x06\x09'+pack('I',1)+b'\x40\x00\x00'+pack('f',self.player_health))
         for unit,entry in list(self.placed.items()):
             d=entry['definition'];data=d.get('data') or {};age=now-entry['created']
+            if (d.get('movement') or {}).get('type')=='falling':self.fall_unit(unit,entry,dt)
             lifetime=d.get('lifetime') or data.get('timeout')
             if data.get('type')!='bomb' and lifetime and age>=lifetime:self.remove_unit(unit);continue
             if data.get('type')=='pickup' and self.player_respawn_at is None and math.dist(entry['position'],self.position)<1.8:

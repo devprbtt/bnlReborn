@@ -160,10 +160,11 @@ class Practice(LoadoutSystems):
         distance=math.dist(origin,point)
         endpoint=tuple(b+(a-b)*min(1,.15/max(distance,.001)) for a,b in zip(origin,point))
         if not self.clear_line(origin,endpoint): return
+        self.impact(point,origin,effect.get('impact') or 'impact_melee_common')
         total=self.block_damage.get(cell,0)+max(0,damage['world_damage']-hp.get('toughness',0))
         self.block_damage[cell]=total
         if total>=hp['max_health']:
-            self.set_block(cell,0);self.block_damage.pop(cell,None)
+            self.set_block(cell,0,vdata=1);self.block_damage.pop(cell,None)
             if damage.get('mining'):
                 self.resources+=int((card.get('reward') or {}).get('player_reward',0));self.send_resource()
             self.event('block_destroyed', cell=cell)

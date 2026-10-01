@@ -78,6 +78,7 @@ class LoadoutSystems(HeroSystems):
             if self.player_respawn_at is not None:return
             self.player_health=max(0,self.player_health-amount);remaining=self.player_health
         elif unit in self.placed:
+            if not (self.placed[unit]['definition'].get('health') or {}).get('health'):return
             self.placed[unit]['health']=max(0,self.placed[unit]['health']-amount);remaining=self.placed[unit]['health']
         else:return
         self.send(health(unit,remaining));self.send(b'\x06\x44'+pack('I?Iff?',unit,True,1,amount,amount,False))
@@ -137,8 +138,9 @@ class LoadoutSystems(HeroSystems):
         if hp.get('melee_only') and not damage.get('melee'):return
         total=self.block_damage.get(cell,0)+max(0,damage['world_damage']-hp.get('toughness',0))
         if total>=hp['max_health']:
-            self.set_block(cell,0);self.block_damage.pop(cell,None);self.event('block_destroyed',cell=cell)
+            self.set_block(cell,0,vdata=1);self.block_damage.pop(cell,None);self.event('block_destroyed',cell=cell)
         else:
+            self.event('block_damaged',cell=cell,damage=total)
             self.block_damage[cell]=total;self.set_block(cell,card['block_id'],min(254,int(255*total/hp['max_health'])))
 
     def build_definition(self,device):
@@ -198,7 +200,7 @@ class LoadoutSystems(HeroSystems):
         marked=self.target_health>0 and any(math.dist(d['position'],self.target_position)<=8 for d in radars)
         if marked!=self.radar_marked:
             self.radar_marked=marked
-            if self.target_health>0:self.send(b'\x06\x09'+pack('I',2)+b'\x00\x02\x00\x01\x12'+pack('f',float(marked or self.buffs_for(2).get('vision_mark',0))))
+            if self.target_health>0:self.publish_buffs(2)
             self.event('radar_detection',detected=marked)
         for unit,entry in list(self.placed.items()):
             data=entry['definition'].get('data',{})
