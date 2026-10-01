@@ -28,6 +28,7 @@ class Lobby:
         self.maps = {key(m['id']):m for m in packets.get('maps',[])}
         self.selection_start = 0
         self.selection_end = 0
+        self.start_countdown = 0
 
     def allowed_devices(self):
         hero = self.heroes.get(key(self.hero), {})
@@ -65,7 +66,7 @@ class Lobby:
         from server import varint
         players=self.group['members'] if self.group else [self]
         player=b''.join(p.player_state() for p in players)
-        timer = b'\xe0\x02' + pack('QQ', self.selection_start, self.selection_end)
+        timer = bytes([0xe0, 3 if self.start_countdown else 2]) + pack('QQ', self.selection_start, self.selection_end)
         ballot=self.group.get('map_vote') if self.group else None
         candidates=ballot['candidates'] if map_voting.active(self.group) else [self.map_id]
         maps=varint(len(candidates))
@@ -85,6 +86,7 @@ class Lobby:
     def open_lobby(self):
         self.state = 'lobby'
         self.ready=False
+        self.start_countdown=0
         self.zone_initialized = False
         self.selection_start = millis()
         self.selection_end = self.selection_start + 120000
@@ -101,10 +103,38 @@ class Lobby:
     def _tick(self, send):
         if self.group:map_voting.tick(self.group)
         if map_voting.active(self.group):return
+        if self.state == 'lobby' and self.start_countdown:
+            members = self.group['members'] if self.group else [self]
+            if not all(m.state == 'lobby' and m.ready and m.valid_loadout() for m in members):
+                self.cancel_countdown();return
+            if millis() >= self.start_countdown:self.load_match()
+            return
         if self.state == 'lobby' and self.selection_end and millis() >= self.selection_end:
             if not self.valid_loadout():
                 self.devices = self.defaults.copy()
             self.handle_instance(b'\x09\x0a',send)
+
+    def cancel_countdown(self):
+        now = millis()
+        members = self.group['members'] if self.group else [self]
+        for member in members:
+            member.start_countdown=0;member.ready=False
+            member.selection_start=now;member.selection_end=now+120000
+        for member in members:
+            if member.send_instance:member.send_instance(member.update())
+        self.event('lobby_start_cancelled')
+
+    def load_match(self):
+        members = self.group['members'] if self.group else [self]
+        if self.group and len(members)>1:
+            if self.group.get('world'):return
+            from shared_world import World
+            self.group['world']=World(members,self.event,self.social.profiles if self.social else None,self.social)
+        # Switch every state before publishing scene handoffs, so another tick
+        # cannot start this group twice while a connection finishes loading.
+        for member in members:member.state='zone';member.start_countdown=0
+        for member in members:member.send_region(member.map_packet('terrain-scene'))
+        self.event('lobby_match_loading',players=[m.player_id for m in members])
 
     def notice(self, text):
         from server import string
@@ -198,23 +228,18 @@ class Lobby:
             if skin is None:return True
             self.skin = skin;self.event('lobby_skin_selected',skin=skin)
         elif fn == 10:
-            if self.group and len(self.group['members'])>1:
-                if not self.valid_loadout():return True
-                self.ready=True
-                for member in self.group['members']:
-                    if member.send_instance:member.send_instance(member.update())
-                if not all(m.ready for m in self.group['members']):return True
-                if self.group.get('world'):return True
-                from shared_world import World
-                world=World(self.group['members'],self.event,self.social.profiles if self.social else None,self.social)
-                self.group['world']=world
-                for member in self.group['members']:
-                    member.state='zone';member.send_region(member.map_packet('terrain-scene'))
-                return True
-            if not self.valid_loadout(): return True
-            self.state = 'zone'
-            self.send_region(self.map_packet('terrain-scene'))
-            self.event('lobby_ready', map=self.map_id, hero=self.hero, skin=self.skin, devices=[self.available[d]['_id'] for _,d in sorted(self.devices.items())])
+            if self.ready or not self.valid_loadout():return True
+            self.ready=True
+            members = self.group['members'] if self.group else [self]
+            if all(m.state == 'lobby' and m.ready and m.valid_loadout() for m in members):
+                now=millis()
+                for member in members:
+                    member.selection_start=now;member.selection_end=now+5000
+                    member.start_countdown=member.selection_end
+                self.event('lobby_start_countdown',milliseconds=5000,players=[m.player_id for m in members])
+            for member in members:
+                sender=member.send_instance or (send if member is self else None)
+                if sender:sender(member.update())
             return True
         elif fn not in (7, 9): return False
         if self.group:

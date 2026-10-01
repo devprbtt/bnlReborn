@@ -59,6 +59,9 @@ class Matchmaking:
             g['members'].remove(room);room.group=None;room.state='menu'
             if g.get('map_vote'):g['map_vote']['votes'].pop(room.player_id,None)
             if not g['members']:self.groups.pop(g['id']);return
+            if room.start_countdown or any(m.start_countdown for m in g['members']):
+                g['members'][0].cancel_countdown()
+            room.start_countdown=0
             if g.get('friendly') and not g.get('world') and {m.team for m in g['members']} != {1,2}:
                 for member in list(g['members']):
                     member.group=None;member.ready=False;member.state='menu';member.selection_end=0

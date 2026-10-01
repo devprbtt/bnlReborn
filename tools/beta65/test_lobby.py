@@ -16,6 +16,9 @@ class LobbyTests(unittest.TestCase):
     def send(self, function, body=b''):
         return self.room.handle_instance(bytes([9,function])+body, self.instance.append)
 
+    def finish_countdown(self):
+        with patch('lobby.millis',return_value=self.room.start_countdown):self.room.tick(self.instance.append)
+
     def test_create_leave_and_names_not_logged(self):
         events=[]; self.room.event=lambda k,**v:events.append((k,v))
         self.room.handle_region(b'\x0b\x09'+string('My room')+string('secret'))
@@ -38,7 +41,7 @@ class LobbyTests(unittest.TestCase):
         self.room.open_lobby()
         self.send(4,pack('i',2)); self.send(10)
         self.assertEqual(self.room.state,'lobby')
-        self.send(3,key('device_6')+pack('i',2)); self.send(10)
+        self.send(3,key('device_6')+pack('i',2)); self.send(10);self.finish_countdown()
         self.assertEqual(self.room.state,'zone')
         self.assertEqual(self.region[-1],b'zone')
         self.assertEqual(self.entries,['lobby'])
@@ -61,7 +64,7 @@ class LobbyTests(unittest.TestCase):
         self.send(6); self.assertEqual(self.room.devices,self.room.defaults)
 
     def test_cannot_edit_during_match_and_can_return_then_reenter(self):
-        self.room.open_lobby(); self.send(10)
+        self.room.open_lobby(); self.send(10);self.finish_countdown()
         before=self.room.devices.copy(); self.send(4,pack('i',1))
         self.assertEqual(self.room.devices,before)
         self.room.zone_initialized=True
@@ -84,6 +87,8 @@ class LobbyTests(unittest.TestCase):
         with patch('lobby.millis',return_value=121000):
             self.room.tick(self.instance.append);self.room.tick(self.instance.append)
         self.assertEqual(self.room.devices,self.room.defaults)
+        self.assertEqual(self.region.count(b'zone'),0)
+        self.finish_countdown()
         self.assertEqual(self.region.count(b'zone'),1)
 
     def test_hero_skin_validation_and_selected_spawn_snapshot(self):
@@ -117,7 +122,7 @@ class LobbyTests(unittest.TestCase):
         self.assertEqual(self.room.map_id,'bridge')
         self.assertIn(key('bridge'),self.region[-1])
         self.room.open_lobby();self.assertIn(key('bridge'),self.room.update())
-        self.send(10);self.assertEqual(self.region[-1],b'bridge-scene')
+        self.send(10);self.finish_countdown();self.assertEqual(self.region[-1],b'bridge-scene')
         self.assertEqual(self.room.map_packet('zone-init'),b'bridge-world')
         self.room.handle_region(b'\x0b\x0c\x80'+key('beta_practice_map'))
         self.assertEqual(self.room.map_id,'bridge')

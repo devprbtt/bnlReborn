@@ -1,4 +1,5 @@
 import unittest
+from unittest.mock import patch
 from lobby import Lobby
 from loadout import key, pack
 
@@ -26,6 +27,8 @@ class LoadoutRuleTests(unittest.TestCase):
     def test_corrupted_full_loadout_cannot_ready(self):
         self.room.devices[1]=key('mine');self.send(10);self.assertEqual(self.room.state,'lobby')
     def test_timer_repairs_corrupted_loadout(self):
-        self.room.devices[1]=key('mine');self.room.selection_end=1;self.room.tick(self.sent.append);self.assertEqual(self.room.devices,self.room.defaults);self.assertEqual(self.room.state,'zone')
+        self.room.devices[1]=key('mine');self.room.selection_end=1;self.room.tick(self.sent.append);self.assertEqual(self.room.devices,self.room.defaults);self.assertEqual(self.room.state,'lobby')
+        with patch('lobby.millis',return_value=self.room.start_countdown):self.room.tick(self.sent.append)
+        self.assertEqual(self.room.state,'zone')
 
 if __name__=='__main__':unittest.main()
