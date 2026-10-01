@@ -265,5 +265,6 @@ Validation: 128 beta65 tests, including duplicate/invalid/late votes, abstention
 ties, shared timers, early readiness, disconnects and unchanged custom selection.
 Native beta UI verified with one client vote and a scripted peer vote; not a two-human
 LAN test. Client compatibility patch v6 grays out Block In while two maps are offered.
-Map thumbnail artwork for generated map cards is still absent; names and tallies show.
+The separate beta client supplies cached local Workshop previews and recovered map artwork.
+Winter variants reuse their base-map preview; no thumbnail HTTP access is needed in game.
 This is the local/LAN beta service; no production deployment performed.
