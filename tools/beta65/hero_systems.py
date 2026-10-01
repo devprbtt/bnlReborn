@@ -177,6 +177,9 @@ class HeroSystems:
         self.event('cloud_filled',unit=unit,cells=len(cells))
 
     def fall_unit(self,unit,entry,dt):
+        if 'support' in entry:
+            if self.structural(entry['support']):return
+            entry.pop('support');entry.pop('rotation',None);entry['fall_velocity']=0
         pos=entry['position'];velocity=entry.get('fall_velocity',0)-(entry['definition']['movement'].get('gravity') or 10)*dt
         offset=entry['definition'].get('beta_falling_bottom_offset',0)
         end=(pos[0],pos[1]+velocity*dt,pos[2])

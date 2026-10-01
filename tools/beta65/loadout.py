@@ -176,11 +176,19 @@ class LoadoutSystems(HeroSystems):
             template=self.packets['device-templates'][definition['_id']]
             sentinel=pack('fff',101.25,102.5,103.75)
             if template.count(sentinel)!=1:raise ValueError('Invalid device transform template')
-            position=tuple(v+.5 for v in cell);unit=self.next_device;self.next_device+=1
+            face=getattr(self,'build_face',1)
+            normals={1:(0,1,0),0:(0,-1,0),2:(-1,0,0),3:(1,0,0),4:(0,0,-1),5:(0,0,1)}
+            rotations={1:(0,0,0),0:(1800,0,0),2:(0,0,900),3:(0,0,-900),4:(-900,0,0),5:(900,0,0)}
+            mounted=face!=1 and not definition.get('ground_only',True)
+            normal=normals[face] if mounted else (0,1,0)
+            offset=built.get('beta_falling_bottom_offset',.5)
+            position=tuple(v+.5+n*(offset-.5+.02) for v,n in zip(cell,normal));unit=self.next_device;self.next_device+=1
             packet=template[:2]+pack('I',unit)+template[6:]
-            packet=packet.replace(sentinel,pack('fff',*position))
+            at=packet.index(sentinel)
+            packet=packet[:at]+pack('fffhhh',*position,*(rotations[face] if mounted else (0,0,0)))+packet[at+18:]
             hp=built['health']['health']['max_health']
             self.placed[unit]={'device':definition['_id'],'definition':built,'position':position,'cell':cell,'health':hp,'created':self.clock(),'team':1}
+            if mounted:self.placed[unit]['support']=tuple(c-n for c,n in zip(cell,normal));self.placed[unit]['rotation']=rotations[face]
             self.send(packet);self.send(health(unit,hp));self.unit_teams[unit]=1
             for effect in (built.get('init_effects') or [])+(built.get('enabled_effects') or []):self.add_status(unit,effect,built.get('lifetime') or 3600,owner=unit,check=False)
             if built.get('data',{}).get('type')=='bomb':
