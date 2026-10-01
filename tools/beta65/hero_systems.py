@@ -16,7 +16,7 @@ class HeroSystems:
 
     def unit_position(self,unit):
         if self.world and unit in self.world.players:return self.world.players[unit].position
-        return self.position if unit==self.unit else self.target_position if unit==2 else self.placed.get(unit,{}).get('position')
+        return self.position if unit==self.unit else self.target_position if unit==2 and self.target_enabled else self.placed.get(unit,{}).get('position')
 
     def hit_near_unit(self,unit,point):
         pos=self.unit_position(unit)

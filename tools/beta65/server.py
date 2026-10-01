@@ -252,9 +252,10 @@ class MenuServer:
                             practice=attached_world.attach(room,lambda p:self.send(connection,p))
                             continue
                         self.event("terrain_ready")
-                        self.send(connection, self.packets["zone-start"])
+                        if "practice" not in self.packets:
+                            self.send(connection, self.packets["zone-start"])
                         if room:
-                            self.send(connection,b"\x06\x07\x04\x02"+struct.pack("<I",room.player_id)+b"\xa0"+string(room.nickname)+b"\x00"+struct.pack("<I",0)+b"\xa0"+string("Practice target")+b"\x00")
+                            self.send(connection,b"\x06\x07\x04\x01"+struct.pack("<I",room.player_id)+b"\xa0"+string(room.nickname)+b"\x00")
                         for name in ("hero-create", "hero-state"):
                             if name in session_packets:
                                 self.send(connection, session_packets[name])

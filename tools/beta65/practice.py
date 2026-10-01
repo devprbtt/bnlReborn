@@ -41,7 +41,7 @@ def health(unit, value):
 
 
 class Practice(LoadoutSystems, MatchSystems):
-    def __init__(self, packets, send, event, clock=time.monotonic):
+    def __init__(self, packets, send, event, clock=time.monotonic, *, diagnostic_target=False):
         self.unit=packets.get("unit_id",1)
         self.world=None
         self.packets, self.send, self.event, self.clock = packets, send, event, clock
@@ -50,7 +50,8 @@ class Practice(LoadoutSystems, MatchSystems):
         self.weapons = {packets['keys'][w['id']]: w['data'] for w in packets['practice']['weapons']}
         self.current = packets['keys'][packets['practice'].get('current_gear','gear_sarge_stone_m60')]
         self.refill_ammo()
-        self.target_health = 160
+        self.target_enabled = diagnostic_target
+        self.target_health = 160 if diagnostic_target else 0
         self.respawn_at = None
         self.reload_at = None
         self.last_cast = -100
@@ -71,15 +72,16 @@ class Practice(LoadoutSystems, MatchSystems):
         self.init_match()
 
     def player_units(self):
-        return list(self.world.players) if self.world else [self.unit,2]
+        return list(self.world.players) if self.world else [self.unit,2] if self.target_enabled else [self.unit]
 
     def alive(self,unit):
         if self.world and unit in self.world.players:return self.world.players[unit].player_respawn_at is None
         return self.player_respawn_at is None if unit==self.unit else self.target_health>0 if unit==2 else unit in self.placed
 
     def start(self):
-        self.send(self.packets['target-create']); self.send(self.packets['target-state'])
-        self.event('practice_target_spawned', unit=2)
+        if self.target_enabled:
+            self.send(self.packets['target-create']); self.send(self.packets['target-state'])
+            self.event('practice_target_spawned', unit=2)
         for objective in ([] if getattr(self,'objectives_started',False) else self.packets['practice'].get('objectives',[])):
             self.spawn_unit(objective['unit_key'],tuple(objective['position'][a] for a in 'xyz'),1 if objective['team']=='team1' else 2)
 
@@ -132,7 +134,7 @@ class Practice(LoadoutSystems, MatchSystems):
             self.reload_at = None
             self.send(self.ammo_packet()); self.send(b'\x06\x16'+pack('I?',self.unit,False))
             self.event('reload_completed', magazine=mag+amount, reserve=pool-amount)
-        if self.respawn_at is not None and now >= self.respawn_at:
+        if self.target_enabled and self.respawn_at is not None and now >= self.respawn_at:
             self.respawn_at = None; self.target_health = 160
             self.start()
 

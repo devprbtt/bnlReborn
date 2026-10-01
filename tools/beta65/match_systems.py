@@ -23,8 +23,8 @@ class MatchSystems(SupplySystems):
         self.practice_stats_cache=state
         pid=self.packets['practice'].get('player_id',1);team=self.team(self.unit)
         rows=pack('I',pid)+b'\xf0'+pack('Biii',team,self.kills,self.deaths,0)
-        rows+=pack('I',0)+b'\xf0'+pack('Biii',3-team,0,self.kills,0)
-        self.send(b'\x06\x07\x40\xe0\x02'+rows+(b'\xf0'+pack('iiii',0,0,0,0))*2)
+        if self.target_enabled:rows+=pack('I',0)+b'\xf0'+pack('Biii',3-team,0,self.kills,0)
+        self.send(b'\x06\x07\x40\xe0'+bytes([2 if self.target_enabled else 1])+rows+(b'\xf0'+pack('iiii',0,0,0,0))*2)
 
     def start_match(self):
         if self.match_started:return

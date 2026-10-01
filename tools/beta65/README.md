@@ -301,3 +301,13 @@ When the final player Blocks In, the lobby publishes the native Start timer with
 Ninja wall climbing: practice snapshots retain the selected hero ID. Buff replication includes the WallClimb capability from that hero's passive effect card (protocol-65 ID 19, speed 6 in the copied catalogue). It remains innate across timed effect expiry, purge and respawn, and shared-world replication resolves each recipient's own hero. No client movement replacement. Validation: 147 tests plus real generated Ninja packet/buff integration; physical wall-climb input has not been manually verified.
 
 Respawning refills every weapon magazine and reserve pool to its configured spawn capacity, including reserve-only weapons, and cancels any pending reload before sending the ammo update. Shared matches refill only the respawning player. Validation: 149 tests, including solo deadline/refill/reload and LAN recipient isolation/replication.
+
+
+### 2026-10-01: remove practice targets
+
+Normal practice sessions no longer spawn or respawn the diagnostic hero on any
+map. The target is excluded from entity targeting, player information, and solo
+scoreboard rows. Real multiplayer players and map objectives are unaffected.
+The synthetic combat fixture opts into diagnostic_target explicitly; no live
+server call enables it. Validation: all 161 beta Python tests passed, including
+no-target spawn, hit, damage, respawn, and scoreboard regression coverage.

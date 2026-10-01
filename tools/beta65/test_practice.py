@@ -15,8 +15,22 @@ class PracticeTests(unittest.TestCase):
                       'keys':{'gear_sarge_stone_m60':self.key},
                       'terrain':zlib.compress(pack('HHH',8,4,8)+bytes(8*4*8*4)),
                       'target-create':b'create','target-state':b'state'}
-        self.s=Practice(self.packets,self.sent.append,lambda kind,**kw:self.events.append((kind,kw)),lambda:self.now)
+        self.s=Practice(self.packets,self.sent.append,lambda kind,**kw:self.events.append((kind,kw)),lambda:self.now,diagnostic_target=True)
         self.s.position=(1,1,2)
+
+    def test_normal_practice_has_no_target_or_phantom_scoreboard_player(self):
+        self.s=Practice(self.packets,self.sent.append,lambda kind,**kw:self.events.append((kind,kw)),lambda:self.now)
+        self.s.start();self.s.start_match()
+        self.assertEqual(self.s.player_units(),[1])
+        self.assertFalse(self.s.alive(2));self.assertIsNone(self.s.unit_position(2))
+        self.shoot();self.hit()
+        self.s.damage_entity(2,500,self.key)
+        self.s.respawn_at=1;self.now=10;self.s.tick()
+        self.assertEqual(self.s.target_health,0);self.assertEqual(self.s.kills,0)
+        self.assertNotIn(b'create',self.sent);self.assertNotIn(b'state',self.sent)
+        self.assertFalse(any(k=='practice_target_spawned' for k,v in self.events))
+        scores=[p for p in self.sent if p.startswith(b'\x06\x07\x40\xe0')]
+        self.assertTrue(scores);self.assertTrue(all(p[4]==1 for p in scores))
 
     def test_respawn_refills_all_weapons_and_cancels_pending_reload(self):
         reserve=pack('I',124);melee=pack('I',125)
