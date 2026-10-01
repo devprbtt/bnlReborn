@@ -1,9 +1,34 @@
-# Protocol 65 local menu compatibility
+# Protocol 65 beta compatibility service
+
+Public beta mode uses `--steam-public-key /etc/bnl-reborn/game-auth-public.pem`
+and a separate persistent `--state` database. It requires loopback binding behind
+the TLS stream proxy in `deploy/`; the separate beta launcher carries all native
+master/region/instance traffic over certificate-validated TLS. This mode rejects
+local passwords and accepts only short-lived, single-use RS256 tickets with the
+`bnl-beta65-game` audience from the existing Steam web identity service.
+`web/beta-ticket.php` is installed alongside that service's game-ticket endpoint.
+Steam IDs map to separate beta accounts; Reborn progression is not changed.
+
+Tab and final results use authoritative K/D/A and contribution counters. Assists
+require enemy damage within ten seconds of the kill. Team warfare counts actual
+player damage; construction counts spent building resources; tactics counts blast
+removals and objective damage; healing counts restored allied health. These are
+reconstruction scoring rules, not verified historical weights. Final results
+include mining earnings, built/destroyed blocks and objectives. Practice publishes
+its own live K/D rows and does not award XP. The copied client also needs its
+GuiScores.UpdateData -> UpdateTeamScore refresh restored.
+
+Validation at public preparation: 160 Python tests; original beta packet-reader
+audit; native Unity Tab/results widget probe; real Steam login and native main
+menu through the VPS TLS endpoint. Public release/deployment status is recorded
+in the separate beta recovery repository.
+
+## Original local diagnostic mode (retained)
 
 This standalone service supports the March 27, 2015 beta client. It does not
 modify the current server, connect to its database, or implement production matches. It binds
 only `127.0.0.1:27065` (game protocol) and `127.0.0.1:27066` (local menu feed).
-Do not expose it as a public server.
+Do not expose this password-based diagnostic mode as a public server.
 
 Implemented: version 65/0, debug master login, one-use expiring region handoff,
 region login, externally supplied catalogue/player/menu packets, profile replies,

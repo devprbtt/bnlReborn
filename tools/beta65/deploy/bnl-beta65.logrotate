@@ -1,0 +1,10 @@
+/var/lib/bnl-beta65/events.jsonl {
+    daily
+    maxsize 10M
+    rotate 3
+    compress
+    missingok
+    notifempty
+    create 0600 bnlbeta bnlbeta
+    su bnlbeta bnlbeta
+}
