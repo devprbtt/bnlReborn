@@ -31,7 +31,7 @@ class LoadoutSystems(HeroSystems):
     def ability_update(self):
         if self.player_respawn_at is not None or not self.ability:return
         end=0 if self.charge_at is None else int(millis()+max(0,self.charge_at-self.clock())*1000)
-        self.send(b'\x06\x09'+pack('I',1)+b'\x00\xe0\x00'+key(self.ability['_id'])+pack('iQ',self.charges,end))
+        self.send(b'\x06\x09'+pack('I',self.unit)+b'\x00\xe0\x00'+key(self.ability['_id'])+pack('iQ',self.charges,end))
 
     def cast_ability(self,packet):
         from practice import Reader
@@ -58,7 +58,8 @@ class LoadoutSystems(HeroSystems):
             if app['type']=='projectile':
                 aim,shot=shots[0];tool={'type':'shot','range':100,'grenade':True,'speed':app['speed'],'hit_effect':self.ability['hit_effect']}
                 self.shots[shot]=(now,origin,tool,ability_key,aim)
-            else:self.apply_effect(self.ability['hit_effect'],shots[0][0] if shots else self.position,origin,ability_key,1 if app['type']=='self' else None)
+            else:self.apply_effect(self.ability['hit_effect'],shots[0][0] if shots else self.position,origin,ability_key,self.unit if app['type']=='self' else None)
+            if self.world:self.world.broadcast(b'\x06\x30'+pack('I',self.unit)+packet[4:],exclude=self.unit)
             self.event('ability_cast',ability=self.ability['_id'],charges=self.charges)
         else:self.ability_update()
 
@@ -67,37 +68,39 @@ class LoadoutSystems(HeroSystems):
     def impact(self,point,origin,impact,hit_units=()):
         if not impact:return
         # Original protocol ImpactData: position, normal, caster, impact key, hit units, shot origin, crit.
-        self.send(b'\x06\x12\xfe'+pack('fffhhhI',*point,0,10,0,1)+key(impact)+bytes([len(hit_units)])+b''.join(pack('I',i) for i in hit_units)+pack('fff?',*origin,False))
+        caster=self.world.player_owner(self.world.effect_owner) if self.world and self.world.effect_owner is not None else self.unit
+        self.send(b'\x06\x12\xfe'+pack('fffhhhI',*point,0,10,0,caster or self.unit)+key(impact)+bytes([len(hit_units)])+b''.join(pack('I',i) for i in hit_units)+pack('fff?',*origin,False))
 
-    def damage_entity(self,unit,amount,source):
+    def damage_entity(self,unit,amount,source,owner=None):
         if amount<=0:return
         if unit in self.placed and 'objective' in self.placed[unit]['definition'].get('labels',[]):
-            if self.team(unit)==self.team(1) or self.phase_end is not None:return
-        if unit==1:self.cancel_recall()
+            if self.team(unit)==self.team(self.unit) or self.phase_end is not None:return
+        if unit==self.unit:self.cancel_recall()
         if unit==2:
             if self.target_health<=0:return
             self.target_health=max(0,self.target_health-amount);remaining=self.target_health
-        elif unit==1:
+        elif unit==self.unit:
             if self.player_respawn_at is not None:return
             self.player_health=max(0,self.player_health-amount);remaining=self.player_health
         elif unit in self.placed:
             if not (self.placed[unit]['definition'].get('health') or {}).get('health'):return
             self.placed[unit]['health']=max(0,self.placed[unit]['health']-amount);remaining=self.placed[unit]['health']
         else:return
-        self.send(health(unit,remaining));self.send(b'\x06\x44'+pack('I?Iff?',unit,True,1,amount,amount,False))
+        self.send(health(unit,remaining));self.send(b'\x06\x44'+pack('I?Iff?',unit,True,self.unit,amount,amount,False))
         self.event('explosive_damage',unit=unit,health=remaining,damage=amount)
         if remaining==0:
-            self.send(b'\x06\x43'+(b'\x00' if unit==1 else pack('?I',True,1))+b'\x00'+pack('I',unit)+source+b'\x00')
-            if unit in (1,2):self.send(b'\x06\x0a'+pack('I',unit))
+            self.send(b'\x06\x43'+(b'\x00' if unit==self.unit else pack('?I',True,self.unit))+b'\x00'+pack('I',unit)+source+b'\x00')
+            if unit in self.player_units():self.send(b'\x06\x0a'+pack('I',unit))
             self.statuses.pop(unit,None);self.buff_cache.pop(unit,None)
             if unit==2:
                 self.kills+=1;self.respawn_at=self.clock()+3;self.event('practice_kill',kills=self.kills)
-            elif unit==1:
+            elif unit==self.unit:
                 self.player_died()
             else:
                 self.remove_unit(unit,trigger=True)
 
-    def apply_effect(self,effect,point,origin,source,target=None,owner=1):
+    def apply_effect(self,effect,point,origin,source,target=None,owner=None):
+        if owner is None:owner=self.unit
         if not effect or not self.allowed(effect,target,owner):return
         kind=effect.get('type')
         if kind!='splash_damage':self.impact(point,origin,effect.get('impact'),(target,) if target else ())
@@ -108,7 +111,7 @@ class LoadoutSystems(HeroSystems):
             for child in effect.get('instant',[]):self.apply_effect(child,point,origin,source,target,owner)
         elif kind=='splash_damage':
             radius=min(8,float(effect['radius']));damage=effect['damage']
-            entities={2:tuple(a+b for a,b in zip(self.target_position,(0,1,0))),1:tuple(a+b for a,b in zip(self.position,(0,1,0)))}
+            entities={u:tuple(a+b for a,b in zip(self.unit_position(u),(0,1,0))) for u in self.player_units() if self.alive(u)}
             entities.update({i:d['position'] for i,d in self.placed.items()})
             # Snapshot visibility before mutating any blocks in this explosion.
             visible=[i for i,p in entities.items() if self.allowed(effect,i,owner) and math.dist(p,point)<=radius and self.clear_line(point,p,ignore_start=True)]
@@ -119,7 +122,7 @@ class LoadoutSystems(HeroSystems):
                     for z in range(math.floor(point[2]-radius),math.ceil(point[2]+radius)+1):
                         cell=(x,y,z);index=self.cell_index(cell);center=(x+.5,y+.5,z+.5)
                         if index is not None and self.blocks[index] and math.dist(center,point)<=radius and self.clear_line(point,center,ignore_start=True,ignore_end=True):cells.append(cell)
-            for i in visible:self.damage_entity(i,damage['player_damage'] if i<3 else damage['world_damage'],source)
+            for i in visible:self.damage_entity(i,damage['player_damage'] if i in self.player_units() else damage['world_damage'],source,owner)
             for cell in cells:self.blast_block(cell,damage)
             self.event('explosion',radius=radius,affected_units=visible,affected_cells=len(cells))
         elif kind=='knockback':
@@ -127,9 +130,9 @@ class LoadoutSystems(HeroSystems):
             radius=effect['effect_range']
             if effect.get('affect_caster') and self.player_respawn_at is None and distance<radius and self.clear_line(point,self.position,ignore_start=True):
                 scale=max(0,1-distance/radius) if effect.get('linear_falloff') else 1
-                self.send(b'\x06\x0d'+pack('I',1)+b'\x02\xe0'+pack('fffff',*point,effect['force']*scale,effect['midair_force']*scale))
+                self.send(b'\x06\x0d'+pack('I',self.unit)+b'\x02\xe0'+pack('fffff',*point,effect['force']*scale,effect['midair_force']*scale))
         elif kind=='damage':
-            if target is not None:self.damage_entity(target,effect['damage'].get('player_damage' if target<3 else 'objective_damage' if 'objective' in self.placed.get(target,{}).get('definition',{}).get('labels',[]) else 'world_damage',0),source)
+            if target is not None:self.damage_entity(target,effect['damage'].get('player_damage' if target in self.player_units() else 'objective_damage' if 'objective' in self.placed.get(target,{}).get('definition',{}).get('labels',[]) else 'world_damage',0),source,owner)
             else:self.blast_block(tuple(math.floor(v) for v in point),effect['damage'])
 
     def blast_block(self,cell,damage):
@@ -152,12 +155,12 @@ class LoadoutSystems(HeroSystems):
         return None
 
     def build_cost(self,definition):
-        count=sum(d['device']==definition['_id'] for d in self.placed.values())
+        count=sum(d['device']==definition['_id'] and (not self.world or d.get('owner')==self.unit) for d in self.placed.values())
         return definition['base_cost']+count*(definition.get('cost_inc_per_unit') or 0)
 
     def send_loadout(self):
         if not self.loadout or self.player_respawn_at is not None:return
-        packet=b'\x06\x09'+pack('I',1)+b'\x00\x01\x00'+bytes([len(self.loadout)])
+        packet=b'\x06\x09'+pack('I',self.unit)+b'\x00\x01\x00'+bytes([len(self.loadout)])
         for slot,(device,definition) in enumerate(self.loadout.items(),1):
             packet+=pack('i',slot)+b'\xe0'+device+pack('ff',self.build_cost(definition),definition.get('cost_inc_per_unit') or 0)
         self.send(packet)
@@ -170,8 +173,8 @@ class LoadoutSystems(HeroSystems):
         elif built is None:return
         elif built['category']=='block':
             visual=built.get('visual',{})
-            self.set_block(cell,built['block_id'],vdata=getattr(self,'build_face',1) if visual.get('face_align') else 0,ldata=self.team(1) if built.get('has_team') else 0)
-            self.block_teams[cell]=self.team(1)
+            self.set_block(cell,built['block_id'],vdata=getattr(self,'build_face',1) if visual.get('face_align') else 0,ldata=self.team(self.unit) if built.get('has_team') else 0)
+            self.block_teams[cell]=self.team(self.unit)
         else:
             template=self.packets['device-templates'][definition['_id']]
             sentinel=pack('fff',101.25,102.5,103.75)
@@ -187,9 +190,9 @@ class LoadoutSystems(HeroSystems):
             at=packet.index(sentinel)
             packet=packet[:at]+pack('fffhhh',*position,*(rotations[face] if mounted else (0,0,0)))+packet[at+18:]
             hp=built['health']['health']['max_health']
-            self.placed[unit]={'device':definition['_id'],'definition':built,'position':position,'cell':cell,'health':hp,'created':self.clock(),'team':self.team(1)}
+            self.placed[unit]={'device':definition['_id'],'definition':built,'position':position,'cell':cell,'health':hp,'created':self.clock(),'team':self.team(self.unit),'owner':self.unit}
             if mounted:self.placed[unit]['support']=tuple(c-n for c,n in zip(cell,normal));self.placed[unit]['rotation']=rotations[face]
-            self.send(packet);self.send(health(unit,hp));self.unit_teams[unit]=self.team(1)
+            self.send(packet);self.send(health(unit,hp));self.unit_teams[unit]=self.team(self.unit)
             for effect in (built.get('init_effects') or [])+(built.get('enabled_effects') or []):self.add_status(unit,effect,built.get('lifetime') or 3600,owner=unit,check=False)
             if built.get('data',{}).get('type')=='bomb':
                 deadline=int(millis()+built['data']['timeout']*1000)
@@ -205,6 +208,11 @@ class LoadoutSystems(HeroSystems):
             self.charges=min(self.ability['charges']['max_charges'],self.charges+1)
             self.charge_at=now+self.ability['charges']['charge_cooldown'] if self.charges<self.ability['charges']['max_charges'] else None
             self.ability_update();self.event('ability_recharged',charges=self.charges)
+        if self.world and self.world.leader is not self:return
+        if self.world:
+            marked={target for target in self.player_units() if self.alive(target) and any(d['device']=='device_generic_radar' and d['team']!=self.team(target) and math.dist(d['position'],self.unit_position(target))<=8 for d in self.placed.values())}
+            changed=marked ^ self.world.radar_units;self.world.radar_units=marked
+            for target in changed:self.publish_buffs(target)
         radars=[d for d in self.placed.values() if d['device']=='device_generic_radar']
         marked=self.target_health>0 and any(math.dist(d['position'],self.target_position)<=8 for d in radars)
         if marked!=self.radar_marked:
@@ -213,7 +221,7 @@ class LoadoutSystems(HeroSystems):
             self.event('radar_detection',detected=marked)
         for unit,entry in list(self.placed.items()):
             data=entry['definition'].get('data',{})
-            targets=[i for i in (1,2) if (self.player_respawn_at is None if i==1 else self.target_health>0) and self.team(i)!=self.team(unit) and math.dist(entry['position'],self.unit_position(i))<data.get('trigger_radius',0)]
+            targets=[i for i in self.player_units() if self.alive(i) and self.team(i)!=self.team(unit) and math.dist(entry['position'],self.unit_position(i))<data.get('trigger_radius',0)]
             mine=data.get('type')=='landmine' and bool(targets)
             bomb=data.get('type')=='bomb' and now>=entry['created']+data['timeout']
             if mine or bomb:

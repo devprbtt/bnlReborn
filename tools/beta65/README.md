@@ -181,22 +181,39 @@ Friendly queue pairs equal-sized parties, keeps squads together, requires both
 sides to confirm within 30 seconds and removes disconnected/cancelled entries.
 Custom rooms are shared in memory: listing, password joins, host map selection,
 team switching, kicks and host succession. The selection lobby shares heroes,
-skins and six-block loadouts. Team selection carries into solo practice spawns,
+skins and six-block loadouts. Team selection carries into match spawns,
 unit ownership, objective protection, devices and chat.
 
-**This is a pre-match implementation, not shared multiplayer gameplay.** More
-than one player in a lobby cannot Block In: the existing Practice simulation is
-per connection. Do not remove that guard without implementing one authoritative
-world and translating unit/player IDs correctly. Ranked and backfill remain
-unavailable. No XP is awarded by normal gameplay yet. The server-only idempotent
-reward ledger is tested but intentionally not called by clients or solo exits.
-Its provisional local rule is 500 XP per completed Friendly match, +250 winner
-bonus, one player level per 1000 XP. Customs, practice, aborted matches and
-one-sided rosters receive none. This is not a recovered historical XP formula.
-History/hero statistics are still empty; friend/profile persistence works.
+Shared LAN matches now start after every player blocks in and loads. One locked
+world owns terrain, deployables, effects and ordered objectives; player unit IDs
+are distinct from persistent profile IDs. Movement/casts/builds/damage/respawns
+are replicated, with per-player RPC/spawn menus and team/all chat. Build phase
+protects enemy players and objectives. An empty team aborts without rewards;
+disconnected players cannot act, and remaining teammates retain the world.
+
+Destroying the final enemy base completes the match. The server awards 500 XP
+for Friendly completion plus 250 for winners exactly once; 1000 XP advances a
+player level. Custom/practice/aborted games award none. This is a provisional
+LAN rule, not a recovered historical formula. Native results and live profiles
+receive updated progress. Results currently reuse player progress for the
+beta hero-XP display; independent hero progression/history is not implemented.
+Ranked, backfill and reconnect are not implemented. Movement is still client
+predicted, without a public-server anti-cheat/lag-compensation implementation.
+
+The private packet generator must now include beta_lan_match (ShieldRush2),
+beta_lan_participant, native third-person gear paths, and the copied-runtime
+results hook. The original executable/asset sources must remain unchanged.
 
 Run all protocol, gameplay and LAN service tests:
 
 ```powershell
 python -m unittest discover -s tools/beta65 -p test_*.py
 ```
+
+Validation on 2026-10-01: 101 protocol/gameplay/LAN tests pass. The private
+recovery harness verifies framed socket login -> queue -> confirm -> Block In
+-> shared spawn/movement -> ordered objective completion -> results/XP ->
+exit/requeue. Objective damage is injected in that integration test. An original
+beta client with one scripted peer visually renders remote Sarge, Mountain
+Express lava, and native Victory results with +750 XP. This is not a completed
+two-physical-PC human playtest. No production deployment was performed.

@@ -1,4 +1,4 @@
-"""Protocol-65 local/LAN menu services and solo practice. No shared multiplayer matches."""
+"""Protocol-65 local/LAN profiles, matchmaking, shared matches and practice."""
 import argparse
 import hashlib
 import io
@@ -120,6 +120,7 @@ class MenuServer:
         stage = 'zone'
         session_packets = self.packets
         last_movement_log = 0
+        attached_world = None
         try:
             with connection:
                 connection.settimeout(self.frame_timeout)
@@ -127,8 +128,8 @@ class MenuServer:
                     if self.matchmaking:self.matchmaking.tick()
                     if room and instance and room.state == 'lobby':
                         room.tick(lambda p: self.send(connection,p))
-                    if practice:
-                        practice.tick()
+                    if room and room.world:room.world.tick()
+                    elif practice:practice.tick()
                     # Waiting in a menu is not a broken connection. Only start the
                     # framed read once bytes arrive; retain a timeout for partial frames.
                     if not select.select([connection], [], [], 0.1)[0]:
@@ -218,7 +219,7 @@ class MenuServer:
                     elif not authenticated:
                         raise ValueError("Login required")
                     elif room and not instance and (service,function)==(7,7) and getattr(room,"practice",None):
-                        room.practice.chat(packet)
+                        room.world.handle(room,packet) if room.world else room.practice.chat(packet)
                     elif room and not instance and self.social and self.social.handle(room,packet):
                         pass
                     elif room and not instance and self.matchmaking and self.matchmaking.handle(room,packet):
@@ -238,6 +239,10 @@ class MenuServer:
                             if stage == 'lobby':
                                 self.send(connection, b'\x09\x00\x20\x01')
                                 self.send(connection, b'\x09\x0c\x01' + struct.pack('<If', room.player_id, 1.0))
+                        if room and room.world:
+                            attached_world=room.world
+                            practice=attached_world.attach(room,lambda p:self.send(connection,p))
+                            continue
                         self.event("terrain_ready")
                         self.send(connection, self.packets["zone-start"])
                         if room:
@@ -252,6 +257,8 @@ class MenuServer:
                             practice.start()
                             practice.start_match()
                             practice.send_loadout()
+                    elif room and room.world and room.world.handle(room,packet):
+                        pass
                     elif practice and (service,function)==(7,7):
                         practice.chat(packet)
                     elif practice and service == 6 and practice.handle(packet):
@@ -300,7 +307,9 @@ class MenuServer:
             self.event("connection_error", error=type(error).__name__)
 
         finally:
+            if attached_world:attached_world.detach(room)
             if room and not instance and self.social:
+                room.send_region=lambda p:None
                 self.matchmaking.leave(room)
                 self.social.disconnect(room)
 
@@ -314,6 +323,42 @@ class MenuServer:
                 threading.Thread(target=self.session, args=(connection,), daemon=True).start()
 
 
+def load_packets(directory):
+    packets = {name: (directory / (name + ".bin")).read_bytes()
+               for name in ("catalogue", "player", "scene", "server-update", "profile")}
+    if (directory / 'zone-init.bin').exists():
+        packets.update({name: (directory / (name + ".bin")).read_bytes() for name in ("terrain-scene", "zone-init", "zone-start")})
+    if (directory / 'zone-init.bin').exists():
+        for name in ("hero-create", "hero-state"):
+            path = directory / (name + ".bin")
+            if path.exists():
+                packets[name] = path.read_bytes()
+    if "hero-create" in packets:
+        packets["equipment"] = {path.read_bytes(): (directory / ("equip-" + path.name[4:])).read_bytes()
+                                for path in directory.glob("key-*.bin")}
+    if "hero-create" in packets and (directory / "practice.json").exists():
+        packets["device-templates"] = {path.stem[7:]:path.read_bytes() for path in directory.glob("device-*.bin")}
+        packets["practice"] = json.loads((directory / "practice.json").read_text())
+        packets["keys"] = {path.stem[4:]:path.read_bytes() for path in directory.glob("key-*.bin")}
+        for name in ("target-create", "target-state", "terrain", "brick-key"):
+            packets[name] = (directory / (name + ".bin")).read_bytes()
+    if (directory / 'lobby.json').exists():
+        packets['lobby'] = json.loads((directory / 'lobby.json').read_text())
+        packets['lobby-scene'] = (directory / 'lobby-scene.bin').read_bytes()
+        packets['skin-packets'] = {p.stem[6:]:p.read_bytes() for p in directory.glob('spawn-*.bin')}
+        packets['hero-states'] = {p.stem[6:]:p.read_bytes() for p in directory.glob('state-*.bin')}
+    if (directory / 'definitions.json').exists():
+        packets['definitions']=json.loads((directory/'definitions.json').read_text())
+        packets['buff-ids']=json.loads((directory/'buff-ids.json').read_text())
+        packets['unit-templates']={p.stem[5:]:p.read_bytes() for p in directory.glob('unit-*.bin')}
+    if (directory / 'maps.json').exists():
+        packets['maps']=json.loads((directory / 'maps.json').read_text())
+        packets['map-packets']={m['id']:{name:(directory / (prefix+m['id']+'.bin')).read_bytes()
+            for name,prefix in [('zone-init','zone-init-'),('terrain-scene','scene-'),('terrain','terrain-')]}
+            for m in packets['maps']}
+    return packets
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--packets", type=Path, required=True)
@@ -325,45 +370,14 @@ def main():
     args = parser.parse_args()
     if args.bind != "127.0.0.1" and (not args.state or args.advertise_host in ("127.0.0.1","0.0.0.0")):
         parser.error("LAN mode requires --state and a reachable --advertise-host")
-    packets = {name: (args.packets / (name + ".bin")).read_bytes()
-               for name in ("catalogue", "player", "scene", "server-update", "profile")}
-    if (args.packets / 'zone-init.bin').exists():
-        packets.update({name: (args.packets / (name + ".bin")).read_bytes() for name in ("terrain-scene", "zone-init", "zone-start")})
-    if (args.packets / 'zone-init.bin').exists():
-        for name in ("hero-create", "hero-state"):
-            path = args.packets / (name + ".bin")
-            if path.exists():
-                packets[name] = path.read_bytes()
-    if "hero-create" in packets:
-        packets["equipment"] = {path.read_bytes(): (args.packets / ("equip-" + path.name[4:])).read_bytes()
-                                for path in args.packets.glob("key-*.bin")}
-    if "hero-create" in packets and (args.packets / "practice.json").exists():
-        packets["device-templates"] = {path.stem[7:]:path.read_bytes() for path in args.packets.glob("device-*.bin")}
-        packets["practice"] = json.loads((args.packets / "practice.json").read_text())
-        packets["keys"] = {path.stem[4:]:path.read_bytes() for path in args.packets.glob("key-*.bin")}
-        for name in ("target-create", "target-state", "terrain", "brick-key"):
-            packets[name] = (args.packets / (name + ".bin")).read_bytes()
-    if (args.packets / 'lobby.json').exists():
-        packets['lobby'] = json.loads((args.packets / 'lobby.json').read_text())
-        packets['lobby-scene'] = (args.packets / 'lobby-scene.bin').read_bytes()
-        packets['skin-packets'] = {p.stem[6:]:p.read_bytes() for p in args.packets.glob('spawn-*.bin')}
-        packets['hero-states'] = {p.stem[6:]:p.read_bytes() for p in args.packets.glob('state-*.bin')}
-    if (args.packets / 'definitions.json').exists():
-        packets['definitions']=json.loads((args.packets/'definitions.json').read_text())
-        packets['buff-ids']=json.loads((args.packets/'buff-ids.json').read_text())
-        packets['unit-templates']={p.stem[5:]:p.read_bytes() for p in args.packets.glob('unit-*.bin')}
-    if (args.packets / 'maps.json').exists():
-        packets['maps']=json.loads((args.packets / 'maps.json').read_text())
-        packets['map-packets']={m['id']:{name:(args.packets / (prefix+m['id']+'.bin')).read_bytes()
-            for name,prefix in [('zone-init','zone-init-'),('terrain-scene','scene-'),('terrain','terrain-')]}
-            for m in packets['maps']}
+    packets = load_packets(args.packets)
     args.events.parent.mkdir(parents=True, exist_ok=True)
     # Report the revision actually loaded, even after the launcher regenerates files.
     packet_revision = hashlib.sha256((args.packets / "provenance.json").read_bytes()).hexdigest() if (args.packets / "provenance.json").exists() else None
     class Feed(BaseHTTPRequestHandler):
         def do_GET(self):
             if self.path == "/health":
-                payload = json.dumps({"service":"bnl-beta65-menu","protocol":65,"matches":False,"mode":"terrain-test" if args.terrain_test else "menu","hero":"hero-create" in packets,"packet_revision":packet_revision,"lan_profiles":bool(args.state),"shared_match_simulation":False}).encode()
+                payload = json.dumps({"service":"bnl-beta65-menu","protocol":65,"matches":True,"mode":"terrain-test" if args.terrain_test else "menu","hero":"hero-create" in packets,"packet_revision":packet_revision,"lan_profiles":bool(args.state),"shared_match_simulation":True}).encode()
                 self.send_response(200)
                 self.send_header("Content-Type", "application/json")
                 self.send_header("Content-Length", str(len(payload)))

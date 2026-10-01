@@ -1,4 +1,4 @@
-"""LAN queue confirmation and shared custom rooms. Gameplay remains solo until shared simulation is available."""
+"""LAN queue confirmation and shared custom rooms. Shared gameplay starts after every player finishes loading."""
 import io
 import struct
 import threading
@@ -28,7 +28,9 @@ class Matchmaking:
             for m in batch:self.pending.pop(m.player_id,None)
         for m in batch or [room]:
             if m.state in ('queued','confirming'):
-                m.state='menu';self.queue_update(m,1);m.send_region(b'\x0b\x05'+pack('I',room.player_id))
+                m.state='menu'
+                try:self.queue_update(m,1);m.send_region(b'\x0b\x05'+pack('I',room.player_id))
+                except OSError:pass
 
     def tick(self):
         with self.lock:
@@ -39,13 +41,17 @@ class Matchmaking:
 
     def broadcast_room(self,g):
         for m in g['members']:
-            if m.state=='lobby':
-                if m.send_instance:m.send_instance(m.update())
-            elif m.state=='room':m.send_region(m.room_update())
+            try:
+                if m.state=='lobby':
+                    if m.send_instance:m.send_instance(m.update())
+                elif m.state=='room':m.send_region(m.room_update())
+            except OSError:pass
 
     def leave(self,room):
         with self.lock:
             self.cancel(room);g=self.group(room)
+            if room.world:
+                room.world.detach(room);room.world=None;room.practice=None
             if not g:return
             g['members'].remove(room);room.group=None;room.state='menu'
             if not g['members']:self.groups.pop(g['id']);return
@@ -70,6 +76,8 @@ class Matchmaking:
                 if owner is not None and owner!=room.player_id:return True
                 batch=[self.social.online[p] for p in self.social.squads.get(owner,[room.player_id])]
                 if any(m.state!='menu' for m in batch):return True
+                for member in batch:
+                    if self.group(member):self.leave(member)
                 self.queue.append(batch)
                 for m in batch:m.state='queued';self.queue_update(m)
                 # LAN starts at equal-sized opposing parties (1v1 minimum); never splits a squad.
@@ -103,6 +111,7 @@ class Matchmaking:
                 if room.state!='menu':return True
                 r=io.BytesIO(packet[2:]);name,password=read_string(r),read_string(r)
                 if r.read() or not name.strip() or len(name)>80 or len(password)>80:raise ValueError('Invalid room')
+                if g:self.leave(room)
                 g=self.create_group([room],name,password);room.team=1;self.broadcast_room(g)
             elif fn==7:
                 r=io.BytesIO(packet[4:]);raw=r.read(8)
@@ -122,6 +131,8 @@ class Matchmaking:
                 self.leave(room);room.send_region(b'\x0b\x11')
             elif fn==10:
                 if g and g['owner'] is room and room.state=='room':
+                    if len(g['members'])>1 and (room.map_id=='beta_practice_map' or {m.team for m in g['members']}!={1,2}):
+                        room.notice('Select a two-team map and put at least one player on each side.');return True
                     for m in g['members']:m.open_lobby()
             elif fn==13:
                 if g and room.state=='room':

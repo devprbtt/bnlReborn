@@ -12,10 +12,11 @@ class HeroSystems:
     def init_heroes(self):
         self.definitions={c['_id']:c for c in self.packets.get('definitions',[])}
         self.statuses={};self.buff_cache={};self.delayed=[];self.mortar_flights={};self.fire_cells={};self.next_projectile=0x7000000000000000;self.channel=None;self.last_effect_tick=self.clock()
-        self.block_teams={};self.block_contact_at={};self.status_owner={};self.status_next={};self.unit_teams={1:self.packets['practice'].get('team',1),2:3-self.packets['practice'].get('team',1),-1:1,-2:2}
+        self.block_teams={};self.block_contact_at={};self.status_owner={};self.status_next={};self.unit_teams={self.unit:self.packets['practice'].get('team',1),2:3-self.packets['practice'].get('team',1),-1:1,-2:2}
 
     def unit_position(self,unit):
-        return self.position if unit==1 else self.target_position if unit==2 else self.placed.get(unit,{}).get('position')
+        if self.world and unit in self.world.players:return self.world.players[unit].position
+        return self.position if unit==self.unit else self.target_position if unit==2 else self.placed.get(unit,{}).get('position')
 
     def hit_near_unit(self,unit,point):
         pos=self.unit_position(unit)
@@ -26,27 +27,30 @@ class HeroSystems:
             return all(p-.35<=v<=p+size[a]+.35 for a,p,v in zip('xyz',pos,point))
         return math.dist(pos,point)<=3
 
-    def team(self,unit):return self.unit_teams.get(unit,self.placed.get(unit,{}).get('team',self.unit_teams[1]))
+    def team(self,unit):return self.unit_teams.get(unit,self.placed.get(unit,{}).get('team',self.unit_teams[self.unit]))
 
-    def allowed(self,effect,target,owner=1):
+    def allowed(self,effect,target,owner=None):
+        if owner is None:owner=self.unit
         t=effect.get('targeting') or {};side=t.get('affected_team')
         if target is None:return True
         if t.get('ignore_caster') and target==owner:return False
         if side=='friendly' and self.team(target)!=self.team(owner):return False
         if side=='opponent' and self.team(target)==self.team(owner):return False
         definition=self.placed.get(target,{}).get('definition',{})
-        labels=set(definition.get('labels',[]));kind='player' if target in (1,2) else (definition.get('data') or {}).get('type')
+        labels=set(definition.get('labels',[]));kind='player' if target in self.player_units() else (definition.get('data') or {}).get('type')
         if t.get('affected_labels') or t.get('affected_units'):
             if not (labels & set(t.get('affected_labels') or []) or kind in (t.get('affected_units') or [])):return False
         if t.get('caster_owned_only') and target!=owner and self.placed.get(target,{}).get('owner',1)!=owner:return False
         return True
 
-    def spawn_unit(self,ident,position,team=1,device=None,owner=1):
+    def spawn_unit(self,ident,position,team=1,device=None,owner=None):
+        if owner is None:owner=self.unit
         definition=self.definitions.get(ident);template=self.packets.get('unit-templates',{}).get(ident+'-'+str(team))
         if not definition or not template:return None
         sentinel=pack('fff',101.25,102.5,103.75)
         if template.count(sentinel)!=1:raise ValueError('Unit template position missing')
         unit=self.next_device;self.next_device+=1;self.unit_teams[unit]=team
+        if self.world:template=self.world.owner_packet(template,max(0,owner));self.world.owners[unit]=owner
         self.send((template[:2]+pack('I',unit)+template[6:]).replace(sentinel,pack('fff',*position)))
         data=definition.get('data') or {}
         if data.get('type')=='cloud':self.fill_cloud(unit,position,data.get('range',5))
@@ -75,10 +79,11 @@ class HeroSystems:
             c=(cell[0],cell[1]+dy,cell[2]);indices=[self.cell_index((c[0],c[1]+h,c[2])) for h in (0,1,2)]
             if all(i is not None and self.blocks[i] in self.passable for i in indices):
                 self.position=(c[0]+.5,c[1]+.1,c[2]+.5)
-                self.send(b'\x06\x0d'+pack('I',1)+b'\x01\x80'+pack('fff',*self.position));self.event('player_teleported',position=self.position);return True
+                self.send(b'\x06\x0d'+pack('I',self.unit)+b'\x01\x80'+pack('fff',*self.position));self.event('player_teleported',position=self.position);return True
         return False
 
-    def add_status(self,unit,ident,duration=1,owner=1,check=True):
+    def add_status(self,unit,ident,duration=1,owner=None,check=True):
+        if owner is None:owner=self.unit
         if ident not in self.definitions:return
         card=self.definitions[ident]
         if check and not self.allowed(card.get('effect',{}),unit,owner):return
@@ -94,7 +99,8 @@ class HeroSystems:
                 for name,value in effect.get('buffs',{}).items():buffs[name]=buffs.get(name,0)+value
         return buffs
 
-    def extra_effect(self,effect,point,origin,source,target,owner=1):
+    def extra_effect(self,effect,point,origin,source,target,owner=None):
+        if owner is None:owner=self.unit
         kind=effect.get('type')
         if kind=='unit_spawn':self.spawn_unit(effect['unit_key'],point,self.team(owner),owner=owner)
         elif kind=='teleport_to':self.teleport(point)
@@ -104,8 +110,8 @@ class HeroSystems:
                 unit,d=anchors[-1]
                 if self.teleport(tuple(a+b for a,b in zip(d['position'],(0,1,0)))) and effect.get('destroy_anchor'):self.remove_unit(unit)
         elif kind=='heal':
-            if target==1:
-                self.player_health=min(self.max_health,self.player_health+effect.get('player_heal',0));self.send(b'\x06\x09'+pack('I',1)+b'\x40\x00\x00'+pack('f',self.player_health))
+            if target==self.unit:
+                self.player_health=min(self.max_health,self.player_health+effect.get('player_heal',0));self.send(b'\x06\x09'+pack('I',self.unit)+b'\x40\x00\x00'+pack('f',self.player_health))
             elif target in self.placed:
                 d=self.placed[target];cap=((d['definition'].get('health') or {}).get('health') or {}).get('max_health',1)
                 d['health']=min(cap,d['health']+effect.get('world_heal',0));self.send(b'\x06\x09'+pack('I',target)+b'\x40\x00\x00'+pack('f',d['health']))
@@ -115,13 +121,13 @@ class HeroSystems:
                 self.block_damage[cell]=max(0,self.block_damage[cell]-effect['heal_amount']);i=self.cell_index(cell);card=self.block_cards.get(self.blocks[i],{})
                 self.set_block(cell,self.blocks[i],int(255*self.block_damage[cell]/card['health']['max_health']))
         elif kind=='add_ammo':
-            if target in (None,1):
+            if target in (None,self.unit):
                 for gear,(mag,pool) in self.ammo.items():self.ammo[gear][1]=min(self.weapons[gear]['ammo'][0]['pool']['pool_size'],pool+effect['amount'])
                 self.send(self.ammo_packet())
         elif kind=='purge':
             self.statuses[target]={i:e for i,e in self.statuses.get(target,{}).items() if not effect.get('positive' if self.definitions[i].get('positive') else 'negative')}
         elif kind=='all_units_bunch':
-            for unit in [1,2]+list(self.placed):
+            for unit in self.player_units()+list(self.placed):
                 p=self.unit_position(unit)
                 if p and math.dist(point,p)<=effect['range'] and self.allowed(effect,unit,owner):
                     child=dict(effect,type='bunch');self.apply_effect(child,p,origin,source,unit,owner)
@@ -157,7 +163,7 @@ class HeroSystems:
     def publish_buffs(self,unit):
         # Unit.UpdateData replaces the dictionary; IsBuff tests key presence, not value.
         buffs=self.buffs_for(unit)
-        if unit==2 and self.radar_marked:buffs['vision_mark']=1
+        if (self.world and unit in self.world.radar_units) or (not self.world and unit==2 and self.radar_marked):buffs['vision_mark']=1
         encoded={self.packets.get('buff-ids',{})[k]:v for k,v in buffs.items() if k in self.packets.get('buff-ids',{})}
         if encoded!=self.buff_cache.get(unit,{}):
             self.buff_cache[unit]=encoded
@@ -222,14 +228,31 @@ class HeroSystems:
         if valid:self.channel={'tool':tool,'gear':self.current,'point':point,'target':unit,'next':self.clock()}
         return True
 
+    def tick_channel(self):
+        now=self.clock()
+        if self.channel:
+            c=self.channel;t=c['tool'];point=c['point']
+            if c['gear']!=self.current or self.player_respawn_at is not None or math.dist(self.position,point)>t['range']+2 or not self.clear_line(self.position,point,ignore_end=True):self.channel=None
+            elif now>=c['next']:
+                cost=(t.get('ammo') or {}).get('rate',0);index=0 if self.current in self.ammo and self.ammo[self.current][0] is not None else 1
+                if self.current in self.ammo and self.ammo[self.current][index]<cost:self.channel=None
+                else:
+                    if self.current in self.ammo:self.ammo[self.current][index]-=cost;self.send(self.ammo_packet())
+                    for effect in t.get('interval_effects',[]):self.apply_effect(effect,point,self.position,self.current,c['target'])
+                    for ident in t.get('constant_effects') or []:
+                        if c['target'] is not None:self.add_status(c['target'],ident,.5)
+                    c['next']=now+t.get('interval',.3)
+
     def tick_heroes(self):
+        self.tick_channel()
+        if self.world and self.world.leader is not self:return
         now=self.clock();dt=min(.25,max(0,now-self.last_effect_tick));self.last_effect_tick=now
         for shot,f in list(self.mortar_flights.items()):
             elapsed=now-f['launch']
             if elapsed<0:continue
             if not f['created']:
                 f['created']=True
-                self.send(b'\x06\x34'+pack('Q',shot)+b'\xf0'+key(f['projectile'])+self.projectile_transform(f['start'],f['velocity'])+pack('fI',0,1))
+                self.send(b'\x06\x34'+pack('Q',shot)+b'\xf0'+key(f['projectile'])+self.projectile_transform(f['start'],f['velocity'])+pack('fI',0,f['owner'] if f['owner']>0 else self.unit))
                 self.event('mortar_launched',shot=shot,flight_seconds=f['duration'])
             t=min(f['duration'],elapsed);v=f['velocity'];start=f['start']
             pos=(start[0]+v[0]*t,start[1]+v[1]*t-4.905*t*t,start[2]+v[2]*t)
@@ -247,18 +270,6 @@ class HeroSystems:
                 self.fire_cells.pop(cell)
         for due,effect,point,source in list(self.delayed):
             if now>=due:self.delayed.remove((due,effect,point,source));self.apply_effect(effect,point,point,source)
-        if self.channel:
-            c=self.channel;t=c['tool'];point=c['point']
-            if c['gear']!=self.current or self.player_respawn_at is not None or math.dist(self.position,point)>t['range']+2 or not self.clear_line(self.position,point,ignore_end=True):self.channel=None
-            elif now>=c['next']:
-                cost=(t.get('ammo') or {}).get('rate',0);index=0 if self.current in self.ammo and self.ammo[self.current][0] is not None else 1
-                if self.current in self.ammo and self.ammo[self.current][index]<cost:self.channel=None
-                else:
-                    if self.current in self.ammo:self.ammo[self.current][index]-=cost;self.send(self.ammo_packet())
-                    for effect in t.get('interval_effects',[]):self.apply_effect(effect,point,self.position,self.current,c['target'])
-                    for ident in t.get('constant_effects') or []:
-                        if c['target'] is not None:self.add_status(c['target'],ident,.5)
-                    c['next']=now+t.get('interval',.3)
         # Expand auras before computing recipient buffs; preserve the original caster team.
         for unit,statuses in list(self.statuses.items()):
             for ident,end in list(statuses.items()):
@@ -267,7 +278,7 @@ class HeroSystems:
                 effect=self.definitions[ident].get('effect',{});kind=effect.get('type');origin=self.unit_position(unit)
                 if origin is None:continue
                 owner=self.status_owner.get((unit,ident),1)
-                targets=[unit] if kind in ('self','interval') else [1,2]+list(self.placed) if kind=='aura' else []
+                targets=[unit] if kind in ('self','interval') else self.player_units()+list(self.placed) if kind=='aura' else []
                 due=now>=self.status_next.get((unit,ident),0)
                 for target in targets:
                     pos=self.unit_position(target)
@@ -277,26 +288,30 @@ class HeroSystems:
                         for child in effect.get('interval_effects') or []:self.apply_effect(child,pos,origin,key(ident),target,owner)
                 if due:self.status_next[unit,ident]=now+max(.1,effect.get('interval') or .1)
         for unit in self.statuses.keys()|self.buff_cache.keys():
-            if unit==1 and self.player_respawn_at is not None or unit==2 and self.target_health<=0:continue
+            if unit in self.player_units() and not self.alive(unit):continue
             buffs=self.buffs_for(unit)
             self.publish_buffs(unit)
             dot=sum(max(0,buffs.get(k,0)) for k in ('bleeding','burning','poisoned','decay'))
-            if dot:self.damage_entity(unit,dot*dt,key('effect_status_bleed'))
-            if unit==1 and buffs.get('ammo_regen',0)>0:
-                for gear,ammo in self.ammo.items():ammo[1]=min(self.weapons[gear]['ammo'][0]['pool']['pool_size'],ammo[1]+buffs['ammo_regen']*dt)
-                self.send(self.ammo_packet())
-            if unit==1 and self.player_respawn_at is None and buffs.get('health_regen',0)>0:
-                self.player_health=min(self.max_health,self.player_health+buffs['health_regen']*dt);self.send(b'\x06\x09'+pack('I',1)+b'\x40\x00\x00'+pack('f',self.player_health))
+            if dot:self.damage_entity(unit,dot*dt,key('effect_status_bleed'),self.status_owner.get((unit,next(iter(self.statuses.get(unit,{})),'')),self.unit))
+            recipient=self.world.players.get(unit) if self.world else self if unit==self.unit else None
+            if recipient and buffs.get('ammo_regen',0)>0:
+                for gear,ammo in recipient.ammo.items():ammo[1]=min(recipient.weapons[gear]['ammo'][0]['pool']['pool_size'],ammo[1]+buffs['ammo_regen']*dt)
+                recipient.send(recipient.ammo_packet())
+            if recipient and recipient.player_respawn_at is None and buffs.get('health_regen',0)>0:
+                recipient.player_health=min(recipient.max_health,recipient.player_health+buffs['health_regen']*dt);self.send(b'\x06\x09'+pack('I',unit)+b'\x40\x00\x00'+pack('f',recipient.player_health))
         for unit,entry in list(self.placed.items()):
             d=entry['definition'];data=d.get('data') or {};age=now-entry['created']
             if (d.get('movement') or {}).get('type')=='falling':self.fall_unit(unit,entry,dt)
             lifetime=d.get('lifetime') or data.get('timeout')
             if data.get('type')!='bomb' and lifetime and age>=lifetime:self.remove_unit(unit);continue
-            if data.get('type')=='pickup' and self.player_respawn_at is None and math.dist(entry['position'],self.position)<1.8:
-                self.apply_effect(data['take_effect'],self.position,self.position,key(d['_id']),1);self.remove_unit(unit)
+            if data.get('type')=='pickup':
+                for target in self.player_units():
+                    pos=self.unit_position(target)
+                    if self.alive(target) and math.dist(entry['position'],pos)<1.8:
+                        self.apply_effect(data['take_effect'],pos,pos,key(d['_id']),target);self.remove_unit(unit);break
 
-        for target in (1,2):
-            if target==1 and self.player_respawn_at is not None or target==2 and self.target_health<=0:continue
+        for target in self.player_units():
+            if not self.alive(target):continue
             pos=self.unit_position(target);base=tuple(math.floor(v) for v in pos)
             for dy in (0,-1):
                 cell=(base[0],base[1]+dy,base[2]);index=self.cell_index(cell)

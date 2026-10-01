@@ -18,7 +18,7 @@ class MatchSystems:
         duration=self.packets['practice'].get('build_seconds',120)
         self.phase_end=self.clock()+duration
         self.send_phase(2,duration);self.send(b"\x06\x4a\x02\x01\x02");self.update_spawns()
-        for team in (0,self.team(1)):
+        for team in (0,self.team(self.unit)):
             self.chat_send(b'\x07\x03'+self.chat_room(team))
             self.chat_send(b'\x07\x02'+self.chat_room(team))
 
@@ -27,13 +27,13 @@ class MatchSystems:
         if duration is not None:body+=pack('q',millis()+int(duration*1000))
         self.send(b'\x06\x07\x80'+body)
 
-    def chat_room(self,team):return b'\x01\xe0'+pack('Bii',team,1,1)
+    def chat_room(self,team):return b'\x01\xe0'+pack('Bii',team,self.world.group_id if self.world else 1,1)
 
     def chat(self,packet):
         from server import read_string,string
         import io
         room=packet[2:13]
-        if room not in (self.chat_room(0),self.chat_room(self.team(1))):return
+        if room not in (self.chat_room(0),self.chat_room(self.team(self.unit))):return
         r=io.BytesIO(packet[13:]);message=read_string(r)
         if r.read() or not message.strip() or len(message)>512:return
         self.chat_send(b'\x07\x08'+room+b'\xc0'+pack('I',self.packets['practice'].get('player_id',1))+string(self.packets['practice'].get('nickname','BetaLocal'))+string(message))
@@ -42,7 +42,7 @@ class MatchSystems:
     def spawn_choices(self):
         points={0:self.base_spawn}
         for u,d in self.placed.items():
-            if d['definition'].get('spawn_point') is not None and self.team(u)==self.team(1):
+            if d['definition'].get('spawn_point') is not None and self.team(u)==self.team(self.unit):
                 pos=tuple(a+b for a,b in zip(d['position'],(0,1,0)))
                 if all(self.point_passable(tuple(a+b for a,b in zip(pos,(0,h,0)))) for h in (0,1)):
                     points[u]=pos
@@ -56,7 +56,7 @@ class MatchSystems:
         if state==self.spawn_cache:return
         self.spawn_cache=state
         body=bytes([len(points)])
-        for u,p in points.items():body+=b'\xf0'+pack('IBfffB',u,self.team(1),*p,1)
+        for u,p in points.items():body+=b'\xf0'+pack('IBfffB',u,self.team(self.unit),*p,1)
         body+=b'\x01'+pack('I?',self.packets['practice'].get('player_id',1),self.selected_spawn is not None)
         if self.selected_spawn is not None:body+=pack('I',self.selected_spawn)
         self.send(b'\x06\x07\x30'+body)
@@ -72,7 +72,7 @@ class MatchSystems:
         self.respawn_timer()
 
     def cancel_recall(self):
-        if self.recall_at is not None:self.send(b'\x06\x4f'+pack('I',1))
+        if self.recall_at is not None:self.send(b'\x06\x4f'+pack('I',self.unit))
         self.recall_at=None
 
     def match_request(self,packet):
@@ -83,10 +83,10 @@ class MatchSystems:
             if self.player_respawn_at is None:self.drown_at=(self.clock()+5 if self.drown_at is None else self.drown_at) if drowning else None
         elif fn==61:
             unit,height,force=r.read('If?');r.end()
-            if unit!=1 or not math.isfinite(height) or self.player_respawn_at is not None:return True
+            if unit!=self.unit or not math.isfinite(height) or self.player_respawn_at is not None:return True
             low=self.packets['practice'].get('min_fall_height',5);high=self.packets['practice'].get('max_fall_height',25)
             damage=self.max_health*max(0,min(1,(height-low)/max(1,high-low)))
-            self.damage_entity(1,damage,self.current)
+            self.damage_entity(self.unit,damage,self.current)
             self.event('fall_damage',height=height,damage=damage)
         elif fn==64:
             selected=r.read('I') if r.read('?') else None;r.end()
@@ -96,7 +96,7 @@ class MatchSystems:
             if self.player_respawn_at is None and self.recall_at is None:
                 duration=self.packets['practice'].get('recall_seconds',10)
                 self.recall_at=self.clock()+duration;self.recall_origin=self.position
-                self.send(b'\x06\x4e'+pack('IfQ',1,duration,millis()+int(duration*1000)))
+                self.send(b'\x06\x4e'+pack('IfQ',self.unit,duration,millis()+int(duration*1000)))
         else:return False
         return True
 
@@ -106,11 +106,11 @@ class MatchSystems:
         if self.recall_at is not None:
             if math.dist(self.position,self.recall_origin)>.5:self.cancel_recall()
             elif now>=self.recall_at:
-                self.recall_at=None;self.send(b'\x06\x50'+pack('I',1));self.teleport(self.base_spawn);self.event('recall_completed')
+                self.recall_at=None;self.send(b'\x06\x50'+pack('I',self.unit));self.teleport(self.base_spawn);self.event('recall_completed')
         if self.drown_at is not None and now>=self.drown_at and now>=self.drown_tick:
-            self.drown_tick=now+1;self.damage_entity(1,self.max_health*.1,self.current)
+            self.drown_tick=now+1;self.damage_entity(self.unit,self.max_health*.1,self.current)
         if self.match_started or self.spawn_cache is not None:self.update_spawns()
-        self.tick_collapse()
+        if not self.world or self.world.leader is self:self.tick_collapse()
 
     def replaceable(self,index):
         return index is not None and (self.blocks[index]==0 or self.block_cards.get(self.blocks[index],{}).get('replaceable',False))

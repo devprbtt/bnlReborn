@@ -10,7 +10,7 @@ from loadout import key, pack
 class Lobby:
     def __init__(self, packets, send_region, enter_instance, event):
         self.packets, self.send_region, self.enter_instance, self.event = packets, send_region, enter_instance, event
-        self.player_id=1;self.nickname='BetaLocal';self.level=1;self.team=1;self.social=None;self.group=None
+        self.player_id=1;self.nickname='BetaLocal';self.level=1;self.team=1;self.social=None;self.group=None;self.world=None;self.ready=False
         self.config = packets['lobby']
         self.hero = self.config['hero']
         self.skin = self.config['skin']
@@ -36,7 +36,7 @@ class Lobby:
         skins = self.heroes.get(key(self.hero),{}).get('skins',[self.skin])
         player += varint(len(skins)) + b''.join(key(s) for s in skins) + varint(len(self.devices))
         player += b''.join(pack('i', slot) + device for slot, device in sorted(self.devices.items()))
-        player += b'\x00\x00' + key(self.skin) + bytes([0, 1, 1, 0])
+        player += b'\x00\x00' + key(self.skin) + bytes([self.ready, 1, 1, 0])
         return player
 
     def update(self):
@@ -44,7 +44,7 @@ class Lobby:
         players=self.group['members'] if self.group else [self]
         player=b''.join(p.player_state() for p in players)
         timer = b'\xe0\x02' + pack('QQ', self.selection_start, self.selection_end)
-        return b'\x09\x00\xf8' + key('beta_practice_match') + b'\x01\xc0' + key(self.map_id) + b'\x00\x00' + timer + varint(len(players)) + player
+        return b'\x09\x00\xf8' + key('beta_practice_match' if self.map_id=='beta_practice_map' else 'beta_lan_match') + b'\x01\xc0' + key(self.map_id) + b'\x00\x00' + timer + varint(len(players)) + player
 
     def room_update(self):
         from server import string
@@ -56,6 +56,7 @@ class Lobby:
 
     def open_lobby(self):
         self.state = 'lobby'
+        self.ready=False
         self.zone_initialized = False
         self.selection_start = millis()
         self.selection_end = self.selection_start + 120000
@@ -107,6 +108,11 @@ class Lobby:
         return True
 
     def handle_instance(self, packet, send):
+        if self.social:
+            with self.social.lock:return self._handle_instance(packet,send)
+        return self._handle_instance(packet,send)
+
+    def _handle_instance(self, packet, send):
         service, fn = packet[:2]
         if (service, fn) == (6, 5) or service == 9 and fn in (15, 16):
             self.state = 'menu'; self.password = ''
@@ -115,6 +121,7 @@ class Lobby:
         if service != 9: return False
         if fn == 11: return True
         if self.state != 'lobby': return True
+        if self.ready and fn!=10:return True
         data = packet[2:]
         if fn == 2:
             if data in self.heroes:
@@ -145,8 +152,17 @@ class Lobby:
             self.skin = skin;self.event('lobby_skin_selected',skin=skin)
         elif fn == 10:
             if self.group and len(self.group['members'])>1:
-                self.selection_end=0
-                self.notice('LAN lobby connected. Shared match simulation is not available yet; multiplayer Block In is disabled.')
+                if set(self.devices)!=set(range(1,7)):return True
+                self.ready=True
+                for member in self.group['members']:
+                    if member.send_instance:member.send_instance(member.update())
+                if not all(m.ready for m in self.group['members']):return True
+                if self.group.get('world'):return True
+                from shared_world import World
+                world=World(self.group['members'],self.event,self.social.profiles if self.social else None,self.social)
+                self.group['world']=world
+                for member in self.group['members']:
+                    member.state='zone';member.send_region(member.map_packet('terrain-scene'))
                 return True
             if set(self.devices) != set(range(1, 7)): return True
             self.state = 'zone'
@@ -168,6 +184,7 @@ class Lobby:
 
     def map_packet(self, name):
         packet=self.packets.get('map-packets',{}).get(self.map_id,{}).get(name,self.packets.get(name))
+        if name=='zone-init' and self.group and self.group.get('friendly'):packet=packet[:-1]+b'\x00'
         if name=='terrain-scene' and self.team==2 and len(packet)==14:
             packet=packet[:-2]+bytes([self.team])+packet[-1:]
         return packet

@@ -110,7 +110,8 @@ class Social:
 
     def refresh(self):
         for pid,room in list(self.online.items()):
-            try:room.send_region(self.player_packet(pid))
+            try:
+                room.level=self.profiles.get(pid)['level'];room.send_region(self.player_packet(pid))
             except OSError:pass
 
     def connect(self,room):
