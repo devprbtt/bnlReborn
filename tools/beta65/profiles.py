@@ -29,6 +29,7 @@ class Profiles:
         CREATE TABLE IF NOT EXISTS friends(a INTEGER REFERENCES players(id),b INTEGER REFERENCES players(id),PRIMARY KEY(a,b));
         CREATE TABLE IF NOT EXISTS requests(a INTEGER REFERENCES players(id),b INTEGER REFERENCES players(id),PRIMARY KEY(a,b));
         CREATE TABLE IF NOT EXISTS rewards(match_id TEXT,player INTEGER REFERENCES players(id),xp INTEGER NOT NULL,PRIMARY KEY(match_id,player));
+        CREATE TABLE IF NOT EXISTS steam_accounts(steam_id TEXT PRIMARY KEY,player INTEGER NOT NULL UNIQUE REFERENCES players(id));
         ''')
 
     def login(self,name,password):
@@ -46,6 +47,17 @@ class Profiles:
         with self.lock:
             r=self.db.execute('SELECT id,name,xp,looking FROM players WHERE id=?',(pid,)).fetchone()
             return None if r is None else dict(r,level=1+r['xp']//1000)
+
+    def steam_login(self,steam_id,display_name):
+        # Identity is the verified Steam ID, never a client-selected nickname.
+        with self.lock,self.db:
+            row=self.db.execute('SELECT player FROM steam_accounts WHERE steam_id=?',(steam_id,)).fetchone()
+            if row:return self.get(row['player'])
+            name=''.join(c for c in display_name if c.isprintable()).strip()[:24] or 'Player'
+            if self.db.execute('SELECT 1 FROM players WHERE name=?',(name,)).fetchone():name=name[:6]+'_'+steam_id
+            cursor=self.db.execute('INSERT INTO players(name,salt,password) VALUES(?,?,?)',(name,secrets.token_bytes(16),secrets.token_bytes(32)))
+            self.db.execute('INSERT INTO steam_accounts VALUES(?,?)',(steam_id,cursor.lastrowid))
+            return self.get(cursor.lastrowid)
 
     def search(self,pattern):
         with self.lock:

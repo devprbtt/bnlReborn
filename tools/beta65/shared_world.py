@@ -14,6 +14,28 @@ SHARED=('definitions','blocks','block_damage','placed','next_device','statuses',
 
 
 class Player(Practice):
+    def complete_build(self,cell,definition):
+        before=self.resources
+        super().complete_build(cell,definition)
+        if self.resources<before:
+            self.score['built']+=1;self.score['construction']+=before-self.resources
+            self.world.send_statistics()
+
+    def damage_block(self,point,tool,origin):
+        cell=tuple(math.floor(v) for v in point);index=self.cell_index(cell)
+        before=self.blocks[index] if index is not None else 0;resources=self.resources
+        super().damage_block(point,tool,origin)
+        if before and not self.blocks[index]:
+            self.score['dest']+=1;self.score['earned']+=max(0,self.resources-resources)
+            self.world.send_statistics()
+
+    def blast_block(self,cell,damage,owner=None):
+        index=self.cell_index(cell);before=self.blocks[index] if index is not None else 0
+        super().blast_block(cell,damage,owner)
+        if before and not self.blocks[index]:
+            actor=self.world.players.get(self.world.player_owner(self.unit if owner is None else owner))
+            if actor:actor.score['blast']+=1;actor.score['tactics']+=1;self.world.send_statistics()
+
     def __getattribute__(self,name):
         if name in SHARED:
             world=object.__getattribute__(self,'__dict__').get('world')
@@ -34,7 +56,15 @@ class Player(Practice):
     def extra_effect(self,effect,point,origin,source,target,owner=None):
         recipient=self.world.players.get(target)
         if recipient and recipient is not self and effect.get('type') in ('heal','add_ammo'):
-            return super(Player,recipient).extra_effect(effect,point,origin,source,target,owner)
+            return recipient.extra_effect(effect,point,origin,source,target,owner)
+        if recipient and effect.get('type')=='heal':
+            if recipient.player_respawn_at is not None:return True
+            before=recipient.player_health
+            result=super().extra_effect(effect,point,origin,source,target,owner)
+            actor=self.world.players.get(self.world.player_owner(self.unit if owner is None else owner))
+            if actor and actor is not recipient and actor.room.team==recipient.room.team:
+                actor.score['healing']+=max(0,recipient.player_health-before);self.world.send_statistics()
+            return result
         if effect.get('type') in ('teleport','teleport_to'):
             caster=self.world.players.get(owner,self)
             if caster is not self:return super(Player,caster).extra_effect(effect,point,origin,source,target,owner)
@@ -52,6 +82,9 @@ class Player(Practice):
             if caster!=unit and self.phase_end is not None:return
             amount*=max(.5,1-self.buffs_for(unit).get('shield',0))
             victim.cancel_recall();actual=min(amount,victim.player_health);victim.player_health-=actual
+            actor=self.world.players.get(self.world.player_owner(caster))
+            if actor and actor is not victim:
+                actor.score['warfare']+=actual;victim.attackers[actor.unit]=self.clock()
             self.send(health(unit,victim.player_health))
             self.send(b'\x06\x44'+pack('I?Iff?',unit,caster>0,max(0,caster),actual,actual,False) if caster>0 else b'\x06\x44'+pack('I?ff?',unit,False,actual,actual,False))
             if victim.player_health==0:
@@ -60,7 +93,12 @@ class Player(Practice):
                 self.send(b'\x06\x0a'+pack('I',unit));self.statuses.pop(unit,None);self.buff_cache.pop(unit,None)
                 victim.player_died();victim.deaths+=1
                 if killer in self.world.players and killer!=unit:self.world.players[killer].kills+=1
+                for helper,when in victim.attackers.items():
+                    if helper not in (killer,unit) and self.clock()-when<=10 and helper in self.world.players:
+                        self.world.players[helper].assists+=1
+                victim.attackers.clear()
                 self.world.send_statistics()
+            elif actor:self.world.send_statistics()
             return
         entry=self.placed.get(unit)
         if not entry or not (entry['definition'].get('health') or {}).get('health'):return
@@ -68,7 +106,10 @@ class Player(Practice):
         if objective and (team==entry['team'] or self.phase_end is not None or not self.world.objective_exposed(unit)):return
         if not objective and team==entry['team'] and self.world.player_owner(caster)!=entry.get('owner'):return
         actual=min(amount,entry['health']);entry['health']-=actual;self.send(health(unit,entry['health']))
-        if objective:self.objective_damage+=actual
+        if objective:
+            actor=self.world.players.get(self.world.player_owner(caster))
+            if actor:actor.objective_damage+=actual;actor.score['tactics']+=actual
+            self.world.send_statistics()
         if entry['health']==0:
             final=objective and 'base' in entry['definition'].get('labels',[])
             self.remove_unit(unit,trigger=True)
@@ -101,6 +142,8 @@ class World:
             packets['device-templates']={k:self.owner_packet(v,unit) for k,v in packets.get('device-templates',{}).items()}
             player=Player(packets,lambda p,u=unit:self.send(u,p),event,clock)
             player.target_health=0;player.target_position=(-1000,-1000,-1000);player.deaths=0;player.objective_damage=0
+            player.assists=0;player.attackers={}
+            player.score=dict.fromkeys(('earned','built','blast','dest','warfare','construction','tactics','healing'),0)
             player.room=room;room.world=self;room.practice=player;self.players[unit]=player
             if not self.state:self.state={name:getattr(player,name) for name in SHARED}
             player.world=self
@@ -221,11 +264,13 @@ class World:
 
     def send_statistics(self):
         from server import varint
-        rows=b''.join(pack('I',p.room.player_id)+b'\xf0'+pack('Biii',p.room.team,p.kills,p.deaths,0) for p in self.players.values())
-        self.broadcast(b'\x06\x07\x40\xe0'+varint(len(self.players))+rows+(b'\xf0'+pack('iiii',0,0,0,0))*2)
+        rows=b''.join(pack('I',p.room.player_id)+b'\xf0'+pack('Biii',p.room.team,p.kills,p.deaths,p.assists) for p in self.players.values())
+        teams=b''.join(b'\xf0'+pack('iiii',*(int(sum(p.score[field] for p in self.players.values() if p.room.team==team)) for field in ('warfare','construction','tactics','healing'))) for team in (1,2))
+        self.broadcast(b'\x06\x07\x40\xe0'+varint(len(self.players))+rows+teams)
 
     def finish(self,winner):
         if self.finished:return
+        self.send_statistics()
         self.finished=True;self.broadcast(b'\x06\x03'+bytes([winner]))
         participants=[{'id':p.room.player_id,'team':p.room.team} for u,p in self.players.items() if u in self.connections]
         old={p.room.player_id:self.profiles.get(p.room.player_id) for p in self.players.values()} if self.profiles else {}
@@ -233,7 +278,7 @@ class World:
         from server import varint
         rows=[]
         for entry in self.players.values():
-            rows.append(b'\xf8'+pack('I?',entry.room.player_id,False)+b'\xff'+pack('iiiiiiii',0,0,0,0,int(entry.objective_damage),entry.kills,entry.deaths,0)+key('beta_lan_participant')*2)
+            rows.append(b'\xf8'+pack('I?',entry.room.player_id,False)+b'\xff'+pack('iiiiiiii',int(entry.score['earned']),entry.score['built'],entry.score['blast'],entry.score['dest'],int(entry.objective_damage),entry.kills,entry.deaths,entry.assists)+key('beta_lan_participant')*2)
         results=varint(len(rows))+b''.join(rows)
         for p in self.players.values():
             if p.unit not in self.connections:continue

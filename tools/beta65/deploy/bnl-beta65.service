@@ -1,0 +1,24 @@
+[Unit]
+Description=Block N Load 2015 Beta
+After=network.target
+
+[Service]
+Type=simple
+User=bnlbeta
+Group=bnlbeta
+WorkingDirectory=/opt/bnl-beta65/current
+ExecStart=/usr/bin/python3 tools/beta65/server.py --packets packets --events /var/lib/bnl-beta65/events.jsonl --state /var/lib/bnl-beta65/profiles.sqlite --steam-public-key /etc/bnl-reborn/game-auth-public.pem
+Restart=on-failure
+RestartSec=5
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/bnl-beta65
+LimitNOFILE=1024
+TasksMax=160
+MemoryMax=2G
+UMask=0077
+
+[Install]
+WantedBy=multi-user.target

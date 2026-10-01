@@ -74,7 +74,9 @@ def read_string(reader):
 
 
 class MenuServer:
-    def __init__(self, packets, event_path, port=27065, terrain_test=False, state_path=None, bind="127.0.0.1", advertise_host="127.0.0.1"):
+    def __init__(self, packets, event_path, port=27065, terrain_test=False, state_path=None, bind="127.0.0.1", advertise_host="127.0.0.1", steam_tickets=None):
+        self.steam_tickets=steam_tickets
+        if steam_tickets and state_path is None:raise ValueError('Steam authentication requires persistent profiles')
         self.bind, self.advertise_host = bind, advertise_host
         self.profiles = Profiles(state_path) if state_path is not None else None
         self.social = Social(self.profiles) if self.profiles else None
@@ -88,6 +90,7 @@ class MenuServer:
         self.lock = threading.Lock()
         self.send_lock = threading.Lock()
         self.frame_timeout = 600
+        self.session_slots=threading.BoundedSemaphore(128)
 
     def event(self, kind, **fields):
         # Never log wire payloads, login credentials, or session tokens.
@@ -121,10 +124,12 @@ class MenuServer:
         session_packets = self.packets
         last_movement_log = 0
         attached_world = None
+        connected_at=time.monotonic()
         try:
             with connection:
-                connection.settimeout(self.frame_timeout)
+                connection.settimeout(15 if self.steam_tickets else self.frame_timeout)
                 while True:
+                    if self.steam_tickets and not authenticated and time.monotonic()-connected_at>30:return
                     if self.matchmaking:self.matchmaking.tick()
                     if room and instance and room.state == 'lobby':
                         room.tick(lambda p: self.send(connection,p))
@@ -152,7 +157,10 @@ class MenuServer:
                         reader = io.BytesIO(packet[4:])
                         name, password = read_string(reader), read_string(reader)
                         if reader.read():raise ValueError("Trailing login data")
-                        profile = self.profiles.login(name,password) if self.profiles else None
+                        if self.steam_tickets:
+                            identity=self.steam_tickets.verify(password)
+                            profile=self.profiles.steam_login(identity['sub'],identity['name']) if identity else None
+                        else:profile = self.profiles.login(name,password) if self.profiles else None
                         if reader.read() or (profile is None if self.profiles else name != "BetaLocal" or password != "local-diagnostic-only"):
                             self.send(connection, packet[:4] + b"\xff" + string("Invalid LAN profile name or password."))
                             return
@@ -320,7 +328,11 @@ class MenuServer:
             self.event("listening", address=self.bind, port=self.port)
             while True:
                 connection, _ = listener.accept()
-                threading.Thread(target=self.session, args=(connection,), daemon=True).start()
+                if not self.session_slots.acquire(blocking=False):connection.close();continue
+                def serve(peer):
+                    try:self.session(peer)
+                    finally:self.session_slots.release()
+                threading.Thread(target=serve, args=(connection,), daemon=True).start()
 
 
 def load_packets(directory):
@@ -367,7 +379,13 @@ def main():
     parser.add_argument("--bind", default="127.0.0.1")
     parser.add_argument("--advertise-host", default="127.0.0.1")
     parser.add_argument("--state", type=Path, help="Private SQLite LAN profiles; first login registers a name")
+    parser.add_argument("--steam-public-key", type=Path, help="Require one-use signed beta Steam tickets; disables password registration")
     args = parser.parse_args()
+    tickets=None
+    if args.steam_public_key:
+        from steam_auth import SteamTickets
+        if not args.state or args.bind!='127.0.0.1':parser.error('Public Steam mode requires --state and loopback behind TLS')
+        tickets=SteamTickets(args.steam_public_key)
     if args.bind != "127.0.0.1" and (not args.state or args.advertise_host in ("127.0.0.1","0.0.0.0")):
         parser.error("LAN mode requires --state and a reachable --advertise-host")
     packets = load_packets(args.packets)
@@ -399,7 +417,7 @@ def main():
 
     with ThreadingHTTPServer(("127.0.0.1", 27066), Feed) as http:
         threading.Thread(target=http.serve_forever, daemon=True).start()
-        MenuServer(packets, args.events, terrain_test=args.terrain_test, state_path=args.state, bind=args.bind, advertise_host=args.advertise_host).run()
+        MenuServer(packets, args.events, terrain_test=args.terrain_test, state_path=args.state, bind=args.bind, advertise_host=args.advertise_host,steam_tickets=tickets).run()
 
 
 if __name__ == "__main__":

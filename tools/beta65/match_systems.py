@@ -14,10 +14,22 @@ class MatchSystems(SupplySystems):
         self.chat_send=self.send;self.match_started=False;self.phase_end=None;self.recall_at=None;self.recall_origin=None
         self.drown_at=None;self.drown_tick=0;self.selected_spawn=0;self.spawn_cache=None
         self.collapse_removals=deque();self.collapse_seeds=set();self.collapse_job=None;self.world_revision=0
+        self.deaths=0;self.practice_stats_cache=None
+
+    def practice_statistics(self):
+        if self.world:return
+        state=(self.kills,self.deaths)
+        if state==self.practice_stats_cache:return
+        self.practice_stats_cache=state
+        pid=self.packets['practice'].get('player_id',1);team=self.team(self.unit)
+        rows=pack('I',pid)+b'\xf0'+pack('Biii',team,self.kills,self.deaths,0)
+        rows+=pack('I',0)+b'\xf0'+pack('Biii',3-team,0,self.kills,0)
+        self.send(b'\x06\x07\x40\xe0\x02'+rows+(b'\xf0'+pack('iiii',0,0,0,0))*2)
 
     def start_match(self):
         if self.match_started:return
         self.match_started=True
+        self.practice_statistics()
         duration=self.packets['practice'].get('build_seconds',120)
         self.phase_end=self.clock()+duration
         self.send_phase(2,duration);self.send(b"\x06\x4a\x02\x01\x02");self.update_spawns()
@@ -69,6 +81,7 @@ class MatchSystems(SupplySystems):
         self.send(b'\x06\x07\x08'+body)
 
     def player_died(self):
+        if not self.world:self.deaths+=1;self.practice_statistics()
         self.cancel_recall();self.drown_at=None
         self.player_respawn_at=self.clock()+self.packets['practice'].get('respawn_seconds',5)
         self.reload_at=None;self.build_at=None;self.channel=None;self.shots.clear()

@@ -107,6 +107,7 @@ class Practice(LoadoutSystems, MatchSystems):
         now = self.clock()
         self.tick_systems()
         self.tick_match()
+        self.practice_statistics()
         self.shots = {k:v for k,v in self.shots.items() if now-v[0] < 5}
         if self.player_respawn_at is not None and now>=self.player_respawn_at:
             self.player_respawn_at=None;self.position=self.spawn_position;self.player_health=self.max_health
