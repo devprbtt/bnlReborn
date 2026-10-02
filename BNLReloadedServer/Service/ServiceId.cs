@@ -15,5 +15,7 @@ public enum ServiceId : byte
     ServiceMatchmaker = 11,
     ServiceLeaderboard = 12,
     ServicePing = 13,
-    ServiceMediator = 14
+    ServiceMediator = 14,
+    // 15 is the client's ServiceEac, which this server never used.
+    ServiceClan = 16
 }

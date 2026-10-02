@@ -1,1 +1,18 @@
-<Project Sdk="Microsoft.NET.Sdk"><PropertyGroup><OutputType>Exe</OutputType><TargetFramework>net10.0</TargetFramework><ImplicitUsings>enable</ImplicitUsings><Nullable>enable</Nullable></PropertyGroup><ItemGroup><ProjectReference Include="../../BNLReloadedServer/BNLReloadedServer.csproj" /></ItemGroup></Project>
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <!-- The client decoder lives in the client repository. Point BnlClientProtocol at it (default: this
+         checkout's location under blocknload-unity-upgrade) to run the wire-format cross-check. -->
+    <BnlClientProtocol Condition="'$(BnlClientProtocol)' == ''">$(MSBuildThisFileDirectory)../../../../../unity-projects/migration-6000.5.7f1/Assets/BNLCompatibility/Clans/ClanProtocol.cs</BnlClientProtocol>
+  </PropertyGroup>
+  <PropertyGroup Condition="Exists('$(BnlClientProtocol)')">
+    <DefineConstants>$(DefineConstants);CLIENT_PROTOCOL</DefineConstants>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="$(BnlClientProtocol)" Link="ClientClanProtocol.cs" Condition="Exists('$(BnlClientProtocol)')" />
+    <ProjectReference Include="../../BNLReloadedServer/BNLReloadedServer.csproj" />
+  </ItemGroup>
+</Project>

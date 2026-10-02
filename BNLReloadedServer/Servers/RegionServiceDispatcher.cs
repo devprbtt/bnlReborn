@@ -18,6 +18,7 @@ public class RegionServiceDispatcher : IServiceDispatcher
     private readonly ServiceMatchmaker _serviceMatchmaker;
     private readonly ServiceLeaderboard _serviceLeaderboard;
     private readonly ServicePing _servicePing;
+    private readonly ServiceClan _serviceClan;
 
     public IServicePing Ping => _servicePing;
 
@@ -34,6 +35,7 @@ public class RegionServiceDispatcher : IServiceDispatcher
         _serviceMatchmaker = new ServiceMatchmaker(sender);
         _serviceLeaderboard = new ServiceLeaderboard(sender);
         _servicePing = new ServicePing(sender);
+        _serviceClan = new ServiceClan(sender);
 
         try
         {
@@ -48,6 +50,7 @@ public class RegionServiceDispatcher : IServiceDispatcher
             Databases.RegionServerDatabase.RegisterService(sessionId, _serviceMatchmaker, ServiceId.ServiceMatchmaker);
             Databases.RegionServerDatabase.RegisterService(sessionId, _serviceLeaderboard, ServiceId.ServiceLeaderboard);
             Databases.RegionServerDatabase.RegisterService(sessionId, _servicePing, ServiceId.ServicePing);
+            Databases.RegionServerDatabase.RegisterService(sessionId, _serviceClan, ServiceId.ServiceClan);
         }
         catch (Exception e)
         {
@@ -85,6 +88,7 @@ public class RegionServiceDispatcher : IServiceDispatcher
             ServiceId.ServiceMatchmaker => _serviceMatchmaker.Receive(reader),
             ServiceId.ServiceLeaderboard => _serviceLeaderboard.Receive(reader),
             ServiceId.ServicePing => _servicePing.Receive(reader),
+            ServiceId.ServiceClan => _serviceClan.Receive(reader),
             _ => OnUnsupported(serviceEnum, serviceId)
         };
     }
