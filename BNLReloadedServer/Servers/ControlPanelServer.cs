@@ -8,6 +8,7 @@ using BNLReloadedServer.BaseTypes;
 using BNLReloadedServer.Database;
 using BNLReloadedServer.Logging;
 using BNLReloadedServer.ProtocolHelpers;
+using BNLReloadedServer.ServerTypes;
 using BNLReloadedServer.Servers;
 namespace BNLReloadedServer.ControlPanel;
 
@@ -66,6 +67,7 @@ public sealed class ControlPanelServer : IDisposable
         {
             _listener.Start();
             _listenTask = Task.Run(() => ListenLoop(_cts.Token));
+            LiveStreamDirectory.Start(_cts.Token);
             Log.Info(LogCat.Panel, $"Listening on {string.Join(", ", _listener.Prefixes)}");
         }
         catch (Exception ex)
@@ -179,6 +181,13 @@ public sealed class ControlPanelServer : IDisposable
             if (method == "GET" && path == "/api/public/home")
             {
                 await ServePublicHome(ctx);
+                return;
+            }
+
+            if (method == "GET" && path == "/api/public/streams")
+            {
+                ctx.Response.Headers["Cache-Control"] = "public, max-age=60";
+                await WriteJson(ctx, LiveStreamDirectory.Snapshot);
                 return;
             }
 
