@@ -38,6 +38,7 @@ public interface IMasterServerDatabase
     public Task<bool> SetFriendRequest(uint receiverId, uint senderId);
     public Task<ProfileData> GetProfileData(uint playerId);
     public Task<List<SearchResult>> GetSearchResults(string pattern);
+    public Task<List<SearchResult>> FindPlayersByName(string name);
     public Task<List<SearchResult>> GetSearchResults(List<uint> playerIds);
     public Task<List<SearchResult>> GetSearchResults(List<ulong> steamIds);
     public Task<List<LeagueLeaderboardRecord>> GetLeaderboard();

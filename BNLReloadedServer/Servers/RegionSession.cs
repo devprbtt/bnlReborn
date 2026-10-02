@@ -25,6 +25,8 @@ internal class RegionSession : ServerSession
         {
             Databases.RegionServerDatabase.RemoveUser(Sender.AssociatedPlayerId.Value, Id);
             Databases.PlayerDatabase.RemovePlayer(Sender.AssociatedPlayerId.Value);
+            // Clanmates see the member go offline now rather than at the next clan change.
+            BNLReloadedServer.Clans.ClanHub.PushClanOf(Sender.AssociatedPlayerId.Value);
         }
 
         Databases.RegionServerDatabase.RemoveServices(Id);

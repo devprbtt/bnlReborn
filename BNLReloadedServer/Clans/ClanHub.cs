@@ -49,6 +49,14 @@ public static class ClanHub
         foreach (var member in clan.Members) Push(member.PlayerId);
     }
 
+    /// <summary>Refreshes a player's clanmates (and the player) after they come online or go offline.</summary>
+    public static void PushClanOf(uint playerId)
+    {
+        if (!Started) return;
+        if (Store.ClanOf(playerId) is { } clan) PushClan(clan.Id);
+        else Push(playerId);
+    }
+
     /// <summary>Sends one player their clan state, if they are online with a clan-capable client.</summary>
     public static void Push(uint playerId)
     {
@@ -111,7 +119,8 @@ public static class ClanHub
     {
         name = name.Trim();
         if (name.Length == 0) return null;
-        var matches = (await Databases.MasterServerDatabase.GetSearchResults(name))
+        // SQLite's NOCASE folds ASCII only; the final comparison also folds other letters.
+        var matches = (await Databases.MasterServerDatabase.FindPlayersByName(name))
             .Where(r => string.Equals(r.Nickname, name, StringComparison.OrdinalIgnoreCase)).ToList();
         return matches.Count == 1 ? matches[0].PlayerId : null;
     }

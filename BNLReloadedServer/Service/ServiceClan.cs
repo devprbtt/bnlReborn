@@ -46,8 +46,13 @@ public class ServiceClan(ISender sender) : IServiceClan
         if (message == ClientMessage.Hello)
         {
             var version = reader.ReadInt32();
+            var first = !SupportsClans;
             SupportsClans = version >= 1 && ClanHub.Started;
-            if (SupportsClans && sender.AssociatedPlayerId is { } id) ClanHub.Push(id);
+            if (!SupportsClans || sender.AssociatedPlayerId is not { } id) return true;
+            // The first Hello of a connection announces the player online to their clan; later ones (the client
+            // re-sends Hello when the CLAN page opens) refresh only this player's view, so they cannot flood a clan.
+            if (first) ClanHub.PushClanOf(id);
+            else ClanHub.Push(id);
             return true;
         }
         if (!SupportsClans || sender.AssociatedPlayerId is not { } playerId) return true;
