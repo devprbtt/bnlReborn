@@ -32,6 +32,11 @@ public class ClanRecord
 
     [Column("renamed_at")]
     public DateTimeOffset? RenamedAt { get; set; }
+
+    // 0 = no colour chosen; otherwise ClanRules.ColorSet | 0xRRGGBB, so black stays distinct from "unset".
+    // Added after release 1's schema; sqlite-net adds the column to an existing table with default 0.
+    [Column("tag_color")]
+    public uint TagColor { get; set; }
 }
 
 [Table("ClanMembers")]

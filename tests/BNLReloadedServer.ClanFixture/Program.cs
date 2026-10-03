@@ -97,6 +97,16 @@ Check(await store.TransferInactiveLeaders(lastOnline, _ => false) == 1 && store.
     "a leader offline for 31 days hands over leadership");
 Check(await store.TransferInactiveLeaders(id => now.AddDays(-31), id => true) == 0, "online leaders are never replaced");
 
+// ---- Tag colour ----
+var colourLeader = store.ClanOf(100)!.LeaderId;
+var colourOfficer = store.ClanOf(100)!.Members.First(m => m.PlayerId != colourLeader).PlayerId;
+Check(await store.SetTagColor(colourOfficer, ClanRules.ColorSet | 0x4FB7E8) == ClanResult.NotAllowed, "only the leader sets the tag colour");
+Check(await store.SetTagColor(colourLeader, 0x4FB7E8) == ClanResult.NotAllowed, "a colour without the set flag is rejected");
+Check(await store.SetTagColor(colourLeader, ClanRules.ColorSet | 0x000000) == ClanResult.Ok
+      && store.TagAndColorOf(colourOfficer) is { Color: ClanRules.ColorSet }, "black is a valid colour, distinct from unset");
+Check(await store.SetTagColor(colourLeader, ClanRules.ColorSet | 0x4FB7E8) == ClanResult.Ok
+      && store.ClanOf(100)!.TagColor == (ClanRules.ColorSet | 0x4FB7E8), "the leader sets any colour");
+
 // ---- Persistence across a restart ----
 var before = store.ClanOf(100)!;
 var reopened = new ClanStore(new SQLiteAsyncConnection(file), offensive, () => now);
@@ -104,6 +114,7 @@ await reopened.Load();
 var after = reopened.ClanOf(100)!;
 Check(after.Tag == before.Tag && after.LeaderId == before.LeaderId && after.Members.Length == before.Members.Length,
     "clans, ranks and leadership survive a restart");
+Check(after.TagColor == (ClanRules.ColorSet | 0x4FB7E8), "the tag colour survives a restart");
 Check(reopened.InvitesFor(300).Length == 0 && reopened.TagOf(50) == "YETI", "invites and other clans reload exactly");
 
 // ---- Disband ----
@@ -121,7 +132,7 @@ var sent = new ClanStateMessage(
     new ClanStateClan(7, "Yeti Squad", "YETI", 1, ClanRank.Officer, now,
         [new ClanStateMember(1, "Prbtt", ClanRank.Leader, "Casual game", now.AddDays(-3)),
          new ClanStateMember(2, "Ünïcødé 名前", ClanRank.Officer, null, now.AddDays(-1))],
-        [new ClanStateOutgoing(9, "Invitee", now)]),
+        [new ClanStateOutgoing(9, "Invitee", now)], ClanRules.ColorSet | 0x123456),
     [new ClanStateInvite(8, "Other Clan", "OTHR", "Someone", now)]);
 var buffer = new MemoryStream();
 BNLReloadedServer.Service.ServiceClan.WriteState(new BinaryWriter(buffer), sent);
@@ -130,7 +141,9 @@ var got = BNL.Clans.ClanProtocol.ReadState(new BinaryReader(buffer));
 Check(buffer.Position == buffer.Length, "the client decoder consumes exactly the server's state message");
 var gc = got.Clan!;
 Check(gc.Id == 7 && gc.Name == "Yeti Squad" && gc.Tag == "YETI" && gc.LeaderId == 1 && gc.MyRank == BNL.Clans.ClanRank.Officer
-      && gc.RenamedAt == now.ToUnixTimeSeconds(), "clan header round-trips");
+      && gc.RenamedAt == now.ToUnixTimeSeconds() && gc.TagColor == (ClanRules.ColorSet | 0x123456), "clan header round-trips, including the tag colour");
+Check(BNL.Clans.ClanProtocol.RichTag("YETI", ClanRules.ColorSet | 0x123456) == "<color=#123456>[YETI]</color>"
+      && BNL.Clans.ClanProtocol.RichTag("YETI", 0) == "[YETI]", "the client renders a set colour and leaves an unset tag plain");
 Check(gc.Members.Count == 2 && gc.Members[0].Online && gc.Members[0].Activity == "Casual game"
       && !gc.Members[1].Online && gc.Members[1].Name == "Ünïcødé 名前" && gc.Members[1].Rank == BNL.Clans.ClanRank.Officer,
     "members round-trip, including offline state and non-ASCII names");
@@ -154,7 +167,8 @@ Check((byte)BNLReloadedServer.Service.ServiceId.ServiceClan == BNL.Clans.ClanPro
     "service id and protocol version match");
 Check(BNL.Clans.ClanProtocol.MaxMembers == ClanRules.MaxMembers && BNL.Clans.ClanProtocol.MaxTagLength == ClanRules.MaxTagLength
       && BNL.Clans.ClanProtocol.MinTagLength == ClanRules.MinTagLength && BNL.Clans.ClanProtocol.MaxNameLength == ClanRules.MaxNameLength
-      && BNL.Clans.ClanProtocol.MinNameLength == ClanRules.MinNameLength, "client validation limits match the server rules");
+      && BNL.Clans.ClanProtocol.MinNameLength == ClanRules.MinNameLength && BNL.Clans.ClanProtocol.ColorSet == ClanRules.ColorSet,
+    "client validation limits and the colour flag match the server rules");
 #else
 Console.WriteLine("SKIP wire-format cross-check: client ClanProtocol.cs not found (set BnlClientProtocol).");
 #endif

@@ -24,7 +24,7 @@ public class ServiceClan(ISender sender) : IServiceClan
     private enum ClientMessage : byte
     {
         Hello = 0, Create = 1, Invite = 2, Accept = 3, Decline = 4, Leave = 5,
-        Kick = 6, SetRank = 7, Transfer = 8, Rename = 9, Disband = 10
+        Kick = 6, SetRank = 7, Transfer = 8, Rename = 9, Disband = 10, SetTagColor = 11
     }
 
     private enum ServerMessage : byte { State = 0, Result = 1 }
@@ -75,6 +75,7 @@ public class ServiceClan(ISender sender) : IServiceClan
             ClientMessage.Transfer => store.TransferLeadership(playerId, reader.ReadUInt32()),
             ClientMessage.Rename => store.Rename(playerId, reader.ReadString(), reader.ReadString()),
             ClientMessage.Disband => store.Disband(playerId),
+            ClientMessage.SetTagColor => store.SetTagColor(playerId, reader.ReadUInt32()),
             _ => Task.FromResult(ClanResult.NotAllowed)
         };
         work.ContinueWith(t =>
@@ -138,6 +139,7 @@ public class ServiceClan(ISender sender) : IServiceClan
             writer.Write(clan.Id);
             writer.Write(clan.Name);
             writer.Write(clan.Tag);
+            writer.Write(clan.TagColor);
             writer.Write(clan.LeaderId);
             writer.Write((byte)clan.MyRank);
             writer.Write(clan.RenamedAt?.ToUnixTimeSeconds() ?? 0L);

@@ -8,6 +8,7 @@ public interface IServiceZone : IService
     public bool SupportsTeamPing { get; }
     public bool SupportsHeroEmote { get; }
     public bool SupportsScoreboardMetadata { get; }
+    public bool SupportsClanTags { get; }
     public string CountryCode { get; }
     public void SendInitZone(ZoneInitData data);
     public void SendEndMatch(TeamType winner);
@@ -78,4 +79,5 @@ public interface IServiceZone : IService
     public void SendScoreboardMetadata(IReadOnlyList<ScoreboardPlayerNetworkInfo> players);
 }
 
-public readonly record struct ScoreboardPlayerNetworkInfo(uint PlayerId, int PingMilliseconds, string CountryCode);
+public readonly record struct ScoreboardPlayerNetworkInfo(uint PlayerId, int PingMilliseconds, string CountryCode,
+    string ClanTag = "", uint ClanTagColor = 0);

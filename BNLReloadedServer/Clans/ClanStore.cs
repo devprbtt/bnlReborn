@@ -7,7 +7,7 @@ public record ClanMember(uint PlayerId, ClanRank Rank, DateTimeOffset JoinedAt);
 public record ClanInvite(int ClanId, uint PlayerId, uint InviterId, DateTimeOffset CreatedAt);
 
 public record ClanView(int Id, string Name, string Tag, uint LeaderId, DateTimeOffset CreatedAt,
-    DateTimeOffset? RenamedAt, ClanMember[] Members);
+    DateTimeOffset? RenamedAt, ClanMember[] Members, uint TagColor = 0);
 
 /// <summary>
 /// All clans in memory, persisted to the player database. Clan changes are rare, so one lock serialises every
@@ -73,10 +73,12 @@ public sealed class ClanStore
         }
     }
 
-    public string? TagOf(uint playerId)
+    public string? TagOf(uint playerId) => TagAndColorOf(playerId)?.Tag;
+
+    public (string Tag, uint Color)? TagAndColorOf(uint playerId)
     {
         lock (_clans)
-            return _members.TryGetValue(playerId, out var m) && _clans.TryGetValue(m.ClanId, out var c) ? c.Tag : null;
+            return _members.TryGetValue(playerId, out var m) && _clans.TryGetValue(m.ClanId, out var c) ? (c.Tag, c.TagColor) : null;
     }
 
     public ClanInvite[] InvitesFor(uint playerId)
@@ -101,7 +103,7 @@ public sealed class ClanStore
         var members = _members.Values.Where(m => m.ClanId == clanId)
             .OrderByDescending(m => m.Rank).ThenBy(m => m.JoinedAt)
             .Select(m => new ClanMember(m.PlayerId, m.Rank, m.JoinedAt)).ToArray();
-        return new ClanView(c.Id, c.Name, c.Tag, c.LeaderId, c.CreatedAt, c.RenamedAt, members);
+        return new ClanView(c.Id, c.Name, c.Tag, c.LeaderId, c.CreatedAt, c.RenamedAt, members, c.TagColor);
     }
 
     // ---- Operations ----
@@ -293,10 +295,28 @@ public sealed class ClanStore
             var renamed = new ClanRecord
             {
                 Id = clan.Id, Name = name, NameKey = ClanRules.Key(name), Tag = tag, TagKey = ClanRules.Key(tag),
-                LeaderId = clan.LeaderId, CreatedAt = clan.CreatedAt, RenamedAt = now
+                LeaderId = clan.LeaderId, CreatedAt = clan.CreatedAt, RenamedAt = now, TagColor = clan.TagColor
             };
             await _db.UpdateAsync(renamed);
             Apply(() => _clans[clan.Id] = renamed);
+            Raise(clan.Id, actorId);
+            return ClanResult.Ok;
+        }
+        finally { _gate.Release(); }
+    }
+
+    public async Task<ClanResult> SetTagColor(uint actorId, uint color)
+    {
+        if (!ClanRules.ValidTagColor(color)) return ClanResult.NotAllowed;
+        await _gate.WaitAsync();
+        try
+        {
+            if (!_members.TryGetValue(actorId, out var actor)) return ClanResult.NotInClan;
+            if (!ClanRules.CanSetTagColor(actor.Rank)) return ClanResult.NotAllowed;
+            var clan = _clans[actor.ClanId];
+            if (clan.TagColor == color) return ClanResult.Ok;
+            await _db.ExecuteAsync("UPDATE Clans SET tag_color = ? WHERE id = ?", (long)color, clan.Id);
+            Apply(() => clan.TagColor = color);
             Raise(clan.Id, actorId);
             return ClanResult.Ok;
         }

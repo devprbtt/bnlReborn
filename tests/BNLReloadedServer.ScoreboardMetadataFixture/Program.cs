@@ -87,6 +87,24 @@ using (var reader = new BinaryReader(stream))
     Check(stream.Position == stream.Length, "scoreboard snapshot has no trailing address data");
 }
 
+// Zone capability 5: clan tag and tag colour follow each player's country code.
+typeof(ServiceZone).GetProperty(nameof(ServiceZone.SupportsClanTags),
+        BindingFlags.Instance | BindingFlags.Public)!.SetValue(zone, true);
+zone.SendScoreboardMetadata([
+    new ScoreboardPlayerNetworkInfo(10, 42, "US", "YETI", 0x14FB7E8),
+    new ScoreboardPlayerNetworkInfo(11, -1, "")
+]);
+using (var stream = new MemoryStream(sender.Packets.Last()))
+using (var reader = new BinaryReader(stream))
+{
+    reader.ReadByte(); reader.ReadByte(); reader.ReadUInt16();
+    Check(reader.ReadUInt32() == 10 && reader.ReadUInt16() == 42 && reader.ReadString() == "US" &&
+          reader.ReadString() == "YETI" && reader.ReadUInt32() == 0x14FB7E8, "capability 5 adds the clan tag and colour");
+    Check(reader.ReadUInt32() == 11 && reader.ReadUInt16() == ushort.MaxValue && reader.ReadString() == "" &&
+          reader.ReadString() == "" && reader.ReadUInt32() == 0, "players without a clan send an empty tag and no colour");
+    Check(stream.Position == stream.Length, "the capability 5 snapshot ends after the last player");
+}
+
 Console.WriteLine($"Scoreboard metadata fixture passed: {checks} checks.");
 
 sealed class FixtureSender : ISender

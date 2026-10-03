@@ -78,6 +78,14 @@ public static partial class ClanRules
 
     public static bool CanDisband(ClanRank actor) => actor == ClanRank.Leader;
 
+    public static bool CanSetTagColor(ClanRank actor) => actor == ClanRank.Leader;
+
+    /// <summary>Marks a stored/sent tag colour as chosen, so 0x000000 (black) differs from "no colour".</summary>
+    public const uint ColorSet = 0x1000000;
+
+    /// <summary>Any 24-bit colour, or 0 to clear back to the default.</summary>
+    public static bool ValidTagColor(uint color) => color == 0 || (color & ~0xFFFFFFu) == ColorSet;
+
     /// <summary>Leaders can remove anyone but themselves; officers can remove members only.</summary>
     public static bool CanKick(ClanRank actor, ClanRank target) =>
         actor == ClanRank.Leader ? target != ClanRank.Leader : actor == ClanRank.Officer && target == ClanRank.Member;

@@ -871,10 +871,13 @@ public partial class GameInstance : IGameInstance
             if (!_services.TryGetValue(connection.Guid, out var services)) continue;
             var ping = services.GetValueOrDefault(ServiceId.ServicePing) as IServicePing;
             var zone = services.GetValueOrDefault(ServiceId.ServiceZone) as IServiceZone;
+            var clan = Clans.ClanHub.Started ? Clans.ClanHub.Store.TagAndColorOf(connectedPlayerId) : null;
             snapshot.Add(new ScoreboardPlayerNetworkInfo(
                 connectedPlayerId,
                 ping?.RoundTripMilliseconds ?? -1,
-                zone?.CountryCode ?? string.Empty));
+                zone?.CountryCode ?? string.Empty,
+                clan?.Tag ?? string.Empty,
+                clan?.Color ?? 0));
         }
         requester.SendScoreboardMetadata(snapshot);
     }

@@ -88,7 +88,8 @@ public static class ClanHub
                 m.Rank, Databases.RegionServerDatabase.GetOnlinePlayerLocation(m.PlayerId), m.JoinedAt)).ToArray();
             var myRank = clan.Members.First(m => m.PlayerId == playerId).Rank;
             clanState = new ClanStateClan(clan.Id, clan.Name, clan.Tag, clan.LeaderId, myRank, clan.RenamedAt, members,
-                outgoing.Select(i => new ClanStateOutgoing(i.PlayerId, names.GetValueOrDefault(i.PlayerId, "Player"), i.CreatedAt)).ToArray());
+                outgoing.Select(i => new ClanStateOutgoing(i.PlayerId, names.GetValueOrDefault(i.PlayerId, "Player"), i.CreatedAt)).ToArray(),
+                clan.TagColor);
         }
         var inviteStates = invites.Select(i =>
         {
@@ -129,7 +130,7 @@ public static class ClanHub
 public record ClanStateMember(uint PlayerId, string Name, ClanRank Rank, string? Activity, DateTimeOffset JoinedAt);
 public record ClanStateOutgoing(uint PlayerId, string Name, DateTimeOffset CreatedAt);
 public record ClanStateClan(int Id, string Name, string Tag, uint LeaderId, ClanRank MyRank, DateTimeOffset? RenamedAt,
-    ClanStateMember[] Members, ClanStateOutgoing[] Outgoing);
+    ClanStateMember[] Members, ClanStateOutgoing[] Outgoing, uint TagColor = 0);
 public record ClanStateInvite(int ClanId, string ClanName, string Tag, string InviterName, DateTimeOffset CreatedAt);
 public record ClanStateMessage(ClanStateClan? Clan, ClanStateInvite[] Invites);
 

@@ -28,6 +28,55 @@ string Ticket(ulong steamId, string name) => new JsonWebTokenHandler().CreateTok
     SigningCredentials = new SigningCredentials(new RsaSecurityKey(key), SecurityAlgorithms.RsaSha256)
 });
 
+if (args[0] == "broker")
+{
+    // Stands in for the launcher's credential pipe so an editor or test client can log in to the local server:
+    // broker <dir> <pipe name> <17-digit steam id> <display name>
+    var (pipeName, brokerSteamId, brokerName) = (args[2], ulong.Parse(args[3]), args[4]);
+    Console.WriteLine($"broker on {pipeName} for {brokerName} ({brokerSteamId})");
+    while (true)
+    {
+        using var pipe = new System.IO.Pipes.NamedPipeServerStream(pipeName, System.IO.Pipes.PipeDirection.InOut, 4);
+        await pipe.WaitForConnectionAsync();
+        try
+        {
+            var reader = new BinaryReader(pipe, System.Text.Encoding.UTF8, true);
+            var writer = new BinaryWriter(pipe, System.Text.Encoding.UTF8, true);
+            if (reader.ReadByte() == 1)
+            {
+                writer.Write((byte)0);
+                writer.Write(Ticket(brokerSteamId, brokerName));
+                writer.Write(brokerSteamId.ToString());
+                writer.Write(brokerName);
+            }
+            else writer.Write((byte)0);
+            writer.Flush();
+            Console.WriteLine("ticket issued " + DateTime.Now.ToString("HH:mm:ss"));
+        }
+        catch (Exception e) { Console.WriteLine("broker request failed: " + e.Message); }
+    }
+}
+
+if (args[0] == "members")
+{
+    // members <dir> <name prefix> <count>: test players that stay online and accept any clan invite.
+    var (prefix, count) = (args[2], int.Parse(args[3]));
+    ulong baseId = 76561190077000000UL + (ulong)Math.Abs(prefix.GetHashCode() % 100000) * 100;
+    var bots = new List<Bot>();
+    for (int i = 1; i <= count; i++) bots.Add(await Bot.Login(baseId + (ulong)i, prefix + i, Ticket));
+    Console.WriteLine($"{count} members online");
+    while (true)
+    {
+        foreach (var bot in bots)
+            if (bot.State?.Clan == null && bot.State?.Invites.Count > 0)
+            {
+                var invite = bot.State.Invites[0];
+                Console.WriteLine($"accepting [{invite.Tag}] -> {await bot.Ask(ClanRequest.Accept, w => w.Write(invite.ClanId))}");
+            }
+        await Task.Delay(1000);
+    }
+}
+
 var run = Guid.NewGuid().ToString("N")[..5];
 int checks = 0;
 void Check(bool pass, string what) { if (!pass) throw new Exception("FAIL " + what); checks++; Console.WriteLine("PASS " + what); }
