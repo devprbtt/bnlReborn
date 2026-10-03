@@ -124,7 +124,8 @@ public partial class ServiceZone(ISender sender, Func<System.Net.IPAddress?>? pe
     private IGameInstance? GameInstance => Databases.RegionServerDatabase.GetGameInstance(sender.AssociatedPlayerId);
 
     private const uint TeamPingCapabilityMagic = 0x42504E47u;
-    private const int TeamPingProtocolVersion = 4;
+    // 5: scoreboard metadata carries each player's clan tag and tag colour.
+    private const int TeamPingProtocolVersion = 5;
     private const int TeamPingMinimumProtocolVersion = 1;
 
     public bool SupportsTeamPing { get; private set; }
@@ -158,6 +159,7 @@ public partial class ServiceZone(ISender sender, Func<System.Net.IPAddress?>? pe
                 SupportsHeroEmote = version >= 2;
                 SupportsBuildPreview = version >= 3;
                 SupportsScoreboardMetadata = version >= 4;
+                SupportsClanTags = version >= 5;
                 SendTeamPingCapability(Math.Min(version, TeamPingProtocolVersion));
             }
         }

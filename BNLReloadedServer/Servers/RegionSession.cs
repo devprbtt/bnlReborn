@@ -29,6 +29,8 @@ internal class RegionSession : ServerSession
             if (Databases.PlayerDatabase.RemovePlayer(playerId))
                 Databases.RegionServerDatabase.NotifyFriendsOfDeparture(listedBy).ObserveFailure(LogCat.Player,
                     $"Failed to notify friends that player {playerId} went offline");
+            // Clanmates see the member go offline now rather than at the next clan change.
+            BNLReloadedServer.Clans.ClanHub.PushClanOf(playerId);
         }
 
         Databases.RegionServerDatabase.RemoveServices(Id);

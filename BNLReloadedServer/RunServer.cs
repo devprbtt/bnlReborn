@@ -57,6 +57,7 @@ ConfigureServer(regionServer);
 ConfigureServer(matchServer);
 
 Databases.SetRegionDatabase(new RegionServerDatabase(regionServer, matchServer));
+BNLReloadedServer.Clans.ClanHub.Start();
 // Master, region and instances are one process. Register the local region directly instead
 // of opening a loopback TCP connection merely to exchange its own address and public key.
 Databases.MasterServerDatabase.AddRegionServer("master", configs.MasterPublicHost(), configs.GetRegionInfo());

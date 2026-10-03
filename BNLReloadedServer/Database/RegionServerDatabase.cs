@@ -155,6 +155,12 @@ public class RegionServerDatabase(AsyncTaskTcpServer server, AsyncTaskTcpServer 
 
     public Guid? GetSessionGuid(uint playerId) => UserConnected(playerId, out var playerInfo) ? playerInfo.Guid : null;
 
+    public IServiceClan? GetClanService(uint playerId) =>
+        UserConnected(playerId, out var playerInfo) &&
+        GetService<IServiceClan>(playerInfo.Guid, ServiceId.ServiceClan, out var service)
+            ? service
+            : null;
+
     public IServicePlayer? GetPlayerService(uint playerId) =>
         UserConnected(playerId, out var playerInfo) &&
         GetService<IServicePlayer>(playerInfo.Guid, ServiceId.ServicePlayer, out var service)

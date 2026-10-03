@@ -6,6 +6,7 @@ namespace BNLReloadedServer.Service;
 public partial class ServiceZone
 {
     public bool SupportsScoreboardMetadata { get; private set; }
+    public bool SupportsClanTags { get; private set; }
 
     // Only the coarse ISO country code crosses the game protocol. The address remains on the server.
     public string CountryCode => IpCountryLookup.Resolve(peerAddress?.Invoke()) ?? string.Empty;
@@ -38,6 +39,11 @@ public partial class ServiceZone
                 ? ushort.MaxValue
                 : Math.Min(player.PingMilliseconds, ushort.MaxValue - 1)));
             writer.Write(player.CountryCode);
+            if (SupportsClanTags)
+            {
+                writer.Write(player.ClanTag);
+                writer.Write(player.ClanTagColor);
+            }
         }
         sender.Send(writer);
     }
