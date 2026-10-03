@@ -24,6 +24,7 @@ public interface IRegionServerDatabase
     public bool RemoveUser(uint userId, Guid? sessionId = null);
     public bool UpdateChatName(uint userId, string newName);
     public Task NotifyFriends(uint playerId);
+    public Task NotifyFriendsOfDeparture(IEnumerable<uint> friendIds);
     public Task NotifyRequests(uint playerId, bool requestsForMe, bool requestsFromMe);
     public void NotifyLeague(uint playerId, League league);
     public void NotifyInventory(uint playerId, List<InventoryItem> inventory);

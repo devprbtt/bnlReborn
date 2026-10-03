@@ -8,6 +8,7 @@ public interface IPlayerDatabase
 {
     public bool AddPlayer(PlayerData player);
     public bool RemovePlayer(uint playerId);
+    public List<uint> GetOnlinePlayersListing(uint playerId);
     public (DateTimeOffset? OnlineSince, DateTimeOffset? LastOnline) GetPresence(uint playerId);
     public uint? GetPlayerId(ulong steamId);
     public string GetAuthTokenForPlayer(uint playerId);

@@ -347,6 +347,23 @@ public class RegionServerDatabase(AsyncTaskTcpServer server, AsyncTaskTcpServer 
         }
     }
 
+    // Login and scene changes reach friends through NotifyFriends, but a departed player has no
+    // friend list left to walk, so the caller captures who listed them before removing them.
+    public async Task NotifyFriendsOfDeparture(IEnumerable<uint> friendIds)
+    {
+        foreach (var friend in friendIds)
+        {
+            if (!UserConnected(friend, out var friendInfo) ||
+                !GetService<IServicePlayer>(friendInfo.Guid, ServiceId.ServicePlayer, out var servicePlayer))
+                continue;
+
+            servicePlayer.SendPlayerUpdate(new PlayerUpdate
+            {
+                Friends = await _playerDatabase.GetFriends(friend)
+            });
+        }
+    }
+
     // The owner must receive their own list after an add/remove. Once a relationship is removed,
     // neither player appears in the other's current list, so notifying current friends alone leaves
     // both clients displaying the deleted relationship until reconnect.
