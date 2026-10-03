@@ -99,6 +99,15 @@ public static class ClanHub
         return new ClanStateMessage(clanState, inviteStates);
     }
 
+    public static async Task<ClanStateMessage[]> Browse(string query)
+    {
+        var clans = Store.Browse(query);
+        var names = await Names(clans.SelectMany(c => c.Members).Select(m => m.PlayerId).Distinct());
+        return clans.Select(c => new ClanStateMessage(new ClanStateClan(c.Id, c.Name, c.Tag, c.LeaderId,
+            ClanRank.Member, c.RenamedAt, c.Members.Select(m => new ClanStateMember(m.PlayerId,
+                names.GetValueOrDefault(m.PlayerId, "Player"), m.Rank, null, m.JoinedAt)).ToArray(), [], c.TagColor), [])).ToArray();
+    }
+
     private static async Task<Dictionary<uint, string>> Names(IEnumerable<uint> ids)
     {
         var names = new Dictionary<uint, string>();
@@ -121,9 +130,8 @@ public static class ClanHub
         name = name.Trim();
         if (name.Length == 0) return null;
         // SQLite's NOCASE folds ASCII only; the final comparison also folds other letters.
-        var matches = (await Databases.MasterServerDatabase.FindPlayersByName(name))
-            .Where(r => string.Equals(r.Nickname, name, StringComparison.OrdinalIgnoreCase)).ToList();
-        return matches.Count == 1 ? matches[0].PlayerId : null;
+        var matches = await Databases.MasterServerDatabase.FindPlayersByName(name);
+        return ClanRules.ResolvePlayer(name, matches.Select(r => (r.PlayerId, r.Nickname ?? "")));
     }
 }
 

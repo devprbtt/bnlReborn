@@ -2182,6 +2182,7 @@ public partial class GameZone
         if (builder.CurrentBuildInfo is { } buildInfo)
         {
             AddBuildCorrection(corrections, buildInfo.BuildInsidePosition);
+            AddBuildCorrection(corrections, buildInfo.BuildOutsidePosition);
         }
 
         if (corrections.Count > 0)
@@ -2195,12 +2196,13 @@ public partial class GameZone
         Unit builder,
         Vector3s calculatedPosition)
     {
-        if (builder.CurrentBuildInfo is not { } buildInfo || buildInfo.BuildInsidePosition == calculatedPosition)
+        if (builder.CurrentBuildInfo is not { } buildInfo)
         {
             return;
         }
 
         AddBuildCorrection(updates, buildInfo.BuildInsidePosition);
+        AddBuildCorrection(updates, buildInfo.BuildOutsidePosition);
     }
 
     private void AddBuildCorrection(Dictionary<Vector3s, BlockUpdate> updates, Vector3s position)

@@ -1027,7 +1027,10 @@ public class MasterServerDatabase : IMasterServerDatabase
     /// <summary>Exact nickname match ignoring case. GetSearchResults' prefix match is case-sensitive.</summary>
     public async Task<List<SearchResult>> FindPlayersByName(string name)
     {
-        var records = await _playerDb.QueryAsync<PlayerRecord>("SELECT * FROM Users WHERE username = ? COLLATE NOCASE", name);
+        var exact = await _playerDb.QueryAsync<PlayerRecord>("SELECT * FROM Users WHERE username = ? COLLATE NOCASE", name);
+        // Include decorated candidates only when there is no exact match. ClanHub rejects ambiguity.
+        var pattern = "%" + name.Replace("\\", "\\\\").Replace("%", "\\%").Replace("_", "\\_") + "%";
+        var records = exact.Count > 0 ? exact : await _playerDb.QueryAsync<PlayerRecord>("SELECT * FROM Users WHERE username LIKE ? ESCAPE '\\' COLLATE NOCASE LIMIT 101", pattern);
         return records.Select(rec => new SearchResult
         {
             PlayerId = rec.PlayerId,

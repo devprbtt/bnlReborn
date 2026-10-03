@@ -17,6 +17,11 @@ var store = new ClanStore(db, offensive, () => now);
 await store.Load();
 
 // ---- Rules ----
+Check(ClanRules.ResolvePlayer("Tomfranc", new[] { (56u, "🛡Tomfranc🛡") }) == 56, "decorated player name resolves without symbols");
+Check(ClanRules.ResolvePlayer("tomfranc", new[] { (56u, "🛡Tomfranc🛡"), (57u, "Tomfranc") }) == 57, "exact name takes priority over decorated name");
+Check(ClanRules.ResolvePlayer("Tomfranc", new[] { (56u, "🛡Tomfranc🛡"), (57u, "★Tomfranc★") }) == null, "ambiguous decorated names never select a player");
+Check(ClanRules.ResolvePlayer("Tomfranc", new[] { (56u, "Tomfranc2") }) == null, "partial nickname is not an invite target");
+Check(ClanRules.ResolvePlayer("🛡Tomfranc🛡", new[] { (56u, "🛡Tomfranc🛡") }) == 56, "full decorated nickname remains valid");
 Check(ClanRules.ValidateName("Yeti Squad", offensive) == ClanResult.Ok, "a normal clan name is accepted");
 Check(ClanRules.ValidateName("ab", offensive) == ClanResult.InvalidName, "names shorter than 3 are rejected");
 Check(ClanRules.ValidateName(new string('a', 25), offensive) == ClanResult.InvalidName, "names longer than 24 are rejected");
@@ -50,6 +55,8 @@ Check(await store.Invite(2, 3) == ClanResult.NotInClan, "players outside a clan 
 Check(await store.Invite(1, 2) == ClanResult.Ok && store.InvitesFor(2).Length == 1, "the leader invites a player");
 Check(await store.Invite(1, 2) == ClanResult.AlreadyInvited, "a second invite to the same player is refused");
 var (_, other) = await store.Create(9, "Other Clan", "OTHR");
+Check(store.Browse("").Length == 2 && store.Browse("othr").Single().Id == other, "clan directory lists all clans and searches tags ignoring case");
+Check(store.Browse("squad").Single().Id == yeti && store.Browse("missing").Length == 0, "clan directory searches names and returns empty for no match");
 Check(await store.Invite(9, 2) == ClanResult.Ok && store.InvitesFor(2).Length == 2, "a player can hold invites from several clans");
 Check(await store.Accept(2, yeti) == ClanResult.Ok && store.InvitesFor(2).Length == 0, "joining a clan clears the player's other invites");
 Check(await store.Accept(2, other) == ClanResult.NoSuchInvite, "the voided invite can no longer be accepted");

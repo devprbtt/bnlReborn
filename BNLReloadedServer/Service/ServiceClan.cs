@@ -1,4 +1,5 @@
 using BNLReloadedServer.Clans;
+using BNLReloadedServer.Database;
 using BNLReloadedServer.Logging;
 using BNLReloadedServer.Servers;
 
@@ -24,7 +25,7 @@ public class ServiceClan(ISender sender) : IServiceClan
     private enum ClientMessage : byte
     {
         Hello = 0, Create = 1, Invite = 2, Accept = 3, Decline = 4, Leave = 5,
-        Kick = 6, SetRank = 7, Transfer = 8, Rename = 9, Disband = 10, SetTagColor = 11
+        Kick = 6, SetRank = 7, Transfer = 8, Rename = 9, Disband = 10, SetTagColor = 11, Browse = 12, InvitePlayer = 13, PlayerTags = 14
     }
 
     private enum ServerMessage : byte { State = 0, Result = 1 }
@@ -63,10 +64,44 @@ public class ServiceClan(ISender sender) : IServiceClan
             return true;
         }
         var store = ClanHub.Store;
+        if (message == ClientMessage.PlayerTags)
+        {
+            int count = reader.ReadUInt16();
+            if (count > 64) { SendResult(requestId, ClanResult.NotAllowed); return true; }
+            using var writer = CreateWriter();
+            writer.Write((byte)3); writer.Write((ushort)count);
+            for (int i = 0; i < count; i++)
+            {
+                uint id = reader.ReadUInt32();
+                var tag = store.TagAndColorOf(id);
+                writer.Write(id); writer.Write(tag?.Tag ?? ""); writer.Write(tag?.Color ?? 0u);
+            }
+            sender.Send(writer);
+            SendResult(requestId, ClanResult.Ok);
+            return true;
+        }
+        if (message == ClientMessage.Browse)
+        {
+            string query = reader.ReadString();
+            if (query.Length > 64) { SendResult(requestId, ClanResult.InvalidName); return true; }
+            ClanHub.Browse(query).ContinueWith(t =>
+            {
+                if (t.IsFaulted) { Log.Error(LogCat.Player, "Clan browse failed", t.Exception!); SendResult(requestId, ClanResult.NotAllowed); return; }
+                using var writer = CreateWriter();
+                writer.Write((byte)2);
+                writer.Write(requestId);
+                writer.Write((ushort)t.Result.Length);
+                foreach (var state in t.Result) WriteState(writer, state);
+                sender.Send(writer);
+                SendResult(requestId, ClanResult.Ok);
+            });
+            return true;
+        }
         Task<ClanResult> work = message switch
         {
             ClientMessage.Create => Create(store, playerId, reader.ReadString(), reader.ReadString()),
             ClientMessage.Invite => Invite(store, playerId, reader.ReadString()),
+            ClientMessage.InvitePlayer => InvitePlayer(store, playerId, reader.ReadUInt32()),
             ClientMessage.Accept => store.Accept(playerId, reader.ReadInt32()),
             ClientMessage.Decline => store.Decline(playerId, reader.ReadInt32()),
             ClientMessage.Leave => store.Leave(playerId),
@@ -98,6 +133,13 @@ public class ServiceClan(ISender sender) : IServiceClan
 
     private static Task<ClanResult> SetRank(ClanStore store, uint playerId, uint target, byte rank) =>
         Enum.IsDefined(typeof(ClanRank), rank) ? store.SetRank(playerId, target, (ClanRank)rank) : Task.FromResult(ClanResult.NotAllowed);
+
+    private static async Task<ClanResult> InvitePlayer(ClanStore store, uint playerId, uint targetId)
+    {
+        if (targetId == playerId || (await Databases.MasterServerDatabase.GetSearchResults(new List<uint> { targetId })).Count != 1)
+            return ClanResult.NoSuchPlayer;
+        return await store.Invite(playerId, targetId);
+    }
 
     private bool Throttled()
     {

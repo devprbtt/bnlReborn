@@ -34,6 +34,20 @@ public enum ClanResult : byte
 // Every clan rule as a pure function, so the fixture can pin them without a database or network.
 public static partial class ClanRules
 {
+    // Strip only surrounding decorations; internal punctuation remains part of the identity.
+    public static string PlayerLookupKey(string name) => Regex.Replace(name.Trim(), @"^[^\p{L}\p{N}]+|[^\p{L}\p{N}]+$", "");
+
+    public static uint? ResolvePlayer(string name, IEnumerable<(uint Id, string Name)> candidates)
+    {
+        var all = candidates.ToArray();
+        var exact = all.Where(p => string.Equals(p.Name, name.Trim(), StringComparison.OrdinalIgnoreCase)).ToArray();
+        if (exact.Length > 0) return exact.Length == 1 ? exact[0].Id : null;
+        if (all.Length > 100) return null; // The database result may be truncated: never guess.
+        string key = PlayerLookupKey(name);
+        if (key.Length == 0) return null;
+        var matching = all.Where(p => string.Equals(PlayerLookupKey(p.Name), key, StringComparison.OrdinalIgnoreCase)).ToArray();
+        return matching.Length == 1 ? matching[0].Id : null;
+    }
     public const int MaxMembers = 20;
     public const int MinNameLength = 3, MaxNameLength = 24;
     public const int MinTagLength = 2, MaxTagLength = 10;

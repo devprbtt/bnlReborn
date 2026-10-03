@@ -63,6 +63,16 @@ public sealed class ClanStore
 
     public ClanView? Clan(int clanId) { lock (_clans) return View(clanId); }
 
+    public ClanView[] Browse(string query)
+    {
+        query = query.Trim();
+        lock (_clans)
+            return _clans.Values.Where(c => c.Name.Contains(query, StringComparison.OrdinalIgnoreCase) ||
+                    c.Tag.Contains(query, StringComparison.OrdinalIgnoreCase))
+                .OrderBy(c => c.Name, StringComparer.OrdinalIgnoreCase).ThenBy(c => c.Id).Take(50)
+                .Select(c => View(c.Id)!).ToArray();
+    }
+
     public ClanView? ClanByTag(string tag)
     {
         var key = ClanRules.Key(tag);
