@@ -10,7 +10,7 @@ void Check(bool condition, string name)
 }
 
 PlayerQueueData Player(uint id) => new(id, Guid.NewGuid(), new Rating(25, 25d / 3d),
-    DateTimeOffset.UtcNow, null);
+    DateTimeOffset.UtcNow, null, new Key("fixture_backfill_reentry"));
 
 var initialTeam1 = Player(1);
 var initialTeam2 = Player(2);

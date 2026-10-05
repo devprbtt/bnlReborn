@@ -124,9 +124,13 @@ public partial class GameInstance : IGameInstance
         var isNewConnection = false;
         if (_connectedUsers.TryGetValue(userId, out var connectedUser))
         {
-            connectedUser.Guid = guid;
-            connectedUser.RegionGuid = regionGuid;
-            connectedUser.LoadStage = ZoneLoadStage.None;
+            // Keep queued work bound to its original connection, never a mutable GUID.
+            RemoveFromChat(connectedUser);
+            _lobbySender.Unsubscribe(connectedUser.Guid);
+            _zoneSender.Unsubscribe(connectedUser.Guid);
+            if (connectedUser.Guid != guid) _services.TryRemove(connectedUser.Guid, out _);
+            _connectedUsers[userId] = new MatchConnectionInfo(guid, regionGuid, playerTeam, squadId);
+            if (connectedUser.Guid != guid) Server.FindSession(connectedUser.Guid)?.Disconnect();
         }
         else
         {
@@ -176,6 +180,7 @@ public partial class GameInstance : IGameInstance
         // broadcast from reaching the client before its own snapshot.
         Lobby.EnqueueAction(() =>
         {
+            if (!IsCurrentConnection(userId, value)) return;
             if (addPlayer)
             {
                 var announcedByClients = Lobby?.GetPlayerLobbyState(userId)?.Status == LobbyStatus.Offline;
@@ -216,15 +221,18 @@ public partial class GameInstance : IGameInstance
         }
     }
 
-    public void PlayerDisconnected(uint userId)
+    public void PlayerDisconnected(uint userId) => PlayerDisconnected(userId, null);
+
+    private void PlayerDisconnected(uint userId, Guid? expectedSession)
     {
-        if (!_connectedUsers.TryGetValue(userId, out var player)) return;
+        if (!_connectedUsers.TryGetValue(userId, out var player) ||
+            expectedSession.HasValue && player.Guid != expectedSession.Value) return;
         RemoveFromChat(player);
         Lobby?.EnqueueAction(() => _lobbySender.Unsubscribe(player.Guid));
         Zone?.EnqueueAction(() =>
         {
             _zoneSender.Unsubscribe(player.Guid);
-            Zone?.PlayerDisconnected(userId);
+            if (IsCurrentConnection(userId, player)) Zone?.PlayerDisconnected(userId);
         });
 
         var changingHero = ConsumeHeroChangeDisconnect(userId, player.Guid);
@@ -397,7 +405,7 @@ public partial class GameInstance : IGameInstance
     {
         foreach (var (playerId, _) in _connectedUsers.Where(p => p.Value.Guid == sessionId))
         {
-            PlayerDisconnected(playerId);
+            PlayerDisconnected(playerId, sessionId);
         }
 
         _services.TryRemove(sessionId, out _);
@@ -643,6 +651,9 @@ public partial class GameInstance : IGameInstance
         return true;
     }
 
+    private bool IsCurrentConnection(uint playerId, MatchConnectionInfo connection) =>
+        _connectedUsers.TryGetValue(playerId, out var current) && ReferenceEquals(current, connection);
+
     private void UploadZoneData(uint playerId, MatchConnectionInfo player)
     {
         var playerGuid = player.Guid;
@@ -653,16 +664,17 @@ public partial class GameInstance : IGameInstance
             case ZoneLoadStage.InitZone:
                 if (Zone is null)
                 {
-                    _preZoneActions.Add(() => Zone?.SendInitializeZone(zoneService));
+                    _preZoneActions.Add(() => { if (IsCurrentConnection(playerId, player)) Zone?.SendInitializeZone(zoneService); });
                 }
                 else
                 {
-                    Zone.EnqueueAction(() => Zone.SendInitializeZone(zoneService));
+                    Zone.EnqueueAction(() => { if (IsCurrentConnection(playerId, player)) Zone.SendInitializeZone(zoneService); });
                 }
                 break;
             case ZoneLoadStage.LoadZone:
                 Zone?.EnqueueAction(() =>
                 {
+                    if (!IsCurrentConnection(playerId, player)) return;
                     var tempBufferedSender = new BufferSender();
                     var senderTask = Server.FindAsyncSenderTask(playerGuid);
                     if (senderTask == null)

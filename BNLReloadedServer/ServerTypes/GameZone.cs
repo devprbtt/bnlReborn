@@ -295,18 +295,7 @@ public partial class GameZone : Updater
             zoneService.SendUnitUpdate(unit.Key, unit.Value.GetUpdateData());
         }
 
-        foreach (var player in _playerUnits)
-        {
-            if (player.Value.PlayerId == playerId)
-            {
-                player.Value.ZoneService = savedService;
-            }
-            else if (!player.Value.IsDead)
-            {
-                zoneService.SendUnitCreate(player.Key, player.Value.GetInitData());
-                zoneService.SendUnitUpdate(player.Key, player.Value.GetUpdateData());
-            }
-        }
+        SendPlayerSnapshots(zoneService, savedService, playerId);
 
         if (_playerUnits.Values.Any(player => player.PlayerId == playerId) || _gameInitiator.IsPlayerSpectator(playerId)) return;
         var playerUnit = CreatePlayerUnit(playerId, zoneService);
@@ -321,6 +310,32 @@ public partial class GameZone : Updater
         {
             zoneService.SendUnitUpdate(playerUnit.Id, playerUnit.GetUpdateData());
         }
+    }
+
+    private void SendPlayerSnapshots(IServiceZone zoneService, IServiceZone savedService, uint playerId)
+    {
+        foreach (var player in _playerUnits)
+        {
+            if (player.Value.PlayerId == playerId)
+            {
+                player.Value.ZoneService = savedService;
+                // A replacement client has no local unit even when the old session's hero
+                // is still alive. Re-send ownership and state without spawning a duplicate.
+                if (!player.Value.IsDead)
+                {
+                    var init = player.Value.GetInitData();
+                    init.Controlled = true;
+                    zoneService.SendUnitCreate(player.Key, init);
+                    zoneService.SendUnitUpdate(player.Key, player.Value.GetUpdateData());
+                }
+            }
+            else if (!player.Value.IsDead)
+            {
+                zoneService.SendUnitCreate(player.Key, player.Value.GetInitData());
+                zoneService.SendUnitUpdate(player.Key, player.Value.GetUpdateData());
+            }
+        }
+
     }
 
     private Unit? CreatePlayerUnit(uint playerId, IServiceZone creatorService)
