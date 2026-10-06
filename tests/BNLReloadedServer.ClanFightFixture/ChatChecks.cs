@@ -20,6 +20,21 @@ static class ChatChecks
         store.Invite(1,2).GetAwaiter().GetResult(); store.Accept(2,clan.ClanId).GetAwaiter().GetResult();
         store.Create(3,"Chat Beta","CB").GetAwaiter().GetResult();
         typeof(ClanHub).GetField("_store",BindingFlags.Static|BindingFlags.NonPublic)!.SetValue(null,store);
+        using (var initial = JsonDocument.Parse(ClanRatings.Leaderboard()))
+        {
+            var row = initial.RootElement.GetProperty("rows").EnumerateArray().First(r=>r.GetProperty("id").GetInt32()==clan.ClanId);
+            check(row.GetProperty("totalMatches").GetInt32()==0 && row.GetProperty("winRate").GetDouble()==0,"unplayed leaderboard has zero matches and win rate");
+        }
+        int opponent=store.ClanOf(3)!.Id;
+        ClanRatings.Record("leaderboard-1",clan.ClanId,opponent,TeamType.Team1);
+        ClanRatings.Record("leaderboard-2",clan.ClanId,opponent,TeamType.Team1);
+        ClanRatings.Record("leaderboard-3",clan.ClanId,opponent,TeamType.Team2);
+        using (var results = JsonDocument.Parse(ClanRatings.Leaderboard()))
+        {
+            var row = results.RootElement.GetProperty("rows").EnumerateArray().First(r=>r.GetProperty("id").GetInt32()==clan.ClanId);
+            check(row.GetProperty("totalMatches").GetInt32()==3 && row.GetProperty("wins").GetInt32()==2 && row.GetProperty("losses").GetInt32()==1,"leaderboard reports matches wins and losses");
+            check(Math.Abs(row.GetProperty("winRate").GetDouble()-200.0/3)<.001,"leaderboard win rate uses wins divided by matches");
+        }
         var type=typeof(RegionServerDatabase);
         var region=(RegionServerDatabase)RuntimeHelpers.GetUninitializedObject(type);
         var infoType=type.GetNestedType("ConnectionInfo",BindingFlags.NonPublic)!;
