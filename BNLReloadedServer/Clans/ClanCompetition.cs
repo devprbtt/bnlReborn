@@ -87,6 +87,8 @@ public static class ClanCompetition
     }
     private static object RoomView(ClanFightRoom r) => new {
         id = r.Id, name = (ClanHub.Store.Clan(r.HomeClan)?.Name ?? "Clan") + " vs " + (ClanHub.Store.Clan(r.AwayClan)?.Name ?? "Waiting for opponent"),
+        homeName = ClanHub.Store.Clan(r.HomeClan)?.Name ?? "Clan", awayName = ClanHub.Store.Clan(r.AwayClan)?.Name ?? "Waiting for opponent",
+        homeColor = ClanHub.Store.Clan(r.HomeClan)?.TagColor ?? 0, awayColor = ClanHub.Store.Clan(r.AwayClan)?.TagColor ?? 0,
         phase = r.Phase, leader = r.Leader, captain = r.Captain, deadline = r.Deadline, canStart = r.CanStart,
         players = r.Players.Select(p => new { id = p.Id, name = Databases.PlayerDatabase.GetPlayerName(p.Id),
             team = (p.Clan == r.HomeClan) != r.Swapped ? 1 : 2, ready = p.Ready }),

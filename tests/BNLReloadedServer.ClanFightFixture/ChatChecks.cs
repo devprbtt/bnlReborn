@@ -26,6 +26,9 @@ static class ChatChecks
             var row = initial.RootElement.GetProperty("rows").EnumerateArray().First(r=>r.GetProperty("id").GetInt32()==clan.ClanId);
             check(row.GetProperty("totalMatches").GetInt32()==0 && row.GetProperty("winRate").GetDouble()==0,"unplayed leaderboard has zero matches and win rate");
         }
+        store.SetTagColor(1,0x100FF88).GetAwaiter().GetResult();
+        using(var colored=JsonDocument.Parse(ClanRatings.Leaderboard()))
+            check(colored.RootElement.GetProperty("rows").EnumerateArray().First(r=>r.GetProperty("id").GetInt32()==clan.ClanId).GetProperty("tagColor").GetUInt32()==0x100FF88,"leaderboard carries saved clan color");
         int opponent=store.ClanOf(3)!.Id;
         ClanRatings.Record("leaderboard-1",clan.ClanId,opponent,TeamType.Team1);
         ClanRatings.Record("leaderboard-2",clan.ClanId,opponent,TeamType.Team1);
