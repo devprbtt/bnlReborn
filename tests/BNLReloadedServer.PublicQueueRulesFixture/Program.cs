@@ -128,6 +128,14 @@ Check(fill1?.PlayerId == 30 && fill2 == null, "4-vs-5 Casual match backfills the
 var (old1, old2) = Backfill(4);
 Check(old1 == null && old2 == null, "sizing from the 4v4 card would have left that vacancy empty (ablation)");
 
+// ---- Squad caps: Casual is solo (max_players_in_squad 1), Ranked allows a full five.
+friendly.MaxPlayersInSquad = 1;
+ranked.MaxPlayersInSquad = 5;
+Check(CatalogueHelper.SquadFitsMode(1, friendly.Key) && !CatalogueHelper.SquadFitsMode(2, friendly.Key),
+    "a duo formed before the Casual cap dropped to 1 cannot queue Casual");
+Check(CatalogueHelper.SquadFitsMode(5, ranked.Key) && !CatalogueHelper.SquadFitsMode(6, ranked.Key),
+    "Ranked squads of up to five can queue");
+
 // ---- AFK: Casual kicks, Ranked only warns.
 Check(GameZone.ShouldKickForAfk(friendly.AntiAfk, 181), "Casual kicks an idle player after the punish time");
 Check(!GameZone.ShouldKickForAfk(friendly.AntiAfk, 179), "Casual does not kick before the punish time");

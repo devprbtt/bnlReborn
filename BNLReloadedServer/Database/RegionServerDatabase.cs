@@ -1330,6 +1330,13 @@ public class RegionServerDatabase(AsyncTaskTcpServer server, AsyncTaskTcpServer 
                 gameModeKey = squad.GameMode;
             }
 
+            // A squad formed before the mode's cap was lowered (Casual went from 2 to 1) must not queue as a group.
+            if (!CatalogueHelper.SquadFitsMode(squad.PlayerCount, gameModeKey))
+            {
+                Log.Info(LogCat.Match, $"Refused queue for squad {playerInfo.SquadId}: {squad.PlayerCount} players exceed the {gameModeKey.GetCard<CardGameMode>()?.Id} squad cap");
+                return;
+            }
+
             foreach (var pId in squad.GetPlayers())
             {
                 if (!UserConnected(pId, out var pInfo) || _playerDatabase.GetPlayerDataNoWait(pId) is not { } pData ||

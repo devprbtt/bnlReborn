@@ -39,6 +39,8 @@ public static class CatalogueHelper
         return globalMax > 0 ? globalMax : int.MaxValue;
     }
 
+    public static bool SquadFitsMode(int squadSize, Key gameModeKey) => squadSize <= MaxPlayersInSquad(gameModeKey);
+
     public static List<T> GetCards<T>(CardCategory category) where T : Card
     {
         return Databases.Catalogue.All.Where(x => x.Category == category).Select(x => (T)x).ToList();
