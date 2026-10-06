@@ -8,6 +8,7 @@ namespace BNLReloadedServer.Service;
 public interface IServiceClan : IService
 {
     bool SupportsClans { get; }
+    void SendExtension(byte message, string json) { }
     void SendState(ClanStateMessage state);
 }
 
@@ -31,7 +32,9 @@ public class ServiceClan(ISender sender) : IServiceClan
     private enum ServerMessage : byte { State = 0, Result = 1 }
 
     public bool SupportsClans { get; private set; }
+    public bool SupportsCompetition { get; private set; }
 
+    private long _lastPoll;
     private readonly Queue<DateTimeOffset> _recent = new();
 
     private static BinaryWriter CreateWriter()
@@ -49,6 +52,7 @@ public class ServiceClan(ISender sender) : IServiceClan
             var version = reader.ReadInt32();
             var first = !SupportsClans;
             SupportsClans = version >= 1 && ClanHub.Started;
+            SupportsCompetition = version >= 2 && SupportsClans;
             if (!SupportsClans || sender.AssociatedPlayerId is not { } id) return true;
             // The first Hello of a connection announces the player online to their clan; later ones (the client
             // re-sends Hello when the CLAN page opens) refresh only this player's view, so they cannot flood a clan.
@@ -58,10 +62,28 @@ public class ServiceClan(ISender sender) : IServiceClan
         }
         if (!SupportsClans || sender.AssociatedPlayerId is not { } playerId) return true;
         var requestId = reader.ReadUInt16();
+        if ((byte)message >= 15 && !SupportsCompetition) { SendResult(requestId, ClanResult.NotAllowed); return true; }
+        if ((byte)message == 15)
+        {
+            byte command = reader.ReadByte(); int roomId = reader.ReadInt32(); uint key = reader.ReadUInt32();
+            if (command == 0) { long now = Environment.TickCount64; if (now - _lastPoll < 500) { SendResult(requestId, ClanResult.Ok); return true; } _lastPoll = now; }
+            else if (Throttled()) { SendResult(requestId, ClanResult.NotAllowed); return true; }
+            SendExtension(4, ClanCompetition.Handle(playerId, command, roomId, key));
+            SendResult(requestId, ClanResult.Ok); return true;
+        }
         if (Throttled())
         {
             SendResult(requestId, ClanResult.NotAllowed);
             return true;
+        }
+        if ((byte)message == 16)
+        {
+            SendExtension(5, ClanRatings.Leaderboard()); SendResult(requestId, ClanResult.Ok); return true;
+        }
+        if ((byte)message == 17)
+        {
+            bool sent = Databases.RegionServerDatabase is RegionServerDatabase region && region.SendClanChat(playerId, reader.ReadString());
+            SendResult(requestId, sent ? ClanResult.Ok : ClanResult.NotAllowed); return true;
         }
         var store = ClanHub.Store;
         if (message == ClientMessage.PlayerTags)
@@ -160,6 +182,12 @@ public class ServiceClan(ISender sender) : IServiceClan
         writer.Write(requestId);
         writer.Write((byte)result);
         sender.Send(writer);
+    }
+
+    public void SendExtension(byte message, string json)
+    {
+        if (!SupportsCompetition) return;
+        using var writer = CreateWriter(); writer.Write(message); writer.Write(json); sender.Send(writer);
     }
 
     public void SendState(ClanStateMessage state)

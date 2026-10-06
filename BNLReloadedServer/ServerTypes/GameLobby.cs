@@ -11,6 +11,7 @@ namespace BNLReloadedServer.ServerTypes;
 public class GameLobby : Updater
 {
     private LobbyData LobbyData { get; }
+    public HashSet<Key> BannedHeroes { get; } = [];
 
     private (LobbyTimerType timerType, Timer timer)? _currentTimer;
 
@@ -226,12 +227,12 @@ public class GameLobby : Updater
     private List<Key> RestrictedHeroesFor(PlayerLobbyState player)
     {
         var limit = LobbyData.GameMode?.HeroLimit;
-        if (limit?.Limit is not { } max) return [];
+        if (limit?.Limit is not { } max) return BannedHeroes.ToList();
         var teamPicks = LobbyData.Players.Values
             .Where(p => p.Team == player.Team && p.PlayerId != player.PlayerId && p.Hero != Key.None)
             .Select(p => p.Hero)
             .ToList();
-        return limit.LimitOption switch
+        var restricted = limit.LimitOption switch
         {
             LobbyHeroLimitOption.PerHero => teamPicks.GroupBy(hero => hero)
                 .Where(group => group.Count() >= max)
@@ -242,8 +243,9 @@ public class GameLobby : Updater
                 .SelectMany(group => CatalogueHelper.GetHeroes().Where(hero => HeroClass(hero) == group.Key))
                 .Distinct()
                 .ToList(),
-            _ => []
+            _ => new List<Key>()
         };
+        return restricted.Concat(BannedHeroes).Distinct().ToList();
     }
 
     /// <summary>
@@ -253,7 +255,7 @@ public class GameLobby : Updater
     private Key DraftDefaultHero(PlayerLobbyState player, List<Key> restricted)
     {
         var lastPlayed = _playerDatabase.GetLastPlayedHero(player.PlayerId);
-        if (!restricted.Contains(lastPlayed)) return lastPlayed;
+        if (!restricted.Contains(lastPlayed) && PlayerInventory.Owns(player.PlayerId, lastPlayed)) return lastPlayed;
 
         var classCounts = LobbyData.Players.Values
             .Where(p => p.Team == player.Team && p.PlayerId != player.PlayerId && p.Hero != Key.None)
@@ -267,7 +269,7 @@ public class GameLobby : Updater
             .FirstOrDefault()?
             .Shuffle()
             .First();
-        return fallback ?? lastPlayed;
+        return fallback ?? Key.None;
     }
 
     // Each draft round hands one unselected player per team their turn, preselecting a hero they are allowed.

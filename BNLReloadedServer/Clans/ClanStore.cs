@@ -73,6 +73,8 @@ public sealed class ClanStore
                 .Select(c => View(c.Id)!).ToArray();
     }
 
+    public ClanView[] AllClans() { lock (_clans) return _clans.Keys.Select(id => View(id)!).ToArray(); }
+
     public ClanView? ClanByTag(string tag)
     {
         var key = ClanRules.Key(tag);

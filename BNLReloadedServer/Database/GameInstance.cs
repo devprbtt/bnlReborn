@@ -39,7 +39,7 @@ public partial class GameInstance : IGameInstance
     private MapInfo? MapInfo { get; set; }
     private MapData? MapData { get; set; }
 
-    private GameLobby? Lobby { get; set; }
+    internal GameLobby? Lobby { get; set; }
 
     private GameZone? Zone { get; set; }
 
@@ -519,6 +519,15 @@ public partial class GameInstance : IGameInstance
 
     public void StartMatch(ICollection<PlayerLobbyState> playerList, bool restart = false)
     {
+        if (GameInitiator is BNLReloadedServer.Clans.ClanFightInitiator clanFight &&
+            (playerList.Count != clanFight.MaxPlayers || playerList.Any(p =>
+                !clanFight.HasParticipated(p.PlayerId) || p.Team != clanFight.GetTeamForPlayer(p.PlayerId) ||
+                p.Hero == Key.None || Lobby?.BannedHeroes.Contains(p.Hero) == true ||
+                !_serverDatabase.IsUserOnline(p.PlayerId))))
+        {
+            Log.Warn(LogCat.Match, $"Cancelled clan fight {GameInstanceId}: roster or draft is incomplete");
+            Lobby?.Stop(); RemoveAllPlayers(); _serverDatabase.RemoveGameInstance(GameInstanceId); return;
+        }
         if (MapData == null) return;
         _restartingZone = restart;
         GameInitiator.StartIntoMatch();

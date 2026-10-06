@@ -15,7 +15,7 @@ using NetCoreServer;
 
 namespace BNLReloadedServer.Database;
 
-public class RegionServerDatabase(AsyncTaskTcpServer server, AsyncTaskTcpServer matchServer) : IRegionServerDatabase
+public partial class RegionServerDatabase(AsyncTaskTcpServer server, AsyncTaskTcpServer matchServer) : IRegionServerDatabase
 {
     private const int ScheduledNotificationDelayMs = 300;
     private volatile bool _matchmakingEnabled = true;
@@ -593,34 +593,38 @@ public class RegionServerDatabase(AsyncTaskTcpServer server, AsyncTaskTcpServer 
 
     public ulong? AddCustomGame(string name, string password, uint playerId)
     {
-        if (!UserConnected(playerId, out var playerInfo)) return null;
-        var newCustom = CatalogueFactory.CreateCustomGame(name, password,
-            Databases.PlayerDatabase.GetPlayerProfile(playerId).Nickname ?? string.Empty);
-        var playerGuid = playerInfo.Guid;
-        var sender = new SessionSender(server);
-        sender.Subscribe(playerGuid);
-        var matchService = new ServiceMatchmaker(sender);
-        var customRoom = new RoomIdCustomGame
+        lock (BNLReloadedServer.Clans.ClanCompetition.Gate)
         {
-            CustomGameId = newCustom.Id
-        };
+            if (BNLReloadedServer.Clans.ClanCompetition.IsReserved(playerId)) return null;
+            if (!UserConnected(playerId, out var playerInfo)) return null;
+            var newCustom = CatalogueFactory.CreateCustomGame(name, password,
+                Databases.PlayerDatabase.GetPlayerProfile(playerId).Nickname ?? string.Empty);
+            var playerGuid = playerInfo.Guid;
+            var sender = new SessionSender(server);
+            sender.Subscribe(playerGuid);
+            var matchService = new ServiceMatchmaker(sender);
+            var customRoom = new RoomIdCustomGame
+            {
+                CustomGameId = newCustom.Id
+            };
 
-        var playerGroup = new CustomGamePlayerGroup(matchService)
-        {
-            Password = password,
-            GameInfo = newCustom,
-            ChatRoom = new ChatRoom(customRoom, new SessionSender(server))
-        };
-        playerInfo.CustomGameId = newCustom.Id;
-        playerGroup.AddPlayer(playerId, true, _playerDatabase.GetPlayerProfile(playerId));
-        if (GetService<IServiceChat>(playerGuid, ServiceId.ServiceChat, out var chatService))
-        {
-            playerGroup.ChatRoom.AddToRoom(playerGuid, chatService);
+            var playerGroup = new CustomGamePlayerGroup(matchService)
+            {
+                Password = password,
+                GameInfo = newCustom,
+                ChatRoom = new ChatRoom(customRoom, new SessionSender(server))
+            };
+            playerInfo.CustomGameId = newCustom.Id;
+            playerGroup.AddPlayer(playerId, true, _playerDatabase.GetPlayerProfile(playerId));
+            if (GetService<IServiceChat>(playerGuid, ServiceId.ServiceChat, out var chatService))
+            {
+                playerGroup.ChatRoom.AddToRoom(playerGuid, chatService);
+            }
+
+            AddCustomGameEntry(newCustom.Id, (playerGroup, sender));
+            LiveStateChanged();
+            return newCustom.Id;
         }
-
-        AddCustomGameEntry(newCustom.Id, (playerGroup, sender));
-        LiveStateChanged();
-        return newCustom.Id;
     }
 
     public bool RemoveCustomGame(ulong gameId)
@@ -636,30 +640,34 @@ public class RegionServerDatabase(AsyncTaskTcpServer server, AsyncTaskTcpServer 
 
     public CustomGameJoinResult AddToCustomGame(uint playerId, ulong gameId, string password)
     {
-        // The client can invoke Join by double-clicking a disabled browser row. Matchmaking
-        // browser entries are deliberately spectate-only, so reject that path explicitly.
-        if (_spectatableMatchIds.ContainsKey(gameId)) return CustomGameJoinResult.GameStarted;
-        if (!UserConnected(playerId, out var playerInfo) || !TryGetCustomGame(gameId, out var customGame)) return CustomGameJoinResult.NoSuchGame;
-        var playerGuid = playerInfo.Guid;
-        if (password != customGame.custom.Password && !playerInfo.IsAdmin) return CustomGameJoinResult.WrongPassword;
-        if (!customGame.custom.GameInfo.AllowBackfilling && !playerInfo.IsAdmin &&
-            customGame.custom.GameInfo.Status != CustomGameStatus.Preparing) return CustomGameJoinResult.GameStarted;
-        // Subscribed first so the roster broadcast from AddPlayer reaches the joiner too.
-        customGame.customSender.Subscribe(playerGuid);
-        var joinResult = customGame.custom.AddPlayer(playerId, false, _playerDatabase.GetPlayerProfile(playerId));
-        if (joinResult != CustomGameJoinResult.Accepted)
+        lock (BNLReloadedServer.Clans.ClanCompetition.Gate)
         {
-            customGame.customSender.Unsubscribe(playerGuid);
-            return joinResult;
-        }
+            if (BNLReloadedServer.Clans.ClanCompetition.IsReserved(playerId)) return CustomGameJoinResult.GameStarted;
+            // The client can invoke Join by double-clicking a disabled browser row. Matchmaking
+            // browser entries are deliberately spectate-only, so reject that path explicitly.
+            if (_spectatableMatchIds.ContainsKey(gameId)) return CustomGameJoinResult.GameStarted;
+            if (!UserConnected(playerId, out var playerInfo) || !TryGetCustomGame(gameId, out var customGame)) return CustomGameJoinResult.NoSuchGame;
+            var playerGuid = playerInfo.Guid;
+            if (password != customGame.custom.Password && !playerInfo.IsAdmin) return CustomGameJoinResult.WrongPassword;
+            if (!customGame.custom.GameInfo.AllowBackfilling && !playerInfo.IsAdmin &&
+                customGame.custom.GameInfo.Status != CustomGameStatus.Preparing) return CustomGameJoinResult.GameStarted;
+            // Subscribed first so the roster broadcast from AddPlayer reaches the joiner too.
+            customGame.customSender.Subscribe(playerGuid);
+            var joinResult = customGame.custom.AddPlayer(playerId, false, _playerDatabase.GetPlayerProfile(playerId));
+            if (joinResult != CustomGameJoinResult.Accepted)
+            {
+                customGame.customSender.Unsubscribe(playerGuid);
+                return joinResult;
+            }
 
-        playerInfo.CustomGameId = gameId;
-        if (GetService<IServiceChat>(playerGuid, ServiceId.ServiceChat, out var chatService))
-        {
-            customGame.custom.ChatRoom.AddToRoom(playerGuid, chatService);
+            playerInfo.CustomGameId = gameId;
+            if (GetService<IServiceChat>(playerGuid, ServiceId.ServiceChat, out var chatService))
+            {
+                customGame.custom.ChatRoom.AddToRoom(playerGuid, chatService);
+            }
+            LiveStateChanged();
+            return CustomGameJoinResult.Accepted;
         }
-        LiveStateChanged();
-        return CustomGameJoinResult.Accepted;
     }
 
     public bool BackfillCustomGame(uint playerId)
@@ -1314,42 +1322,47 @@ public class RegionServerDatabase(AsyncTaskTcpServer server, AsyncTaskTcpServer 
 
     public void JoinQueue(uint playerId, Key gameModeKey, IServiceMatchmaker serviceMatchmaker)
     {
-        if (!MatchmakingEnabled) return;
-
-        if (!UserConnected(playerId, out var playerInfo) || _playerDatabase.GetPlayerDataNoWait(playerId) is not { } playerData ||
-            _playerDatabase.IsBanned(playerId)) return;
-
-        if (playerInfo.SquadId is not null && _squads.TryGetValue(playerInfo.SquadId.Value, out var squad))
+        lock (BNLReloadedServer.Clans.ClanCompetition.Gate)
         {
-            if (!squad.IsOwner(playerId) && !(CatalogueHelper.GlobalLogic.Squad?.MembersCanEnterQueue ?? false)) return;
+            if (BNLReloadedServer.Clans.ClanCompetition.IsReserved(playerId)) return;
+            if (!MatchmakingEnabled) return;
 
-            // The squad's own mode, not the caller's: a member whose client is out of date must not
-            // drag everyone into a different queue.
-            if (squad.GameMode.GetCard<CardGameMode>() != null)
+            if (!UserConnected(playerId, out var playerInfo) || _playerDatabase.GetPlayerDataNoWait(playerId) is not { } playerData ||
+                _playerDatabase.IsBanned(playerId)) return;
+
+            if (playerInfo.SquadId is not null && _squads.TryGetValue(playerInfo.SquadId.Value, out var squad))
             {
-                gameModeKey = squad.GameMode;
-            }
+                if (!squad.IsOwner(playerId) && !(CatalogueHelper.GlobalLogic.Squad?.MembersCanEnterQueue ?? false)) return;
 
-            // A squad formed before the mode's cap was lowered (Casual went from 2 to 1) must not queue as a group.
-            if (!CatalogueHelper.SquadFitsMode(squad.PlayerCount, gameModeKey))
+                // The squad's own mode, not the caller's: a member whose client is out of date must not
+                // drag everyone into a different queue.
+                if (squad.GameMode.GetCard<CardGameMode>() != null)
+                {
+                    gameModeKey = squad.GameMode;
+                }
+
+                // A squad formed before the mode's cap was lowered (Casual went from 2 to 1) must not queue as a group.
+                if (!CatalogueHelper.SquadFitsMode(squad.PlayerCount, gameModeKey))
+                {
+                    Log.Info(LogCat.Match, $"Refused queue for squad {playerInfo.SquadId}: {squad.PlayerCount} players exceed the {gameModeKey.GetCard<CardGameMode>()?.Id} squad cap");
+                    return;
+                }
+
+                if (squad.GetPlayers().Any(BNLReloadedServer.Clans.ClanCompetition.IsReserved)) return;
+                foreach (var pId in squad.GetPlayers())
+                {
+                    if (!UserConnected(pId, out var pInfo) || _playerDatabase.GetPlayerDataNoWait(pId) is not { } pData ||
+                        _playerDatabase.IsBanned(pId) ||
+                        !GetService<IServiceMatchmaker>(pInfo.Guid, ServiceId.ServiceMatchmaker, out var matchmaker))
+                        continue;
+
+                    _matchmaker.AddPlayer(gameModeKey, pId, pInfo.Guid, pData.Rating, pInfo.SquadId, matchmaker);
+                }
+            }
+            else
             {
-                Log.Info(LogCat.Match, $"Refused queue for squad {playerInfo.SquadId}: {squad.PlayerCount} players exceed the {gameModeKey.GetCard<CardGameMode>()?.Id} squad cap");
-                return;
+                _matchmaker.AddPlayer(gameModeKey, playerId, playerInfo.Guid, playerData.Rating, playerInfo.SquadId, serviceMatchmaker);
             }
-
-            foreach (var pId in squad.GetPlayers())
-            {
-                if (!UserConnected(pId, out var pInfo) || _playerDatabase.GetPlayerDataNoWait(pId) is not { } pData ||
-                    _playerDatabase.IsBanned(pId) ||
-                    !GetService<IServiceMatchmaker>(pInfo.Guid, ServiceId.ServiceMatchmaker, out var matchmaker))
-                    continue;
-
-                _matchmaker.AddPlayer(gameModeKey, pId, pInfo.Guid, pData.Rating, pInfo.SquadId, matchmaker);
-            }
-        }
-        else
-        {
-            _matchmaker.AddPlayer(gameModeKey, playerId, playerInfo.Guid, playerData.Rating, playerInfo.SquadId, serviceMatchmaker);
         }
     }
 

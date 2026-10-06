@@ -158,7 +158,7 @@ public class MatchmakerInitiator(CardGameMode gameMode, List<PlayerQueueData> te
 
     public bool IsSuperSupplies() => false;
 
-    public bool NeedsBackfill() => (_team1.Count < PlayersPerTeam || _team2.Count < PlayersPerTeam) &&
+    public virtual bool NeedsBackfill() => (_team1.Count < PlayersPerTeam || _team2.Count < PlayersPerTeam) &&
                                    _backfillReady && (_firstSlotFreed is null ||
                                                       (DateTimeOffset.Now - _firstSlotFreed.Value).TotalSeconds >=
                                                       SlotSettleSeconds);

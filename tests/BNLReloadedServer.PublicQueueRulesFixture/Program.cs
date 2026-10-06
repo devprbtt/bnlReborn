@@ -149,6 +149,7 @@ var lobby = (GameLobby)RuntimeHelpers.GetUninitializedObject(typeof(GameLobby));
 var data = new LobbyData { IsDataExist = true, GameModeKey = ranked.Key };
 data.Timer = new LobbyTimer { TimerType = LobbyTimerType.Selection };
 Field(lobby, "<LobbyData>k__BackingField", data);
+Field(lobby, "<BannedHeroes>k__BackingField", new HashSet<Key>());
 Field(lobby, "_playerDatabase", FixturePlayers.Create(lastPlayed));
 Field(lobby, "_serviceLobby", RecordingLobby.Create(sent));
 PlayerLobbyState Seat(uint id, TeamType team, CardUnit? hero, bool ready)
@@ -198,6 +199,20 @@ ranked.HeroLimit = new LobbyHeroLimit { LimitOption = LobbyHeroLimitOption.PerHe
 var restrictedFor = typeof(GameLobby).GetMethod("RestrictedHeroesFor", Any)!;
 var perHero = (List<Key>)restrictedFor.Invoke(lobby, [waiting])!;
 Check(perHero.ToHashSet().SetEquals([a1.Key, a2.Key, d1.Key, d2.Key]), "per-hero limit restricts exactly the team's picks");
+
+ranked.HeroLimit = new LobbyHeroLimit { LimitOption = LobbyHeroLimitOption.PerClass, Limit = 2 };
+lobby.BannedHeroes.Add(a1.Key);
+lobby.BannedHeroes.Add(s1.Key);
+var enemyRestrictions = (List<Key>)restrictedFor.Invoke(lobby, [enemy])!;
+Check(enemyRestrictions.Contains(a1.Key) && enemyRestrictions.Contains(s1.Key), "clan hero bans apply to both teams");
+enemy.Hero = Key.None; enemy.Ready = false;
+startTurns.Invoke(lobby, [new List<PlayerLobbyState> { enemy }]);
+Check(enemy.Hero != a1.Key && enemy.Hero != s1.Key, "draft default cannot select a banned hero");
+var allowedHero = enemy.Hero;
+lobby.SwapHero(enemy.PlayerId, a1.Key);
+Check(enemy.Hero == allowedHero, "manual draft pick cannot bypass a clan ban");
+var combined = (List<Key>)restrictedFor.Invoke(lobby, [waiting])!;
+Check(combined.Contains(a3.Key) && combined.Contains(s1.Key), "clan bans and ranked class limits combine");
 
 Console.WriteLine($"Public queue rules fixture passed: {checks} checks.");
 
