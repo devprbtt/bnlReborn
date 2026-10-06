@@ -1,0 +1,23 @@
+{
+  "inputs": [
+    {
+      "source": "J:\\github\\bnlReloaded-devprbtt\\BNLReloadedServer\\Maps\\map_sr2_paradise\\card.json",
+      "staged": "extracted\\work\\paradise-weather-inputs\\card.json",
+      "sha256": "77e5d67c338bb54c0ba83bca5558ff2e323bfa851637b115b19de981cba4f521"
+    },
+    {
+      "source": "J:\\github\\bnlReloaded-devprbtt\\BNLReloadedServer\\Maps\\map_sr2_paradise\\data.json",
+      "staged": "extracted\\work\\paradise-weather-inputs\\data.json",
+      "sha256": "183fb18b758eaa538cdeee5171fd73f3d4fbfe6767fb168c59aff0ff7fde7d96"
+    }
+  ],
+  "output": "compatibility\\test-maps\\paradise-weather\\map_sr2_paradise_weather_test.bnlbin",
+  "sha256": "3870beaeb0aa53f7169e5614e2cf2601bf5c2f19c8710e63937e0715a41a5461",
+  "geometry_unchanged": true,
+  "schema": 4,
+  "size": {
+    "x": 256,
+    "y": 48,
+    "z": 96
+  }
+}

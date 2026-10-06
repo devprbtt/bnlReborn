@@ -692,6 +692,7 @@ public partial class GameZone : Updater
         new()
         {
             ConquestStateJson = ConquestSnapshot(),
+            WeatherStartTime = ParadiseWeatherRegistration.StartTime(_zoneData.MapKey, _attackStartTime),
             BlockOwnersJson = BlockOwnerSnapshot(),
             Phase = _zoneData.Phase,
             PlayerInfo = _zoneData.PlayerInfo,
@@ -827,6 +828,7 @@ public partial class GameZone : Updater
 
         var phaseUpdate = new ZoneUpdate
         {
+            WeatherStartTime = ParadiseWeatherRegistration.StartTime(_zoneData.MapKey, _attackStartTime),
             Phase = new ZonePhase
             {
                 PhaseType = nextPhase,
@@ -986,6 +988,7 @@ public partial class GameZone : Updater
                 },
                 PlayerSpawnPoints = _zoneData.PlayerSpawnPoints,
                 ConquestStateJson = ConquestSnapshot(),
+                WeatherStartTime = ParadiseWeatherRegistration.StartTime(_zoneData.MapKey, _attackStartTime),
                 BlockOwnersJson = BlockOwnerSnapshot(),
                 Phase = _zoneData.Phase,
                 PlayerInfo = _zoneData.PlayerInfo,
@@ -1042,6 +1045,7 @@ public partial class GameZone : Updater
         zoneService.SendUpdateZone(new ZoneUpdate
         {
             ConquestStateJson = ConquestSnapshot(),
+            WeatherStartTime = ParadiseWeatherRegistration.StartTime(_zoneData.MapKey, _attackStartTime),
             BlockOwnersJson = BlockOwnerSnapshot(),
             Phase = _zoneData.Phase,
             SpawnPoints = _zoneData.SpawnPoints.Values.ToList()
