@@ -522,6 +522,8 @@ public partial class GameInstance : IGameInstance
         if (GameInitiator is BNLReloadedServer.Clans.ClanFightInitiator clanFight &&
             (playerList.Count != clanFight.MaxPlayers || playerList.Any(p =>
                 !clanFight.HasParticipated(p.PlayerId) || p.Team != clanFight.GetTeamForPlayer(p.PlayerId) ||
+                BNLReloadedServer.Clans.ClanHub.Store.ClanOf(p.PlayerId)?.Id !=
+                    (p.Team == TeamType.Team1 ? clanFight.Team1Clan : clanFight.Team2Clan) ||
                 p.Hero == Key.None || Lobby?.BannedHeroes.Contains(p.Hero) == true ||
                 !_serverDatabase.IsUserOnline(p.PlayerId))))
         {

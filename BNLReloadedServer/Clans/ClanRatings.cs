@@ -16,6 +16,7 @@ public static class ClanRatings
         {
             if (database != null) return database;
             database = new SQLiteConnection(Databases.PlayerDatabaseFile);
+            database.BusyTimeout = TimeSpan.FromSeconds(5);
             database.CreateTable<ClanRatingRecord>(); database.CreateTable<ClanRatedMatch>(); return database;
         }
     }
