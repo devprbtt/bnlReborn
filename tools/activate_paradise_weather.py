@@ -21,6 +21,7 @@ def optional(name):
 before=request('map_list'); existing={k:optional(k) for k in ids}
 source=json.loads((Path(__file__).resolve().parent/'original-card.json').read_text(encoding='utf-8-sig'))
 source.pop('_rev',None);source.pop('hercules_metadata',None)
+source['image']=source['large_image']='https://blocknload.cc/images/maps/paradise-v1.jpg'
 variant=copy.deepcopy(source);variant['_id']=dynamic
 variant['name']={'text':'Paradise - Dynamic Weather','data':{}}
 variant['description']={'text':'Day to night in 20 minutes; daylight returns at 25 minutes.','data':{}}

@@ -21,8 +21,8 @@ public static class ParadiseWeatherRegistration
                 Id = OriginalId, Key = new Key(OriginalId), Scope = ScopeType.Public,
                 Name = new LocalizedString { Text = "Paradise", Data = [] },
                 Description = new LocalizedString { Text = "Swim, jump, dig, and build your way to victory. Two Cubes and a Base.", Data = [] },
-                Image = "https://i.gyazo.com/5b50a11de845b9faad464a8593eace49.jpg",
-                LargeImage = "https://i.gyazo.com/5b50a11de845b9faad464a8593eace49.jpg"
+                Image = "https://blocknload.cc/images/maps/paradise-v1.jpg",
+                LargeImage = "https://blocknload.cc/images/maps/paradise-v1.jpg"
             };
             cards.Add(original);
         }
@@ -31,8 +31,8 @@ public static class ParadiseWeatherRegistration
                 Id = MapId, Key = key, Scope = original?.Scope ?? ScopeType.Public,
                 Name = new LocalizedString { Text = "Paradise - Dynamic Weather", Data = [] },
                 Description = new LocalizedString { Text = "Day to night in 20 minutes; daylight returns at 25 minutes.", Data = [] },
-                Image = original?.Image ?? "https://i.gyazo.com/5b50a11de845b9faad464a8593eace49.jpg",
-                LargeImage = original?.LargeImage ?? "https://i.gyazo.com/5b50a11de845b9faad464a8593eace49.jpg"
+                Image = original?.Image ?? "https://blocknload.cc/images/maps/paradise-v1.jpg",
+                LargeImage = original?.LargeImage ?? "https://blocknload.cc/images/maps/paradise-v1.jpg"
             });
         foreach (var list in cards.OfType<CardMapList>())
         {
