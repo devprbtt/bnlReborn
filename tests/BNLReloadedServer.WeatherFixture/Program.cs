@@ -15,7 +15,7 @@ var list=new CardMapList{Id="map_list",Custom=[original.Key],Friendly=[original.
 List<Card> cards=[original,list];
 ParadiseWeatherRegistration.Register(cards);ParadiseWeatherRegistration.Register(cards);
 Check(cards.OfType<CardMap>().Count()==2 && list.Custom.Count==2,"separate id and idempotent custom registration");
-Check(list.Friendly.SequenceEqual([original.Key]) && list.Ranked.SequenceEqual([original.Key]) && original.Name.Text=="Paradise","ordinary map and matchmaking pools untouched");
+Check(list.Friendly.SequenceEqual([original.Key,key]) && list.Ranked.SequenceEqual([original.Key]) && original.Name.Text=="Paradise","original Paradise retained, dynamic variant added to casual, Ranked unchanged");
 var start=DateTimeOffset.FromUnixTimeMilliseconds(1800000000000);
 Check(ParadiseWeatherRegistration.StartTime(original.Key,start)==null,"no weather timestamp on ordinary map");
 Check(ParadiseWeatherRegistration.StartTime(key,null)==null,"daytime before combat");
@@ -41,3 +41,8 @@ foreach(var phase in new[]{ZonePhaseType.Assault,ZonePhaseType.Build2,ZonePhaseT
     Check(read.WeatherStartTime==1800000000000 && read.Phase?.PhaseType==phase,"epoch independent of phase "+phase);
 }
 Console.WriteLine($"PASS {checks} checks");
+
+var emptyPool = new CardMapList { Id="map_list", Custom=[], Friendly=[], Ranked=[] };
+List<Card> emptyCards=[emptyPool];
+ParadiseWeatherRegistration.Register(emptyCards); ParadiseWeatherRegistration.Register(emptyCards);
+Check(emptyCards.OfType<CardMap>().Count()==2 && emptyPool.Friendly.Count==2 && emptyPool.Custom.Count==2 && emptyPool.Ranked.Count==0,"register both maps once when original is absent");
