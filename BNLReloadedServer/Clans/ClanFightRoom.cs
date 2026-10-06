@@ -29,6 +29,14 @@ public sealed class ClanFightRoom
         return true;
     }
 
+    public bool TryLeave(uint player)
+    {
+        if (Phase != "room") return false;
+        Leave(player);
+        return true;
+    }
+
+    // Forced removal (disconnect or invalid membership), separate from a voluntary leave.
     public void Leave(uint player)
     {
         Players.RemoveAll(p => p.Id == player);

@@ -33,7 +33,7 @@ public static class ClanCompetition
                         error = "This room is full or reserved for its two clans.";
                     break;
                 case 3:
-                    if (room != null && room.Phase != "draft") room.Leave(player);
+                    if (room != null && !room.TryLeave(player)) error = "Teams are locked once bans begin.";
                     break;
                 case 4:
                     if (room?.Phase == "room") { var member = room.Players.Single(p => p.Id == player); member.Ready = !member.Ready; }

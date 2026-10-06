@@ -36,6 +36,14 @@ foreach (int size in new[] {4,5})
     Check(r.Tick(20004), "hero timeout"); Check(r.Phase == "draft" && r.BannedHeroes.Count == 2, "two bans enter draft");
     Check(!r.Tick(90000), "draft has no ban timer");
 }
+foreach (var phase in new[]{"maps","heroes","draft"})
+{
+    var locked=Room(); locked.Phase=phase; locked.Deadline=12345; locked.BannedMaps.Add(101);
+    foreach (uint player in new uint[]{1,2,11,12})
+        Check(!locked.TryLeave(player),phase+" rejects voluntary departure for captains and members");
+    Check(locked.Players.Count==8 && locked.Leader==1 && locked.OpponentCaptain==11 && locked.Phase==phase && locked.Deadline==12345 && locked.BannedMaps.SequenceEqual(new uint[]{101}),phase+" leaves roster and ban progress intact");
+}
+var open=Room();Check(open.TryLeave(2) && open.Players.Count==7,"voluntary leave remains available before bans");
 var five = Room(5); Check(!five.Join(6,10), "team cap");
 five.Players.ForEach(p => p.Ready = true); five.Leave(15); Check(!five.CanStart,"5v4 cannot start");
 var four = Room(); four.Players.ForEach(p => p.Ready = true); Check(four.Join(5,10), "fifth member joins");
