@@ -57,6 +57,9 @@ public static class ClanCompetition
             return Snapshot(player, error);
         }
     }
+    public static string DraftSnapshot(string session,IEnumerable<uint> bannedHeroes) => JsonSerializer.Serialize(new {
+        error="",now=Now,roomId=0,rooms=Array.Empty<object>(),draftSession=session,draftBannedHeroes=bannedHeroes.Distinct().ToArray()
+    });
     private static long Now => DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
     private static bool Available(uint player) => Databases.RegionServerDatabase is RegionServerDatabase region && region.CanEnterClanFight(player);
     private static void Prune()

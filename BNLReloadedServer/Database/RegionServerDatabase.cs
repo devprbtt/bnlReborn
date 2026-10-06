@@ -427,6 +427,7 @@ public partial class RegionServerDatabase(AsyncTaskTcpServer server, AsyncTaskTc
         if (!UserConnected(userId, out var info)) return false;
         info.ActiveScene = scene;
         LiveStateChanged();
+        if (scene.Type == SceneType.Lobby) SendClanDraft(userId);
         sceneService.SendChangeScene(scene);
         NotifyFriends(userId).ObserveFailure(LogCat.Player,
             $"Failed to notify friends after scene update for player {userId}");

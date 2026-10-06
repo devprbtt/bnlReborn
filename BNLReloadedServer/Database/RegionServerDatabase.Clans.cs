@@ -42,6 +42,14 @@ public partial class RegionServerDatabase
         return true;
     }
 
+    public void SendClanDraft(uint id)
+    {
+        if (UserConnected(id, out var player) && player.ActiveScene?.Type == SceneType.Lobby &&
+            player.GameInstanceId is { } session && _matchmakerGames.TryGetValue(session, out var mode) && mode is ClanFightInitiator &&
+            _gameInstances.TryGetValue(session, out var game) && game is GameInstance instance && instance.Lobby is { } lobby)
+            GetClanService(id)?.SendExtension(4, ClanCompetition.DraftSnapshot(session, lobby.BannedHeroes.Select(k => k.Hash)));
+    }
+
     public bool SendClanChat(uint id, string message)
     {
         var clan = ClanHub.Store.ClanOf(id);

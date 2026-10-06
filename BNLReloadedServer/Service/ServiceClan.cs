@@ -58,6 +58,7 @@ public class ServiceClan(ISender sender) : IServiceClan
             // re-sends Hello when the CLAN page opens) refresh only this player's view, so they cannot flood a clan.
             if (first) ClanHub.PushClanOf(id);
             else ClanHub.Push(id);
+            if (SupportsCompetition && Databases.RegionServerDatabase is RegionServerDatabase draftRegion) draftRegion.SendClanDraft(id);
             return true;
         }
         if (!SupportsClans || sender.AssociatedPlayerId is not { } playerId) return true;

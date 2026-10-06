@@ -7,6 +7,7 @@ using BNLReloadedServer.BaseTypes;
 using BNLReloadedServer.Clans;
 using BNLReloadedServer.Database;
 using BNLReloadedServer.Servers;
+using BNLReloadedServer.ServerTypes;
 using BNLReloadedServer.Service;
 using SQLite;
 
@@ -34,6 +35,12 @@ static class ChatChecks
             var row = results.RootElement.GetProperty("rows").EnumerateArray().First(r=>r.GetProperty("id").GetInt32()==clan.ClanId);
             check(row.GetProperty("totalMatches").GetInt32()==3 && row.GetProperty("wins").GetInt32()==2 && row.GetProperty("losses").GetInt32()==1,"leaderboard reports matches wins and losses");
             check(Math.Abs(row.GetProperty("winRate").GetDouble()-200.0/3)<.001,"leaderboard win rate uses wins divided by matches");
+        }
+        using(var draft=JsonDocument.Parse(ClanCompetition.DraftSnapshot("clan-session",new uint[]{11,22,11})))
+        {
+            check(draft.RootElement.GetProperty("draftSession").GetString()=="clan-session","draft bans identify the exact game session");
+            check(draft.RootElement.GetProperty("draftBannedHeroes").EnumerateArray().Select(x=>x.GetUInt32()).SequenceEqual(new uint[]{11,22}),"draft metadata carries only distinct completed hero bans");
+            check(draft.RootElement.GetProperty("roomId").GetInt32()==0 && draft.RootElement.GetProperty("rooms").GetArrayLength()==0,"draft metadata remains compatible with competition snapshots");
         }
         var type=typeof(RegionServerDatabase);
         var region=(RegionServerDatabase)RuntimeHelpers.GetUninitializedObject(type);
@@ -74,6 +81,30 @@ static class ChatChecks
         check(senders[2].Packets.Count==1,"recipient mute is respected");
         ignored.Clear(); store.Leave(2).GetAwaiter().GetResult(); ResetThrottle(); region.SendClanChat(1,"After leave");
         check(senders[2].Packets.Count==1,"former member immediately stops receiving chat");
+        var games=new ConcurrentDictionary<string,IGameInstance>();
+        var modes=new ConcurrentDictionary<string,MatchmakerInitiator>();
+        type.GetField("_gameInstances",BindingFlags.Instance|BindingFlags.NonPublic)!.SetValue(region,games);
+        type.GetField("_matchmakerGames",BindingFlags.Instance|BindingFlags.NonPublic)!.SetValue(region,modes);
+        var game=(GameInstance)RuntimeHelpers.GetUninitializedObject(typeof(GameInstance));
+        var lobby=(GameLobby)RuntimeHelpers.GetUninitializedObject(typeof(GameLobby));
+        typeof(GameLobby).GetField("<BannedHeroes>k__BackingField",BindingFlags.Instance|BindingFlags.NonPublic)!.SetValue(lobby,new HashSet<Key>{new Key("hero-a"),new Key("hero-b")});
+        typeof(GameInstance).GetProperty("Lobby",BindingFlags.Instance|BindingFlags.NonPublic)!.SetValue(game,lobby);
+        games["draft-test"]=game;
+        modes["draft-test"]=(ClanFightInitiator)RuntimeHelpers.GetUninitializedObject(typeof(ClanFightInitiator));
+        infoType.GetProperty("GameInstanceId")!.SetValue(users[2u],"draft-test");
+        senders[2].Packets.Clear();region.SendClanDraft(2);
+        check(senders[2].Packets.Count==1,"lobby reentry sends completed clan bans");
+        using(var reader=new BinaryReader(new MemoryStream(senders[2].Packets.Single())))
+        {
+            check(reader.ReadByte()==16 && reader.ReadByte()==4,"draft metadata uses competition extension");
+            using var payload=JsonDocument.Parse(reader.ReadString());
+            check(payload.RootElement.GetProperty("draftSession").GetString()=="draft-test" && payload.RootElement.GetProperty("draftBannedHeroes").GetArrayLength()==2,"draft metadata carries authoritative session bans");
+        }
+        senders[2].Packets.Clear();modes.Clear();region.SendClanDraft(2);
+        check(senders[2].Packets.Count==0,"ordinary matches receive no clan draft metadata");
+        modes["draft-test"]=(ClanFightInitiator)RuntimeHelpers.GetUninitializedObject(typeof(ClanFightInitiator));
+        infoType.GetProperty("ActiveScene")!.SetValue(users[2u],new SceneMainMenu());region.SendClanDraft(2);
+        check(senders[2].Packets.Count==0,"menu does not receive stale draft metadata");
         var legacy=new Capture(); var legacyService=new ServiceClan(legacy);
         typeof(ServiceClan).GetProperty("SupportsClans")!.SetValue(legacyService,true);
         legacyService.SendExtension(6,"{}");
