@@ -184,6 +184,12 @@ public class GameLobby : Updater
     public void SwapHero(uint playerId, Key hero)
     {
         if (!LobbyData.Players.TryGetValue(playerId, out var player)) return;
+        if (!CanPickHero(player, hero))
+        {
+            // Resend the roster so the client drops the refused pick instead of showing it as taken.
+            SendLobbyUpdate(players: LobbyData.Players.Values.ToList());
+            return;
+        }
         player.Hero = hero;
         var heroLoadout = _playerDatabase.GetLoadoutForHero(playerId, hero);
         if (heroLoadout.Devices != null)
@@ -198,6 +204,89 @@ public class GameLobby : Updater
         player.SkinKey = heroLoadout.SkinKey;
 
         SendLobbyUpdate(players: LobbyData.Players.Values.ToList());
+    }
+
+    private bool IsDraftSelection => LobbyData.GameMode?.LobbyMode is LobbyModeDraftPick &&
+                                     LobbyData.Timer.TimerType is not LobbyTimerType.Requeue;
+
+    private bool CanPickHero(PlayerLobbyState player, Key hero)
+    {
+        if (hero.GetCard<CardUnit>()?.Data is not UnitDataPlayer || !PlayerInventory.Owns(player.PlayerId, hero)) return false;
+        // Only the player whose turn it is may pick, and a locked-in pick stays locked.
+        if (IsDraftSelection && (!player.CanLoadout || player.Ready)) return false;
+        return !RestrictedHeroesFor(player).Contains(hero);
+    }
+
+    private static Key? HeroClass(Key hero) => (hero.GetCard<CardUnit>()?.Data as UnitDataPlayer)?.Class;
+
+    /// <summary>
+    /// Heroes this player may not take under the mode's hero limit: a hero already picked the limit number of
+    /// times on their team, or, per class, every hero of a class that is full. Their own current pick does not count.
+    /// </summary>
+    private List<Key> RestrictedHeroesFor(PlayerLobbyState player)
+    {
+        var limit = LobbyData.GameMode?.HeroLimit;
+        if (limit?.Limit is not { } max) return [];
+        var teamPicks = LobbyData.Players.Values
+            .Where(p => p.Team == player.Team && p.PlayerId != player.PlayerId && p.Hero != Key.None)
+            .Select(p => p.Hero)
+            .ToList();
+        return limit.LimitOption switch
+        {
+            LobbyHeroLimitOption.PerHero => teamPicks.GroupBy(hero => hero)
+                .Where(group => group.Count() >= max)
+                .Select(group => group.Key)
+                .ToList(),
+            LobbyHeroLimitOption.PerClass => teamPicks.GroupBy(HeroClass)
+                .Where(group => group.Key is { } heroClass && heroClass != Key.None && group.Count() >= max)
+                .SelectMany(group => CatalogueHelper.GetHeroes().Where(hero => HeroClass(hero) == group.Key))
+                .Distinct()
+                .ToList(),
+            _ => []
+        };
+    }
+
+    /// <summary>
+    /// The hero a draft turn starts on: the player's last-played hero, unless the team has filled that hero or its
+    /// class. Then an owned hero from the open class the team has fewest of, so the default never breaks the limit.
+    /// </summary>
+    private Key DraftDefaultHero(PlayerLobbyState player, List<Key> restricted)
+    {
+        var lastPlayed = _playerDatabase.GetLastPlayedHero(player.PlayerId);
+        if (!restricted.Contains(lastPlayed)) return lastPlayed;
+
+        var classCounts = LobbyData.Players.Values
+            .Where(p => p.Team == player.Team && p.PlayerId != player.PlayerId && p.Hero != Key.None)
+            .GroupBy(p => HeroClass(p.Hero))
+            .ToDictionary(group => group.Key ?? Key.None, group => group.Count());
+        var fallback = CatalogueHelper.GetHeroes()
+            .Where(hero => !restricted.Contains(hero) && PlayerInventory.Owns(player.PlayerId, hero) &&
+                           HeroClass(hero) is { } heroClass && heroClass != Key.None)
+            .GroupBy(hero => HeroClass(hero)!.Value)
+            .OrderBy(group => classCounts.GetValueOrDefault(group.Key))
+            .FirstOrDefault()?
+            .Shuffle()
+            .First();
+        return fallback ?? lastPlayed;
+    }
+
+    // Each draft round hands one unselected player per team their turn, preselecting a hero they are allowed.
+    private void StartNextDraftTurns(List<PlayerLobbyState> unselectedPlayers)
+    {
+        foreach (var team in new[] { TeamType.Team1, TeamType.Team2 })
+        {
+            var player = unselectedPlayers.Where(p => p.Team == team).Shuffle().FirstOrDefault();
+            if (player == null) continue;
+
+            var restricted = RestrictedHeroesFor(player);
+            var loadout = _playerDatabase.GetLoadoutForHero(player.PlayerId, DraftDefaultHero(player, restricted));
+            player.Hero = loadout.HeroKey;
+            player.CanLoadout = true;
+            player.Devices = loadout.Devices;
+            player.Perks = loadout.Perks;
+            player.SkinKey = loadout.SkinKey;
+            player.RestrictedHeroes = restricted;
+        }
     }
 
     private static void UpdateDevices(PlayerLobbyState player, Dictionary<int, Key> devices)
@@ -468,31 +557,7 @@ public class GameLobby : Updater
             var unselectedPlayers = LobbyData.Players.Where(p => p.Value.Hero == Key.None).Select(p => p.Value).ToList();
             EnqueueAction(() =>
             {
-                if (unselectedPlayers.Count > 0)
-                {
-                    var team1Unselected = unselectedPlayers.Where(p => p.Team is TeamType.Team1).Shuffle().FirstOrDefault();
-                    var team2Unselected = unselectedPlayers.Where(p => p.Team is TeamType.Team2).Shuffle().FirstOrDefault();
-                    if (team1Unselected != null)
-                    {
-                        var loadout = Databases.PlayerDatabase.GetLoadoutForHero(team1Unselected.PlayerId,
-                            Databases.PlayerDatabase.GetLastPlayedHero(team1Unselected.PlayerId));
-                        team1Unselected.Hero = loadout.HeroKey;
-                        team1Unselected.Devices = loadout.Devices;
-                        team1Unselected.Perks = loadout.Perks;
-                        team1Unselected.CanLoadout = true;
-                    }
-
-                    if (team2Unselected != null)
-                    {
-                        var loadout = Databases.PlayerDatabase.GetLoadoutForHero(team2Unselected.PlayerId,
-                            Databases.PlayerDatabase.GetLastPlayedHero(team2Unselected.PlayerId));
-                        team2Unselected.Hero = loadout.HeroKey;
-                        team2Unselected.CanLoadout = true;
-                        team2Unselected.Devices = loadout.Devices;
-                        team2Unselected.Perks = loadout.Perks;
-                    }
-                }
-
+                StartNextDraftTurns(unselectedPlayers);
                 SendLobbyUpdate(players: LobbyData.Players.Values.ToList());
             });
         }
@@ -538,82 +603,7 @@ public class GameLobby : Updater
                     player.Ready = true;
                 }
 
-                if (unselectedPlayers.Count > 0)
-                {
-                    var team1Unselected = unselectedPlayers.Where(p => p.Team is TeamType.Team1).Shuffle().FirstOrDefault();
-                    var team2Unselected = unselectedPlayers.Where(p => p.Team is TeamType.Team2).Shuffle().FirstOrDefault();
-                    var limit = LobbyData.GameMode.HeroLimit;
-
-                    if (team1Unselected != null)
-                    {
-                        var loadout = Databases.PlayerDatabase.GetLoadoutForHero(team1Unselected.PlayerId,
-                            Databases.PlayerDatabase.GetLastPlayedHero(team1Unselected.PlayerId));
-
-                        List<Key> restricted = [];
-                        if (limit?.Limit is not null)
-                        {
-                            restricted = limit.LimitOption switch
-                            {
-                                LobbyHeroLimitOption.PerHero => LobbyData.Players.Values
-                                    .Where(p => p.Team == TeamType.Team1)
-                                    .GroupBy(item => item.Hero)
-                                    .Where(group => group.Key != Key.None && group.Count() >= limit.Limit)
-                                    .Select(group => group.Key)
-                                    .ToList(),
-                                LobbyHeroLimitOption.PerClass => LobbyData.Players.Values
-                                    .Where(p => p.Team == TeamType.Team1)
-                                    .GroupBy(item => (item.Hero.GetCard<CardUnit>()?.Data as UnitDataPlayer)?.Class)
-                                    .Where(group => group.Key is not null && group.Key != Key.None && group.Count() >= limit.Limit)
-                                    .Select(group => group.Key)
-                                    .OfType<Key>()
-                                    .SelectMany(key => CatalogueHelper.GetHeroes().Where(p => (p.GetCard<CardUnit>()?.Data as UnitDataPlayer)?.Class == key))
-                                    .ToList(),
-                                _ => []
-                            };
-                        }
-
-                        team1Unselected.Hero = loadout.HeroKey;
-                        team1Unselected.CanLoadout = true;
-                        team1Unselected.Devices = loadout.Devices;
-                        team1Unselected.Perks = loadout.Perks;
-                        team1Unselected.RestrictedHeroes = restricted;
-                    }
-
-                    if (team2Unselected != null)
-                    {
-                        var loadout = Databases.PlayerDatabase.GetLoadoutForHero(team2Unselected.PlayerId,
-                            Databases.PlayerDatabase.GetLastPlayedHero(team2Unselected.PlayerId));
-
-                        List<Key> restricted = [];
-                        if (limit?.Limit is not null)
-                        {
-                            restricted = limit.LimitOption switch
-                            {
-                                LobbyHeroLimitOption.PerHero => LobbyData.Players.Values
-                                    .Where(p => p.Team == TeamType.Team2)
-                                    .GroupBy(item => item.Hero)
-                                    .Where(group => group.Key != Key.None && group.Count() >= limit.Limit)
-                                    .Select(group => group.Key)
-                                    .ToList(),
-                                LobbyHeroLimitOption.PerClass => LobbyData.Players.Values
-                                    .Where(p => p.Team == TeamType.Team2)
-                                    .GroupBy(item => (item.Hero.GetCard<CardUnit>()?.Data as UnitDataPlayer)?.Class)
-                                    .Where(group => group.Key is not null && group.Key != Key.None && group.Count() >= limit.Limit)
-                                    .Select(group => group.Key)
-                                    .OfType<Key>()
-                                    .SelectMany(key => CatalogueHelper.GetHeroes().Where(p => (p.GetCard<CardUnit>()?.Data as UnitDataPlayer)?.Class == key))
-                                    .ToList(),
-                                _ => []
-                            };
-                        }
-
-                        team2Unselected.Hero = loadout.HeroKey;
-                        team2Unselected.CanLoadout = true;
-                        team2Unselected.Devices = loadout.Devices;
-                        team2Unselected.Perks = loadout.Perks;
-                        team2Unselected.RestrictedHeroes = restricted;
-                    }
-                }
+                StartNextDraftTurns(unselectedPlayers);
 
                 SendLobbyUpdate(players: LobbyData.Players.Values.ToList());
             });

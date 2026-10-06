@@ -4,9 +4,12 @@ using Moserware.Skills;
 
 namespace BNLReloadedServer.ServerTypes;
 
-public class MatchmakerInitiator(CardGameMode gameMode, List<PlayerQueueData> team1, List<PlayerQueueData> team2)
-    : IGameInitiator
+public class MatchmakerInitiator(CardGameMode gameMode, List<PlayerQueueData> team1, List<PlayerQueueData> team2,
+    int? playersPerTeam = null) : IGameInitiator
 {
+    // A 5v5 automatic Casual match runs under the 4v4 Casual card; its roster size is the pop's, not the card's.
+    public int PlayersPerTeam { get; } = playersPerTeam ?? gameMode.PlayersPerTeam;
+
     private const double SlotSettleSeconds = 10;
 
     private readonly List<PlayerQueueData> _team1 = team1.ToList();
@@ -44,14 +47,14 @@ public class MatchmakerInitiator(CardGameMode gameMode, List<PlayerQueueData> te
             switch (team)
             {
                 case TeamType.Team1:
-                    if (_team1.Count >= gameMode.PlayersPerTeam)
+                    if (_team1.Count >= PlayersPerTeam)
                     {
                         return false;
                     }
                     _team1.Add(player);
                     break;
                 case TeamType.Team2:
-                    if (_team2.Count >= gameMode.PlayersPerTeam)
+                    if (_team2.Count >= PlayersPerTeam)
                     {
                         return false;
                     }
@@ -64,7 +67,7 @@ public class MatchmakerInitiator(CardGameMode gameMode, List<PlayerQueueData> te
 
             _participantHistory.Add(player.PlayerId);
 
-            if (_team1.Count >= gameMode.PlayersPerTeam && _team2.Count >= gameMode.PlayersPerTeam)
+            if (_team1.Count >= PlayersPerTeam && _team2.Count >= PlayersPerTeam)
             {
                 _firstSlotFreed = null;
             }
@@ -125,7 +128,7 @@ public class MatchmakerInitiator(CardGameMode gameMode, List<PlayerQueueData> te
 
     public int PlayerCount => _team1.Count + _team2.Count;
 
-    public int MaxPlayers => gameMode.PlayersPerTeam * 2;
+    public int MaxPlayers => PlayersPerTeam * 2;
 
     public bool IsPlayerBackfill(uint playerId) =>
         !(team1.Any(p => p.PlayerId == playerId) || team2.Any(p => p.PlayerId == playerId));
@@ -155,7 +158,7 @@ public class MatchmakerInitiator(CardGameMode gameMode, List<PlayerQueueData> te
 
     public bool IsSuperSupplies() => false;
 
-    public bool NeedsBackfill() => (_team1.Count < gameMode.PlayersPerTeam || _team2.Count < gameMode.PlayersPerTeam) &&
+    public bool NeedsBackfill() => (_team1.Count < PlayersPerTeam || _team2.Count < PlayersPerTeam) &&
                                    _backfillReady && (_firstSlotFreed is null ||
                                                       (DateTimeOffset.Now - _firstSlotFreed.Value).TotalSeconds >=
                                                       SlotSettleSeconds);

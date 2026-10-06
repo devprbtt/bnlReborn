@@ -58,6 +58,8 @@ public class Matchmaker(AsyncTaskTcpServer server)
         public Timer? GraceTimer { get; set; }
         public DateTimeOffset? GraceDeadline { get; set; }
         public Key? MatchGameModeKey { get; set; }
+        // Team size of the pending pop. The automatic Casual pool can pop 5v5 under the 4v4 Casual card.
+        public int? MatchPlayersPerTeam { get; set; }
         public ulong? ConfTime { get; set; }
 
         public CardGameMode GameModeCard => Databases.Catalogue.GetCard<CardGameMode>(GameModeKey)
@@ -65,22 +67,41 @@ public class Matchmaker(AsyncTaskTcpServer server)
 
         public CardGameMode MatchGameModeCard => MatchGameModeKey?.GetCard<CardGameMode>() ?? GameModeCard;
 
-        public bool EnoughForPop() => Players.Count >= GameModeCard.PlayersPerTeam * 2;
+        public int MatchTeamSize => MatchPlayersPerTeam ?? MatchGameModeCard.PlayersPerTeam;
+
+        // The client sizes its match-found row from the mode card in the confirmation packet, so a pop
+        // larger than its own card names a public card of the pop's size. The match still runs as MatchGameModeKey.
+        public Key PopDisplayModeKey => AcceptanceDisplayMode(MatchGameModeCard, MatchTeamSize);
+
+        public bool EnoughForPop(int? playersPerTeam = null) =>
+            Players.Count >= (playersPerTeam ?? GameModeCard.PlayersPerTeam) * 2;
     }
 
     private record QueueGrouping(List<PlayerQueueData> Players, double RatingMean, DateTimeOffset MinJoinTime);
 
     private record BackfillInfo(Dictionary<uint, Rating> Team1, Dictionary<uint, Rating> Team2, string GameInstanceId,
-        HashSet<uint> ParticipantHistory);
+        HashSet<uint> ParticipantHistory, int PlayersPerTeam);
 
     private readonly ConcurrentDictionary<Key, QueueData> _queues = new();
 
     private static Key NormalizeQueueKey(Key requestedModeKey)
     {
         var requestedMode = requestedModeKey.GetCard<CardGameMode>();
-        return AutomaticPublicQueuePolicy.IsPublicMode(requestedMode)
-            ? CatalogueHelper.ModeFriendly.Key
-            : requestedModeKey;
+        return requestedMode?.Ranking switch
+        {
+            GameRankingType.Friendly => CatalogueHelper.ModeFriendly.Key,
+            GameRankingType.Ranked => CatalogueHelper.ModeRanked.Key,
+            _ => requestedModeKey
+        };
+    }
+
+    private static Key AcceptanceDisplayMode(CardGameMode mode, int playersPerTeam)
+    {
+        if (mode.PlayersPerTeam == playersPerTeam) return mode.Key;
+        var candidates = new[] { CatalogueHelper.ModeCustom.Key }
+            .Concat(CatalogueHelper.GlobalLogic.Matchmaker?.GameModesForQueues ?? []);
+        return candidates.Select(key => key.GetCard<CardGameMode>())
+            .FirstOrDefault(card => card?.PlayersPerTeam == playersPerTeam)?.Key ?? mode.Key;
     }
 
     public bool IsQueued(uint playerId) => _queues.Values.Any(q => q.Players.Any(p => p.PlayerId == playerId));
@@ -123,6 +144,7 @@ public class Matchmaker(AsyncTaskTcpServer server)
         queue?.ConfTime = null;
         CancelGracePeriod(queue);
         queue?.MatchGameModeKey = null;
+        queue?.MatchPlayersPerTeam = null;
         queue?.AcceptVotes1.Clear();
         queue?.AcceptVotes2.Clear();
         queue?.MatchSender1.UnsubscribeAll();
@@ -257,7 +279,6 @@ public class Matchmaker(AsyncTaskTcpServer server)
         // a card that reads "0 waiting" is the answer, an absent card is not.
         var modes = CatalogueHelper.GlobalLogic.Matchmaker?.GameModesForQueues ?? [];
         var snapshots = new List<QueueSnapshot>();
-        var automaticPublicQueueAdded = false;
 
         foreach (var configuredModeKey in modes)
         {
@@ -265,13 +286,11 @@ public class Matchmaker(AsyncTaskTcpServer server)
             var modeKey = configuredModeKey;
             var modeId = card?.Id ?? configuredModeKey.ToString();
             var modeName = card?.Name;
-            if (AutomaticPublicQueuePolicy.IsPublicMode(card))
+            if (AutomaticPublicQueuePolicy.IsAutomaticQueue(card))
             {
-                if (automaticPublicQueueAdded) continue;
-                automaticPublicQueueAdded = true;
                 modeKey = CatalogueHelper.ModeFriendly.Key;
                 modeId = "automatic_public";
-                modeName = "AUTOMATIC (CASUAL / RANKED)";
+                modeName = "CASUAL (AUTOMATIC 4V4 / 5V5)";
             }
 
             if (!_queues.TryGetValue(modeKey, out var queue))
@@ -396,8 +415,8 @@ public class Matchmaker(AsyncTaskTcpServer server)
             return (null, null);
         }
 
-        var team1Needs = queue.GameModeCard.PlayersPerTeam - backfillInfo.Team1.Values.Count;
-        var team2Needs = queue.GameModeCard.PlayersPerTeam - backfillInfo.Team2.Values.Count;
+        var team1Needs = backfillInfo.PlayersPerTeam - backfillInfo.Team1.Values.Count;
+        var team2Needs = backfillInfo.PlayersPerTeam - backfillInfo.Team2.Values.Count;
 
         var checkTeam1 = true;
         var checkTeam2 = true;
@@ -740,7 +759,7 @@ public class Matchmaker(AsyncTaskTcpServer server)
         };
         queue.GraceTimer.Elapsed += (_, _) => QueueCheck(queue);
         queue.GraceTimer.Start();
-        ShowQueueMessage($"Waiting {AutomaticPublicQueuePolicy.GracePeriod.TotalSeconds:0.#} seconds for a Ranked lobby in the automatic public queue.");
+        ShowQueueMessage($"Waiting {AutomaticPublicQueuePolicy.GracePeriod.TotalSeconds:0.#} seconds for a 5v5 Casual lobby in the automatic public queue.");
         QueueChanged();
     }
 
@@ -757,9 +776,12 @@ public class Matchmaker(AsyncTaskTcpServer server)
         queue.Players = queue.Players.DistinctBy(p => p.PlayerId).ToList();
 
         CardGameMode? matchGameMode = null;
-        if (AutomaticPublicQueuePolicy.IsPublicMode(queue.GameModeCard) && queue.IsPop is PopStatus.None)
+        int? matchPlayersPerTeam = null;
+        var automaticQueue = AutomaticPublicQueuePolicy.IsAutomaticQueue(queue.GameModeCard);
+        if (automaticQueue && queue.IsPop is PopStatus.None)
         {
-            switch (AutomaticPublicQueuePolicy.Decide(queue.Players.Count, queue.GraceDeadline, DateTimeOffset.Now))
+            var action = AutomaticPublicQueuePolicy.Decide(queue.Players.Count, queue.GraceDeadline, DateTimeOffset.Now);
+            switch (action)
             {
                 case AutomaticPublicQueueAction.StartGracePeriod:
                     StartGracePeriod(queue);
@@ -768,10 +790,9 @@ public class Matchmaker(AsyncTaskTcpServer server)
                     CancelGracePeriod(queue);
                     break;
                 case AutomaticPublicQueueAction.StartCasual:
+                case AutomaticPublicQueueAction.StartLargeCasual:
                     matchGameMode = CatalogueHelper.ModeFriendly;
-                    break;
-                case AutomaticPublicQueueAction.StartRanked:
-                    matchGameMode = CatalogueHelper.ModeRanked;
+                    matchPlayersPerTeam = AutomaticPublicQueuePolicy.PlayersPerTeam(action);
                     break;
                 case AutomaticPublicQueueAction.Wait:
                 default:
@@ -779,12 +800,13 @@ public class Matchmaker(AsyncTaskTcpServer server)
             }
         }
 
-        if (queue.IsPop is PopStatus.None && matchGameMode is null)
+        // Ranked has no backfilling rules: a Ranked vacancy stays empty rather than pulling in a stranger.
+        if (queue.IsPop is PopStatus.None && matchGameMode is null && queue.GameModeCard.Backfilling is not null)
         {
             ShowQueueMessage($"Attempting to create match for {queue.GameModeCard.Id}...");
             foreach (var info in Databases.RegionServerDatabase.GetBackfillNeeded(queue.GameModeKey)
                          .Select(tuple => new BackfillInfo(tuple.team1, tuple.team2, tuple.instanceId,
-                             tuple.participantHistory)))
+                             tuple.participantHistory, tuple.playersPerTeam)))
             {
                 // A running friendly match already has a real vacancy. Use rating quality to
                 // choose the best eligible candidate(s), but do not withhold the slot while
@@ -840,20 +862,21 @@ public class Matchmaker(AsyncTaskTcpServer server)
         if (queue.IsPop is not PopStatus.None)
             return;
 
-        if (AutomaticPublicQueuePolicy.IsPublicMode(queue.GameModeCard) && matchGameMode is null)
+        if (automaticQueue && matchGameMode is null)
             return;
 
-        if (!queue.EnoughForPop())
+        if (!queue.EnoughForPop(matchPlayersPerTeam))
         {
             ShowQueueMessage($"Not enough for pop. Only {queue.Players.Count} in queue.");
             return;
         }
 
         var balancedTeams = DoQueueBalance(queue, AutomaticPublicQueuePolicy.IsPublicMode(queue.GameModeCard),
-            matchGameMode?.PlayersPerTeam);
+            matchPlayersPerTeam);
         if (balancedTeams is null) return;
         queue.IsPop = PopStatus.Match;
         queue.MatchGameModeKey = matchGameMode?.Key ?? queue.GameModeKey;
+        queue.MatchPlayersPerTeam = matchPlayersPerTeam;
         CancelGracePeriod(queue);
 
         foreach (var player in balancedTeams.SelectMany(p => p))
@@ -878,7 +901,7 @@ public class Matchmaker(AsyncTaskTcpServer server)
             {
                 State = MatchmakerStateType.Confirming,
                 ConfirmationTimeout = queue.ConfTime,
-                QueueGameMode = queue.MatchGameModeKey
+                QueueGameMode = queue.PopDisplayModeKey
             }
         });
         queue.QueueTimer = new Timer(TimeSpan.FromSeconds(confTime).TotalMilliseconds);
@@ -908,7 +931,7 @@ public class Matchmaker(AsyncTaskTcpServer server)
                         {
                             State = MatchmakerStateType.Aborting,
                             AbortingByDecline = true,
-                            QueueGameMode = queue.MatchGameModeKey
+                            QueueGameMode = queue.PopDisplayModeKey
                         }
                     });
                     await Task.Delay(AbortDelay);
@@ -926,6 +949,7 @@ public class Matchmaker(AsyncTaskTcpServer server)
                     queue.AcceptVotes1.Clear();
                     queue.ConfTime = null;
                     queue.MatchGameModeKey = null;
+                    queue.MatchPlayersPerTeam = null;
                     queue.IsPop = PopStatus.None;
                     QueueChanged();
                     QueueCheck(queue);
@@ -942,7 +966,7 @@ public class Matchmaker(AsyncTaskTcpServer server)
                             State = MatchmakerStateType.Confirming,
                             PlayersConfirmed = acceptCount,
                             ConfirmationTimeout = queue.ConfTime,
-                            QueueGameMode = queue.MatchGameModeKey
+                            QueueGameMode = queue.PopDisplayModeKey
                         }
                     });
 
@@ -951,6 +975,7 @@ public class Matchmaker(AsyncTaskTcpServer server)
                         acceptCount >= queue.Team1.Count + queue.Team2.Count)
                     {
                         var matchGameMode = queue.MatchGameModeCard;
+                        var matchTeamSize = queue.MatchTeamSize;
                         queue.QueueTimer?.Stop();
                         queue.QueueTimer?.Dispose();
                         queue.QueueTimer = null;
@@ -971,13 +996,14 @@ public class Matchmaker(AsyncTaskTcpServer server)
                         queue.AcceptVotes1.Clear();
                         queue.MatchSender1.UnsubscribeAll();
                         Databases.RegionServerDatabase.StartGameFromMatchmaker(matchGameMode, queue.Team1.ToList(),
-                            queue.Team2.ToList());
+                            queue.Team2.ToList(), matchTeamSize);
                         queue.Team1.Clear();
                         queue.Team2.Clear();
                         queue.Team1 = null;
                         queue.Team2 = null;
                         queue.ConfTime = null;
                         queue.MatchGameModeKey = null;
+                        queue.MatchPlayersPerTeam = null;
                         queue.IsPop = PopStatus.None;
                         QueueChanged();
                     }
@@ -1109,7 +1135,7 @@ public class Matchmaker(AsyncTaskTcpServer server)
                             {
                                 State = MatchmakerStateType.Aborting,
                                 AbortingByDecline = false,
-                                QueueGameMode = queue.MatchGameModeKey
+                                QueueGameMode = queue.PopDisplayModeKey
                             }
                         });
                         Task.Delay(AbortDelay).Wait();
@@ -1219,6 +1245,7 @@ public class Matchmaker(AsyncTaskTcpServer server)
 
             queue.ConfTime = null;
             queue.MatchGameModeKey = null;
+            queue.MatchPlayersPerTeam = null;
             queue.IsPop = PopStatus.None;
             QueueChanged();
             QueueCheck(queue);

@@ -1062,6 +1062,11 @@ public partial class GameZone : Updater
         }
     }
 
+    // Ranked sets kick_from_match false: an idle player is warned but keeps their slot, because Ranked never
+    // backfills it. Casual kicks so the vacancy can be backfilled.
+    public static bool ShouldKickForAfk(AfkLogic? antiAfk, double idleSeconds) =>
+        antiAfk is { KickFromMatch: true } && idleSeconds > antiAfk.AfkPunishSeconds;
+
     public bool TryAcceptTeamPing(uint playerId, Vector3 position, Vector3 normal, out TeamType team,
         out Vector3 safeNormal)
     {
@@ -2507,8 +2512,8 @@ public partial class GameZone : Updater
                                 unit.WasAfkWarned = true;
                             }
 
-                            if ((DateTimeOffset.Now - unit.LastMoveTime.Value).TotalSeconds >
-                                _zoneData.GameModeCard.AntiAfk?.AfkPunishSeconds)
+                            if (ShouldKickForAfk(_zoneData.GameModeCard.AntiAfk,
+                                    (DateTimeOffset.Now - unit.LastMoveTime.Value).TotalSeconds))
                             {
                                 EnqueueAction(() => Databases.RegionServerDatabase.KickForAfk(unit.PlayerId.Value, _instanceId));
                                 unit.LastMoveTime = null;

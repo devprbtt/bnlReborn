@@ -21,8 +21,8 @@ Check(AutomaticPublicQueuePolicy.Decide(8, null, now) == AutomaticPublicQueueAct
     "eight players start the grace period");
 Check(AutomaticPublicQueuePolicy.Decide(9, future, now) == AutomaticPublicQueueAction.Wait,
     "nine players wait while the grace period remains");
-Check(AutomaticPublicQueuePolicy.Decide(10, future, now) == AutomaticPublicQueueAction.StartRanked,
-    "ten players start Ranked before grace expiry");
+Check(AutomaticPublicQueuePolicy.Decide(10, future, now) == AutomaticPublicQueueAction.StartLargeCasual,
+    "ten players start 5v5 Casual before grace expiry");
 Check(AutomaticPublicQueuePolicy.Decide(8, past, now) == AutomaticPublicQueueAction.StartCasual,
     "eight players start Casual after grace expiry");
 Check(AutomaticPublicQueuePolicy.Decide(9, past, now) == AutomaticPublicQueueAction.StartCasual,
