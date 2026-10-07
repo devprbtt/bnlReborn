@@ -41,7 +41,7 @@ public static class ClanRatings
             var ratings = Db.Table<ClanRatingRecord>().ToList().ToDictionary(r => r.ClanId);
             var rows = ClanHub.Store.AllClans().Select(c => {
                 var r = ratings.GetValueOrDefault(c.Id) ?? new ClanRatingRecord { ClanId = c.Id };
-                return new { id = c.Id, name = c.Name, tag = c.Tag, tagColor = c.TagColor, mmr = r.Mmr,
+                return new { id = c.Id, name = c.Name, tag = c.Tag, tagColor = c.TagColor, memberCount = c.Members.Length, mmr = r.Mmr,
                     totalMatches = r.Wins + r.Losses, wins = r.Wins, losses = r.Losses,
                     winRate = r.Wins + r.Losses == 0 ? 0 : 100.0 * r.Wins / (r.Wins + r.Losses) };
             }).OrderByDescending(c => c.mmr).ThenByDescending(c => c.wins).ThenBy(c => c.id).Take(100).ToArray();
