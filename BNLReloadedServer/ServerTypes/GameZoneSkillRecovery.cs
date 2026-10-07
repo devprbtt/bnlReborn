@@ -42,7 +42,7 @@ public partial class GameZone
             if (elapsed < 250) continue;
             _skillRecoveryFrom[id] = now;
             if (unit.UnitCard?.Health?.Health is not { } health) continue;
-            var gained = unit.AddHealth(unit.UnitMaxHealth(health.MaxHealth) * .05f * Math.Min(elapsed, 1000) / 1000f);
+            var gained = unit.AddHealth(unit.UnitMaxHealth(health.MaxHealth) * .10f * Math.Min(elapsed, 1000) / 1000f);
             if (gained > 0) unit.SendHealAttribution(unit, gained, unit.Key);
         }
     }
