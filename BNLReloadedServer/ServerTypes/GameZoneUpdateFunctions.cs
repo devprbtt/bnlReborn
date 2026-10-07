@@ -22,7 +22,7 @@ public partial class GameZone
         }
 
         ApplyConquestUnit(unit);
-        if (unit.PlayerId != null) MarkRallyCombat(unit);
+        if (unit.PlayerId != null) MarkClassPerkCombat(unit);
 
         // Applied on both creation and respawn - effects are wiped on death.
         if (unitInit.PlayerId != null && _zoneData.Phase.PhaseType is ZonePhaseType.Build or ZonePhaseType.Build2)
@@ -1496,8 +1496,8 @@ public partial class GameZone
         var combatSource = attackerPlayer ?? attacker;
         if (damage > 0 && combatSource != null && AreOpponents(target, combatSource))
         {
-            MarkRallyCombat(target);
-            MarkRallyCombat(combatSource);
+            MarkClassPerkCombat(target);
+            MarkClassPerkCombat(combatSource);
         }
 
         // On-hit perks trigger only for the player's own gear, never for their turrets, devices,

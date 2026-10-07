@@ -2601,6 +2601,7 @@ public partial class GameZone : Updater
                 _endMatchTask.Start();
             }
 
+            TickSkillRecovery();
             FlushBuffer();
 
             _unitsToDrop.ForEach(DropUnit);
