@@ -980,6 +980,7 @@ public partial class GameZone
                             ? GetPlayerFromPlayerId(impactData.CasterPlayerId.Value)
                             : null;
                         unit.Healed(hpGain, source, healerPlayer);
+                        unit.ApplyBrainsRecovery(hpGain, source, healerPlayer);
                         if (Unit.HealCredit(source, healerPlayer, unit) is { } credit)
                         {
                             unit.SendHealAttribution(credit, hpGain, impactData.SourceKey);

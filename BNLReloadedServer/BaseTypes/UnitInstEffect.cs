@@ -86,11 +86,11 @@ public partial class Unit
             }
 
             var sources = _effectSources.GetValueOrDefault(effect.Key);
-            // One share per player, or per unowned unit (a map heal station), applying this effect.
+            // Keep origins separate even for one owner: station and hero healing have different perk eligibility.
             var byPlayer = sources is { Count: > 0 }
-                ? sources.GroupBy(s => s.Impact?.CasterPlayerId is { } player
-                        ? (long)player
-                        : s is UnitSource { Unit: var u } ? -1L - u.Id : long.MinValue)
+                ? sources.GroupBy(s => (s.Impact?.CasterPlayerId,
+                        Unit: s is UnitSource u ? (long)u.Unit.Id : -1L,
+                        Block: s is BlockSource b ? b.Position : (Vector3s?)null))
                     .Select(g => (EffectSource?)g.First()).ToList()
                 : [null];
             foreach (var source in byPlayer)
@@ -108,6 +108,7 @@ public partial class Unit
             if (HealCredit(source, healer, this) is { } credit)
             {
                 SendHealAttribution(credit, healAmount * weight / total, source.Impact?.SourceKey);
+                ApplyBrainsRecovery(healAmount * weight / total, source, healer ?? credit);
             }
         }
     }
