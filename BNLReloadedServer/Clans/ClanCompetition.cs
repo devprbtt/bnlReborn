@@ -51,6 +51,12 @@ public static class ClanCompetition
                 case 7:
                     if (room == null || !room.Ban(player, key, Now)) error = "That ban is unavailable or it is not your turn.";
                     break;
+                case 8:
+                    if (room == null || room.Id != roomId || !room.CanInvite(player, key, ClanHub.Store.ClanOf(key)?.Id ?? 0) ||
+                        IsReserved(key) || !Available(key) || !room.TakeInviteTurn(player, Now) ||
+                        Databases.RegionServerDatabase is not RegionServerDatabase inviteRegion || !inviteRegion.SendClanFightInvite(player,key,room.Id))
+                        error = "Unable to invite this clanmate. They must be available in the menu; wait a few seconds before another invite.";
+                    break;
                 default: error = "Unknown clan fight action."; break;
             }
             Launch();
@@ -90,7 +96,7 @@ public static class ClanCompetition
         homeName = ClanHub.Store.Clan(r.HomeClan)?.Name ?? "Clan", awayName = ClanHub.Store.Clan(r.AwayClan)?.Name ?? "Waiting for opponent",
         homeColor = ClanHub.Store.Clan(r.HomeClan)?.TagColor ?? 0, awayColor = ClanHub.Store.Clan(r.AwayClan)?.TagColor ?? 0,
         phase = r.Phase, leader = r.Leader, captain = r.Captain, deadline = r.Deadline, canStart = r.CanStart,
-        players = r.Players.Select(p => new { id = p.Id, name = Databases.PlayerDatabase.GetPlayerName(p.Id),
+        players = r.Players.Select(p => new { id = p.Id, name = Databases.PlayerDatabase.GetPlayerName(p.Id), steamId = (Databases.PlayerDatabase.GetPlayerDataNoWait(p.Id)?.SteamId ?? 0).ToString(),
             team = (p.Clan == r.HomeClan) != r.Swapped ? 1 : 2, ready = p.Ready }),
         maps = r.Maps, heroes = r.Heroes, bannedMaps = r.BannedMaps, bannedHeroes = r.BannedHeroes
     };

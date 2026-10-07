@@ -17,6 +17,18 @@ ClanFightRoom Room(int size = 4)
     r.Maps.AddRange([101,102,103,104,105]); r.Heroes.AddRange([201,202,203,204]);
     return r;
 }
+var invites=Room();
+Check(invites.CanInvite(2,5,10),"any member can invite an absent clanmate");
+Check(invites.CanInvite(12,15,20),"opposing clan can invite its own members");
+Check(!invites.CanInvite(2,15,20),"cannot invite an opposing clan member");
+Check(!invites.CanInvite(99,5,10),"outsider cannot invite");
+Check(!invites.CanInvite(2,5,0) && !invites.CanInvite(2,5,30),"clanless and third-clan invitations rejected");
+Check(!invites.CanInvite(2,1,10),"already seated member cannot be invited");
+Check(invites.TakeInviteTurn(2,10000) && !invites.TakeInviteTurn(2,14999) && invites.TakeInviteTurn(2,15000),"five second sender invite throttle");
+invites.Swapped=true;Check(invites.CanInvite(2,5,10),"invite membership survives side swap");
+Check(invites.Join(5,10) && !invites.CanInvite(2,6,10),"full clan side cannot invite");
+foreach(var phase in new[]{"maps","heroes","draft"}) { invites.Phase=phase;Check(!invites.CanInvite(12,15,20),"no invitations during "+phase); }
+
 foreach (int size in new[] {4,5})
 {
     var r = Room(size);

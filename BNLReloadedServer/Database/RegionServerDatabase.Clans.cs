@@ -50,6 +50,17 @@ public partial class RegionServerDatabase
             GetClanService(id)?.SendExtension(4, ClanCompetition.DraftSnapshot(session, lobby.BannedHeroes.Select(k => k.Hash)));
     }
 
+    public bool SendClanFightInvite(uint sender, uint target, int room)
+    {
+        if (!UserConnected(sender,out var inviter) || !inviter.Online || ClanHub.Store.ClanOf(sender) is not { } clan ||
+            ClanHub.Store.ClanOf(target)?.Id != clan.Id || !UserConnected(target,out var recipient) || !recipient.Online || recipient.Ignored.ContainsKey(sender)) return false;
+        var service=GetClanService(target);
+        if (service is not ServiceClan clanService || !clanService.SupportsCompetition) return false;
+        service.SendExtension(7,JsonSerializer.Serialize(new { roomId=room, clanId=ClanHub.Store.ClanOf(sender)?.Id ?? 0,
+            name=inviter.ChatInfo.Nickname }));
+        return true;
+    }
+
     public bool SendClanChat(uint id, string message)
     {
         var clan = ClanHub.Store.ClanOf(id);

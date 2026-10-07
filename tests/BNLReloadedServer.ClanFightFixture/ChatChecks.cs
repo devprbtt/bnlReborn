@@ -66,6 +66,22 @@ static class ChatChecks
             typeof(ServiceClan).GetProperty("SupportsCompetition")!.SetValue(service,true);
             services[guid]=new() { [ServiceId.ServiceClan]=service };
         }
+        check(region.SendClanFightInvite(1,2,91),"room invitation delivered to online clanmate");
+        using(var reader=new BinaryReader(new MemoryStream(senders[2].Packets.Single())))
+        {
+            check(reader.ReadByte()==16 && reader.ReadByte()==7,"room invitation has its own clan service extension");
+            using var payload=JsonDocument.Parse(reader.ReadString());
+            check(payload.RootElement.GetProperty("roomId").GetInt32()==91 && payload.RootElement.GetProperty("clanId").GetInt32()==clan.ClanId,
+                "room invitation carries the authoritative room and clan");
+        }
+        check(!region.SendClanFightInvite(1,3,91) && !region.SendClanFightInvite(1,4,91),"invitation transport rejects other clans and clanless recipients");
+        var inviteIgnored=(ConcurrentDictionary<uint,byte>)infoType.GetProperty("Ignored")!.GetValue(users[2u])!;inviteIgnored[1]=0;
+        check(!region.SendClanFightInvite(1,2,91),"room invitation respects recipient mute");inviteIgnored.Clear();
+        var recipientService=(ServiceClan)services[(Guid)infoType.GetProperty("Guid")!.GetValue(users[2u])!][ServiceId.ServiceClan];
+        typeof(ServiceClan).GetProperty("SupportsCompetition")!.SetValue(recipientService,false);
+        check(!region.SendClanFightInvite(1,2,91),"unsupported client receives no invitation");
+        typeof(ServiceClan).GetProperty("SupportsCompetition")!.SetValue(recipientService,true);
+        senders[2].Packets.Clear();
         void ResetThrottle() => infoType.GetField("LastGlobalMessage")!.SetValue(users[1u],0L);
         check(region.SendClanChat(1,"Hello clan"),"clan chat accepted");
         check(senders[1].Packets.Count==1 && senders[2].Packets.Count==1,"chat delivered across menu and lobby");

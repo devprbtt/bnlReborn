@@ -18,6 +18,16 @@ public sealed class ClanFightRoom
         Players.Count(p => p.Clan == HomeClan) is 4 or 5 &&
         Players.Count(p => p.Clan == HomeClan) == Players.Count(p => p.Clan == AwayClan);
 
+    private readonly Dictionary<uint,long> inviteTimes = [];
+    public bool CanInvite(uint sender, uint target, int targetClan) => Phase == "room" && targetClan != 0 &&
+        Players.Any(p => p.Id == sender && p.Clan == targetClan) && !Players.Any(p => p.Id == target) &&
+        Players.Count(p => p.Clan == targetClan) < 5;
+    public bool TakeInviteTurn(uint sender, long now)
+    {
+        if (inviteTimes.TryGetValue(sender, out var last) && now - last < 5000) return false;
+        inviteTimes[sender] = now; return true;
+    }
+
     public bool Join(uint player, int clan)
     {
         if (Phase != "room" || clan == 0 || Players.Any(p => p.Id == player)) return false;
