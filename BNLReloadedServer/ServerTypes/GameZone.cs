@@ -2143,6 +2143,7 @@ public partial class GameZone : Updater
             if (tickNumber == 0)
                 Log.Info(LogCat.Perf, $"First tick started: {DiagnosticName}, units={_units.Count}");
             TickConquest(SecondsPerTick, tickNumber % TicksForBuffCheck == 0);
+            RefreshRallySpawns();
             var doBuffCheck = tickNumber % TicksForBuffCheck == 0;
             var doDmgCaptureCheck = tickNumber % TicksForDmgCaptureCheck == 0;
             var doBlockCheck = tickNumber == 0;
@@ -2464,6 +2465,10 @@ public partial class GameZone : Updater
                                             ?.SpawnProtectionSeconds ?? 0);
                                     _zoneData.UpdateSpawnTime(unit.PlayerId.Value, null);
                                 }
+                            }
+                            else if (_rallyPlayers.ContainsKey(spawnPoint.Id))
+                            {
+                                TryRallyRespawn(unit, spawnPoint.Id);
                             }
                             else if (_playerSpawnPoints.TryGetValue(spawnPoint.Id, out var playerSpawnPoint))
                             {

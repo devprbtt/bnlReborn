@@ -448,6 +448,7 @@ public partial class GameZone
                 return;
             }
 
+            MarkRallyCombat(player);
             player.CurrentChannelData = channelData;
             player.TicksPerChannel = GetChannelIntervalTicks(channel.Interval, SecondsPerTick);
             player.NextChannelPulseTick = GetNextChannelPulseTick(_tickNumber, player.TicksPerChannel);
@@ -516,6 +517,7 @@ public partial class GameZone
 
     private bool ApplyChannelIntervalEffects(Unit caster, ChannelData channelData, ToolChannel channel)
     {
+        MarkRallyCombat(caster);
         if (channel.IntervalEffects is not { Count: > 0 })
         {
             return true;
@@ -650,6 +652,7 @@ public partial class GameZone
         if (!player.DashCharge.Consume(player, toolIndex, DateTimeOffset.UtcNow, out bool maximum) ||
             tool?.Tool is not ToolDash toolDash)
         { ReconcileDashAmmo(player); return; }
+        MarkRallyCombat(player);
         player.LastDashChargeMax = maximum;
 
         if (player.IsRecall)
@@ -726,6 +729,7 @@ public partial class GameZone
 
         if (tool?.Tool is not ToolGroundSlam toolSlam || !tool.IsEnoughAmmoToUse()) return;
 
+        MarkRallyCombat(player);
         _groundSlamEntitlements.Begin(playerId, playerUnitId, toolIndex);
 
         if (player.IsRecall)
@@ -810,6 +814,7 @@ public partial class GameZone
                 player.SpawnProtectionTime = null;
             }
 
+            if (castData.Shots is { Count: > 0 }) MarkRallyCombat(player);
             abilityService.SendCastAbility(rpcId, true);
             _serviceZone.SendDoCastAbility(playerUnitId, castData);
             switch (aCard.Behavior)
@@ -956,6 +961,7 @@ public partial class GameZone
         var tool = player.CurrentGear?.Tools[castData.ToolIndex];
 
         if (!tool?.IsEnoughAmmoToUse() ?? false) return;
+        if (tool != null && tool.Tool is not ToolBuild) MarkRallyCombat(player);
 
         shots.ForEach(shot =>
         {
@@ -1262,6 +1268,11 @@ public partial class GameZone
             return;
         }
 
+        if (spawnId.HasValue && _rallyPlayers.TryGetValue(spawnId.Value, out var hostId))
+        {
+            var host = GetPlayerFromPlayerId(hostId);
+            if (host == null || RallyState(host, player, out _) != SpawnPointLockType.Free) return;
+        }
         _zoneData.UpdatePlayerSelectedSpawn(playerId, spawnId);
     }
 
