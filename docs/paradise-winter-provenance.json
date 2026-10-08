@@ -1,0 +1,16 @@
+{
+  "source": "Maps/map_sr2_paradise.bnlbin",
+  "source_sha256": "0cfaa007afc1383937eecee7cf5eee5882f08da02f057d2b5aad6c5bcda24d8a",
+  "staged": "extracted/winter-inputs/map_sr2_paradise.bnlbin",
+  "output": "Maps/map_sr2_paradise_winter.bnlbin",
+  "sha256": "a79b925696a3a7b97c20fc86ec3eb6d42dd6d42bb108edbaef8c87357f164f50",
+  "map_changes": {
+    "properties.render": [
+      "DaytimeWarm",
+      "DaytimeWarm_winter"
+    ]
+  },
+  "gameplay_unchanged": true,
+  "minimum_client": "0.2.0-beta.56",
+  "pool": "custom"
+}

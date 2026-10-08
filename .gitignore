@@ -8,3 +8,7 @@ riderModule.iml
 /PlayerData/
 /Logs/
 /extracted/conquest-inputs/
+
+/extracted/winter-inputs/
+
+__pycache__/
