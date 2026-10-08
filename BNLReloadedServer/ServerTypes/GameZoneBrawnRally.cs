@@ -54,9 +54,12 @@ public partial class GameZone
             _rallyClock() < _rallyCombatUntil.GetValueOrDefault(host.PlayerId!.Value) ||
             host.CurrentChannelData != null || host.Transform.IsJump || host.Transform.IsWallClimb ||
             host.Transform.IsDash || host.Transform.IsGroundSlam ||
-            MathF.Abs(host.Transform.GetLocalVelocity().Y) > .1f)
+            host.Transform.GetLocalVelocity().Y > .1f)
             return SpawnPointLockType.ServerBlocked;
 
+        // Grounded clients always report a downward stick-to-ground velocity of at least 1m/s
+        // (PlayerMovementGroundMove), so only upward motion disqualifies; the airborne flag
+        // and the support check below reject falling carriers.
         var feet = host.Transform.Position;
         if (!RallySupported(feet)) return SpawnPointLockType.ServerBlocked;
         // Eight nearby spots, standing clearance for the arriving hero, and a clear path

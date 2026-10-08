@@ -104,6 +104,8 @@ OnZone(() => {
     Check(State(host)==SpawnPointLockType.ServerBlocked,"cannot spawn on yourself");
     host.Transform.IsJump=true;Check(State()==SpawnPointLockType.ServerBlocked,"jumping carrier blocked");host.Transform.IsJump=false;
     host.Transform.SetLocalVelocity(new Vector3(0,2,0));Check(State()==SpawnPointLockType.ServerBlocked,"vertical motion blocked");host.Transform.SetLocalVelocity(Vector3.Zero);
+    host.Transform.SetLocalVelocity(new Vector3(0,-1,0));Check(State()==SpawnPointLockType.Free,"standing client stick-to-ground velocity is eligible");
+    host.Transform.SetLocalVelocity(new Vector3(0,-7.5f,6.5f));Check(State()==SpawnPointLockType.Free,"walking client stick-to-ground velocity is eligible");host.Transform.SetLocalVelocity(Vector3.Zero);
     Move(host,new Vector3(8.5f,FloorTop+3,8.5f));Check(State()==SpawnPointLockType.ServerBlocked,"airborne at jump apex blocked without flag");
     Move(host,new Vector3(.2f,FloorTop+.08f,8.5f));Check(State()==SpawnPointLockType.ServerBlocked,"unsupported footprint at map edge blocked");
     Move(host,new Vector3(8.5f,FloorTop+.08f,8.5f));
