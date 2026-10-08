@@ -1,0 +1,25 @@
+{
+  "_id": "perk_class_brawn_1",
+  "category": "perk",
+  "scope": "public",
+  "name": {
+    "text": "Rally Point",
+    "data": {}
+  },
+  "description": {
+    "text": "Teammates can respawn beside you while alive, grounded and out of combat for {out_of_combat_seconds}s, with room for both players.\nAttacking or taking enemy damage restarts the timer.",
+    "data": {}
+  },
+  "description_2": {
+    "text": "Team respawn while grounded, safe for {out_of_combat_seconds}s, with space nearby.",
+    "data": {}
+  },
+  "label": "Mobile team respawn",
+  "level": 1,
+  "slot_type": "class",
+  "perk_mods": [],
+  "class_perk": {
+    "out_of_combat_seconds": 5,
+    "spawn_distance": 1.15
+  }
+}

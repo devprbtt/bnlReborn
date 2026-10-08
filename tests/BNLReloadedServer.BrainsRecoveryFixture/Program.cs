@@ -105,6 +105,17 @@ void Reset(float hp = 20) => OnZone(() => { healer.UpdateData(new UnitUpdate { H
 float HP(Unit u) => u.HealthPercentage * 100;
 Reset(); Heal(new UnitSource(healer), teammate, 20);
 Check(Near(HP(healer), 30), "direct ally healing returns 50 percent");
+foreach (var percent in new[] {25f,75f,50f}) {
+    OnZone(()=>{
+        var catalogue=(ServerCatalogue)Databases.Catalogue;
+        var tuned=new CardPerk { Id=ClassPerkCatalogue.BrainsId, SlotType=PerkSlotType.Class, ClassPerk=new ClassPerkBalance { HealingReturnPercent=percent } };
+        catalogue.Replicate(catalogue.All.Where(c=>c.Id!=tuned.Id).Append(tuned).ToList());
+        return true;
+    });
+    Reset(); Heal(new UnitSource(healer), teammate, 20);
+    Check(Near(HP(healer),20+20*percent/100),$"CDB healing return {percent} percent");
+}
+
 Reset(); Heal(new UnitSource(healer), teammate, 20, startHealth: 95);
 Check(Near(HP(healer), 22.5f), "overheal returns only half actual health restored");
 Reset(); Heal(new UnitSource(healer), teammate, 20, startHealth: 100);

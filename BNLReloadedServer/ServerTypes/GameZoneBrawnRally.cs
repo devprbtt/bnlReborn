@@ -14,7 +14,7 @@ public partial class GameZone
     private readonly Dictionary<uint, long> _rallyCombatUntil = new();
     private Func<long> _rallyClock = () => Environment.TickCount64;
     private long _nextRallyRefresh;
-    private const long RallyCombatMilliseconds = 5000;
+    private static long RallyCombatMilliseconds => ClassPerkCatalogue.QuietMilliseconds(ClassPerkCatalogue.BrawnId);
 
     private bool HasBrawnRally(Unit unit) => _gameInitiator is not WaitingArenaInitiator &&
         unit.PlayerId.HasValue && unit.UnitCard?.Data is UnitDataPlayer data &&
@@ -68,7 +68,7 @@ public partial class GameZone
         foreach (var direction in new[] { Vector3.UnitX, -Vector3.UnitX, Vector3.UnitZ, -Vector3.UnitZ,
                      new Vector3(1,0,1), new Vector3(-1,0,1), new Vector3(1,0,-1), new Vector3(-1,0,-1) })
         {
-            var offset = Vector3.Normalize(direction) * 1.15f;
+            var offset = Vector3.Normalize(direction) * ClassPerkCatalogue.Balance(ClassPerkCatalogue.BrawnId).SpawnDistance;
             var candidate = feet + offset;
             if (!RallySupported(candidate)) continue;
             bool clear = true;

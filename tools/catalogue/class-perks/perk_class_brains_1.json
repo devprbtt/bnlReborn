@@ -1,0 +1,24 @@
+{
+  "_id": "perk_class_brains_1",
+  "category": "perk",
+  "scope": "public",
+  "name": {
+    "text": "Shared Recovery",
+    "data": {}
+  },
+  "description": {
+    "text": "Healing an ally restores your health for {healing_return_percent}% of the health actually restored.\nHealth stations, self-healing and overhealing do not trigger this perk.",
+    "data": {}
+  },
+  "description_2": {
+    "text": "Heal yourself for {healing_return_percent}% of ally healing. Excludes health stations.",
+    "data": {}
+  },
+  "label": "{healing_return_percent}% healing returned",
+  "level": 1,
+  "slot_type": "class",
+  "perk_mods": [],
+  "class_perk": {
+    "healing_return_percent": 50
+  }
+}

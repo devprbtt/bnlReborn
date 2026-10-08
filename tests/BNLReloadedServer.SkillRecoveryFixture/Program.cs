@@ -125,6 +125,15 @@ OnZone(()=>{
     Check(healer.Respawn(new Vector3(4,4,4),Quaternion.Identity),"native respawn succeeds");
     healer.UpdateData(new UnitUpdate{Health=20});Step(4999);Near(20,"native respawn starts a fresh five-second delay");
     Step(1001);Near(30,"respawned hero resumes normal regeneration");
+    var tuned = new CardPerk { Id=ClassPerkCatalogue.SkillId, SlotType=PerkSlotType.Class, ClassPerk=new ClassPerkBalance { OutOfCombatSeconds=2, RegenMaxHealthPercentPerSecond=4 } };
+    var catalogue = (ServerCatalogue)Databases.Catalogue;
+    catalogue.Replicate(catalogue.All.Append(tuned).ToList());
+    Reset();Step(1999);Near(20,"CDB quiet period prevents early regeneration");
+    Step(251);Near(21,"CDB four percent rate is used by existing hero");
+    Step(750);Near(24,"CDB rate scales with elapsed time");
+    tuned = new CardPerk { Id=ClassPerkCatalogue.SkillId, SlotType=PerkSlotType.Class, ClassPerk=new ClassPerkBalance { OutOfCombatSeconds=2, RegenMaxHealthPercentPerSecond=20 } };
+    catalogue.Replicate(catalogue.All.Where(c=>c.Id!=tuned.Id).Append(tuned).ToList());
+    Step(1000);Near(44,"replicated CDB rate updates an existing hero");
     return true;
 });
 zone.Stop();

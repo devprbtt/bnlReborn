@@ -101,6 +101,14 @@ OnZone(() => {
     Move(guest,new Vector3(2.5f,FloorTop+.08f,2.5f));
     Move(second,new Vector3(3.5f,FloorTop+.08f,2.5f));
     Check(State()==SpawnPointLockType.Free,"Brawn carrier is eligible on open ground");
+    var tuned=new CardPerk { Id=ClassPerkCatalogue.BrawnId, SlotType=PerkSlotType.Class, ClassPerk=new ClassPerkBalance { OutOfCombatSeconds=2 } };
+    catalogue.Replicate(catalogue.All.Append(tuned).ToList());
+    Call("MarkRallyCombat",host);
+    clock+=1999;Check(State()==SpawnPointLockType.ServerBlocked,"CDB Brawn quiet period blocks early spawn");
+    clock++;Check(State()==SpawnPointLockType.Free,"CDB Brawn two second quiet period expires");
+    catalogue.Replicate(catalogue.All.Where(c=>c.Id!=tuned.Id).ToList());
+    clock+=5000;
+
     Check(State(host)==SpawnPointLockType.ServerBlocked,"cannot spawn on yourself");
     host.Transform.IsJump=true;Check(State()==SpawnPointLockType.ServerBlocked,"jumping carrier blocked");host.Transform.IsJump=false;
     host.Transform.SetLocalVelocity(new Vector3(0,2,0));Check(State()==SpawnPointLockType.ServerBlocked,"vertical motion blocked");host.Transform.SetLocalVelocity(Vector3.Zero);

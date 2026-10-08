@@ -1,0 +1,25 @@
+{
+  "_id": "perk_class_skill_1",
+  "category": "perk",
+  "scope": "public",
+  "name": {
+    "text": "Second Wind",
+    "data": {}
+  },
+  "description": {
+    "text": "After {out_of_combat_seconds}s out of combat, regenerate {regen_max_health_percent_per_second}% of your maximum health per second.\nAttacking or taking enemy damage restarts the timer.",
+    "data": {}
+  },
+  "description_2": {
+    "text": "Regenerate {regen_max_health_percent_per_second}% max health per second after {out_of_combat_seconds}s out of combat.",
+    "data": {}
+  },
+  "label": "{regen_max_health_percent_per_second}% max health / sec",
+  "level": 1,
+  "slot_type": "class",
+  "perk_mods": [],
+  "class_perk": {
+    "out_of_combat_seconds": 5,
+    "regen_max_health_percent_per_second": 10
+  }
+}

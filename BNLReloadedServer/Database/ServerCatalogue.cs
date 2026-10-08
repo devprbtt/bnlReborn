@@ -50,6 +50,7 @@ public class ServerCatalogue : Catalogue
             var tempDict = new Dictionary<Key, Card>(KeyEqualityComparer.Instance);
             foreach (var card in cards)
             {
+                if (card is CardPerk perk) ClassPerkCatalogue.Validate(perk);
                 if (card.Id == null) continue;
                 card.Key = Key(card.Id);
                 tempDict.Add(card.Key, card);
@@ -62,6 +63,7 @@ public class ServerCatalogue : Catalogue
 
     public void UpdateCard(Card card)
     {
+        if (card is CardPerk perk) ClassPerkCatalogue.Validate(perk);
         if (card.Id == null) return;
         lock (_updateLock)
         {

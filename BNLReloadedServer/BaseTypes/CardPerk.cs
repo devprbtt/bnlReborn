@@ -6,6 +6,7 @@ namespace BNLReloadedServer.BaseTypes;
 
 public class CardPerk : Card, IIcon
 {
+    public ClassPerkBalance? ClassPerk { get; set; }
     [JsonPropertyOrder(-3)]
     public override CardCategory Category => CardCategory.Perk;
 
@@ -40,11 +41,11 @@ public class CardPerk : Card, IIcon
         if (Name != null)
             LocalizedString.WriteRecord(writer, Name);
         if (Description != null)
-            LocalizedString.WriteRecord(writer, Description);
+            LocalizedString.WriteRecord(writer, Database.ClassPerkCatalogue.Resolve(this, Description)!);
         if (Description2 != null)
-            LocalizedString.WriteRecord(writer, Description2);
+            LocalizedString.WriteRecord(writer, Database.ClassPerkCatalogue.Resolve(this, Description2)!);
         if (Label != null)
-            writer.Write(Label);
+            writer.Write(Database.ClassPerkCatalogue.Resolve(this, Label)!);
         writer.Write(Level);
         writer.WriteByteEnum(SlotType);
         if (HeroDependency.HasValue)

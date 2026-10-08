@@ -24,7 +24,7 @@ public partial class Unit
             return;
 
         // AddHealth applies the normal cap/healing modifiers without invoking another heal effect.
-        var gained = healer.AddHealth(restored * 0.5f);
+        var gained = healer.AddHealth(restored * Database.ClassPerkCatalogue.Balance(Database.ClassPerkCatalogue.BrainsId).HealingReturnPercent / 100f);
         if (gained > 0) healer.SendHealAttribution(healer, gained, healer.Key);
     }
 }

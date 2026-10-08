@@ -45,6 +45,11 @@ public static class CatalogueValidator
 
         foreach (var card in cards)
         {
+            if (card is CardPerk perk)
+            {
+                try { ClassPerkCatalogue.Validate(perk); }
+                catch (InvalidDataException error) { problems.Add($"{card.Id}: {error.Message}"); }
+            }
             if (card.Id == null)
             {
                 problems.Add("a card has no id");
