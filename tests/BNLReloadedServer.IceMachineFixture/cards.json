@@ -1,0 +1,866 @@
+[
+  {
+    "_id": "gear_abe_snow_thrower",
+    "scope": "public",
+    "prefab": "snow_thrower",
+    "icon": "weaponicon_abe_W2",
+    "killscore_icon": "icon_killscore_snowthrower",
+    "name": {
+      "text": "SnowThrower 6000 SUX",
+      "data": {
+        "ru": {
+          "original": "SnowThrower 6000 SUX",
+          "translation": "\u0421\u043d\u0435\u0433\u043e\u0443\u0431\u043e\u0440\u0449\u0438\u043a 6000 SUX"
+        },
+        "es": {
+          "original": "SnowThrower 6000 SUX",
+          "translation": "Ca\u00f1\u00f3n de nieve"
+        },
+        "de": {
+          "original": "SnowThrower 6000 SUX",
+          "translation": "Schneeschleuder 6000 SUX"
+        },
+        "pt": {
+          "original": "SnowThrower 6000 SUX",
+          "translation": "SnowThrower\u2122 6000 SUX"
+        },
+        "fr": {
+          "original": "SnowThrower 6000 SUX",
+          "translation": "NivoAtomiseur 6000"
+        }
+      }
+    },
+    "description": {
+      "text": "Slow and damage enemies with a blast of freezing snow, or <BINDING_CAST2> to quickly deposit snow blocks. Limited ammo capacity when away from Snow or Ice Blocks.",
+      "data": {
+        "ru": {
+          "original": "Slow and damage enemies with a blast of freezing snow, or <BINDING_CAST2> to quickly deposit snow blocks. Limited ammo capacity when away from Snow or Ice Blocks.",
+          "translation": "\u0417\u0430\u0441\u044b\u043f\u044c\u0442\u0435 \u0432\u0440\u0430\u0433\u0430 \u043b\u0435\u0434\u044f\u043d\u044b\u043c \u0441\u043d\u0435\u0433\u043e\u043c \u0438\u043b\u0438 \u0431\u044b\u0441\u0442\u0440\u043e \u0441\u043e\u043e\u0440\u0443\u0434\u0438\u0442\u0435 \u0438\u0437 \u043d\u0435\u0433\u043e \u0441\u043d\u0435\u0436\u043d\u044b\u0435 \u0431\u043b\u043e\u043a\u0438 (<BINDING_CAST2>). \u0415\u0441\u043b\u0438 \u0432\u044b \u0431\u0443\u0434\u0435\u0442\u0435 \u0434\u0430\u043b\u0435\u043a\u043e \u043e\u0442 \u0441\u043d\u0435\u0436\u043d\u043e\u0433\u043e \u0438\u043b\u0438 \u043b\u0435\u0434\u044f\u043d\u043e\u0433\u043e \u0431\u043b\u043e\u043a\u0430, \u0432\u0430\u0448 \u0431\u043e\u0435\u043a\u043e\u043c\u043f\u043b\u0435\u043a\u0442 \u0431\u0443\u0434\u0435\u0442 \u043c\u0435\u043d\u044c\u0448\u0435."
+        },
+        "es": {
+          "original": "Slow and damage enemies with a blast of freezing snow, or <BINDING_CAST2> to quickly deposit snow blocks. Limited ammo capacity when away from Snow or Ice Blocks.",
+          "translation": "<BINDING_CAST1> para ralentizar y herir a los enemigos con una r\u00e1faga de nieve. <BINDING_CAST2> para colocar bloques de nieve r\u00e1pidamente. La capacidad de municiones ser\u00e1 limitada al estar lejos de bloques de hielo o nieve."
+        },
+        "de": {
+          "original": "Slow and damage enemies with a blast of freezing snow, or <BINDING_CAST2> to quickly deposit snow blocks. Limited ammo capacity when away from Snow or Ice Blocks.",
+          "translation": "Verlangsame und verletze deine Gegner mit einer Explosion aus eisigem Schnee! Nutz die <BINDING_CAST2>, um Schneebl\u00f6cke schnell zu platzieren. Limitierte Munition, wenn kein Schnee oder Eis in der N\u00e4he ist."
+        },
+        "pt": {
+          "original": "Slow and damage enemies with a blast of freezing snow, or <BINDING_CAST2> to quickly deposit snow blocks. Limited ammo capacity when away from Snow or Ice Blocks.",
+          "translation": "Desacelere e cause dano nos inimigos com uma rajada de neve congelante, ou aperte <BINDING_CAST2> para depositar blocos de neve rapidamente. Limite de muni\u00e7\u00e3o limitado quando n\u00e3o h\u00e1 Neve ou Blocos de Gelo por perto."
+        },
+        "fr": {
+          "original": "Slow and damage enemies with a blast of freezing snow, or <BINDING_CAST2> to quickly deposit snow blocks. Limited ammo capacity when away from Snow or Ice Blocks.",
+          "translation": "Ralentissez vos ennemis et ensevelissez-les sous une tonne de neige glac\u00e9e, ou placez rapidement des blocs de neige en utilisant l'action secondaire (<BINDING_CAST2>). Capacit\u00e9 en munitions limit\u00e9e si vous \u00eates hors de port\u00e9e d'un bloc de glace ou d'un bloc de neige."
+        }
+      }
+    },
+    "animation_tag": "",
+    "primary_fire_icon": "abe_icon_W2_snowthrower",
+    "render_fov": 30,
+    "pickup_time": 0.3,
+    "drop_time": 0.2,
+    "equip_effects": [],
+    "ammo": [
+      {
+        "pool": {
+          "pool_size": 100,
+          "base_regen": 5
+        },
+        "mag_size": null
+      }
+    ],
+    "reload": null,
+    "sway": null,
+    "sway_crouch_mod": null,
+    "cone_of_fire": {
+      "angle": 1,
+      "max_bloom": 2,
+      "crouch_mod": -1,
+      "move_mod": 1,
+      "jump_mod": 15,
+      "reset_delay": 0.2,
+      "reset_speed": 15
+    },
+    "reticles": [
+      {
+        "type": "broken_circle",
+        "application": "opponent_only",
+        "preview_damage_range": 10,
+        "preview_max_range": 15,
+        "show_in_ads": false,
+        "melee_heeling_angle": null,
+        "melee_arc_angle": null
+      }
+    ],
+    "aim_assist": null,
+    "tools": [
+      {
+        "type": "spinup",
+        "ammo": {
+          "rate": 1,
+          "ammo_index": 0,
+          "auto_reload_on_empty_gun_switch": false,
+          "auto_reload_on_empty_gun_fire": false,
+          "auto_reload_after_last_shot": false,
+          "low_ammo_bullets_count": 0,
+          "reload_message_bullets_count": 0
+        },
+        "auto_switch": true,
+        "range": 15,
+        "bullet": {
+          "type": "projectile",
+          "projectile_key": "projectile_abe_snow_thrower_primary",
+          "min_speed": 100,
+          "max_speed": null,
+          "hold_interval": null
+        },
+        "bloom": 0.125,
+        "recoil": {
+          "angle": 0,
+          "angle_variance": 1,
+          "clearance": 0,
+          "magnitude": 1.5,
+          "magnitude_variance": 0.5,
+          "first_modifier": 1,
+          "recovery": 4,
+          "horizontal_tolerance": 1,
+          "vertical_tolerance": 4,
+          "persistent_recovery": true
+        },
+        "bullets": null,
+        "spinup_time": 0.75,
+        "hit_effect": {
+          "type": "bunch",
+          "interrupt": null,
+          "targeting": null,
+          "impact": null,
+          "break_on_effect_fail": false,
+          "instant": [
+            {
+              "type": "damage",
+              "interrupt": null,
+              "targeting": {
+                "affected_labels": null,
+                "affected_units": [
+                  "player"
+                ],
+                "affected_team": "opponent",
+                "caster_owned_only": false,
+                "ignore_caster": false
+              },
+              "impact": "impact_abe_snow_thrower_primary",
+              "damage": {
+                "player_damage": 2.5,
+                "world_damage": 0,
+                "objective_damage": 0,
+                "mining": false,
+                "melee": false,
+                "ignore_invincibility": false,
+                "ignore_defences": false
+              },
+              "crit_modifier": 1,
+              "falloff": null
+            }
+          ],
+          "constant": [
+            "effect_hero_abe_snow_thrower_slow"
+          ]
+        },
+        "timing": {
+          "pre_attack_time": 0.0001,
+          "attack_time": 0.1
+        }
+      },
+      {
+        "type": "shot",
+        "ammo": {
+          "rate": 10,
+          "ammo_index": 0,
+          "auto_reload_on_empty_gun_switch": false,
+          "auto_reload_on_empty_gun_fire": false,
+          "auto_reload_after_last_shot": false,
+          "low_ammo_bullets_count": 0,
+          "reload_message_bullets_count": 0
+        },
+        "auto_switch": true,
+        "auto_fire": true,
+        "range": 20,
+        "hit_on_out_of_range": true,
+        "bullet": {
+          "type": "projectile",
+          "projectile_key": "projectile_abe_snow_thrower_secondary",
+          "min_speed": 32,
+          "max_speed": null,
+          "hold_interval": null
+        },
+        "bloom": 0.2,
+        "recoil": {
+          "angle": 0,
+          "angle_variance": 1,
+          "clearance": 0,
+          "magnitude": 5,
+          "magnitude_variance": 2,
+          "first_modifier": 1,
+          "recovery": 12,
+          "horizontal_tolerance": 5,
+          "vertical_tolerance": 7,
+          "persistent_recovery": true
+        },
+        "bullets": null,
+        "hit_effect": {
+          "type": "bunch",
+          "interrupt": null,
+          "targeting": null,
+          "impact": null,
+          "break_on_effect_fail": false,
+          "instant": [
+            {
+              "type": "damage",
+              "interrupt": null,
+              "targeting": {
+                "affected_labels": null,
+                "affected_units": [
+                  "player"
+                ],
+                "affected_team": "opponent",
+                "caster_owned_only": false,
+                "ignore_caster": true
+              },
+              "impact": null,
+              "damage": {
+                "player_damage": 10,
+                "world_damage": 0,
+                "objective_damage": 0,
+                "mining": false,
+                "melee": false,
+                "ignore_invincibility": false,
+                "ignore_defences": false
+              },
+              "crit_modifier": 1.25,
+              "falloff": null
+            },
+            {
+              "type": "splash_damage",
+              "interrupt": null,
+              "targeting": {
+                "affected_labels": null,
+                "affected_units": [
+                  "player"
+                ],
+                "affected_team": "opponent",
+                "caster_owned_only": false,
+                "ignore_caster": true
+              },
+              "impact": "impact_abe_snow_thrower_splash",
+              "damage": {
+                "player_damage": 10,
+                "world_damage": 0,
+                "objective_damage": 0,
+                "mining": false,
+                "melee": false,
+                "ignore_invincibility": false,
+                "ignore_defences": false
+              },
+              "radius": 2.5,
+              "unit_inst_effects": [],
+              "unit_const_effects": []
+            },
+            {
+              "type": "blocks_spawn",
+              "interrupt": null,
+              "targeting": null,
+              "impact": null,
+              "pattern": {
+                "type": "one",
+                "block_key": "block_snow"
+              }
+            }
+          ],
+          "constant": [
+            "effect_hero_abe_snow_thrower_slow"
+          ]
+        },
+        "timing": {
+          "pre_attack_time": 0.0001,
+          "attack_time": 0.5
+        }
+      }
+    ],
+    "category": "gear"
+  },
+  {
+    "_id": "gear_abe_snow_thrower_ice_machine",
+    "scope": "public",
+    "prefab": "snow_thrower",
+    "icon": "weaponicon_abe_W2",
+    "killscore_icon": "icon_killscore_snowthrower",
+    "name": {
+      "text": "SnowThrower 6000 SUX",
+      "data": {
+        "ru": {
+          "original": "SnowThrower 6000 SUX",
+          "translation": "\u0421\u043d\u0435\u0433\u043e\u0443\u0431\u043e\u0440\u0449\u0438\u043a 6000 SUX"
+        },
+        "es": {
+          "original": "SnowThrower 6000 SUX",
+          "translation": "Ca\u00f1\u00f3n de nieve"
+        },
+        "de": {
+          "original": "SnowThrower 6000 SUX",
+          "translation": "Schneeschleuder 6000 SUX"
+        },
+        "pt": {
+          "original": "SnowThrower 6000 SUX",
+          "translation": "SnowThrower\u2122 6000 SUX"
+        },
+        "fr": {
+          "original": "SnowThrower 6000 SUX",
+          "translation": "NivoAtomiseur 6000"
+        }
+      }
+    },
+    "description": {
+      "text": "Slow and damage enemies with freezing snow. <BINDING_CAST2> converts one hit block into friendly ice, with 35% lower secondary fire rate.",
+      "data": {}
+    },
+    "animation_tag": "",
+    "primary_fire_icon": "abe_icon_W2_snowthrower",
+    "render_fov": 30,
+    "pickup_time": 0.3,
+    "drop_time": 0.2,
+    "equip_effects": [],
+    "ammo": [
+      {
+        "pool": {
+          "pool_size": 100,
+          "base_regen": 5
+        },
+        "mag_size": null
+      }
+    ],
+    "reload": null,
+    "sway": null,
+    "sway_crouch_mod": null,
+    "cone_of_fire": {
+      "angle": 1,
+      "max_bloom": 2,
+      "crouch_mod": -1,
+      "move_mod": 1,
+      "jump_mod": 15,
+      "reset_delay": 0.2,
+      "reset_speed": 15
+    },
+    "reticles": [
+      {
+        "type": "broken_circle",
+        "application": "opponent_only",
+        "preview_damage_range": 10,
+        "preview_max_range": 15,
+        "show_in_ads": false,
+        "melee_heeling_angle": null,
+        "melee_arc_angle": null
+      }
+    ],
+    "aim_assist": null,
+    "tools": [
+      {
+        "type": "spinup",
+        "ammo": {
+          "rate": 1,
+          "ammo_index": 0,
+          "auto_reload_on_empty_gun_switch": false,
+          "auto_reload_on_empty_gun_fire": false,
+          "auto_reload_after_last_shot": false,
+          "low_ammo_bullets_count": 0,
+          "reload_message_bullets_count": 0
+        },
+        "auto_switch": true,
+        "range": 15,
+        "bullet": {
+          "type": "projectile",
+          "projectile_key": "projectile_abe_snow_thrower_primary",
+          "min_speed": 100,
+          "max_speed": null,
+          "hold_interval": null
+        },
+        "bloom": 0.125,
+        "recoil": {
+          "angle": 0,
+          "angle_variance": 1,
+          "clearance": 0,
+          "magnitude": 1.5,
+          "magnitude_variance": 0.5,
+          "first_modifier": 1,
+          "recovery": 4,
+          "horizontal_tolerance": 1,
+          "vertical_tolerance": 4,
+          "persistent_recovery": true
+        },
+        "bullets": null,
+        "spinup_time": 0.75,
+        "hit_effect": {
+          "type": "bunch",
+          "interrupt": null,
+          "targeting": null,
+          "impact": null,
+          "break_on_effect_fail": false,
+          "instant": [
+            {
+              "type": "damage",
+              "interrupt": null,
+              "targeting": {
+                "affected_labels": null,
+                "affected_units": [
+                  "player"
+                ],
+                "affected_team": "opponent",
+                "caster_owned_only": false,
+                "ignore_caster": false
+              },
+              "impact": "impact_abe_snow_thrower_primary",
+              "damage": {
+                "player_damage": 2.5,
+                "world_damage": 0,
+                "objective_damage": 0,
+                "mining": false,
+                "melee": false,
+                "ignore_invincibility": false,
+                "ignore_defences": false
+              },
+              "crit_modifier": 1,
+              "falloff": null
+            }
+          ],
+          "constant": [
+            "effect_hero_abe_snow_thrower_slow"
+          ]
+        },
+        "timing": {
+          "pre_attack_time": 0.0001,
+          "attack_time": 0.1
+        }
+      },
+      {
+        "type": "shot",
+        "ammo": {
+          "rate": 10,
+          "ammo_index": 0,
+          "auto_reload_on_empty_gun_switch": false,
+          "auto_reload_on_empty_gun_fire": false,
+          "auto_reload_after_last_shot": false,
+          "low_ammo_bullets_count": 0,
+          "reload_message_bullets_count": 0
+        },
+        "auto_switch": true,
+        "auto_fire": true,
+        "range": 20,
+        "hit_on_out_of_range": true,
+        "bullet": {
+          "type": "projectile",
+          "projectile_key": "projectile_abe_snow_thrower_secondary",
+          "min_speed": 32,
+          "max_speed": null,
+          "hold_interval": null
+        },
+        "bloom": 0.2,
+        "recoil": {
+          "angle": 0,
+          "angle_variance": 1,
+          "clearance": 0,
+          "magnitude": 5,
+          "magnitude_variance": 2,
+          "first_modifier": 1,
+          "recovery": 12,
+          "horizontal_tolerance": 5,
+          "vertical_tolerance": 7,
+          "persistent_recovery": true
+        },
+        "bullets": null,
+        "hit_effect": {
+          "type": "bunch",
+          "interrupt": null,
+          "targeting": null,
+          "impact": null,
+          "break_on_effect_fail": false,
+          "instant": [
+            {
+              "type": "damage",
+              "interrupt": null,
+              "targeting": {
+                "affected_labels": null,
+                "affected_units": [
+                  "player"
+                ],
+                "affected_team": "opponent",
+                "caster_owned_only": false,
+                "ignore_caster": true
+              },
+              "impact": null,
+              "damage": {
+                "player_damage": 10,
+                "world_damage": 0,
+                "objective_damage": 0,
+                "mining": false,
+                "melee": false,
+                "ignore_invincibility": false,
+                "ignore_defences": false
+              },
+              "crit_modifier": 1.25,
+              "falloff": null
+            },
+            {
+              "type": "splash_damage",
+              "interrupt": null,
+              "targeting": {
+                "affected_labels": null,
+                "affected_units": [
+                  "player"
+                ],
+                "affected_team": "opponent",
+                "caster_owned_only": false,
+                "ignore_caster": true
+              },
+              "impact": "impact_abe_snow_thrower_splash",
+              "damage": {
+                "player_damage": 10,
+                "world_damage": 0,
+                "objective_damage": 0,
+                "mining": false,
+                "melee": false,
+                "ignore_invincibility": false,
+                "ignore_defences": false
+              },
+              "radius": 2.5,
+              "unit_inst_effects": [],
+              "unit_const_effects": []
+            },
+            {
+              "type": "replace_blocks",
+              "replace_with": "block_ice",
+              "range": 0,
+              "interrupt": null,
+              "targeting": null,
+              "impact": null
+            }
+          ],
+          "constant": [
+            "effect_hero_abe_snow_thrower_slow"
+          ]
+        },
+        "timing": {
+          "pre_attack_time": 0.0001,
+          "attack_time": 0.7692846153846153
+        }
+      }
+    ],
+    "category": "gear"
+  },
+  {
+    "_id": "perk_hero_abe_ice_machine",
+    "scope": "public",
+    "icon": "shop_perk_hero_abe_facewash",
+    "name": {
+      "text": "Ice Machine",
+      "data": {}
+    },
+    "description": {
+      "text": "Snow Thrower right-click converts one hit block into friendly ice instead of placing snow / Snow Thrower right-click fire rate reduced by 35%",
+      "data": {}
+    },
+    "description_2": {
+      "text": "",
+      "data": {}
+    },
+    "label": "ice_machine",
+    "level": 3,
+    "slot_type": "hero",
+    "hero_dependency": "unit_hero_abe",
+    "perk_mods": [
+      {
+        "type": "gear",
+        "replace_from": "gear_abe_snow_thrower",
+        "replace_to": "gear_abe_snow_thrower_ice_machine"
+      }
+    ],
+    "category": "perk"
+  },
+  {
+    "_id": "block_ice",
+    "category": "block",
+    "scope": "public",
+    "base_cost": 7,
+    "level": 1,
+    "killscore_icon": "",
+    "block_id": 61,
+    "visual": {
+      "type": "cube",
+      "icon": "block_ice",
+      "name": {
+        "text": "Ice",
+        "data": {
+          "pt": {
+            "original": "Ice",
+            "translation": "Gelo"
+          },
+          "es": {
+            "original": "Ice",
+            "translation": "Hielo"
+          },
+          "de": {
+            "original": "Ice",
+            "translation": "Eis"
+          },
+          "fr": {
+            "original": "Ice",
+            "translation": "Bloc de glace"
+          },
+          "ru": {
+            "original": "Ice",
+            "translation": "\u041b\u0435\u0434"
+          }
+        }
+      },
+      "material": "material_ice",
+      "collider": "solid",
+      "materials": [
+        "BlockIce"
+      ],
+      "texture_indices": [
+        [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      ],
+      "decal_indices": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+      ]
+    },
+    "transparent": true,
+    "light_transparent": false,
+    "skylight_transparent": false,
+    "light_fade": 2,
+    "self_light": 0,
+    "solid": true,
+    "grounded": false,
+    "replaceable": false,
+    "destructible": true,
+    "can_stay_in_air": false,
+    "passable": "none",
+    "passable_block_falling": false,
+    "can_swim": false,
+    "has_team": true,
+    "health": {
+      "max_health": 100,
+      "toughness": 0,
+      "shield": 0,
+      "health_type": "world",
+      "mining_only": false,
+      "melee_only": false
+    },
+    "splash_falloff": 0,
+    "splash_resistance": 10,
+    "device_type": "hero",
+    "reward": {
+      "player_reward": 5,
+      "enemy_reward": 2,
+      "mining": true
+    },
+    "special": {
+      "type": "slippery",
+      "acceleration_mod": 0.1,
+      "friction_mod": 0.3,
+      "affect_team": "opponent"
+    }
+  },
+  {
+    "_id": "block_snow",
+    "category": "block",
+    "scope": "public",
+    "level": 1,
+    "killscore_icon": "",
+    "block_id": 60,
+    "visual": {
+      "type": "slope",
+      "icon": "block_snow",
+      "name": {
+        "text": "Snow",
+        "data": {
+          "pt": {
+            "original": "Snow",
+            "translation": "Neve"
+          },
+          "es": {
+            "original": "Snow",
+            "translation": "Nieve"
+          },
+          "de": {
+            "original": "Snow",
+            "translation": "Schnee"
+          },
+          "fr": {
+            "original": "Snow",
+            "translation": "Neige"
+          },
+          "ru": {
+            "original": "Snow",
+            "translation": "\u0421\u043d\u0435\u0433"
+          }
+        }
+      },
+      "material": "material_snow",
+      "collider": "solid",
+      "materials": [
+        "BlockBumpedSpecular"
+      ],
+      "texture_indices": [
+        [
+          35,
+          35,
+          35,
+          35,
+          35,
+          35
+        ]
+      ],
+      "decal_indices": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+      ]
+    },
+    "transparent": false,
+    "light_transparent": false,
+    "skylight_transparent": false,
+    "light_fade": 0,
+    "self_light": 0,
+    "solid": true,
+    "grounded": false,
+    "replaceable": false,
+    "destructible": true,
+    "can_stay_in_air": false,
+    "passable": "none",
+    "passable_block_falling": false,
+    "can_swim": false,
+    "has_team": false,
+    "health": {
+      "max_health": 10,
+      "toughness": 0,
+      "shield": 0,
+      "health_type": "world",
+      "mining_only": false,
+      "melee_only": false
+    },
+    "splash_falloff": 0,
+    "splash_resistance": 0,
+    "device_type": "none",
+    "reward": {
+      "player_reward": 1,
+      "mining": true
+    },
+    "special": {
+      "type": "external"
+    }
+  },
+  {
+    "_id": "effect_hero_abe_snow_thrower_slow",
+    "scope": "public",
+    "prefab_unit": "Prefabs/Effects/Constant/Unit/AbeSnowthrowerSlowDebuff",
+    "prefab_player": "Prefabs/Effects/Constant/Unit/AbeSnowthrowerSlowDebuff",
+    "sound_for_player": null,
+    "sound_for_unit": null,
+    "gui_info": {
+      "name": null,
+      "description": null,
+      "icon": "gameplayeffects_slow",
+      "icon_pos_type": "negative",
+      "icon_form_type": "round"
+    },
+    "positive": false,
+    "interrupt": null,
+    "scores": 15,
+    "duration": 2,
+    "labels": [
+      "soft_control"
+    ],
+    "effect": {
+      "type": "buff",
+      "targeting": {
+        "affected_labels": null,
+        "affected_units": [
+          "player"
+        ],
+        "affected_team": "opponent",
+        "caster_owned_only": false,
+        "ignore_caster": false
+      },
+      "buffs": {
+        "run_speed": -0.4,
+        "sprint_speed": -0.4,
+        "jump_height": -0.4,
+        "dash_time": 0.2,
+        "dash_distance": -0.2,
+        "swim_speed": -0.4
+      }
+    },
+    "category": "effect"
+  },
+  {
+    "_id": "impact_abe_snow_thrower_splash",
+    "category": "impact",
+    "scope": "public",
+    "hit_prefab_for_unit": "Prefabs/Effects/Instant/AbeSnowballSecondaryHit",
+    "hit_prefab_for_player": "Prefabs/Effects/Instant/AbeSnowballSecondaryHit",
+    "hit_for_player_sound": {
+      "container_name": "abe_snow_thrower",
+      "event_name": "impact_secondary/player"
+    },
+    "hit_for_unit_sound": {
+      "container_name": "abe_snow_thrower",
+      "event_name": "impact_secondary/unit"
+    },
+    "impact_type": "explosion",
+    "affect_material": false,
+    "positive": false,
+    "ignore_wrong_damage_sound": false
+  },
+  {
+    "_id": "material_ice",
+    "category": "material",
+    "scope": "public",
+    "impact_prefab": "Prefabs/Effects/Instant/Block_Hit_pos_snow",
+    "impact_sound": {
+      "container_name": "blocks_ice",
+      "event_name": "impact"
+    },
+    "create_prefab": "",
+    "create_sound": {
+      "container_name": "blocks_ice",
+      "event_name": "place"
+    },
+    "destroy_prefab": "Prefabs/Effects/Instant/Block_Destruct_center_snow",
+    "destroy_sound": {
+      "container_name": "blocks_ice",
+      "event_name": "destroy"
+    },
+    "block_center_effect": "Prefabs/Effects/Instant/Block_Hit_center_snow",
+    "block_falling_impact_sound": "",
+    "footstep_surface_name": "Sand"
+  }
+]
