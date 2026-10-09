@@ -21,7 +21,7 @@ var skill = new CardHeroClass { Id="fixture_skill", Type=HeroClassType.Skills };
 var gear = new CardGear { Id = "fixture_ha_gear", Tools=[new ToolShot()] };
 var hero = new CardUnit
 {
-    Id = "fixture_ha_hero", Data = new UnitDataPlayer(), Size = new Vector3s(1, 2, 1), PivotType = UnitPivotType.CenterBottom,
+    Id = "fixture_ha_hero", Data = new UnitDataPlayer(), Size = new Vector3s(1, 2, 1), PivotType = UnitPivotType.CenterBottom, FallHitModifier = 1,
     Health = new UnitHealth { Health = new Health { MaxHealth = 100, HealthType = HealthType.Player } }
 };
 var orb = new CardUnit
@@ -103,6 +103,20 @@ OnZone(()=>{
     Call("UnitIsDamaged",healer,0f,teammate.CreateImpactData(casterPlayerId:teammate.PlayerId));
     Step(1100);Near(30,"zero damage does not count as combat");
     teammate.Team=TeamType.Team1;
+    ImpactData FallImpact() { var i=healer.CreateImpactData(sourceKey:CatalogueHelper.FallSource);i.CasterPlayerId=null;i.CasterUnitId=null;i.Impact=CatalogueHelper.FallImpact;return i; }
+    Reset();clock+=4900;
+    Call("UnitIsDamaged",healer,10f,FallImpact());
+    Step(1100);Near(20,"fall damage restarts delay");
+    Step(4150);Near(22.5f,"fall-damage delay expires normally");
+    Reset();clock+=4900;
+    Call("UnitIsDamaged",healer,0f,FallImpact());
+    Step(1100);Near(30,"zero fall damage does not count as combat");
+    Reset(80);clock+=4900;
+    healer.OnFall(20f,false,5f,25f,true);
+    float landed=HP();
+    Check(landed<80,"native fall damage lands");
+    Step(1100);Check(Math.Abs(HP()-landed)<.01f,"native fall restarts delay");
+    Step(4150);Check(Math.Abs(HP()-(landed+2.5f))<.01f,"regeneration resumes after a fall's quiet period");
     Reset();healer.IsDead=true;Step(6000);Near(20,"dead hero cannot regenerate");
     healer.IsDead=false;Step(1000);Near(20,"death time cannot be banked");
     Reset();healer.IsActive=false;Step(6000);Near(20,"inactive hero cannot regenerate");healer.IsActive=true;
