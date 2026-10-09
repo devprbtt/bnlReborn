@@ -116,6 +116,46 @@ OnZone(() =>
         var special=(BlockSpecialSlippery)mapBinary[cell].Card.Special!;
         Check(special.AffectTeam==RelativeTeamType.Opponent && mapBinary[cell].Team==owner.Team,"friendly ice excluded by client's opponent-only movement rule");
     }
+    // HitProvider packs the .02-wide inside/outside delta to zero; the face survives separately.
+    var shots = (Dictionary<ulong, ShotInfo>)typeof(GameZone).GetField("_shotInfo", Any)!.GetValue(zone)!;
+    var iceGear = new GearData(caster, key, 0);
+    ulong shotId = 9000;
+    foreach (var (face, direction) in new[] {
+        (BlockShift.Left,-Vector3.UnitX), (BlockShift.Right,Vector3.UnitX),
+        (BlockShift.Bottom,-Vector3.UnitY), (BlockShift.Top,Vector3.UnitY),
+        (BlockShift.Back,-Vector3.UnitZ), (BlockShift.Front,Vector3.UnitZ) })
+    {
+        Set(cell,1);Set(adjacent,1);
+        var surface = new Vector3(16.5f,4.5f,16.5f) + direction * .5f;
+        var inside = surface - direction * .01f;
+        var outside = surface + direction * .01f;
+        var delta = outside - inside;
+        var packed = new Vector3s((short)MathF.Round(delta.X*10), (short)MathF.Round(delta.Y*10), (short)MathF.Round(delta.Z*10));
+        Check(packed==Vector3s.Zero,"client normal quantizes to zero: "+face);
+        var hit = new HitData { InsidePoint=inside, Normal=packed, OutsideShift=face };
+        using var wire = new MemoryStream();
+        using (var writer = new BinaryWriter(wire, System.Text.Encoding.UTF8, true)) hit.Write(writer);
+        wire.Position=0;
+        using var reader = new BinaryReader(wire);
+        hit=HitData.ReadRecord(reader);
+        shots[++shotId]=new ShotInfo(shotId,caster,caster.Transform.Position,SourceGear:iceGear,ToolIndex:1);
+        zone.ReceivedHit((ulong)DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),new() { [shotId]=hit });
+        Check(mapBinary[cell].Id==61 && mapBinary[cell].Team==caster.Team && mapBinary.OwnedBlocks[cell]==caster,
+            "wire terrain hit converts one friendly ice block: "+face);
+        Check(mapBinary[adjacent].Id==1,"wire terrain hit leaves adjacent block untouched: "+face);
+    }
+    foreach (var (id, face, targetId, label) in new[] {
+        ((ushort)1, BlockShift.None, (uint?)null, "expiry without a surface face"),
+        ((ushort)0, BlockShift.Top, (uint?)null, "air at a reported face"),
+        ((ushort)1, BlockShift.Top, (uint?)enemyNear.Id, "direct unit hit with a surface face") })
+    {
+        Set(cell,id);
+        var hit = new HitData { InsidePoint=new Vector3(16.5f,4.99f,16.5f),
+            Normal=Vector3s.Zero, OutsideShift=face, TargetId=targetId };
+        shots[++shotId]=new ShotInfo(shotId,caster,caster.Transform.Position,SourceGear:iceGear,ToolIndex:1);
+        zone.ReceivedHit((ulong)DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),new() { [shotId]=hit });
+        Check(mapBinary[cell].Id==id,"zero-normal hit ignores "+label);
+    }
     Set(cell,60);Shoot(caster,new Vector3(16.5f,4.5f,16.5f),new Vector3s(0,1,0),[]);
     Check(mapBinary[cell].Id==61 && mapBinary[cell].Team==caster.Team,"snow can become friendly ice");
     Set(cell,61,TeamType.Neutral);Shoot(caster,new Vector3(16.5f,4.5f,16.5f),new Vector3s(0,1,0),[]);

@@ -1079,7 +1079,11 @@ public partial class GameZone
             case InstEffectReplaceBlocks iceMachine when
                 impactData.SourceKey == new Key("gear_abe_snow_thrower_ice_machine") &&
                 iceMachine.ReplaceWith == new Key("block_ice") && iceMachine.Range == 0:
-                if (unitSource is null || actualUnitList.Count != 0 || impactData.Normal == Vector3s.Zero)
+                // HitProvider encodes a .02-unit inside/outside delta in tenths, so real
+                // terrain hits normally have a zero Normal. OutsideShift retains the face.
+                if (unitSource is null || actualUnitList.Count != 0 ||
+                    (impactData.Normal == Vector3s.Zero && shift is not (BlockShift.Left or BlockShift.Right or
+                        BlockShift.Bottom or BlockShift.Top or BlockShift.Back or BlockShift.Front)))
                     return true;
                 var iceUpdates = MapBinary.IceMachineHit(impactData.InsidePoint, unitSource);
                 if (iceUpdates.Count > 0) DoBlockUpdate(iceUpdates);
