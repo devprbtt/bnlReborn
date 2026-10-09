@@ -1,0 +1,283 @@
+[
+  {
+    "_id": "ability_abe_avalanche",
+    "scope": "public",
+    "icon": "",
+    "killscore_icon": "",
+    "prefab": "",
+    "charges": {
+      "max_charges": 1,
+      "charge_cooldown": 30
+    },
+    "validate": null,
+    "behavior": {
+      "type": "cast",
+      "application": {
+        "type": "projectile",
+        "projectile_key": "projectile_abe_avalanche_marker",
+        "speed": 10,
+        "bullets": null
+      },
+      "hit_effect": {
+        "type": "unit_spawn",
+        "unit_key": "unit_abe_avalanche_area",
+        "impact": "impact_abe_snow_thrower_splash",
+        "targeting": null,
+        "interrupt": null
+      }
+    },
+    "category": "ability"
+  },
+  {
+    "_id": "ability_abe_avalanche_permafrost",
+    "scope": "public",
+    "icon": "",
+    "killscore_icon": "",
+    "prefab": "",
+    "charges": {
+      "max_charges": 1,
+      "charge_cooldown": 30
+    },
+    "validate": null,
+    "behavior": {
+      "type": "cast",
+      "application": {
+        "type": "projectile",
+        "projectile_key": "projectile_abe_avalanche_marker",
+        "speed": 10,
+        "bullets": null
+      },
+      "hit_effect": {
+        "type": "unit_spawn",
+        "unit_key": "unit_abe_permafrost_area",
+        "impact": "impact_abe_snow_thrower_splash",
+        "targeting": null,
+        "interrupt": null
+      }
+    },
+    "category": "ability"
+  },
+  {
+    "_id": "effect_abe_avalanche_area_slow",
+    "scope": "public",
+    "prefab_unit": "Prefabs/Effects/Constant/Unit/AbeSnowthrowerSlowDebuff",
+    "prefab_player": "Prefabs/Effects/Constant/Unit/AbeSnowthrowerSlowDebuff",
+    "sound_for_player": null,
+    "sound_for_unit": null,
+    "gui_info": {
+      "name": null,
+      "description": null,
+      "icon": "gameplayeffects_slow",
+      "icon_pos_type": "negative",
+      "icon_form_type": "round"
+    },
+    "positive": false,
+    "interrupt": null,
+    "scores": 0,
+    "duration": null,
+    "labels": [
+      "soft_control"
+    ],
+    "effect": {
+      "type": "buff",
+      "targeting": {
+        "affected_labels": null,
+        "affected_units": [
+          "player"
+        ],
+        "affected_team": "opponent",
+        "caster_owned_only": false,
+        "ignore_caster": false
+      },
+      "buffs": {
+        "run_speed": -0.3,
+        "sprint_speed": -0.3,
+        "jump_height": -0.3,
+        "dash_time": 0.15,
+        "dash_distance": -0.15,
+        "swim_speed": -0.3
+      }
+    },
+    "category": "effect"
+  },
+  {
+    "_id": "effect_abe_permafrost_root",
+    "scope": "public",
+    "prefab_unit": "Prefabs/Effects/Constant/Unit/AbeSnowthrowerSlowDebuff",
+    "prefab_player": "Prefabs/Effects/Constant/Unit/AbeSnowthrowerSlowDebuff",
+    "sound_for_player": null,
+    "sound_for_unit": null,
+    "gui_info": {
+      "name": null,
+      "description": null,
+      "icon": "gameplayeffects_stunned",
+      "icon_pos_type": "negative",
+      "icon_form_type": "round"
+    },
+    "positive": false,
+    "interrupt": null,
+    "scores": 0,
+    "duration": 0.5,
+    "labels": [
+      "hard_control"
+    ],
+    "effect": {
+      "type": "buff",
+      "targeting": {
+        "affected_labels": null,
+        "affected_units": [
+          "player"
+        ],
+        "affected_team": "opponent",
+        "caster_owned_only": false,
+        "ignore_caster": false
+      },
+      "buffs": {
+        "root": 1
+      }
+    },
+    "category": "effect"
+  },
+  {
+    "_id": "unit_abe_avalanche_area",
+    "scope": "public",
+    "build_time": null,
+    "cooldown": null,
+    "base_cost": null,
+    "cost_inc_per_unit": null,
+    "level": 1,
+    "prefab": null,
+    "killscore_icon": "icon_killscore_skull",
+    "name": null,
+    "description": null,
+    "minimap_type": null,
+    "indicator": null,
+    "icon_map_editor": null,
+    "size": null,
+    "pivot_type": "center",
+    "ground_only": false,
+    "can_rotate": false,
+    "block_movement": false,
+    "capturing": null,
+    "health": null,
+    "loot": null,
+    "spawn_point": null,
+    "count_limit": null,
+    "lifetime": 4,
+    "labels": [
+      "destroy_on_match_end"
+    ],
+    "fall_hit_modifier": 0,
+    "block_binding": "none",
+    "allow_underwater": true,
+    "movement": null,
+    "device_type": "none",
+    "init_effects": [],
+    "enabled_effects": [],
+    "material": "material_none",
+    "treat_hits_as_owner_hits": false,
+    "data": {
+      "type": "common"
+    },
+    "category": "unit"
+  },
+  {
+    "_id": "unit_abe_permafrost_area",
+    "scope": "public",
+    "build_time": null,
+    "cooldown": null,
+    "base_cost": null,
+    "cost_inc_per_unit": null,
+    "level": 1,
+    "prefab": null,
+    "killscore_icon": "icon_killscore_skull",
+    "name": null,
+    "description": null,
+    "minimap_type": null,
+    "indicator": null,
+    "icon_map_editor": null,
+    "size": null,
+    "pivot_type": "center",
+    "ground_only": false,
+    "can_rotate": false,
+    "block_movement": false,
+    "capturing": null,
+    "health": null,
+    "loot": null,
+    "spawn_point": null,
+    "count_limit": null,
+    "lifetime": 4,
+    "labels": [
+      "destroy_on_match_end"
+    ],
+    "fall_hit_modifier": 0,
+    "block_binding": "none",
+    "allow_underwater": true,
+    "movement": null,
+    "device_type": "none",
+    "init_effects": [],
+    "enabled_effects": [],
+    "material": "material_none",
+    "treat_hits_as_owner_hits": false,
+    "data": {
+      "type": "common"
+    },
+    "category": "unit"
+  },
+  {
+    "_id": "perk_hero_abe_permafrost",
+    "scope": "public",
+    "icon": "shop_perk_hero_abe_yuri_n_ice",
+    "name": {
+      "text": "Permafrost",
+      "data": {}
+    },
+    "description": {
+      "text": "Avalanche lasts 4 seconds. Enemies who stay inside for 2 continuous seconds are rooted for 0.5 seconds, once per cast / Avalanche radius reduced by 20%",
+      "data": {}
+    },
+    "description_2": {
+      "text": "",
+      "data": {}
+    },
+    "label": "permafrost",
+    "level": 3,
+    "slot_type": "hero",
+    "hero_dependency": "unit_hero_abe",
+    "perk_mods": [
+      {
+        "type": "ability",
+        "replace_ability": "ability_abe_avalanche_permafrost"
+      }
+    ],
+    "category": "perk"
+  },
+  {
+    "_id": "impact_abe_snow_thrower_splash",
+    "category": "impact",
+    "scope": "public",
+    "hit_prefab_for_unit": "Prefabs/Effects/Instant/AbeSnowballSecondaryHit",
+    "hit_prefab_for_player": "Prefabs/Effects/Instant/AbeSnowballSecondaryHit",
+    "hit_for_player_sound": {
+      "container_name": "abe_snow_thrower",
+      "event_name": "impact_secondary/player"
+    },
+    "hit_for_unit_sound": {
+      "container_name": "abe_snow_thrower",
+      "event_name": "impact_secondary/unit"
+    },
+    "impact_type": "explosion",
+    "affect_material": false,
+    "positive": false,
+    "ignore_wrong_damage_sound": false
+  },
+  {
+    "_id": "material_none",
+    "category": "material",
+    "scope": "public",
+    "destroy_prefab": "",
+    "block_center_effect": "",
+    "block_falling_impact_sound": "",
+    "footstep_surface_name": ""
+  }
+]

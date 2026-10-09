@@ -390,6 +390,9 @@ public partial class GameZone : Updater
 
         ApplyCountLimit(unit, newUnit);
 
+        if (unit.Key == AvalancheAreaKey || unit.Key == PermafrostAreaKey)
+            TickAvalancheAreas(DateTimeOffset.Now);
+
         if (unit.Data is not UnitDataPortal || newUnit.OwnerPlayerId is null) return newUnit;
 
         LinkPortal(newUnit);
@@ -2602,6 +2605,7 @@ public partial class GameZone : Updater
             }
 
             TickSkillRecovery();
+            TickAvalancheAreas(DateTimeOffset.Now);
             FlushBuffer();
 
             _unitsToDrop.ForEach(DropUnit);

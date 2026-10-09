@@ -1,6 +1,6 @@
 # Yeti Avalanche slow and hero perk removal
 
-This is a catalogue-only change. No server or client code changes.
+The October 8 change below is historical. The October 9 follow-up requires both server and client code; see the final section.
 
 ## Avalanche
 
@@ -77,3 +77,47 @@ before the ability references it, writes with the current CouchDB revisions as
 concurrency guards, deletes with the current revision, saves every original card
 under `/root/config-backups` and reads everything back. The catalogue watcher loads
 the change without a server restart. Apply it while no match is running.
+
+
+## 2026-10-09: persistent Avalanche and Permafrost (prepared, not deployed)
+
+Both Avalanche variants now create a replicated Common unit for four seconds.
+Normal radius is five blocks; Permafrost is four (20% smaller). A dedicated,
+source-counted permanent effect maintains the existing 30% slow while enemies are
+inside and removes it on exit or area expiry. Overlapping areas do not multiply
+the slow, and one area's exit cannot remove another area's effect. Snow Thrower's
+separate slow remains independent. Cooldown stays 30 seconds.
+
+Permafrost tracks continuous exposure per enemy unit and per cast on the zone
+thread. Leaving, dying or becoming inactive clears the dwell timer. Two seconds
+inside attempts the existing Root buff for 0.5 seconds, once per enemy per cast;
+normal control immunity still applies. Weapons remain available. Root already
+applied expires independently even if the area ends during its half-second.
+The inclusive spherical boundary uses the hero midpoint, not capsule overlap;
+there is no line-of-sight restriction, matching the previous area slow.
+
+The new hero perk is `perk_hero_abe_permafrost`, using the retired Avalanche
+(Yuri 'n Ice) art `shop_perk_hero_abe_yuri_n_ice`. Its shop card inherits the
+existing Yeti hero-perk price (11,000) and level (III). The old retired perks stay
+retired. `PerkModAbility` selects the dedicated ability card normally.
+
+Client integration in blocknload-unity-upgrade attaches `AvalancheAreaVisual` to
+the replicated area unit, with a translucent frost boundary and swirling snow.
+The sphere and server test share radii 5/4. Units created during reconnect also
+get the VFX; server UnitDrop hides it immediately, with no new local four-second
+clock. Cards intentionally have no new prefab path, avoiding unknown-prefab
+exceptions on older clients, but those clients cannot show the area. Release the
+VFX client and require that version before activating these cards.
+
+`tools/add_yeti_permafrost.py` plans read-only by default, accepts `--from-file`
+and optional `--output` offline, and asserts idempotence. On-host `--apply` backs
+up all eleven affected documents and uses revision guards. Deploy this server
+code and the matching client before applying the catalogue migration. Do not
+rerun the historical October 8 migration after this follow-up.
+
+Validation: `dotnet run --project tests/BNLReloadedServer.PermafrostFixture -c Release`
+uses included real migrated cards and passes 31 assertions: ability selection,
+geometry/teams, dwell reset, late entry, one root, 0.5-second duration, weapon
+availability, overlaps, expiry, and native replicated UnitDrop. Client batch
+validation and a synthetic preview are in the client repository's
+`reports/permafrost`. No live-match playtest or production deployment yet.
