@@ -204,4 +204,3 @@ public class StubProxy : DispatchProxy
         return type.IsValueType ? Activator.CreateInstance(type) : null;
     }
 }
-
