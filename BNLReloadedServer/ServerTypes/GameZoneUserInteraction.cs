@@ -1457,6 +1457,13 @@ public partial class GameZone
 
     public void ReceivedSurrenderRequest(ushort rpcId, uint playerId, IServiceZone surrenderService)
     {
+        // Deathmatch is free-for-all: there is no team to surrender on behalf of.
+        if (_gameInitiator is WaitingArenaInitiator)
+        {
+            surrenderService.SendSurrenderStart(rpcId, SurrenderStartResultType.Disabled);
+            return;
+        }
+
         if (!_playerIdToUnitId.TryGetValue(playerId, out var playerUnitId) ||
             !_playerUnits.TryGetValue(playerUnitId, out var player))
         {
@@ -1512,6 +1519,8 @@ public partial class GameZone
 
     public void ReceivedSurrenderVoteRequest(uint playerId, bool accept)
     {
+        if (_gameInitiator is WaitingArenaInitiator) return;
+
         if (!_playerIdToUnitId.TryGetValue(playerId, out var playerUnitId) ||
             !_playerUnits.TryGetValue(playerUnitId, out var player) ||
             !_zoneData.IsSurrenderRequest[(int)player.Team])

@@ -929,6 +929,29 @@ public class MapBinary
         return dict;
     }
 
+    // Ice Machine changes the hit cell, not a radius around the outside impact point.
+    public Dictionary<Vector3s, BlockUpdate> IceMachineHit(Vector3 insidePoint, Unit owner)
+    {
+        var result = new Dictionary<Vector3s, BlockUpdate>();
+        if (!float.IsFinite(insidePoint.X) || !float.IsFinite(insidePoint.Y) || !float.IsFinite(insidePoint.Z) ||
+            insidePoint.X < 0 || insidePoint.Y < 0 || insidePoint.Z < 0 ||
+            insidePoint.X >= SizeX || insidePoint.Y >= SizeY || insidePoint.Z >= SizeZ) return result;
+        var pos = (Vector3s)CoordsHelper.Floor(insidePoint);
+        var block = this[pos];
+        if (block.IsAir || block.IsLocked || !block.Card.Destructible || block.Card.Grounded ||
+            !(CanReplaceBlock()(block) || block.Card.Key == new Key("block_snow"))) return result;
+        var ice = Databases.Catalogue.GetCard<CardBlock>(new Key("block_ice"));
+        if (ice is not { HasTeam: true, Special: BlockSpecialSlippery { AffectTeam: RelativeTeamType.Opponent } })
+            return result;
+        block.Id = ice.BlockId;
+        block.VData = 0;
+        block.Team = owner.Team; // HasTeam on the destination card must be set before assigning this.
+        OwnedBlocks[pos] = owner;
+        UpdateStability(pos);
+        result[pos] = block.ToUpdate();
+        return result;
+    }
+
     public Dictionary<Vector3s, BlockUpdate> ReplaceBlocks(Key blockKey, float range, Vector3 location, Unit? owner)
     {
         var bounds = new BoundingSphere(location, range);

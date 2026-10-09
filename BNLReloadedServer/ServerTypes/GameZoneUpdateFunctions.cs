@@ -1076,6 +1076,15 @@ public partial class GameZone
                 actualUnitList.ForEach(u => u.PurgeEffects(instEffectPurge.Positive, instEffectPurge.Negative));
                 return true;
 
+            case InstEffectReplaceBlocks iceMachine when
+                impactData.SourceKey == new Key("gear_abe_snow_thrower_ice_machine") &&
+                iceMachine.ReplaceWith == new Key("block_ice") && iceMachine.Range == 0:
+                if (unitSource is null || actualUnitList.Count != 0 || impactData.Normal == Vector3s.Zero)
+                    return true;
+                var iceUpdates = MapBinary.IceMachineHit(impactData.InsidePoint, unitSource);
+                if (iceUpdates.Count > 0) DoBlockUpdate(iceUpdates);
+                return true;
+
             case InstEffectReplaceBlocks instEffectReplaceBlocks:
                 var repUpdates = _zoneData.BlocksData.ReplaceBlocks(instEffectReplaceBlocks.ReplaceWith,
                     instEffectReplaceBlocks.Range, impactPoint, unitSource);
