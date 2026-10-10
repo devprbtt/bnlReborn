@@ -1512,6 +1512,11 @@ public partial class GameZone
             MarkClassPerkCombat(target);
             MarkClassPerkCombat(combatSource);
         }
+        // Fall damage has no attacker but still interrupts out-of-combat recovery.
+        else if (damage > 0 && target.PlayerId != null && impact.SourceKey == CatalogueHelper.FallSource)
+        {
+            MarkClassPerkCombat(target);
+        }
 
         // On-hit perks trigger only for the player's own gear, never for their turrets, devices,
         // trap blocks or abilities.
