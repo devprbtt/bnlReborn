@@ -56,7 +56,7 @@ public partial class Unit
     // that player, so clients show its own portrait.
     public static Unit? HealCredit(EffectSource? source, Unit? healerPlayer, Unit healed)
     {
-        if (healed.PlayerId is null) return null;
+        if (healed.PlayerId is null || source is UnitSource { Unit.PickupUnitData: not null }) return null;
         if (source is UnitSource { Unit: var self } && self.Id == healed.Id) return healed;
         if (healerPlayer is { PlayerId: not null }) return healerPlayer;
         return source is UnitSource { Unit: { PlayerId: null } unowned } ? unowned : null;

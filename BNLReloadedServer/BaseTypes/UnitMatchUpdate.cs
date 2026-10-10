@@ -1,6 +1,7 @@
 ﻿using System.Diagnostics;
 using System.Numerics;
 using BNLReloadedServer.Database;
+using BNLReloadedServer.ProtocolHelpers;
 
 namespace BNLReloadedServer.BaseTypes;
 
@@ -101,6 +102,14 @@ public partial class Unit
         {
             UpdateStat(ScoreType.ResourceEarnedMining, resources);
         }
+    }
+
+    // Count only health actually restored, including the max-health clamp.
+    public float RestoreLifeSteal(float damage)
+    {
+        var gained = AddHealth(this.LifeStealAmount(damage));
+        if (gained > 0) Healed(gained, GetSelfSource(), this);
+        return gained;
     }
 
     public void Healed(float amount, EffectSource? healSource, Unit? healerPlayer)

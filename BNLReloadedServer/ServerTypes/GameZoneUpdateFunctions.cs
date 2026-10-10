@@ -976,7 +976,7 @@ public partial class GameZone
 
                     if (hpGain > 0)
                     {
-                        var healerPlayer = impactData.CasterPlayerId.HasValue
+                        var healerPlayer = source is not UnitSource { Unit.PickupUnitData: not null } && impactData.CasterPlayerId.HasValue
                             ? GetPlayerFromPlayerId(impactData.CasterPlayerId.Value)
                             : null;
                         unit.Healed(hpGain, source, healerPlayer);
@@ -1523,7 +1523,7 @@ public partial class GameZone
         if (attackerPlayer is not null && OnHitApplies(attackerPlayer, target) && AreOpponents(target, attackerPlayer))
         {
             if (attackerPlayer.GetBuff(BuffType.LifeSteal) > 0 && IsToolDamage(impact))
-                attackerPlayer.AddHealth(attackerPlayer.LifeStealAmount(damage));
+                attackerPlayer.RestoreLifeSteal(damage);
             if (!target.IsDead && OnHitEffectsApply(impact))
             {
                 // Run exactly like on_kill, but on the player who was hit: the effect's own targeting and

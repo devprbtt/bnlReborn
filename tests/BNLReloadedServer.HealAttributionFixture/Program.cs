@@ -190,6 +190,16 @@ Check(selfGained > 0 && selfRegen.Count == 1 && selfRegen[0].Impact is null && s
       selfRegen[0].HitUnits is [var selfRegenHit] && selfRegenHit == healer.Id && Near(selfRegen[0].ShotPos.X, selfGained),
     $"your own passive regen ({selfGained:0.##}) is attributed to you with the amount");
 
+// Dropped health is not a heal performed by its collector, even when FFA assigns ownership.
+var pickupCard = new CardUnit { Id = "fixture_ha_pickup", Data = new UnitDataPickup() };
+((ServerCatalogue)Databases.Catalogue).Replicate(Databases.Catalogue.All.Concat(new Card[] { pickupCard }).ToList());
+var pickup = new Unit(999, new UnitInit { Key=pickupCard.Key, OwnerId=healer.PlayerId, Team=healer.Team },
+    (UnitUpdater)typeof(GameZone).GetField("_defaultUnitUpdater", Any)!.GetValue(zone)!);
+var beforePickup = healer.Stats!.GetValueOrDefault(ScoreType.HealPlayerByBlock);
+Check(Heal(new UnitSource(pickup), healer, 14).Count == 0, "dropped health sends no collector portrait attribution");
+Check(Near(healer.HealthPercentage * 100,54), "pickup still restores 14 health");
+Check(Near(healer.Stats.GetValueOrDefault(ScoreType.HealPlayerByBlock),beforePickup), "pickup does not inflate collector healing given stats");
+
 zone.Stop();
 Console.WriteLine($"BNL_HEAL_ATTRIBUTION_FIXTURE_OK checks={checks}");
 

@@ -35,9 +35,13 @@ Check(Applies(attacker, victim) && attacker.LifeStealAmount(40f) == 0f, "no buff
 attacker.AddEffect(new ConstEffectInfo(steal.Key), attacker.Team, attacker.GetSelfSource());
 Check(Applies(attacker, victim), "buffed living player hitting another player's unit qualifies");
 Check(Math.Abs(attacker.LifeStealAmount(40f) - 20f) < 0.01f, "50% life steal returns half the damage");
-attacker.AddHealth(attacker.LifeStealAmount(40f));
+attacker.RestoreLifeSteal(40f);
+Check(attacker.Stats!.GetValueOrDefault(ScoreType.HealPlayerByHero) == 20f, "lifesteal contributes actual restored health to match healing");
 Check(Math.Abs(attacker.HealthPercentage * 100f - 60f) < 0.01f, "the heal lands on the attacker");
-attacker.AddHealth(attacker.LifeStealAmount(1000f));
+attacker.RestoreLifeSteal(1000f);
+Check(attacker.Stats!.GetValueOrDefault(ScoreType.HealPlayerByHero) == 60f, "overheal excluded from lifesteal healing stats");
+attacker.RestoreLifeSteal(50f);
+Check(attacker.Stats!.GetValueOrDefault(ScoreType.HealPlayerByHero) == 60f, "full-health lifesteal adds no healing stats");
 Check(Math.Abs(attacker.HealthPercentage * 100f - 100f) < 0.01f, "life steal never exceeds max health");
 attacker.AddEffect(new ConstEffectInfo(more.Key), attacker.Team, attacker.GetSelfSource());
 Check(Math.Abs(attacker.LifeStealAmount(40f) - 30f) < 0.01f, "stacked life steal buffs add (75%)");
