@@ -1,0 +1,16 @@
+[Unit]
+Description=Archive available Hercules card revisions
+After=docker.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/python3 /opt/bnl-cdb-history/preserve_cdb_history.py snapshot
+UMask=0077
+StateDirectory=bnl-cdb-history
+StateDirectoryMode=0700
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/bnl-cdb-history
+PrivateTmp=true
+TimeoutStartSec=300

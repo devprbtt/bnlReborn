@@ -1,0 +1,10 @@
+[Unit]
+Description=Preserve new Hercules revisions every minute
+
+[Timer]
+OnBootSec=2min
+OnUnitInactiveSec=1min
+Unit=bnl-cdb-history.service
+
+[Install]
+WantedBy=timers.target
