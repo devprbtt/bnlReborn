@@ -34,6 +34,28 @@ public static class UnitSizeHelper
             ? PlayerUnitBounds(unit, unit.Transform.IsCrouch, stepCount, withSize, withExtraStep)
             : CommonUnitBounds(unit, unit.UnitCard?.Size, stepCount);
 
+    public static IEnumerable<(Vector3s max, Vector3s min)> GetBlockPlacementBounds(Unit unit,
+        uint stepCount, bool withSize, bool withExtraStep)
+    {
+        if (unit.PlayerId is null && unit.UnitCard is { Data: UnitDataPortal, Size: { } size } &&
+            size.x > 0 && size.y > 0 && size.z > 0)
+        {
+            // The client reserves Size cells starting at floor(device position).
+            // Portals spawn at the first cell's center, despite a two-cell height
+            // and Center pivot. Their combat AABB therefore extends half a cell
+            // into the support block. Do not use that AABB as build occupancy.
+            foreach (var position in unit.GetPositionSteps(stepCount))
+            {
+                var origin = (Vector3s)position;
+                yield return (origin + size - Vector3s.One, origin);
+            }
+            yield break;
+        }
+
+        foreach (var bounds in GetUnitBounds(unit, stepCount, withSize, withExtraStep))
+            yield return bounds;
+    }
+
     private static bool IsInsidePlayerUnit(Vector3s pos, Vector3 unitPos, bool isCrouch)
     {
         var vector3s = (Vector3s)unitPos;

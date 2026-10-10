@@ -637,12 +637,16 @@ public class MapBinary
         return true;
     }
 
-    public HashSet<Vector3s> GetContainedInUnits(ICollection<Unit> units, uint stepCount = 2, bool withSize = false, bool withExtraStep = false)
+    public HashSet<Vector3s> GetContainedInUnits(ICollection<Unit> units, uint stepCount = 2, bool withSize = false, bool withExtraStep = false,
+        bool forBlockPlacement = false)
     {
         var contained = new HashSet<Vector3s>();
         foreach (var unit in units)
         {
-            foreach (var (max, min) in UnitSizeHelper.GetUnitBounds(unit, stepCount, withSize, withExtraStep))
+            var bounds = forBlockPlacement
+                ? UnitSizeHelper.GetBlockPlacementBounds(unit, stepCount, withSize, withExtraStep)
+                : UnitSizeHelper.GetUnitBounds(unit, stepCount, withSize, withExtraStep);
+            foreach (var (max, min) in bounds)
             {
                 for (var x = min.x; x <= max.x; x++)
                 {
@@ -1720,8 +1724,8 @@ public class MapBinary
             replaceable = block => block.Card.Replaceable;
         }
 
-        var blockedPositions = GetContainedInUnits(unitsInArea, 2, blockCard.Solid, true);
-        var blockedAttachPositions = GetContainedInUnits(unitsInAttachArea ?? [], 2, blockCard.Solid, true);
+        var blockedPositions = GetContainedInUnits(unitsInArea, 2, blockCard.Solid, true, forBlockPlacement: true);
+        var blockedAttachPositions = GetContainedInUnits(unitsInAttachArea ?? [], 2, blockCard.Solid, true, forBlockPlacement: true);
         return blockCard switch
         {
             { Grounded: true, Solid: true } => block =>
