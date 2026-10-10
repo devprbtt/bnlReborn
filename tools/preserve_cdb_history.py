@@ -77,6 +77,7 @@ def open_archive(path):
     db.execute('PRAGMA synchronous=FULL')
     db.execute('CREATE TABLE IF NOT EXISTS revisions (id TEXT, rev TEXT, body TEXT NOT NULL, sha256 TEXT NOT NULL, captured TEXT NOT NULL, PRIMARY KEY(id,rev))')
     db.execute('CREATE TABLE IF NOT EXISTS state (key TEXT PRIMARY KEY, value TEXT NOT NULL)')
+    db.execute('CREATE TABLE IF NOT EXISTS provenance (id TEXT, rev TEXT, source TEXT, sha256 TEXT, PRIMARY KEY(id,rev,source))')
     return db
 
 
@@ -153,6 +154,31 @@ def export_revision(db, key, rev):
     return json.loads(row[0])
 
 
+def import_backup(db, path, key):
+    raw = Path(path).read_bytes()
+    found = []
+    def visit(node):
+        if isinstance(node, dict):
+            if node.get('_id') == key and '_rev' in node:
+                found.append(node)
+            else:
+                for child in node.values(): visit(child)
+        elif isinstance(node, list):
+            for child in node: visit(child)
+    visit(json.loads(raw))
+    if len(found) != 1 or not re.fullmatch(r'[1-9][0-9]*-[0-9a-f]{32}', found[0]['_rev']):
+        raise ValueError('Expected exactly one complete card revision in the backup')
+    doc = found[0]
+    # This recovery command is deliberately restricted to complete gear cards.
+    if not key.startswith('gear_') or not all(k in doc for k in ('tools', 'category', 'hercules_metadata')):
+        raise ValueError('Not a complete gear card backup')
+    with db:
+        added = save_revision(db, doc)
+        db.execute('INSERT OR IGNORE INTO provenance VALUES (?,?,?,?)',
+                   (key, doc['_rev'], str(Path(path).resolve()), hashlib.sha256(raw).hexdigest()))
+    return {'id': key, 'rev': doc['_rev'], 'new_archived_revisions': added, 'live_card_changed': False}
+
+
 def main():
     os.umask(0o077)
     p = argparse.ArgumentParser(description=__doc__)
@@ -166,6 +192,7 @@ def main():
     sub.add_parser('snapshot')
     listing = sub.add_parser('list'); listing.add_argument('id')
     export = sub.add_parser('export'); export.add_argument('id'); export.add_argument('rev')
+    recovery = sub.add_parser('import-backup'); recovery.add_argument('path'); recovery.add_argument('id')
     args = p.parse_args()
     if args.action == 'protect':
         result = protect(Couch(args.config), args.data_root, args.backup_root, args.apply)
@@ -176,6 +203,8 @@ def main():
             elif args.action == 'list':
                 result = [{'rev': r[0], 'captured': r[1]} for r in db.execute(
                     'SELECT rev,captured FROM revisions WHERE id=? ORDER BY CAST(rev AS INTEGER) DESC', (args.id,))]
+            elif args.action == 'import-backup':
+                result = import_backup(db, args.path, args.id)
             else:
                 result = export_revision(db, args.id, args.rev)
     print(json.dumps(result, indent=2))

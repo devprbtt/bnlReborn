@@ -3,6 +3,7 @@ import importlib.util
 from pathlib import Path
 import tempfile
 import unittest
+import urllib.error
 
 spec = importlib.util.spec_from_file_location('history', Path(__file__).parents[1] / 'tools/preserve_cdb_history.py')
 h = importlib.util.module_from_spec(spec); spec.loader.exec_module(h)
@@ -16,6 +17,7 @@ class FakeCouch:
             '3-c': {'_id': 'gear_test', '_rev': '3-c', '_deleted': True},
         }
         self.fail = False
+        self.missing = False
         self.since = []
 
     def request(self, path):
@@ -25,6 +27,8 @@ class FakeCouch:
 
     def document(self, key, query):
         if self.fail and query['rev'] == '2-b': raise ConnectionError('transient failure')
+        if self.missing and query['rev'] == '1-a':
+            raise urllib.error.HTTPError('test', 404, 'missing', {}, None)
         doc = copy.deepcopy(self.docs[query['rev']])
         if 'revs' in query:
             doc['_revisions'] = {'start': 3, 'ids': ['c', 'b', 'a']}
@@ -63,6 +67,20 @@ class HistoryTests(unittest.TestCase):
         h.snapshot(self.couch, self.db)
         self.db.execute("UPDATE revisions SET body='{}' WHERE rev='1-a'")
         with self.assertRaisesRegex(ValueError, 'checksum'): h.export_revision(self.db, 'gear_test', '1-a')
+
+    def test_missing_ancestor_does_not_discard_available_revisions(self):
+        self.couch.missing = True
+        result = h.snapshot(self.couch, self.db)
+        self.assertEqual(result['already_missing_observations'], 1)
+        self.assertEqual(result['total_archived_revisions'], 2)
+        self.assertEqual(h.export_revision(self.db, 'gear_test', '2-b')['value'], 2)
+
+    def test_old_leaf_only_checkpoint_is_rescanned(self):
+        self.db.execute("INSERT INTO state VALUES ('since','\"old-token\"')")
+        self.db.commit()
+        h.snapshot(self.couch, self.db)
+        self.assertIn('since=0', self.couch.since[0])
+        self.assertEqual(h.export_revision(self.db, 'gear_test', '1-a')['value'], 1)
 
     def test_same_revision_cannot_be_replaced(self):
         h.snapshot(self.couch, self.db)

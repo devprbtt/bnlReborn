@@ -34,7 +34,9 @@ than inserting an old revision into the live tree. Preserve editor authorship an
 `prev_rev` metadata. Back up the current document before applying any restore.
 
 Already-missing bodies cannot be reconstructed from revision IDs. A matching
-historical backup is required. This does not turn existing Missing entries green.
+historical backup is required. `import-backup BACKUP.json gear_card_name` can save
+a complete gear-card backup into the archive, recording its source path and file
+SHA-256. It does not write to CouchDB or turn existing Missing entries green.
 Manual compaction, purge, replication-only migration and history beyond the
 database revision-tree limit can still remove native history. Do not compact `bnl`
 without first running a successful archive pass and arranging an archive restore
