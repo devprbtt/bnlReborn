@@ -26,8 +26,8 @@ class FakeCouch:
     def document(self, key, query):
         if self.fail and query['rev'] == '2-b': raise ConnectionError('transient failure')
         doc = copy.deepcopy(self.docs[query['rev']])
-        if 'revs_info' in query:
-            doc['_revs_info'] = [{'rev': r, 'status': 'deleted' if r == '3-c' else 'available'} for r in self.docs]
+        if 'revs' in query:
+            doc['_revisions'] = {'start': 3, 'ids': ['c', 'b', 'a']}
         return doc
 
 

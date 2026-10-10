@@ -101,7 +101,8 @@ def snapshot(couch, db):
     if stored and stored[0] != identity:
         raise ValueError('Archive belongs to another CouchDB instance')
     row = db.execute("SELECT value FROM state WHERE key='since'").fetchone()
-    since = json.loads(row[0]) if row else 0
+    ancestry = db.execute("SELECT value FROM state WHERE key='ancestry_v2'").fetchone()
+    since = json.loads(row[0]) if row and ancestry else 0
     saved = missing = changed = 0
     while True:
         query = urllib.parse.urlencode({'since': since, 'limit': 200, 'style': 'all_docs'})
@@ -113,20 +114,29 @@ def snapshot(couch, db):
                 if key.startswith('_design/'):
                     continue
                 for leaf in change['changes']:
-                    doc = couch.document(key, {'rev': leaf['rev'], 'revs_info': 'true', 'attachments': 'true'})
-                    for revision in doc.get('_revs_info', []):
-                        if revision['status'] == 'missing':
-                            missing += 1
-                            continue
-                        rev = revision['rev']
+                    # CouchDB ignores revs_info when rev is specified. `revs`
+                    # returns ancestry even for a deleted/conflicting leaf.
+                    doc = couch.document(key, {'rev': leaf['rev'], 'revs': 'true', 'attachments': 'true'})
+                    chain = doc.get('_revisions')
+                    if chain is None:
+                        raise ValueError('CouchDB did not return revision ancestry')
+                    for offset, digest in enumerate(chain['ids']):
+                        rev = str(chain['start'] - offset) + '-' + digest
                         if db.execute('SELECT 1 FROM revisions WHERE id=? AND rev=?', (key, rev)).fetchone():
                             continue
-                        body = doc if rev == doc['_rev'] else couch.document(key, {'rev': rev, 'attachments': 'true'})
+                        try:
+                            body = doc if rev == doc['_rev'] else couch.document(key, {'rev': rev, 'attachments': 'true'})
+                        except urllib.error.HTTPError as error:
+                            if error.code != 404:
+                                raise
+                            missing += 1
+                            continue
                         saved += save_revision(db, body)
                     saved += save_revision(db, doc)
             since = batch['last_seq']
             db.execute("INSERT OR REPLACE INTO state VALUES ('since',?)", (json.dumps(since),))
             db.execute("INSERT OR REPLACE INTO state VALUES ('server_uuid',?)", (identity,))
+            db.execute("INSERT OR REPLACE INTO state VALUES ('ancestry_v2','1')")
         if not batch.get('pending', 0):
             break
     return {'changed_documents': changed, 'new_archived_revisions': saved,
