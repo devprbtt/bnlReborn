@@ -1,4 +1,5 @@
 import copy
+import json
 import importlib.util
 from pathlib import Path
 import tempfile
@@ -92,6 +93,20 @@ class HistoryTests(unittest.TestCase):
         shard = root / 'shards/00000000-ffffffff'; shard.mkdir(parents=True)
         (shard / 'bnl.123.couch').touch(); (shard / '_users.123.couch').touch()
         self.assertEqual(h.shard_names(root), ['shards/00000000-ffffffff/bnl.123'])
+
+    def test_backup_recovery_records_provenance_and_is_idempotent(self):
+        doc = {'_id': 'gear_test', '_rev': '8-' + 'a' * 32, 'tools': [], 'category': 'test', 'hercules_metadata': {}}
+        backup = Path(self.tmp.name) / 'backup.json'
+        backup.write_text(json.dumps({'before': doc}))
+        self.assertEqual(h.import_backup(self.db, backup, 'gear_test')['new_archived_revisions'], 1)
+        self.assertEqual(h.import_backup(self.db, backup, 'gear_test')['new_archived_revisions'], 0)
+        self.assertEqual(h.export_revision(self.db, 'gear_test', doc['_rev']), doc)
+        self.assertEqual(self.db.execute('SELECT count(*) FROM provenance').fetchone()[0], 1)
+
+    def test_partial_backup_is_rejected(self):
+        backup = Path(self.tmp.name) / 'backup.json'
+        backup.write_text(json.dumps({'_id': 'gear_test', '_rev': '8-' + 'a' * 32}))
+        with self.assertRaisesRegex(ValueError, 'complete gear'): h.import_backup(self.db, backup, 'gear_test')
 
 
 if __name__ == '__main__': unittest.main()
