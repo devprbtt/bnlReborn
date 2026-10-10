@@ -1050,12 +1050,45 @@ public class MapBinary
         return dict;
     }
 
+    public int ShotCellKind(int x, int y, int z)
+    {
+        var pos = new Vector3s(x, y, z);
+        if (!ContainsBlock(pos)) return 0;
+        return this[pos].Card.Id switch
+        {
+            "block_metal" => 1,
+            "block_force_gate" or "block_force_gate_disco" => 2,
+            _ => 0
+        };
+    }
+
+    public bool TraceShotBoundary(Vector3 from, Vector3 to, out Vector3 point, out Vector3 normal)
+    {
+        point = normal = Vector3.Zero;
+        if (!ShotBoundaryTrace.Trace(from.X, from.Y, from.Z, to.X, to.Y, to.Z, ShotCellKind, out var contact)) return false;
+        point = Vector3.Lerp(from, to, contact.Fraction);
+        normal = contact.Axis switch { 0 => Vector3.UnitX, 1 => Vector3.UnitY, _ => Vector3.UnitZ } * contact.Normal;
+        return true;
+    }
+
     public (Dictionary<Vector3s, BlockUpdate> updates, List<Unit> hitUnits) SplashDamageBlocks(Vector3[] locations,
         DamageData damage, ImpactData impact, float radius, ICollection<Unit> unitsInRadius, Unit? attacker,
-        TeamType? attackingTeam) =>
-        Databases.ConfigDatabase.UseRaycastExplosions()
+        TeamType? attackingTeam)
+    {
+        // Contact reports include the struck cell first. Never seed a blast inside metal:
+        // use the adjacent outside sample supplied by the impact's face instead.
+        locations = locations.Where(p => ShotCellKind((int)MathF.Floor(p.X), (int)MathF.Floor(p.Y), (int)MathF.Floor(p.Z)) != 1).ToArray();
+        if (locations.Length == 0) return (new(), new());
+        var origin = locations[0];
+        // Flood propagation may travel around a wall. Players covered by metal still
+        // require an exposed body cell; evaluate before the blast changes any blocks.
+        unitsInRadius = unitsInRadius.Where(u => u.OverlappingMapBlocks.Any(p =>
+            !ShotBoundaryTrace.Trace(origin.X, origin.Y, origin.Z, p.x + .5f, p.y + .5f, p.z + .5f,
+                (x, y, z) => ShotCellKind(x, y, z) == 1 ? 1 : 0, out _))).ToList();
+        return Databases.ConfigDatabase.UseRaycastExplosions()
             ? SplashDamageBlocksRaycast(locations, damage, impact, radius, unitsInRadius, attacker, attackingTeam)
             : SplashDamageBlocksFlood(locations, damage, impact, radius, unitsInRadius, attacker, attackingTeam);
+    }
 
     private (Dictionary<Vector3s, BlockUpdate> updates, List<Unit> hitUnits) SplashDamageBlocksRaycast(Vector3[] locations,
         DamageData damage, ImpactData impact, float radius, ICollection<Unit> unitsInRadius, Unit? attacker, TeamType? attackingTeam)

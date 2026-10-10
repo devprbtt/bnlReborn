@@ -305,9 +305,26 @@ public partial class GameZone
         }
     }
 
+    private readonly Dictionary<ulong, Vector3> _projectileBoundaryPositions = new();
+
+    private HitData ConstrainShotHit(Vector3 from, HitData hit)
+    {
+        if (!MapBinary.TraceShotBoundary(from, hit.InsidePoint, out var point, out var normal)) return hit;
+        return new HitData
+        {
+            InsidePoint = point - normal * .01f, Normal = (Vector3s)normal,
+            OutsideShift = normal.X < 0 ? BlockShift.Left : normal.X > 0 ? BlockShift.Right :
+                normal.Y < 0 ? BlockShift.Bottom : normal.Y > 0 ? BlockShift.Top :
+                normal.Z < 0 ? BlockShift.Back : BlockShift.Front,
+            Direction = hit.Direction, TargetId = null, Crit = false
+        };
+    }
+
     public void ReceivedProjCreateRequest(ulong shotId, ProjectileInfo projectileInfo, Guid? creatingSession)
     {
         _keepShotAlive.Add(shotId);
+        if (projectileInfo.Transform is { } transform)
+            _projectileBoundaryPositions[shotId] = transform.Position;
 
         if (projectileInfo.ProjectileKey.GetCard<CardProjectile>() is
             { Behaviour: ProjectileBehaviourGrenade { CollisionMask.Ground: true } })
@@ -320,6 +337,18 @@ public partial class GameZone
 
     public void ReceivedProjMoveRequest(ulong shotId, ulong time, ZoneTransform zoneTransform)
     {
+        if (_projectileBoundaryPositions.TryGetValue(shotId, out var previous))
+        {
+            var movementHit = new HitData { InsidePoint = zoneTransform.Position };
+            var constrained = ConstrainShotHit(previous, movementHit);
+            if (!ReferenceEquals(constrained, movementHit))
+            {
+                ReceivedHit(time, new Dictionary<ulong, HitData> { [shotId] = constrained });
+                ReceivedProjDropRequest(shotId);
+                return;
+            }
+            _projectileBoundaryPositions[shotId] = zoneTransform.Position;
+        }
         if (_checkForWater.Contains(shotId) && zoneTransform.Position.Y < _zoneData.PlanePosition)
         {
             ReceivedHit(time, new Dictionary<ulong, HitData>
@@ -359,6 +388,7 @@ public partial class GameZone
             ReceivedHit(finalTime, new Dictionary<ulong, HitData> { { shotId, finalHit } }, true);
         }
 
+        _projectileBoundaryPositions.Remove(shotId);
         _keepShotAlive.Remove(shotId);
         _checkForWater.Remove(shotId);
         _shotInfo.Remove(shotId);
@@ -1034,9 +1064,16 @@ public partial class GameZone
             return;
         }
 
-        foreach (var (shotId, hitData) in hits)
+        foreach (var (shotId, receivedHit) in hits)
         {
             if (!_shotInfo.TryGetValue(shotId, out var shot)) continue;
+            var hitData = receivedHit;
+            // Leave melee/build/ground-slam targeting alone. Moving projectiles use
+            // their last reported position so legitimate grenade bounces stay valid.
+            var ranged = shot.SourceGear is not null && shot.ToolIndex is not null &&
+                shot.SourceGear.Tools[shot.ToolIndex.Value].Tool is ToolShot or ToolBurst or ToolCharge or ToolSpinup;
+            if (!flushingDeferred && (_keepShotAlive.Contains(shotId) || ranged))
+                hitData = ConstrainShotHit(_projectileBoundaryPositions.GetValueOrDefault(shotId, shot.ShotPos), hitData);
 
             if (!flushingDeferred && _keepShotAlive.Contains(shotId))
             {
