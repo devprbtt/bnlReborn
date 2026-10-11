@@ -6,4 +6,4 @@ Run `python3 tools/add_trondson_echo_perk_reveal.py` on the server for a read-on
 
 No server restart or binary release is required. Clients should re-login and re-equip/rejoin to pick up changed cards. The old marker card is reused without modification. Do not reintroduce reveal to the base staff.
 
-Validation: `python -m unittest discover -s tools/tests -p test_trondson_echo_perk_reveal.py`. Includes a public-card fixture read from the live CDB on 2026-10-11. A live read-only dry run planned exactly the perk staff and perk description cards. Not deployed.
+Validation: `python -m unittest discover -s tools/tests -p test_trondson_echo_perk_reveal.py`. Includes a public-card fixture read from the live CDB on 2026-10-11. A live read-only dry run planned exactly the perk staff and perk description cards. Deployed 2026-10-11 at 20:44 UTC without restarting the server. Both changed cards passed readback; a second read-only run found no pending changes. Backup: `/root/config-backups/trondson-echo-perk-reveal-20261011T204429Z`.
