@@ -1,0 +1,647 @@
+[
+  {
+    "_id": "gear_trondson_sonic_staff",
+    "_rev": "12-335af3071e8e2ddc774761cc947d8c9f",
+    "scope": "public",
+    "prefab": "sonic_staff",
+    "icon": "weaponicon_trondson_W1",
+    "killscore_icon": "icon_killscore_trondson_sonicstaff",
+    "name": {
+      "text": "Sonic Staff",
+      "data": {
+        "ru": {
+          "original": "Sonic Staff",
+          "translation": "\u0421\u0432\u0435\u0440\u0445\u0437\u0432\u0443\u043a\u043e\u0432\u043e\u0439 \u043f\u043e\u0441\u043e\u0445"
+        },
+        "es": {
+          "original": "Sonic Staff",
+          "translation": "B\u00e1culo s\u00f3nico"
+        },
+        "de": {
+          "original": "Sonic Staff",
+          "translation": "Schallstab"
+        },
+        "pt": {
+          "original": "Sonic Staff",
+          "translation": "Cajado S\u00f4nico"
+        },
+        "fr": {
+          "original": "Sonic Staff",
+          "translation": "B\u00e2ton sonique"
+        }
+      }
+    },
+    "description": {
+      "text": "Trondson's trusty Sonic Staff acts as a multi-purpose tool and weapon. <BINDING_CAST1> fires pulses of destructive sonic energy while <BINDING_CAST2> heals nearby allies.",
+      "data": {
+        "ru": {
+          "original": "Trondson's trusty Sonic Staff acts as a multi-purpose tool and weapon. <BINDING_CAST1> fires pulses of destructive sonic energy while <BINDING_CAST2> briefly detects all enemies around Trondson.",
+          "translation": "\u041d\u0430\u0434\u0435\u0436\u043d\u044b\u0439 \u0441\u0432\u0435\u0440\u0445\u0437\u0432\u0443\u043a\u043e\u0432\u043e\u0439 \u043f\u043e\u0441\u043e\u0445 Trondson \u0434\u0435\u0439\u0441\u0442\u0432\u0443\u0435\u0442 \u043a\u0430\u043a \u043c\u043d\u043e\u0433\u043e\u0446\u0435\u043b\u0435\u0432\u043e\u0439 \u0438\u043d\u0441\u0442\u0440\u0443\u043c\u0435\u043d\u0442, \u0430 \u0442\u0430\u043a\u0436\u0435 \u043a\u0430\u043a \u043e\u0440\u0443\u0436\u0438\u0435. <BINDING_CAST1> \u2014 \u0441\u043e\u0437\u0434\u0430\u043d\u0438\u0435 \u0438\u043c\u043f\u0443\u043b\u044c\u0441\u043e\u0432 \u0440\u0430\u0437\u0440\u0443\u0448\u0438\u0442\u0435\u043b\u044c\u043d\u043e\u0439 \u0437\u0432\u0443\u043a\u043e\u0432\u043e\u0439 \u044d\u043d\u0435\u0440\u0433\u0438\u0438, <BINDING_CAST2> \u2014 \u043c\u0433\u043d\u043e\u0432\u0435\u043d\u043d\u043e\u0435 \u043e\u0431\u043d\u0430\u0440\u0443\u0436\u0435\u043d\u0438\u0435 \u0432\u0441\u0435\u0445 \u0432\u0440\u0430\u0433\u043e\u0432 \u043f\u043e\u0431\u043b\u0438\u0437\u043e\u0441\u0442\u0438 \u043e\u0442 \u043f\u043e\u0441\u043e\u0445\u0430."
+        },
+        "es": {
+          "original": "Trondson's trusty Sonic Staff acts as a multi-purpose tool and weapon. <BINDING_CAST1> fires pulses of destructive sonic energy while <BINDING_CAST2> briefly detects all enemies around Trondson.",
+          "translation": "<BINDING_CAST1> para disparar. <BINDING_CAST2> para detectar todos los enemigos cercanos."
+        },
+        "de": {
+          "original": "Trondson's trusty Sonic Staff acts as a multi-purpose tool and weapon. <BINDING_CAST1> fires pulses of destructive sonic energy while <BINDING_CAST2> briefly detects all enemies around Trondson.",
+          "translation": "Trondsons treuer Schallstab ist gleichzeitig Werkzeug und Waffe. Feuer zerst\u00f6rerische Schallenergie ab (<BINDING_CAST1>) oder finde f\u00fcr kurze Zeit alle Feinde um Trondson herum (<BINDING_CAST2>)."
+        },
+        "pt": {
+          "original": "Trondson's trusty Sonic Staff acts as a multi-purpose tool and weapon. <BINDING_CAST1> fires pulses of destructive sonic energy while <BINDING_CAST2> briefly detects all enemies around Trondson.",
+          "translation": "O Cajado S\u00f4nico de Trondson atua como ferramenta e arma multiuso. <BINDING_CAST1> dispara pulsos de energia destrutiva, enquanto <BINDING_CAST2> brevemente detecta todos os inimigos ao redor de Trondson."
+        },
+        "fr": {
+          "original": "Trondson's trusty Sonic Staff acts as a multi-purpose tool and weapon. <BINDING_CAST1> fires pulses of destructive sonic energy while <BINDING_CAST2> briefly detects all enemies around Trondson.",
+          "translation": "Le fid\u00e8le b\u00e2ton sonique de Trondson lui sert \u00e0 la fois d'outil polyvalent et d'arme. Son action principale (<BINDING_CAST1>) d\u00e9gage une onde d'\u00e9nergie sonique destructrice tandis que son action secondaire (<BINDING_CAST2>) d\u00e9tecte bri\u00e8vement tous les ennemis \u00e0 proximit\u00e9 de Trondson."
+        }
+      }
+    },
+    "animation_tag": "",
+    "primary_fire_icon": "trondson_icon_W1_sonic_staff",
+    "render_fov": 30,
+    "pickup_time": 0.3,
+    "drop_time": 0.2,
+    "equip_effects": [],
+    "ammo": [
+      {
+        "pool": {
+          "pool_size": 200,
+          "base_regen": 10
+        },
+        "mag_size": 50
+      }
+    ],
+    "reload": {
+      "type": "full_clip",
+      "reload_time": 2
+    },
+    "sway": null,
+    "sway_crouch_mod": null,
+    "cone_of_fire": {
+      "angle": 1,
+      "max_bloom": 2,
+      "crouch_mod": -1,
+      "move_mod": 1,
+      "jump_mod": 15,
+      "reset_delay": 0.2,
+      "reset_speed": 15
+    },
+    "reticles": [
+      {
+        "type": "crosshair",
+        "application": "opponent_only",
+        "preview_damage_range": 15,
+        "preview_max_range": 30,
+        "show_in_ads": false,
+        "melee_heeling_angle": null,
+        "melee_arc_angle": null
+      }
+    ],
+    "aim_assist": null,
+    "tools": [
+      {
+        "type": "shot",
+        "ammo": {
+          "rate": 1,
+          "ammo_index": 0,
+          "auto_reload_on_empty_gun_switch": true,
+          "auto_reload_on_empty_gun_fire": true,
+          "auto_reload_after_last_shot": true,
+          "low_ammo_bullets_count": 0,
+          "reload_message_bullets_count": 0
+        },
+        "auto_switch": true,
+        "auto_fire": true,
+        "range": 27,
+        "hit_on_out_of_range": false,
+        "bullet": {
+          "type": "projectile",
+          "projectile_key": "projectile_trondson_sonic_staff_projectile",
+          "min_speed": 255,
+          "max_speed": null,
+          "hold_interval": null
+        },
+        "bloom": 0.25,
+        "recoil": {
+          "angle": 0,
+          "angle_variance": 1,
+          "clearance": 0,
+          "magnitude": 1.5,
+          "magnitude_variance": 0.5,
+          "first_modifier": 1,
+          "recovery": 9,
+          "horizontal_tolerance": 5,
+          "vertical_tolerance": 7,
+          "persistent_recovery": true
+        },
+        "bullets": null,
+        "hit_effect": {
+          "type": "damage",
+          "interrupt": {
+            "recall": false
+          },
+          "targeting": null,
+          "impact": "impact_bullet_common",
+          "damage": {
+            "player_damage": 8,
+            "world_damage": 4,
+            "objective_damage": 0,
+            "mining": false,
+            "melee": false,
+            "ignore_invincibility": false,
+            "ignore_defences": false
+          },
+          "crit_modifier": 1.5,
+          "falloff": {
+            "reduction_coeff": 0.7,
+            "max_damage_range": 15,
+            "min_damage_range": 30,
+            "max_range": 30
+          }
+        },
+        "timing": {
+          "pre_attack_time": null,
+          "attack_time": 0.125
+        }
+      },
+      {
+        "type": "shot",
+        "ammo": {
+          "rate": 20,
+          "ammo_index": 0,
+          "auto_reload_on_empty_gun_switch": false,
+          "auto_reload_on_empty_gun_fire": false,
+          "auto_reload_after_last_shot": false,
+          "low_ammo_bullets_count": 0,
+          "reload_message_bullets_count": 0
+        },
+        "auto_switch": true,
+        "auto_fire": false,
+        "range": 0,
+        "hit_on_out_of_range": true,
+        "bullet": {
+          "type": "hitscan"
+        },
+        "bloom": null,
+        "recoil": null,
+        "bullets": null,
+        "hit_effect": {
+          "type": "all_units_bunch",
+          "interrupt": null,
+          "targeting": null,
+          "impact": "impact_trondson_sonic_staff_secondary_hit",
+          "range": 5,
+          "break_on_effect_fail": false,
+          "instant": [
+            {
+              "type": "heal",
+              "interrupt": null,
+              "targeting": {
+                "affected_labels": null,
+                "affected_units": [
+                  "player"
+                ],
+                "affected_team": "friendly",
+                "caster_owned_only": false,
+                "ignore_caster": true
+              },
+              "impact": null,
+              "player_heal": 15,
+              "world_heal": 0,
+              "objective_heal": 0,
+              "forcefield_amount": 0
+            },
+            {
+              "type": "bunch",
+              "interrupt": null,
+              "targeting": {
+                "affected_labels": null,
+                "affected_units": [
+                  "player"
+                ],
+                "affected_team": "friendly",
+                "caster_owned_only": false,
+                "ignore_caster": true
+              },
+              "impact": null,
+              "break_on_effect_fail": false,
+              "instant": [],
+              "constant": [
+                "effect_hero_trondson_sonic_staff_regen"
+              ]
+            }
+          ],
+          "constant": []
+        },
+        "timing": {
+          "pre_attack_time": 0.5,
+          "attack_time": 0
+        }
+      }
+    ],
+    "category": "gear",
+    "hercules_metadata": {
+      "timestamp": "202609191357306919",
+      "user": "joshmesh",
+      "prev_rev": "8-cea861fe6e0c35d11b6cfe01686cd659"
+    }
+  },
+  {
+    "_id": "gear_trondson_sonic_staff_echo_location",
+    "_rev": "9-732141ae3f6efb68bb8006eba8866b2d",
+    "scope": "public",
+    "prefab": "sonic_staff",
+    "icon": "weaponicon_trondson_W1",
+    "killscore_icon": "icon_killscore_trondson_sonicstaff",
+    "name": {
+      "text": "Sonic Staff",
+      "data": {
+        "ru": {
+          "original": "Sonic Staff",
+          "translation": "\u0421\u0432\u0435\u0440\u0445\u0437\u0432\u0443\u043a\u043e\u0432\u043e\u0439 \u043f\u043e\u0441\u043e\u0445"
+        },
+        "es": {
+          "original": "Sonic Staff",
+          "translation": "B\u00e1culo s\u00f3nico"
+        },
+        "de": {
+          "original": "Sonic Staff",
+          "translation": "Schallstab"
+        },
+        "pt": {
+          "original": "Sonic Staff",
+          "translation": "Cajado S\u00f4nico"
+        },
+        "fr": {
+          "original": "Sonic Staff",
+          "translation": "B\u00e2ton sonique"
+        }
+      }
+    },
+    "description": {
+      "text": "Trondson's trusty Sonic Staff acts as a multi-purpose tool and weapon. <BINDING_CAST1> fires pulses of destructive sonic energy while <BINDING_CAST2> heals nearby allies.",
+      "data": {
+        "ru": {
+          "original": "Trondson's trusty Sonic Staff acts as a multi-purpose tool and weapon. <BINDING_CAST1> fires pulses of destructive sonic energy while <BINDING_CAST2> briefly detects all enemies around Trondson.",
+          "translation": "\u041d\u0430\u0434\u0435\u0436\u043d\u044b\u0439 \u0441\u0432\u0435\u0440\u0445\u0437\u0432\u0443\u043a\u043e\u0432\u043e\u0439 \u043f\u043e\u0441\u043e\u0445 Trondson \u0434\u0435\u0439\u0441\u0442\u0432\u0443\u0435\u0442 \u043a\u0430\u043a \u043c\u043d\u043e\u0433\u043e\u0446\u0435\u043b\u0435\u0432\u043e\u0439 \u0438\u043d\u0441\u0442\u0440\u0443\u043c\u0435\u043d\u0442, \u0430 \u0442\u0430\u043a\u0436\u0435 \u043a\u0430\u043a \u043e\u0440\u0443\u0436\u0438\u0435. <BINDING_CAST1> \u2014 \u0441\u043e\u0437\u0434\u0430\u043d\u0438\u0435 \u0438\u043c\u043f\u0443\u043b\u044c\u0441\u043e\u0432 \u0440\u0430\u0437\u0440\u0443\u0448\u0438\u0442\u0435\u043b\u044c\u043d\u043e\u0439 \u0437\u0432\u0443\u043a\u043e\u0432\u043e\u0439 \u044d\u043d\u0435\u0440\u0433\u0438\u0438, <BINDING_CAST2> \u2014 \u043c\u0433\u043d\u043e\u0432\u0435\u043d\u043d\u043e\u0435 \u043e\u0431\u043d\u0430\u0440\u0443\u0436\u0435\u043d\u0438\u0435 \u0432\u0441\u0435\u0445 \u0432\u0440\u0430\u0433\u043e\u0432 \u043f\u043e\u0431\u043b\u0438\u0437\u043e\u0441\u0442\u0438 \u043e\u0442 \u043f\u043e\u0441\u043e\u0445\u0430."
+        },
+        "es": {
+          "original": "Trondson's trusty Sonic Staff acts as a multi-purpose tool and weapon. <BINDING_CAST1> fires pulses of destructive sonic energy while <BINDING_CAST2> briefly detects all enemies around Trondson.",
+          "translation": "<BINDING_CAST1> para disparar. <BINDING_CAST2> para detectar todos los enemigos cercanos."
+        },
+        "de": {
+          "original": "Trondson's trusty Sonic Staff acts as a multi-purpose tool and weapon. <BINDING_CAST1> fires pulses of destructive sonic energy while <BINDING_CAST2> briefly detects all enemies around Trondson.",
+          "translation": "Trondsons treuer Schallstab ist gleichzeitig Werkzeug und Waffe. Feuer zerst\u00f6rerische Schallenergie ab (<BINDING_CAST1>) oder finde f\u00fcr kurze Zeit alle Feinde um Trondson herum (<BINDING_CAST2>)."
+        },
+        "pt": {
+          "original": "Trondson's trusty Sonic Staff acts as a multi-purpose tool and weapon. <BINDING_CAST1> fires pulses of destructive sonic energy while <BINDING_CAST2> briefly detects all enemies around Trondson.",
+          "translation": "O Cajado S\u00f4nico de Trondson atua como ferramenta e arma multiuso. <BINDING_CAST1> dispara pulsos de energia destrutiva, enquanto <BINDING_CAST2> brevemente detecta todos os inimigos ao redor de Trondson."
+        },
+        "fr": {
+          "original": "Trondson's trusty Sonic Staff acts as a multi-purpose tool and weapon. <BINDING_CAST1> fires pulses of destructive sonic energy while <BINDING_CAST2> briefly detects all enemies around Trondson.",
+          "translation": "Le fid\u00e8le b\u00e2ton sonique de Trondson lui sert \u00e0 la fois d'outil polyvalent et d'arme. Son action principale (<BINDING_CAST1>) d\u00e9gage une onde d'\u00e9nergie sonique destructrice tandis que son action secondaire (<BINDING_CAST2>) d\u00e9tecte bri\u00e8vement tous les ennemis \u00e0 proximit\u00e9 de Trondson."
+        }
+      }
+    },
+    "animation_tag": "",
+    "primary_fire_icon": "trondson_icon_W1_sonic_staff",
+    "render_fov": 30,
+    "pickup_time": 0.3,
+    "drop_time": 0.2,
+    "equip_effects": [],
+    "ammo": [
+      {
+        "pool": {
+          "pool_size": 200,
+          "base_regen": 10
+        },
+        "mag_size": 50
+      }
+    ],
+    "reload": {
+      "type": "full_clip",
+      "reload_time": 2
+    },
+    "sway": null,
+    "sway_crouch_mod": null,
+    "cone_of_fire": {
+      "angle": 1,
+      "max_bloom": 2,
+      "crouch_mod": -1,
+      "move_mod": 1,
+      "jump_mod": 15,
+      "reset_delay": 0.2,
+      "reset_speed": 15
+    },
+    "reticles": [
+      {
+        "type": "crosshair",
+        "application": "opponent_only",
+        "preview_damage_range": 15,
+        "preview_max_range": 30,
+        "show_in_ads": false,
+        "melee_heeling_angle": null,
+        "melee_arc_angle": null
+      }
+    ],
+    "aim_assist": null,
+    "tools": [
+      {
+        "type": "shot",
+        "ammo": {
+          "rate": 1,
+          "ammo_index": 0,
+          "auto_reload_on_empty_gun_switch": true,
+          "auto_reload_on_empty_gun_fire": true,
+          "auto_reload_after_last_shot": true,
+          "low_ammo_bullets_count": 0,
+          "reload_message_bullets_count": 0
+        },
+        "auto_switch": true,
+        "auto_fire": true,
+        "range": 20,
+        "hit_on_out_of_range": false,
+        "bullet": {
+          "type": "projectile",
+          "projectile_key": "projectile_trondson_sonic_staff_projectile",
+          "min_speed": 255,
+          "max_speed": null,
+          "hold_interval": null
+        },
+        "bloom": 0.25,
+        "recoil": {
+          "angle": 0,
+          "angle_variance": 1,
+          "clearance": 0,
+          "magnitude": 1.5,
+          "magnitude_variance": 0.5,
+          "first_modifier": 1,
+          "recovery": 9,
+          "horizontal_tolerance": 5,
+          "vertical_tolerance": 7,
+          "persistent_recovery": true
+        },
+        "bullets": null,
+        "hit_effect": {
+          "type": "damage",
+          "interrupt": {
+            "recall": false
+          },
+          "targeting": null,
+          "impact": "impact_bullet_common",
+          "damage": {
+            "player_damage": 8,
+            "world_damage": 4,
+            "objective_damage": 0,
+            "mining": false,
+            "melee": false,
+            "ignore_invincibility": false,
+            "ignore_defences": false
+          },
+          "crit_modifier": 1.5,
+          "falloff": {
+            "reduction_coeff": 0.7,
+            "max_damage_range": 15,
+            "min_damage_range": 30,
+            "max_range": 30
+          }
+        },
+        "timing": {
+          "pre_attack_time": null,
+          "attack_time": 0.125
+        }
+      },
+      {
+        "type": "shot",
+        "ammo": {
+          "rate": 26,
+          "ammo_index": 0,
+          "auto_reload_on_empty_gun_switch": false,
+          "auto_reload_on_empty_gun_fire": false,
+          "auto_reload_after_last_shot": false,
+          "low_ammo_bullets_count": 0,
+          "reload_message_bullets_count": 0
+        },
+        "auto_switch": true,
+        "auto_fire": false,
+        "range": 0,
+        "hit_on_out_of_range": true,
+        "bullet": {
+          "type": "hitscan"
+        },
+        "bloom": null,
+        "recoil": null,
+        "bullets": null,
+        "hit_effect": {
+          "type": "all_units_bunch",
+          "interrupt": null,
+          "targeting": null,
+          "impact": "impact_trondson_sonic_staff_secondary_hit",
+          "range": 11,
+          "break_on_effect_fail": false,
+          "instant": [
+            {
+              "type": "heal",
+              "interrupt": null,
+              "targeting": {
+                "affected_labels": null,
+                "affected_units": [
+                  "player"
+                ],
+                "affected_team": "friendly",
+                "caster_owned_only": false,
+                "ignore_caster": true
+              },
+              "impact": null,
+              "player_heal": 15,
+              "world_heal": 0,
+              "objective_heal": 0,
+              "forcefield_amount": 0
+            },
+            {
+              "type": "bunch",
+              "interrupt": null,
+              "targeting": {
+                "affected_labels": null,
+                "affected_units": [
+                  "player"
+                ],
+                "affected_team": "friendly",
+                "caster_owned_only": false,
+                "ignore_caster": true
+              },
+              "impact": null,
+              "break_on_effect_fail": false,
+              "instant": [],
+              "constant": [
+                "effect_hero_trondson_sonic_staff_regen"
+              ]
+            }
+          ],
+          "constant": []
+        },
+        "timing": {
+          "pre_attack_time": 0.5,
+          "attack_time": 0
+        }
+      }
+    ],
+    "category": "gear",
+    "hercules_metadata": {
+      "timestamp": "202610081916085901",
+      "user": "joshmesh",
+      "prev_rev": "8-364f44244f7e79a37aece901e256b306"
+    }
+  },
+  {
+    "_id": "perk_hero_trondson_echo_location",
+    "_rev": "7-543ce4cbe2b4f0798b339b50c4603eb8",
+    "scope": "public",
+    "icon": "shop_perk_hero_trondson_echo_location",
+    "name": {
+      "text": "Echo-Location",
+      "data": {
+        "es": {
+          "original": "Echo-Location III",
+          "translation": "Sonar III"
+        },
+        "ru": {
+          "original": "Echo-Location III",
+          "translation": "\u042d\u0445\u043e\u043b\u043e\u043a\u0430\u0446\u0438\u044f III"
+        },
+        "de": {
+          "original": "Echo-Location III",
+          "translation": "Echoposition III"
+        },
+        "fr": {
+          "original": "Echo-Location III",
+          "translation": "\u00c9cholocalisation\u00a0III"
+        },
+        "pt": {
+          "original": "Echo-Location III",
+          "translation": "Ecolocaliza\u00e7\u00e3o III"
+        }
+      }
+    },
+    "description": {
+      "text": "Increases the range of the Sonic Staff Echo Pulse by 6 / Increases the ammo consummed by the Sonic Staff Echo Pulse by 6",
+      "data": {
+        "es": {
+          "original": "Increases the range of the Sonic Staff Echo Pulse by 3 / Increases the ammo consummed by the Sonic Staff Echo Pulse by 2 ",
+          "translation": "+3 espacios rango de B\u00e1culo s\u00f3nico / +2 consumo de municiones de B\u00e1culo s\u00f3nico"
+        },
+        "ru": {
+          "original": "Increases the range of the Sonic Staff Echo Pulse by 3 / Increases the ammo consummed by the Sonic Staff Echo Pulse by 2 ",
+          "translation": "\u0423\u0432\u0435\u043b\u0438\u0447\u0438\u0432\u0430\u0435\u0442 \u0434\u0430\u043b\u044c\u043d\u043e\u0441\u0442\u044c \u0434\u0435\u0439\u0441\u0442\u0432\u0438\u044f \u044d\u0445\u043e-\u0438\u043c\u043f\u0443\u043b\u044c\u0441\u0430 \u0441\u0432\u0435\u0440\u0445\u0437\u0432\u0443\u043a\u043e\u0432\u043e\u0433\u043e \u043f\u043e\u0441\u043e\u0445\u0430 \u043d\u0430 3 / \u0423\u0432\u0435\u043b\u0438\u0447\u0438\u0432\u0430\u0435\u0442 \u043e\u0431\u044a\u0435\u043c \u0431\u043e\u0435\u043f\u0440\u0438\u043f\u0430\u0441\u043e\u0432, \u0440\u0430\u0441\u0445\u043e\u0434\u0443\u0435\u043c\u044b\u0439 \u044d\u0445\u043e-\u0438\u043c\u043f\u0443\u043b\u044c\u0441\u043e\u043c \u0441\u0432\u0435\u0440\u0445\u0437\u0432\u0443\u043a\u043e\u0432\u043e\u0433\u043e \u043f\u043e\u0441\u043e\u0445\u0430, \u043d\u0430 2 "
+        },
+        "de": {
+          "original": "Increases the range of the Sonic Staff Echo Pulse by 3 / Increases the ammo consummed by the Sonic Staff Echo Pulse by 2 ",
+          "translation": "+3 Reichweite des Schallstab-Echopulses / +2 Munitionsverbrauch durch den Schallstab-Echopuls"
+        },
+        "fr": {
+          "original": "Increases the range of the Sonic Staff Echo Pulse by 3 / Increases the ammo consummed by the Sonic Staff Echo Pulse by 2 ",
+          "translation": "B\u00e2ton sonique \u2013 Port\u00e9e d'Onde de choc\u00a0: +3 / B\u00e2ton sonique \u2013 Munitions utilis\u00e9es par Onde de choc\u00a0: +2"
+        },
+        "pt": {
+          "original": "Increases the range of the Sonic Staff Echo Pulse by 3 / Increases the ammo consummed by the Sonic Staff Echo Pulse by 2 ",
+          "translation": "Aumenta o alcance do pulso de ecolocaliza\u00e7\u00e3o do Cajado S\u00f4nico em 3 / Aumenta a quantia de muni\u00e7\u00e3o consumida pelo pulso de ecolocaliza\u00e7\u00e3o do Cajado S\u00f4nico em 2"
+        }
+      }
+    },
+    "description_2": {
+      "text": "",
+      "data": {
+        "fr": {
+          "original": "[Draft]",
+          "translation": "[Draft]"
+        },
+        "es": {
+          "original": "[Draft]",
+          "translation": "[DRAFT]"
+        },
+        "de": {
+          "original": "[Draft]",
+          "translation": "[Draft]"
+        },
+        "pt": {
+          "original": "[Draft]",
+          "translation": "[Draft]"
+        },
+        "ru": {
+          "original": "[Draft]",
+          "translation": "[Draft]"
+        }
+      }
+    },
+    "label": "echo_location",
+    "level": 3,
+    "slot_type": "hero",
+    "hero_dependency": "unit_hero_trondson",
+    "perk_mods": [
+      {
+        "type": "gear",
+        "replace_from": "gear_trondson_sonic_staff",
+        "replace_to": "gear_trondson_sonic_staff_echo_location"
+      }
+    ],
+    "category": "perk",
+    "hercules_metadata": {
+      "timestamp": "202609072358379962",
+      "user": "joshmesh",
+      "prev_rev": "6-3a9ac5ab22881d7159b57aa2747aaea4"
+    }
+  },
+  {
+    "_id": "effect_hero_trondson_sonic_staff_marker",
+    "_rev": "3-02cea931e7c5bd4279aec12a6a5a1175",
+    "category": "effect",
+    "scope": "public",
+    "prefab_unit": "Prefabs/Effects/Constant/Unit/MarkerEffect",
+    "prefab_player": "",
+    "gui_info": {
+      "name": {
+        "text": "Spotted!",
+        "data": {
+          "es": {
+            "original": "Spotted!",
+            "translation": "Localizador de presas"
+          },
+          "fr": {
+            "original": "Spotted!",
+            "translation": "Vous avez \u00e9t\u00e9 rep\u00e9r\u00e9\u00a0!"
+          },
+          "de": {
+            "original": "Spotted!",
+            "translation": "Gefunden!"
+          },
+          "pt": {
+            "original": "Spotted!",
+            "translation": "Detectado!"
+          },
+          "ru": {
+            "original": "Spotted!",
+            "translation": "\u0417\u0430\u0441\u0435\u043a\u043b\u0438!"
+          }
+        }
+      },
+      "icon": "gameplayeffects_spotprey",
+      "icon_pos_type": "negative",
+      "icon_form_type": "round"
+    },
+    "positive": false,
+    "scores": 10,
+    "duration": 7,
+    "labels": [],
+    "effect": {
+      "type": "buff",
+      "buffs": {
+        "vision_mark": 1
+      },
+      "targeting": {
+        "affected_team": "opponent",
+        "caster_owned_only": false,
+        "ignore_caster": false
+      }
+    }
+  }
+]
