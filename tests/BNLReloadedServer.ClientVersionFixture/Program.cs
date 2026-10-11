@@ -24,6 +24,8 @@ var keyPath = Path.Combine(root, "auth-public.pem");
 File.WriteAllText(keyPath, rsa.ExportSubjectPublicKeyInfoPem());
 Environment.SetEnvironmentVariable("BNL_REBORN_AUTH_PUBLIC_KEY_PATH", keyPath);
 var minimumFile = Path.Combine(root, "Configs", "minimum_client_version.txt");
+var banFile = Path.Combine(root, "Configs", "ban-list-rules.txt");
+const ulong TicketSteamId = 76561198000000000;
 Databases.SetRegionDatabase(DispatchProxy.Create<IRegionServerDatabase, NullProxy>());
 
 try
@@ -60,6 +62,25 @@ try
     SetMinimum("0.2.0-beta.43");
     var (_, currentPassed) = Login("bnl-reborn-v1;client=0.2.0-beta.43", Ticket(rsa));
     Check(currentPassed, "a client at the minimum gets past the gate to player creation");
+
+    // Permanent bans: the list's rules, then the same real login refused for a banned account.
+    var bans = new PlayerBanList(banFile);
+    Check(bans.Refusal(TicketSteamId) is null, "no ban file bans nobody");
+    SetFile(banFile, $"# comment\n\nnot-a-steam-id oops\n{TicketSteamId}   Banned for good. Do not come back.\n76561198000000001\n");
+    Check(bans.Refusal(TicketSteamId) == "Banned for good. Do not come back.", "a ban carries its own message, and an unreadable line does not drop it");
+    Check(bans.Refusal(76561198000000001) == PlayerBanList.DefaultMessage, "a ban without a message gets the default");
+    Check(bans.Refusal(76561198000000002) is null, "unlisted accounts are not banned");
+    var shared = Path.Combine(root, "Configs", "banned_players.txt");
+    SetFile(shared, $"{TicketSteamId} Banned for good. Do not come back.\n");
+    var (bannedReply, bannedPassed) = Login("bnl-reborn-v1;client=0.2.0-beta.43", Ticket(rsa));
+    Check(!bannedPassed && bannedReply.Contains("Banned for good. Do not come back."), "the master login refuses a banned account with its message");
+    var (outdatedBannedReply, _) = Login("bnl-reborn-v1;client=0.2.0-beta.42", Ticket(rsa));
+    Check(outdatedBannedReply.Contains("out of date"), "an outdated banned client is told to update first, so it reaches the ban message");
+    SetFile(shared, "76561198000000001\n");
+    var (_, unbannedPassed) = Login("bnl-reborn-v1;client=0.2.0-beta.43", Ticket(rsa));
+    Check(unbannedPassed, "removing the ban lets the account log in without a restart");
+    SetFile(banFile, "");
+    Check(bans.Refusal(76561198000000001) is null, "an emptied file lifts every ban");
 }
 finally
 {
@@ -68,11 +89,13 @@ finally
 }
 Console.WriteLine($"Client version fixture passed: {checks} checks.");
 
-void SetMinimum(string value)
+void SetMinimum(string value) => SetFile(minimumFile, value);
+
+void SetFile(string file, string value)
 {
-    File.WriteAllText(minimumFile, value);
+    File.WriteAllText(file, value);
     // Each write must look like a change even within the file system's timestamp resolution.
-    File.SetLastWriteTimeUtc(minimumFile, DateTime.UtcNow.AddSeconds(checks + 1));
+    File.SetLastWriteTimeUtc(file, DateTime.UtcNow.AddSeconds(checks + 1));
 }
 
 // Sends one MessageLoginMasterXxx through ServiceLogin. Returns the reply text, and whether the handler got
@@ -111,7 +134,7 @@ static string Ticket(RSA key)
         Issuer = RebornGameTicketValidator.DefaultIssuer,
         Audience = RebornGameTicketValidator.DefaultAudience,
         Subject = new ClaimsIdentity([
-            new Claim(JwtRegisteredClaimNames.Sub, "76561198000000000"),
+            new Claim(JwtRegisteredClaimNames.Sub, TicketSteamId.ToString()),
             new Claim("name", "Version Tester"),
             new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString("N"))
         ]),

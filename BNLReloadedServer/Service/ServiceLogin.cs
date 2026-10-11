@@ -348,6 +348,13 @@ public class ServiceLogin(ISender sender, Guid sessionId, Func<IPAddress?> peerA
             return;
         }
 
+        if (PlayerBanList.Shared.Refusal(identity.SteamId) is { } banned)
+        {
+            Log.Info(LogCat.Conn, $"Refused banned account {identity.SteamId} ({identity.DisplayName}) from {peerAddress()}");
+            SendLoginMasterXxx(rpcId, null, error: banned);
+            return;
+        }
+
         var player = _masterServerDatabase.GetPlayer(identity.SteamId).Result;
         sender.AssociatedPlayerId = player?.PlayerId ??
                                     _masterServerDatabase.AddPlayer(identity.SteamId, identity.DisplayName, "master")
