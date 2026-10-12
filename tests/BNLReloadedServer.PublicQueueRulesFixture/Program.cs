@@ -176,11 +176,9 @@ var startTurns = typeof(GameLobby).GetMethod("StartNextDraftTurns", Any)!;
 startTurns.Invoke(lobby, [new List<PlayerLobbyState> { turn }]);
 Check(turn.Hero != a3.Key, "a full class is not preselected for the next player");
 Check(turn.Hero == s1.Key, "the default moves to an owned hero of the emptiest open class (support)");
-Check(turn.CanLoadout && turn.RestrictedHeroes!.ToHashSet().SetEquals([a1.Key, a2.Key, a3.Key]),
+Check(turn.CanLoadout && turn.RestrictedHeroes!.ToHashSet().SetEquals([a1.Key, a2.Key, a3.Key, d1.Key]),
     "the turn player is told every attack hero is restricted");
-startTurns.Invoke(lobby, [new List<PlayerLobbyState> { enemy }]);
-Check(enemy.Hero == a1.Key && enemy.RestrictedHeroes!.Count == 0,
-    "limits are per team: the other team keeps its last-played hero");
+
 
 sent.Clear();
 lobby.SwapHero(104, a2.Key);
@@ -198,7 +196,7 @@ Check(turn.Hero == d2.Key, "a locked-in pick cannot be changed");
 ranked.HeroLimit = new LobbyHeroLimit { LimitOption = LobbyHeroLimitOption.PerHero, Limit = 1 };
 var restrictedFor = typeof(GameLobby).GetMethod("RestrictedHeroesFor", Any)!;
 var perHero = (List<Key>)restrictedFor.Invoke(lobby, [waiting])!;
-Check(perHero.ToHashSet().SetEquals([a1.Key, a2.Key, d1.Key, d2.Key]), "per-hero limit restricts exactly the team's picks");
+Check(perHero.ToHashSet().SetEquals([a1.Key, a2.Key, d1.Key, d2.Key]), "unique hero restrictions include previous picks");
 
 ranked.HeroLimit = new LobbyHeroLimit { LimitOption = LobbyHeroLimitOption.PerClass, Limit = 2 };
 lobby.BannedHeroes.Add(a1.Key);
@@ -213,6 +211,64 @@ lobby.SwapHero(enemy.PlayerId, a1.Key);
 Check(enemy.Hero == allowedHero, "manual draft pick cannot bypass a clan ban");
 var combined = (List<Key>)restrictedFor.Invoke(lobby, [waiting])!;
 Check(combined.Contains(a3.Key) && combined.Contains(s1.Key), "clan bans and ranked class limits combine");
+
+// Deterministic schedule tests, MMR order within each side, and no duplicates across sides.
+var entrants=Enumerable.Range(1,10).Select(i=>new RankedSnakeDraft.Player((uint)i,
+    i<=5?TeamType.Team1:TeamType.Team2,i<=5?100+i:200+i)).ToArray();
+var order=RankedSnakeDraft.Order(entrants,true);
+Check(order.SequenceEqual(new uint[]{5,10,9,4,3,8,7,2,1,6}),"5v5 snake is A-BB-AA-BB-AA-B, descending MMR, lower average first");
+Check(RankedSnakeDraft.Order(entrants.Select(p=>p with {Mmr=100}),false).First()==6,"equal MMR can start with either team");
+Check(RankedSnakeDraft.Order(entrants.Where(p=>p.Id!=5 && p.Id!=10),true).SequenceEqual(new uint[]{4,9,8,3,2,7,6,1}),"4v4 uses A-BB-AA-BB-A, maintaining MMR order");
+var enemyTaken=enemy.Hero;
+turn.Ready=false;turn.CanLoadout=true;Field(lobby,"_activeDrafter",turn.PlayerId);
+lobby.SwapHero(turn.PlayerId,enemyTaken);
+Check(turn.Hero!=enemyTaken,"opponent's hero cannot be picked, even with a different team class composition");
+Field(lobby,"_activeDrafter",enemy.PlayerId);
+lobby.PlayerReady(waiting.PlayerId);
+Check(!waiting.Ready,"out-of-turn Block In cannot advance the draft");
+var casualDraft=new CardGameMode { Ranking=GameRankingType.Friendly, LobbyMode=new LobbyModeDraftPick { PrestartTime=5, ReconnectSelectionTime=30 }};
+RankedDraftRegistration.Register([casualDraft,ranked]);
+Check(casualDraft.LobbyMode is LobbyModeFreePick && ranked.LobbyMode is LobbyModeDraftPick,"casual uses free pick while ranked retains draft");
+
+// Exercise real lobby transitions across ten turns, mixing manual Block In and timer expiry.
+var fullHeroes=Enumerable.Range(0,15).Select(i=>Hero("snake_hero_"+i,new[]{attack,defense,support}[i/5])).ToArray();
+catalogue.Replicate(new List<Card>{friendly,ranked,custom,graveyard,globalLogic}.Concat(fullHeroes).ToList());
+globalLogic.AvailableHeroes=fullHeroes.Select(h=>h.Key).ToList();
+ranked.LobbyMode=new LobbyModeDraftPick { WaitTime=3600,SelectionTime=3600,PrestartTime=3600 };
+var complete=(GameLobby)RuntimeHelpers.GetUninitializedObject(typeof(GameLobby));
+var completeData=new LobbyData { IsDataExist=true,GameModeKey=ranked.Key,Timer=new LobbyTimer{TimerType=LobbyTimerType.Wait} };
+Field(complete,"<LobbyData>k__BackingField",completeData);Field(complete,"<BannedHeroes>k__BackingField",new HashSet<Key>());
+Field(complete,"_playerDatabase",FixturePlayers.Create(lastPlayed));Field(complete,"_serviceLobby",RecordingLobby.Create(sent));
+foreach(var entrant in entrants)lastPlayed[entrant.Id]=fullHeroes[0].Key;
+complete.InitializeDraftRoster(entrants);
+Check(completeData.Players.Count==10 && completeData.Players.Values.All(p=>p.Status==LobbyStatus.Offline),"all accepted draft seats exist before clients finish loading");
+var waitTimer=new System.Timers.Timer(3600000);
+Field(complete,"_currentTimer",(LobbyTimerType.Wait,waitTimer));
+typeof(GameLobby).GetMethod("OnWaitTimerElapsed",Any)!.Invoke(complete,[waitTimer,new System.Timers.ElapsedEventArgs(DateTime.Now)]);
+var actual=new List<uint>();
+for(int turnIndex=0;turnIndex<10;turnIndex++)
+{
+    var picker=completeData.Players.Values.Single(p=>p.CanLoadout && !p.Ready);
+    actual.Add(picker.PlayerId);
+    var before=picker.Hero;
+    complete.AddPlayer(picker.PlayerId,picker.Team,null);
+    Check(completeData.Players[picker.PlayerId].Hero==before,"reconnect preserves draft pick and turn "+turnIndex);
+    var oldTimer=((ValueTuple<LobbyTimerType,System.Timers.Timer>)typeof(GameLobby).GetField("_currentTimer",Any)!.GetValue(complete)!).Item2;
+    if(turnIndex%2==0)complete.PlayerReady(picker.PlayerId);
+    else typeof(GameLobby).GetMethod("OnSelectionTimerElapsed",Any)!.Invoke(complete,[null,new System.Timers.ElapsedEventArgs(DateTime.Now)]);
+    Check(picker.Ready && !picker.CanLoadout,"manual or timeout turn locks before advancing "+turnIndex);
+    if(turnIndex==0)
+    {
+        var nextPlayer=completeData.Players.Values.Single(p=>p.CanLoadout && !p.Ready).PlayerId;
+        typeof(GameLobby).GetMethod("OnSelectionTimerElapsed",Any)!.Invoke(complete,[oldTimer,new System.Timers.ElapsedEventArgs(DateTime.Now)]);
+        Check(completeData.Players.Values.Single(p=>p.CanLoadout && !p.Ready).PlayerId==nextPlayer,"stale timeout after Block In cannot skip the next pick");
+    }
+}
+Check(actual.SequenceEqual(order),"full lobby follows exact MMR snake order through ten transitions");
+Check(completeData.Players.Values.Select(p=>p.Hero).Distinct().Count()==10 && completeData.Timer.TimerType==LobbyTimerType.Start,
+    "all ten unique picks reach prestart without an extra turn");
+var finalTimer=((ValueTuple<LobbyTimerType,System.Timers.Timer>)typeof(GameLobby).GetField("_currentTimer",Any)!.GetValue(complete)!);
+finalTimer.Item2.Stop();finalTimer.Item2.Dispose();Field(complete,"_currentTimer",null);
 
 Console.WriteLine($"Public queue rules fixture passed: {checks} checks.");
 
@@ -229,6 +285,9 @@ class FixturePlayers : DispatchProxy
 
     protected override object? Invoke(MethodInfo? method, object?[]? args) => method?.Name switch
     {
+        nameof(IPlayerDatabase.GetPlayerDataNoWait) => null,
+        nameof(IPlayerDatabase.GetPlayerProfile) => new ProfileData { Nickname="Fixture Player" },
+        nameof(IPlayerDatabase.GetDeviceLevels) => new Dictionary<Key,int>(),
         nameof(IPlayerDatabase.GetLastPlayedHero) => _lastPlayed[(uint)args![0]!],
         nameof(IPlayerDatabase.GetLoadoutForHero) => new LobbyLoadout
         {

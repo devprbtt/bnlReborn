@@ -28,7 +28,10 @@ public enum ClanResult : byte
     LeaderMustTransfer,
     RenameCooldown,
     TargetNotInClan,
-    TooManyInvites
+    TooManyInvites,
+    AlreadyApplied,
+    NoSuchApplication,
+    TooManyApplications
 }
 
 // Every clan rule as a pure function, so the fixture can pin them without a database or network.

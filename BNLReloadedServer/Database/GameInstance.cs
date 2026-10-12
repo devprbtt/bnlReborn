@@ -1,4 +1,4 @@
-﻿using System.Collections.Concurrent;
+using System.Collections.Concurrent;
 using System.Numerics;
 using System.Timers;
 using BNLReloadedServer.BaseTypes;
@@ -456,6 +456,13 @@ public partial class GameInstance : IGameInstance
         }
 
         Lobby = new GameLobby(new ServiceLobby(_lobbySender), this, GameInstanceId, MatchKey, gameModeKey, maps);
+        if (gameMode.LobbyMode is LobbyModeDraftPick)
+        {
+            var ratings=GameInitiator.GetTeamRatings();
+            var roster=ratings.team1.Select(p=>new RankedSnakeDraft.Player(p.Key,TeamType.Team1,p.Value.Mean))
+                .Concat(ratings.team2.Select(p=>new RankedSnakeDraft.Player(p.Key,TeamType.Team2,p.Value.Mean))).ToArray();
+            Lobby.EnqueueAction(()=>Lobby.InitializeDraftRoster(roster));
+        }
     }
 
     public ChatRoom? GetChatRoom(RoomId roomId)

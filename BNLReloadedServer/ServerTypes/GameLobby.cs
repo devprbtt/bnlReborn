@@ -1,4 +1,4 @@
-﻿using System.Collections.Concurrent;
+using System.Collections.Concurrent;
 using System.Timers;
 using BNLReloadedServer.BaseTypes;
 using BNLReloadedServer.Database;
@@ -19,6 +19,8 @@ public class GameLobby : Updater
     private readonly ConcurrentDictionary<uint, LobbyTimer> _requeueLobbyTimers = new();
 
     private readonly Lock _votesLock = new();
+    private uint[]? _draftOrder;
+    private uint? _activeDrafter;
 
     private readonly IPlayerDatabase _playerDatabase = Databases.PlayerDatabase;
     private readonly IServiceLobby _serviceLobby;
@@ -77,13 +79,13 @@ public class GameLobby : Updater
         switch (_currentTimer.Value.timerType)
         {
             case LobbyTimerType.Wait:
-                _currentTimer.Value.timer.Elapsed += OnWaitTimerElapsed;
+                _currentTimer.Value.timer.Elapsed += (sender, e) => EnqueueAction(() => OnWaitTimerElapsed(sender, e));
                 break;
             case LobbyTimerType.Selection:
-                _currentTimer.Value.timer.Elapsed += OnSelectionTimerElapsed;
+                _currentTimer.Value.timer.Elapsed += (sender, e) => EnqueueAction(() => OnSelectionTimerElapsed(sender, e));
                 break;
             case LobbyTimerType.Start:
-                _currentTimer.Value.timer.Elapsed += OnStartTimerElapsed;
+                _currentTimer.Value.timer.Elapsed += (sender, e) => EnqueueAction(() => OnStartTimerElapsed(sender, e));
                 break;
             case LobbyTimerType.Requeue:
             default:
@@ -92,15 +94,27 @@ public class GameLobby : Updater
         _currentTimer.Value.timer.Enabled = true;
     }
 
+    public void InitializeDraftRoster(IEnumerable<RankedSnakeDraft.Player> roster)
+    {
+        if (LobbyData.GameMode?.LobbyMode is not LobbyModeDraftPick) return;
+        var players=roster.ToArray();
+        _draftOrder=RankedSnakeDraft.Order(players, Random.Shared.Next(2)==0);
+        foreach (var player in players)
+        {
+            AddPlayer(player.Id,player.Team,null);
+            LobbyData.Players[player.Id].Status=LobbyStatus.Offline;
+        }
+    }
+
     public void AddPlayer(uint playerId, TeamType team, ulong? squadId)
     {
         var returningPlayer = LobbyData.Players.TryGetValue(playerId, out var value);
         if (!returningPlayer)
         {
-            var profileData = Databases.PlayerDatabase.GetPlayerProfile(playerId);
-            var lastPlayedHero = Databases.PlayerDatabase.GetLastPlayedHero(playerId);
-            var loadout = Databases.PlayerDatabase.GetLoadoutForHero(playerId, lastPlayedHero);
-            var deviceLevels = Databases.PlayerDatabase.GetDeviceLevels(playerId);
+            var profileData = _playerDatabase.GetPlayerProfile(playerId);
+            var lastPlayedHero = _playerDatabase.GetLastPlayedHero(playerId);
+            var loadout = _playerDatabase.GetLoadoutForHero(playerId, lastPlayedHero);
+            var deviceLevels = _playerDatabase.GetDeviceLevels(playerId);
             var isDraft = LobbyData.GameMode?.LobbyMode is LobbyModeDraftPick;
             var playerState = new PlayerLobbyState
             {
@@ -128,6 +142,7 @@ public class GameLobby : Updater
         else if (value != null)
         {
             value.Status = LobbyStatus.Online;
+            value.SquadId = squadId;
         }
 
         // A reconnecting/backfilling custom player already exists in Players. The old code only
@@ -170,7 +185,7 @@ public class GameLobby : Updater
 
     public void PlayerLeft(uint playerId, IServiceLobby? lobbyService)
     {
-        if (_gameInstance.IsOver() && LobbyData.Players.TryGetValue(playerId, out var value))
+        if ((_gameInstance.IsOver() || IsDraftSelection) && LobbyData.Players.TryGetValue(playerId, out var value))
         {
             value.Status = LobbyStatus.Offline;
         }
@@ -214,7 +229,8 @@ public class GameLobby : Updater
     {
         if (hero.GetCard<CardUnit>()?.Data is not UnitDataPlayer || !PlayerInventory.Owns(player.PlayerId, hero)) return false;
         // Only the player whose turn it is may pick, and a locked-in pick stays locked.
-        if (IsDraftSelection && (!player.CanLoadout || player.Ready)) return false;
+        if (IsDraftSelection && (_activeDrafter != player.PlayerId || !player.CanLoadout || player.Ready)) return false;
+        if (!IsDraftSelection && LobbyData.GameMode?.LobbyMode is LobbyModeDraftPick && hero != player.Hero) return false;
         return !RestrictedHeroesFor(player).Contains(hero);
     }
 
@@ -227,7 +243,10 @@ public class GameLobby : Updater
     private List<Key> RestrictedHeroesFor(PlayerLobbyState player)
     {
         var limit = LobbyData.GameMode?.HeroLimit;
-        if (limit?.Limit is not { } max) return BannedHeroes.ToList();
+        var unavailable = BannedHeroes.ToList();
+        if (LobbyData.GameMode?.LobbyMode is LobbyModeDraftPick)
+            unavailable.AddRange(LobbyData.Players.Values.Where(p => p.PlayerId != player.PlayerId && p.Hero != Key.None).Select(p => p.Hero));
+        if (limit?.Limit is not { } max) return unavailable.Distinct().ToList();
         var teamPicks = LobbyData.Players.Values
             .Where(p => p.Team == player.Team && p.PlayerId != player.PlayerId && p.Hero != Key.None)
             .Select(p => p.Hero)
@@ -245,7 +264,7 @@ public class GameLobby : Updater
                 .ToList(),
             _ => new List<Key>()
         };
-        return restricted.Concat(BannedHeroes).Distinct().ToList();
+        return restricted.Concat(unavailable).Distinct().ToList();
     }
 
     /// <summary>
@@ -272,23 +291,34 @@ public class GameLobby : Updater
         return fallback ?? Key.None;
     }
 
-    // Each draft round hands one unselected player per team their turn, preselecting a hero they are allowed.
     private void StartNextDraftTurns(List<PlayerLobbyState> unselectedPlayers)
     {
-        foreach (var team in new[] { TeamType.Team1, TeamType.Team2 })
+        _draftOrder ??= RankedSnakeDraft.Order(LobbyData.Players.Values.Select(p =>
+            new RankedSnakeDraft.Player(p.PlayerId, p.Team, _playerDatabase.GetPlayerDataNoWait(p.PlayerId)?.Rating.Mean ?? Databases.DefaultMean)), Random.Shared.Next(2) == 0);
+        _activeDrafter = null;
+        foreach (var id in _draftOrder)
         {
-            var player = unselectedPlayers.Where(p => p.Team == team).Shuffle().FirstOrDefault();
+            var player = unselectedPlayers.FirstOrDefault(p => p.PlayerId == id);
             if (player == null) continue;
-
             var restricted = RestrictedHeroesFor(player);
-            var loadout = _playerDatabase.GetLoadoutForHero(player.PlayerId, DraftDefaultHero(player, restricted));
+            var hero = DraftDefaultHero(player, restricted);
+            if (hero == Key.None) throw new InvalidOperationException("Ranked draft has no legal hero for " + id);
+            var loadout = _playerDatabase.GetLoadoutForHero(id, hero);
             player.Hero = loadout.HeroKey;
             player.CanLoadout = true;
+            player.Ready = false;
             player.Devices = loadout.Devices;
             player.Perks = loadout.Perks;
             player.SkinKey = loadout.SkinKey;
-            player.RestrictedHeroes = restricted;
+            _activeDrafter = id;
+            break;
         }
+        RefreshRestrictions();
+    }
+
+    private void RefreshRestrictions()
+    {
+        foreach (var player in LobbyData.Players.Values) player.RestrictedHeroes = RestrictedHeroesFor(player);
     }
 
     private static void UpdateDevices(PlayerLobbyState player, Dictionary<int, Key> devices)
@@ -443,6 +473,8 @@ public class GameLobby : Updater
     public void PlayerReady(uint playerId)
     {
         if (!LobbyData.Players.TryGetValue(playerId, out var player)) return;
+        if (IsDraftSelection && (LobbyData.Timer.TimerType != LobbyTimerType.Selection ||
+            _activeDrafter != playerId || !CanPickHero(player, player.Hero))) return;
         player.Ready = true;
         if (LobbyData.Timer.TimerType is LobbyTimerType.Requeue)
         {
@@ -455,7 +487,7 @@ public class GameLobby : Updater
         }
         else if (LobbyData.Players.Values.Where(p => p.Hero != Key.None).All(p => p.Ready) && _currentTimer.HasValue)
         {
-            OnSelectionTimerElapsed(_currentTimer.Value, new ElapsedEventArgs(DateTime.Now));
+            OnSelectionTimerElapsed(_currentTimer.Value.timer, new ElapsedEventArgs(DateTime.Now));
         }
 
         SendLobbyUpdate(players: LobbyData.Players.Values.ToList());
@@ -464,6 +496,7 @@ public class GameLobby : Updater
     public void PrepareHeroChange(uint playerId)
     {
         if (!LobbyData.Players.TryGetValue(playerId, out var player)) return;
+        if (LobbyData.GameMode?.LobbyMode is LobbyModeDraftPick) return;
         player.Ready = false;
         EnsureRequeueState(playerId, player.Team);
         SendLobbyUpdate(players: LobbyData.Players.Values.ToList(), requeuePlayers: LobbyData.RequeuePlayers);
@@ -512,6 +545,7 @@ public class GameLobby : Updater
         Dictionary<TeamType, List<uint>>? requeuePlayers = null, Dictionary<TeamType, LobbyTimer>? requeueTimers = null,
         string? sessionName = null)
     {
+        if (players != null) RefreshRestrictions();
         _serviceLobby.SendLobbyUpdate(
             new LobbyUpdate
             {
@@ -543,7 +577,7 @@ public class GameLobby : Updater
 
     private void OnWaitTimerElapsed(object? sender, ElapsedEventArgs e)
     {
-        if (_currentTimer == null) return;
+        if (_currentTimer == null || sender is Timer elapsed && elapsed != _currentTimer.Value.timer) return;
         _currentTimer.Value.timer.Stop();
         _currentTimer.Value.timer.Dispose();
         _currentTimer = null;
@@ -556,12 +590,8 @@ public class GameLobby : Updater
         {
             LobbyData.Timer.EndTime = (ulong)DateTimeOffset.Now.AddSeconds(gameModeDraft.SelectionTime).ToUnixTimeMilliseconds();
 
-            var unselectedPlayers = LobbyData.Players.Where(p => p.Value.Hero == Key.None).Select(p => p.Value).ToList();
-            EnqueueAction(() =>
-            {
-                StartNextDraftTurns(unselectedPlayers);
-                SendLobbyUpdate(players: LobbyData.Players.Values.ToList());
-            });
+            StartNextDraftTurns(LobbyData.Players.Values.Where(p => p.Hero == Key.None).ToList());
+            SendLobbyUpdate(players: LobbyData.Players.Values.ToList());
         }
         else
         {
@@ -575,7 +605,7 @@ public class GameLobby : Updater
 
     private void OnSelectionTimerElapsed(object? sender, ElapsedEventArgs e)
     {
-        if (_currentTimer == null) return;
+        if (_currentTimer == null || sender is Timer elapsed && elapsed != _currentTimer.Value.timer) return;
         _currentTimer.Value.timer.Stop();
         _currentTimer.Value.timer.Dispose();
         _currentTimer = null;
@@ -584,31 +614,17 @@ public class GameLobby : Updater
 
         if (LobbyData.GameMode.LobbyMode is LobbyModeDraftPick gameModeDraft)
         {
-            var unselectedPlayers = LobbyData.Players.Where(p => p.Value.Hero == Key.None).Select(p => p.Value).ToList();
-            if (unselectedPlayers.Count != 0)
+            if (_activeDrafter is { } active && LobbyData.Players.TryGetValue(active, out var current))
             {
-                LobbyData.Timer.TimerType = LobbyTimerType.Selection;
-                LobbyData.Timer.StartTime = (ulong)DateTimeOffset.Now.ToUnixTimeMilliseconds();
-                LobbyData.Timer.EndTime = (ulong)DateTimeOffset.Now.AddSeconds(gameModeDraft.SelectionTime).ToUnixTimeMilliseconds();
+                current.Ready = true;
+                current.CanLoadout = false;
             }
-            else
-            {
-                LobbyData.Timer.TimerType = LobbyTimerType.Start;
-                LobbyData.Timer.StartTime = (ulong)DateTimeOffset.Now.ToUnixTimeMilliseconds();
-                LobbyData.Timer.EndTime = (ulong)DateTimeOffset.Now.AddSeconds(gameModeDraft.PrestartTime).ToUnixTimeMilliseconds();
-            }
-
-            EnqueueAction(() =>
-            {
-                foreach (var player in LobbyData.Players.Values.Where(p => p.Hero != Key.None))
-                {
-                    player.Ready = true;
-                }
-
-                StartNextDraftTurns(unselectedPlayers);
-
-                SendLobbyUpdate(players: LobbyData.Players.Values.ToList());
-            });
+            StartNextDraftTurns(LobbyData.Players.Values.Where(p => p.Hero == Key.None).ToList());
+            LobbyData.Timer.TimerType = _activeDrafter.HasValue ? LobbyTimerType.Selection : LobbyTimerType.Start;
+            LobbyData.Timer.StartTime = (ulong)DateTimeOffset.Now.ToUnixTimeMilliseconds();
+            LobbyData.Timer.EndTime = (ulong)DateTimeOffset.Now.AddSeconds(_activeDrafter.HasValue
+                ? gameModeDraft.SelectionTime : gameModeDraft.PrestartTime).ToUnixTimeMilliseconds();
+            SendLobbyUpdate(players: LobbyData.Players.Values.ToList());
         }
         else
         {
@@ -633,7 +649,7 @@ public class GameLobby : Updater
 
     private void OnStartTimerElapsed(object? sender, ElapsedEventArgs e)
     {
-        if (_currentTimer == null) return;
+        if (_currentTimer == null || sender is Timer elapsed && elapsed != _currentTimer.Value.timer) return;
         _currentTimer.Value.timer.Stop();
         _currentTimer.Value.timer.Dispose();
         _currentTimer = null;

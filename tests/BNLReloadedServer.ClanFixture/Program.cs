@@ -16,6 +16,50 @@ var db = new SQLiteAsyncConnection(file);
 var store = new ClanStore(db, offensive, () => now);
 await store.Load();
 
+// ---- Player-initiated applications: persisted, officer-only approval, atomic membership ----
+var (_, applicantsClan)=await store.Create(10001,"Application Squad","APPS");
+var (_, anotherClan)=await store.Create(10002,"Other Applicants","APPT");
+Check(await store.ApplyToClan(10003,applicantsClan)==ClanResult.Ok,"player can request to join without an invitation");
+Check(store.ClanOf(10003)==null,"application does not confer membership before approval");
+Check(await store.ApplyToClan(10003,applicantsClan)==ClanResult.AlreadyApplied,"duplicate application is rejected");
+Check(store.Applications(10001).Single().PlayerId==10003 && store.Applications(99999).Length==0,"applications visible only to applicant and target officers");
+Check(await store.ReviewApplication(10002,10003,true)==ClanResult.NoSuchApplication,"other clan leader cannot approve a request");
+Check(await store.ReviewApplication(10003,10003,true)==ClanResult.NotInClan,"applicant cannot approve own request");
+await store.Load();
+Check(store.Applications(10003).Length==1,"application survives database reload");
+Check(await store.ApplyToClan(10003,anotherClan)==ClanResult.Ok,"player may apply to another clan");
+var approvals=await Task.WhenAll(store.ReviewApplication(10001,10003,true),store.ReviewApplication(10002,10003,true));
+Check(approvals.Count(x=>x==ClanResult.Ok)==1 && store.Applications(10003).Length==0,"concurrent approvals grant exactly one membership and clear all requests");
+await store.Invite(10001,10004);await store.Accept(10004,applicantsClan);
+await store.ApplyToClan(10005,applicantsClan);
+Check(await store.ReviewApplication(10004,10005,true)==ClanResult.NotAllowed,"ordinary member cannot approve");
+await store.SetRank(10001,10004,ClanRank.Officer);
+Check(await store.ReviewApplication(10004,10005,false)==ClanResult.Ok && store.ClanOf(10005)==null,"officer may decline without adding member");
+await store.ApplyToClan(10005,applicantsClan);
+Check(await store.ReviewApplication(10004,10005,true)==ClanResult.Ok,"officer may approve");
+await store.ApplyToClan(10006,applicantsClan);
+Check(await store.CancelApplication(10006,applicantsClan)==ClanResult.Ok && store.Applications(10006).Length==0,"applicant may cancel pending request");
+await store.ApplyToClan(10006,applicantsClan);
+await store.Invite(10001,10006);await store.Accept(10006,applicantsClan);
+Check(store.Applications(10001).Length==0,"accepting an invitation clears applications too");
+await store.ApplyToClan(10007,applicantsClan);
+await store.Create(10007,"New Founders","NFND");
+Check(store.Applications(10001).Length==0,"creating a clan clears old requests");
+await store.ApplyToClan(10008,applicantsClan);
+await store.Disband(10001);
+Check(store.Applications(10008).Length==0,"disband removes requests and refreshes applicants");
+await store.Disband(10002);await store.Disband(10007);
+#if CLIENT_PROTOCOL
+using(var wire=new MemoryStream())
+{
+    using(var writer=new BinaryWriter(wire,System.Text.Encoding.UTF8,true))
+        BNLReloadedServer.Service.ServiceClan.WriteApplications(writer,[new(42,"Test Clan",12,"Applicant")]);
+    wire.Position=0;
+    var decoded=BNL.Clans.ClanProtocol.ReadApplications(new BinaryReader(wire));
+    Check(decoded.Single().PlayerId==12 && decoded.Single().ClanId==42 && wire.Position==wire.Length,"new application wire message matches actual client decoder");
+}
+#endif
+
 // ---- Rules ----
 Check(ClanRules.ResolvePlayer("Tomfranc", new[] { (56u, "🛡Tomfranc🛡") }) == 56, "decorated player name resolves without symbols");
 Check(ClanRules.ResolvePlayer("tomfranc", new[] { (56u, "🛡Tomfranc🛡"), (57u, "Tomfranc") }) == 57, "exact name takes priority over decorated name");
@@ -81,12 +125,15 @@ Check(await store.Invite(1, 5) == ClanResult.Ok, "an expired invite can be re-se
 for (uint p = 100; p < 117; p++) { await store.Invite(1, p); await store.Accept(p, yeti); }
 Check(store.ClanOf(1)!.Members.Length == 19, "clan filled to 19 members");
 for (uint p = 200; p < 225; p++) await store.Invite(1, p);
+Check(await store.ApplyToClan(6000,yeti)==ClanResult.Ok,"application may wait for last available slot");
 var racers = Enumerable.Range(200, 25).Select(p => store.Accept((uint)p, yeti)).ToArray();
 var outcomes = await Task.WhenAll(racers);
 Check(outcomes.Count(o => o == ClanResult.Ok) == 1 && outcomes.Count(o => o == ClanResult.ClanFull) == 24,
     "25 simultaneous accepts fill exactly the last slot");
 Check(store.ClanOf(1)!.Members.Length == ClanRules.MaxMembers, "the clan holds exactly 20 members");
 Check(await store.Invite(1, 300) == ClanResult.ClanFull, "a full clan cannot invite");
+Check(await store.ReviewApplication(1,6000,true)==ClanResult.ClanFull && store.ClanOf(6000)==null,"approval rechecks capacity after invitation fills clan");
+Check(await store.ApplyToClan(6001,yeti)==ClanResult.ClanFull,"full clan rejects new applications");
 
 // ---- Leaving, transfer, rename, disband ----
 Check(await store.Leave(1) == ClanResult.LeaderMustTransfer, "a leader with members must transfer before leaving");

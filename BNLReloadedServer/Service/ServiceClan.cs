@@ -26,13 +26,14 @@ public class ServiceClan(ISender sender) : IServiceClan
     private enum ClientMessage : byte
     {
         Hello = 0, Create = 1, Invite = 2, Accept = 3, Decline = 4, Leave = 5,
-        Kick = 6, SetRank = 7, Transfer = 8, Rename = 9, Disband = 10, SetTagColor = 11, Browse = 12, InvitePlayer = 13, PlayerTags = 14
+        Kick = 6, SetRank = 7, Transfer = 8, Rename = 9, Disband = 10, SetTagColor = 11, Browse = 12, InvitePlayer = 13, PlayerTags = 14, Apply = 18, CancelApplication = 19, ApproveApplication = 20, DeclineApplication = 21
     }
 
     private enum ServerMessage : byte { State = 0, Result = 1 }
 
     public bool SupportsClans { get; private set; }
     public bool SupportsCompetition { get; private set; }
+    public bool SupportsApplications { get; private set; }
 
     private long _lastPoll;
     private readonly Queue<DateTimeOffset> _recent = new();
@@ -53,6 +54,7 @@ public class ServiceClan(ISender sender) : IServiceClan
             var first = !SupportsClans;
             SupportsClans = version >= 1 && ClanHub.Started;
             SupportsCompetition = version >= 2 && SupportsClans;
+            SupportsApplications = version >= 3 && SupportsClans;
             if (!SupportsClans || sender.AssociatedPlayerId is not { } id) return true;
             // The first Hello of a connection announces the player online to their clan; later ones (the client
             // re-sends Hello when the CLAN page opens) refresh only this player's view, so they cannot flood a clan.
@@ -64,6 +66,7 @@ public class ServiceClan(ISender sender) : IServiceClan
         if (!SupportsClans || sender.AssociatedPlayerId is not { } playerId) return true;
         var requestId = reader.ReadUInt16();
         if ((byte)message >= 15 && !SupportsCompetition) { SendResult(requestId, ClanResult.NotAllowed); return true; }
+        if ((byte)message >= 18 && !SupportsApplications) { SendResult(requestId, ClanResult.NotAllowed); return true; }
         if ((byte)message == 15)
         {
             byte command = reader.ReadByte(); int roomId = reader.ReadInt32(); uint key = reader.ReadUInt32();
@@ -122,6 +125,10 @@ public class ServiceClan(ISender sender) : IServiceClan
         }
         Task<ClanResult> work = message switch
         {
+            ClientMessage.Apply => store.ApplyToClan(playerId, reader.ReadInt32()),
+            ClientMessage.CancelApplication => store.CancelApplication(playerId, reader.ReadInt32()),
+            ClientMessage.ApproveApplication => store.ReviewApplication(playerId, reader.ReadUInt32(), true),
+            ClientMessage.DeclineApplication => store.ReviewApplication(playerId, reader.ReadUInt32(), false),
             ClientMessage.Create => Create(store, playerId, reader.ReadString(), reader.ReadString()),
             ClientMessage.Invite => Invite(store, playerId, reader.ReadString()),
             ClientMessage.InvitePlayer => InvitePlayer(store, playerId, reader.ReadUInt32()),
@@ -198,6 +205,23 @@ public class ServiceClan(ISender sender) : IServiceClan
         writer.Write((byte)ServerMessage.State);
         WriteState(writer, state);
         sender.Send(writer);
+        if (SupportsApplications)
+        {
+            using var extension = CreateWriter();
+            extension.Write((byte)8);
+            WriteApplications(extension, state.Applications ?? []);
+            sender.Send(extension);
+        }
+    }
+
+    public static void WriteApplications(BinaryWriter writer, ClanStateApplication[] applications)
+    {
+        writer.Write((ushort)applications.Length);
+        foreach (var a in applications)
+        {
+            writer.Write(a.ClanId); writer.Write(a.ClanName);
+            writer.Write(a.PlayerId); writer.Write(a.PlayerName);
+        }
     }
 
     // Shared with the fixture, which checks the client decoder's expectations against this layout.

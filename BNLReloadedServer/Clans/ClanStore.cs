@@ -14,7 +14,7 @@ public record ClanView(int Id, string Name, string Tag, uint LeaderId, DateTimeO
 /// operation: each is checked against memory, written in a database transaction, and only then applied in memory.
 /// That makes the 20-member cap, one clan per player and name/tag uniqueness exact under concurrent requests.
 /// </summary>
-public sealed class ClanStore
+public sealed partial class ClanStore
 {
     private readonly SQLiteAsyncConnection _db;
     private readonly IOffensiveText _offensive;
@@ -42,13 +42,15 @@ public sealed class ClanStore
         await _db.CreateTableAsync<ClanRecord>();
         await _db.CreateTableAsync<ClanMemberRecord>();
         await _db.CreateTableAsync<ClanInviteRecord>();
+        await _db.CreateTableAsync<ClanApplicationRecord>();
         await _gate.WaitAsync();
         try
         {
-            _clans.Clear(); _members.Clear(); _invites.Clear();
+            _clans.Clear(); _members.Clear(); _invites.Clear(); _applications.Clear();
             foreach (var clan in await _db.Table<ClanRecord>().ToListAsync()) _clans[clan.Id] = clan;
             foreach (var member in await _db.Table<ClanMemberRecord>().ToListAsync()) _members[member.PlayerId] = member;
             _invites.AddRange(await _db.Table<ClanInviteRecord>().ToListAsync());
+            _applications.AddRange(await _db.Table<ClanApplicationRecord>().ToListAsync());
         }
         finally { _gate.Release(); }
     }
@@ -145,8 +147,10 @@ public sealed class ClanStore
                 db.Insert(member);
                 // Joining any clan voids the player's other invites.
                 db.Execute("DELETE FROM ClanInvites WHERE player_id = ?", playerId);
+                db.Execute("DELETE FROM ClanApplications WHERE PlayerId = ?", playerId);
             });
             Apply(() => { _clans[clan.Id] = clan; _members[playerId] = member; _invites.RemoveAll(stale.Contains); });
+            ClearJoinedApplications(playerId);
             Raise(clan.Id, playerId);
             return (ClanResult.Ok, clan.Id);
         }
@@ -196,8 +200,10 @@ public sealed class ClanStore
             {
                 db.Insert(member);
                 db.Execute("DELETE FROM ClanInvites WHERE player_id = ?", playerId);
+                db.Execute("DELETE FROM ClanApplications WHERE PlayerId = ?", playerId);
             });
             Apply(() => { _members[playerId] = member; _invites.RemoveAll(i => i.PlayerId == playerId); });
+            ClearJoinedApplications(playerId);
             Raise(clanId, playerId);
             return ClanResult.Ok;
         }
@@ -392,21 +398,30 @@ public sealed class ClanStore
     private async Task<ClanResult> DisbandLocked(int clanId)
     {
         var former = _members.Values.Where(m => m.ClanId == clanId).Select(m => m.PlayerId).ToList();
-        var invited = _invites.Where(i => i.ClanId == clanId).Select(i => i.PlayerId).ToList();
+        var invited = _invites.Where(i => i.ClanId == clanId).Select(i => i.PlayerId).Concat(_applications.Where(a => a.ClanId == clanId).Select(a => a.PlayerId)).ToList();
         await _db.RunInTransactionAsync(db =>
         {
             db.Execute("DELETE FROM ClanMembers WHERE clan_id = ?", clanId);
             db.Execute("DELETE FROM ClanInvites WHERE clan_id = ?", clanId);
             db.Execute("DELETE FROM Clans WHERE id = ?", clanId);
+            db.Execute("DELETE FROM ClanApplications WHERE ClanId = ?", clanId);
         });
         Apply(() =>
         {
             foreach (var id in former) _members.Remove(id);
             _invites.RemoveAll(i => i.ClanId == clanId);
             _clans.Remove(clanId);
+            _applications.RemoveAll(a => a.ClanId == clanId);
         });
         foreach (var id in former.Concat(invited).Distinct()) PlayerChanged?.Invoke(id);
         return ClanResult.Ok;
+    }
+
+    private void ClearJoinedApplications(uint playerId)
+    {
+        var affected = _applications.Where(a => a.PlayerId == playerId).Select(a => a.ClanId).ToArray();
+        Apply(() => _applications.RemoveAll(a => a.PlayerId == playerId));
+        foreach (var clanId in affected.Distinct()) ClanChanged?.Invoke(clanId);
     }
 
     // Readers lock _clans; writers also hold _gate, so reads never see a half-applied change.

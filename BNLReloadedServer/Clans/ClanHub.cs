@@ -73,12 +73,14 @@ public static class ClanHub
         var store = Store;
         var clan = store.ClanOf(playerId);
         var invites = store.InvitesFor(playerId);
+        var applications = store.Applications(playerId);
         var outgoing = clan == null ? [] : store.InvitesFrom(clan.Id);
 
         var ids = new HashSet<uint>();
         if (clan != null) foreach (var m in clan.Members) ids.Add(m.PlayerId);
         foreach (var i in invites) ids.Add(i.InviterId);
         foreach (var i in outgoing) ids.Add(i.PlayerId);
+        foreach (var a in applications) ids.Add(a.PlayerId);
         var names = await Names(ids);
 
         ClanStateClan? clanState = null;
@@ -96,7 +98,7 @@ public static class ClanHub
             var from = store.Clan(i.ClanId);
             return from == null ? null : new ClanStateInvite(i.ClanId, from.Name, from.Tag, names.GetValueOrDefault(i.InviterId, "Player"), i.CreatedAt);
         }).OfType<ClanStateInvite>().ToArray();
-        return new ClanStateMessage(clanState, inviteStates);
+        return new ClanStateMessage(clanState, inviteStates, applications.Select(a => new ClanStateApplication(a.ClanId, store.Clan(a.ClanId)?.Name ?? "Clan", a.PlayerId, names.GetValueOrDefault(a.PlayerId, "Player"))).ToArray());
     }
 
     public static async Task<ClanStateMessage[]> Browse(string query)
@@ -140,7 +142,8 @@ public record ClanStateOutgoing(uint PlayerId, string Name, DateTimeOffset Creat
 public record ClanStateClan(int Id, string Name, string Tag, uint LeaderId, ClanRank MyRank, DateTimeOffset? RenamedAt,
     ClanStateMember[] Members, ClanStateOutgoing[] Outgoing, uint TagColor = 0);
 public record ClanStateInvite(int ClanId, string ClanName, string Tag, string InviterName, DateTimeOffset CreatedAt);
-public record ClanStateMessage(ClanStateClan? Clan, ClanStateInvite[] Invites);
+public record ClanStateApplication(int ClanId, string ClanName, uint PlayerId, string PlayerName);
+public record ClanStateMessage(ClanStateClan? Clan, ClanStateInvite[] Invites, ClanStateApplication[]? Applications = null);
 
 /// <summary>The catalogue's offensive-name lists (all locales), as the original client applied them to nicknames.</summary>
 public sealed class CatalogueOffensiveText : IOffensiveText

@@ -47,6 +47,7 @@ public class ServerCatalogue : Catalogue
             ConquestMapRegistration.Register(cards);
             ParadiseWeatherRegistration.Register(cards);
             TeamPingRegistration.Register(cards);
+            RankedDraftRegistration.Register(cards);
             var tempDict = new Dictionary<Key, Card>(KeyEqualityComparer.Instance);
             foreach (var card in cards)
             {
@@ -64,6 +65,7 @@ public class ServerCatalogue : Catalogue
     public void UpdateCard(Card card)
     {
         if (card is CardPerk perk) ClassPerkCatalogue.Validate(perk);
+        RankedDraftRegistration.Register([card]);
         if (card.Id == null) return;
         lock (_updateLock)
         {
