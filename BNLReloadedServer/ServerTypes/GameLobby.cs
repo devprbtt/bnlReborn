@@ -19,6 +19,7 @@ public class GameLobby : Updater
     private readonly ConcurrentDictionary<uint, LobbyTimer> _requeueLobbyTimers = new();
 
     private readonly Lock _votesLock = new();
+    private readonly RandomHeroRoster? _randomHeroes;
     private uint[]? _draftOrder;
     private uint? _activeDrafter;
 
@@ -26,8 +27,9 @@ public class GameLobby : Updater
     private readonly IServiceLobby _serviceLobby;
     private readonly IGameInstance _gameInstance;
 
-    public GameLobby(IServiceLobby serviceLobby, IGameInstance gameInstance, string sessionName, Key matchKey, Key gameModeKey, List<MapInfo> maps)
+    public GameLobby(IServiceLobby serviceLobby, IGameInstance gameInstance, string sessionName, Key matchKey, Key gameModeKey, List<MapInfo> maps, RandomHeroRoster? randomHeroes = null)
     {
+        _randomHeroes = randomHeroes;
         _serviceLobby = serviceLobby;
         _gameInstance = gameInstance;
         LobbyData = new LobbyData();
@@ -112,7 +114,7 @@ public class GameLobby : Updater
         if (!returningPlayer)
         {
             var profileData = _playerDatabase.GetPlayerProfile(playerId);
-            var lastPlayedHero = _playerDatabase.GetLastPlayedHero(playerId);
+            var lastPlayedHero = _randomHeroes?.Assign(playerId, team) ?? _playerDatabase.GetLastPlayedHero(playerId);
             var loadout = _playerDatabase.GetLoadoutForHero(playerId, lastPlayedHero);
             var deviceLevels = _playerDatabase.GetDeviceLevels(playerId);
             var isDraft = LobbyData.GameMode?.LobbyMode is LobbyModeDraftPick;
@@ -227,6 +229,7 @@ public class GameLobby : Updater
 
     private bool CanPickHero(PlayerLobbyState player, Key hero)
     {
+        if (_randomHeroes != null && hero != player.Hero) return false;
         if (hero.GetCard<CardUnit>()?.Data is not UnitDataPlayer || !PlayerInventory.Owns(player.PlayerId, hero)) return false;
         // Only the player whose turn it is may pick, and a locked-in pick stays locked.
         if (IsDraftSelection && (_activeDrafter != player.PlayerId || !player.CanLoadout || player.Ready)) return false;
@@ -242,6 +245,7 @@ public class GameLobby : Updater
     /// </summary>
     private List<Key> RestrictedHeroesFor(PlayerLobbyState player)
     {
+        if (_randomHeroes != null) return CatalogueHelper.GetHeroes().Where(h => h != player.Hero).ToList();
         var limit = LobbyData.GameMode?.HeroLimit;
         var unavailable = BannedHeroes.ToList();
         if (LobbyData.GameMode?.LobbyMode is LobbyModeDraftPick)

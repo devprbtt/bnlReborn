@@ -1,4 +1,4 @@
-﻿using BNLReloadedServer.BaseTypes;
+using BNLReloadedServer.BaseTypes;
 using BNLReloadedServer.ServerTypes;
 using BNLReloadedServer.Service;
 using Moserware.Skills;
@@ -39,6 +39,8 @@ public interface IRegionServerDatabase
     public bool KickFromCustomGame(uint playerId, uint kickerId);
     public bool SwitchTeam(uint playerId);
     public bool UpdateCustomSettings(uint playerId, CustomGameSettings settings);
+    public bool UpdateCustomRandomHeroes(uint playerId, bool enabled);
+
     public bool UpdateCustomThirdPerson(uint playerId, bool enabled);
     public CustomGameUpdate? GetFullCustomGameUpdate(uint playerId);
     public bool StartCustomGame(uint playerId, string? signedMap);

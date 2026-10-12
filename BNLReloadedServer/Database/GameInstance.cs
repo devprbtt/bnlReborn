@@ -455,7 +455,13 @@ public partial class GameInstance : IGameInstance
             MatchKey = gameMode.MatchMode;
         }
 
-        Lobby = new GameLobby(new ServiceLobby(_lobbySender), this, GameInstanceId, MatchKey, gameModeKey, maps);
+        RandomHeroRoster? randomHeroes = null;
+        if (GameInitiator is CustomGamePlayerGroup custom && custom.GameInfo.RandomHeroes)
+        {
+            randomHeroes = RandomHeroRoster.CreateFromCatalogue();
+            foreach (var player in custom.PlayersSnapshot()) randomHeroes.Assign(player.Id, player.Team);
+        }
+        Lobby = new GameLobby(new ServiceLobby(_lobbySender), this, GameInstanceId, MatchKey, gameModeKey, maps, randomHeroes);
         if (gameMode.LobbyMode is LobbyModeDraftPick)
         {
             var ratings=GameInitiator.GetTeamRatings();

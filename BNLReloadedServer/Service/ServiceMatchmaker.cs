@@ -1,4 +1,4 @@
-﻿using BNLReloadedServer.BaseTypes;
+using BNLReloadedServer.BaseTypes;
 using BNLReloadedServer.Database;
 using BNLReloadedServer.ProtocolHelpers;
 using BNLReloadedServer.Servers;
@@ -39,7 +39,8 @@ public class ServiceMatchmaker(ISender sender) : IServiceMatchmaker
         MessageJoinWaitingArena = 26,
         MessageLeaveWaitingArena = 27,
         MessageWaitingArenaUpdate = 28,
-        MessageChangeWaitingArenaHero = 29
+        MessageChangeWaitingArenaHero = 29,
+        MessageSetCustomGameRandomHeroes = 30
     }
 
     private readonly IRegionServerDatabase _serverDatabase = Databases.RegionServerDatabase;
@@ -238,6 +239,13 @@ public class ServiceMatchmaker(ISender sender) : IServiceMatchmaker
             _serverDatabase.UpdateCustomSettings(sender.AssociatedPlayerId.Value, customGameSettings);
     }
 
+    private void ReceiveSetCustomGameRandomHeroes(BinaryReader reader)
+    {
+        var enabled = reader.ReadBoolean();
+        if (sender.AssociatedPlayerId.HasValue)
+            _serverDatabase.UpdateCustomRandomHeroes(sender.AssociatedPlayerId.Value, enabled);
+    }
+
     private void ReceiveSetCustomGameThirdPerson(BinaryReader reader)
     {
         var enabled = reader.ReadBoolean();
@@ -428,6 +436,9 @@ public class ServiceMatchmaker(ISender sender) : IServiceMatchmaker
                 break;
             case ServiceMatchmakerId.MessageJoinCustomGameBySteam:
                 ReceiveJoinCustomGameBySteam(reader);
+                break;
+            case ServiceMatchmakerId.MessageSetCustomGameRandomHeroes:
+                ReceiveSetCustomGameRandomHeroes(reader);
                 break;
             case ServiceMatchmakerId.MessageSetCustomGameThirdPerson:
                 ReceiveSetCustomGameThirdPerson(reader);

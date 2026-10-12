@@ -1,4 +1,4 @@
-﻿using System.Collections.Concurrent;
+using System.Collections.Concurrent;
 using System.Diagnostics.CodeAnalysis;
 using System.Text.Json;
 using BNLReloadedServer.BaseTypes;
@@ -816,6 +816,14 @@ public partial class RegionServerDatabase(AsyncTaskTcpServer server, AsyncTaskTc
         var gameId = customId.Value;
         if (!TryGetCustomGame(gameId, out var customGame)) return false;
         customGame.custom.UpdateSettings(playerId, settings);
+        return true;
+    }
+
+    public bool UpdateCustomRandomHeroes(uint playerId, bool enabled)
+    {
+        if (!UserConnected(playerId, out var playerInfo) || !playerInfo.CustomGameId.HasValue) return false;
+        if (!TryGetCustomGame(playerInfo.CustomGameId.Value, out var customGame)) return false;
+        customGame.custom.UpdateRandomHeroes(playerId, enabled);
         return true;
     }
 

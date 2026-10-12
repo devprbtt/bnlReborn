@@ -28,7 +28,7 @@ public class CustomGamePlayerGroup(IServiceMatchmaker matchService) : IGameIniti
             Send(BuildUpdate(gameName: value.GameName, pass: Password, mapInfo: value.MapInfo, buildTime: value.BuildTime,
                 respawnMod: value.RespawnTimeMod, heroSwitch: value.HeroSwitch, superSupply: value.SuperSupply,
                 allowBackfilling: value.AllowBackfilling, resourceCap: value.ResourceCap, initResources: value.InitResource,
-                players: [], status: value.Status, forceThirdPerson: value.ForceThirdPerson));
+                players: [], status: value.Status, forceThirdPerson: value.ForceThirdPerson, randomHeroes: value.RandomHeroes));
         }
     }
 
@@ -72,6 +72,9 @@ public class CustomGamePlayerGroup(IServiceMatchmaker matchService) : IGameIniti
         {
             if (_players.Any(p => p.Id == playerId))
                 return CustomGameJoinResult.Accepted;
+            // Keep the randomized match seats stable; existing members can reconnect.
+            if (GameInfo.RandomHeroes && GameInfo.Status != CustomGameStatus.Preparing)
+                return CustomGameJoinResult.FullTeams;
             if (_players.Count >= GameInfo.MaxPlayers)
                 return CustomGameJoinResult.FullTeams;
 
@@ -157,6 +160,7 @@ public class CustomGamePlayerGroup(IServiceMatchmaker matchService) : IGameIniti
 
     private CustomGameUpdate? SwapTeamLocked(uint playerId)
     {
+        if (GameInfo.RandomHeroes && GameInfo.Status != CustomGameStatus.Preparing) return null;
         var player = _players.FirstOrDefault(p => p.Id == playerId);
 
         if (player == null)
@@ -275,6 +279,16 @@ public class CustomGamePlayerGroup(IServiceMatchmaker matchService) : IGameIniti
         }
     }
 
+    public void UpdateRandomHeroes(uint playerId, bool enabled)
+    {
+        lock (_lock)
+        {
+            if (GameInfo.Status != CustomGameStatus.Preparing || !_players.Any(p => p.Id == playerId && p.Owner)) return;
+            GameInfo.RandomHeroes = enabled;
+            Send(BuildUpdate(randomHeroes: enabled));
+        }
+    }
+
     public bool IsMaxSpectators()
     {
         lock (_lock) return _spectators.Count >= _customLogic.MaxSpectatorsPerMatch;
@@ -344,7 +358,7 @@ public class CustomGamePlayerGroup(IServiceMatchmaker matchService) : IGameIniti
 
     public Key GetGameMode() => CatalogueHelper.ModeCustom.Key;
 
-    public bool CanSwitchHero() => GameInfo.HeroSwitch;
+    public bool CanSwitchHero() => GameInfo.HeroSwitch && !GameInfo.RandomHeroes;
 
     public bool IsThirdPersonForced() => GameInfo.ForceThirdPerson;
 
@@ -392,7 +406,8 @@ public class CustomGamePlayerGroup(IServiceMatchmaker matchService) : IGameIniti
                 Settings = settings,
                 Players = [.. _players],
                 Status = GameInfo.Status,
-                ForceThirdPerson = GameInfo.ForceThirdPerson
+                ForceThirdPerson = GameInfo.ForceThirdPerson,
+                RandomHeroes = GameInfo.RandomHeroes
             };
         }
     }
@@ -401,7 +416,7 @@ public class CustomGamePlayerGroup(IServiceMatchmaker matchService) : IGameIniti
     private static CustomGameUpdate BuildUpdate(string? gameName = null, string? pass = null,
         MapInfo? mapInfo = null, float? buildTime = null, float? respawnMod = null, bool? heroSwitch = null,
         bool? superSupply = null, bool? allowBackfilling = null, float? resourceCap = null, float? initResources = null,
-        List<CustomGamePlayer>? players = null, CustomGameStatus? status = null, bool? forceThirdPerson = null)
+        List<CustomGamePlayer>? players = null, CustomGameStatus? status = null, bool? forceThirdPerson = null, bool? randomHeroes = null)
     {
         CustomGameSettings? settings = null;
         if (mapInfo != null || buildTime != null || respawnMod != null || heroSwitch != null || superSupply != null ||
@@ -425,7 +440,8 @@ public class CustomGamePlayerGroup(IServiceMatchmaker matchService) : IGameIniti
             Settings = settings,
             Players = players,
             Status = status,
-            ForceThirdPerson = forceThirdPerson
+            ForceThirdPerson = forceThirdPerson,
+            RandomHeroes = randomHeroes
         };
     }
 

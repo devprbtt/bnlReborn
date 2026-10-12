@@ -1,4 +1,4 @@
-﻿using BNLReloadedServer.ProtocolHelpers;
+using BNLReloadedServer.ProtocolHelpers;
 
 namespace BNLReloadedServer.BaseTypes;
 
@@ -16,10 +16,12 @@ public class CustomGameUpdate
 
     public bool? ForceThirdPerson { get; set; }
 
+    public bool? RandomHeroes { get; set; }
+
     public void Write(BinaryWriter writer)
     {
         new BitField(GameName != null, Password != null, Settings != null, Players != null, Status.HasValue,
-            ForceThirdPerson.HasValue, ForceThirdPerson.GetValueOrDefault()).Write(writer);
+            ForceThirdPerson.HasValue, ForceThirdPerson.GetValueOrDefault(), RandomHeroes.HasValue).Write(writer);
         if (GameName != null)
             writer.Write(GameName);
         if (Password != null)
@@ -28,14 +30,13 @@ public class CustomGameUpdate
             CustomGameSettings.WriteRecord(writer, Settings);
         if (Players != null)
             writer.WriteList(Players, CustomGamePlayer.WriteRecord);
-        if (!Status.HasValue)
-            return;
-        writer.WriteByteEnum(Status.Value);
+        if (Status.HasValue) writer.WriteByteEnum(Status.Value);
+        if (RandomHeroes.HasValue) writer.Write(RandomHeroes.Value);
     }
 
     public void Read(BinaryReader reader)
     {
-        var bitField = new BitField(7);
+        var bitField = new BitField(8);
         bitField.Read(reader);
         GameName = bitField[0] ? reader.ReadString() : null;
         Password = bitField[1] ? reader.ReadString() : null;
@@ -43,6 +44,7 @@ public class CustomGameUpdate
         Players = bitField[3] ? reader.ReadList<CustomGamePlayer, List<CustomGamePlayer>>(CustomGamePlayer.ReadRecord) : null;
         Status = bitField[4] ? reader.ReadByteEnum<CustomGameStatus>() : null;
         ForceThirdPerson = bitField[5] ? bitField[6] : null;
+        RandomHeroes = bitField[7] ? reader.ReadBoolean() : null;
     }
 
     public static void WriteRecord(BinaryWriter writer, CustomGameUpdate value)

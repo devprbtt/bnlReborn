@@ -1,9 +1,12 @@
-﻿using BNLReloadedServer.ProtocolHelpers;
+using BNLReloadedServer.ProtocolHelpers;
 
 namespace BNLReloadedServer.BaseTypes;
 
 public class CustomGameInfo
 {
+    // Session setting replicated through CustomGameUpdate, not the legacy browser record.
+    public bool RandomHeroes { get; set; }
+
     public ulong Id { get; set; }
 
     public string? GameName { get; set; }
