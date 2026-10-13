@@ -19,6 +19,8 @@ public interface IGameInstance
     public void PlayerDisconnected(uint userId);
     // For when players leave via disconnect button
     public void PlayerLeftInstance(uint userId, KickReason reason);
+    // Stops lobby and zone broadcasts to the player's session; call before sending them out of the match scene.
+    public void DetachFromZoneStreams(uint userId);
     public void RemoveAllFromSquad(ulong squadId, Action<uint>? onRemove = null);
     public void RemoveAllPlayers(Action<uint>? onRemove = null);
     public void NotifyExitToCustom();
