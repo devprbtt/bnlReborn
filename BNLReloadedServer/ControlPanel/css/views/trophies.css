@@ -45,8 +45,23 @@
   gap: 6px;
   margin-top: 6px;
 }
+/* base.css styles text inputs and selects only; match them for the description box */
 .trophy-form textarea {
   width: 100%;
   min-height: 54px;
   resize: vertical;
+  padding: 9px 12px;
+  font-family: var(--mono);
+  font-size: 14px;
+  background: var(--input-bg);
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  color: var(--ink);
+}
+.trophy-form textarea:focus {
+  border-color: var(--line-2);
+  background: var(--input-bg-focus);
+}
+.trophy-form textarea::placeholder {
+  color: var(--placeholder);
 }
