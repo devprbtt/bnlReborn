@@ -93,35 +93,52 @@ public sealed record LifetimeProfileStats(int Version, uint PlayerId, long? Sinc
         foreach (var player in players)
         {
             var match = db.Find<ArchivedMatchRecord>(player.MatchId);
-            var rows = presences.GetValueOrDefault(player.MatchId) ?? [];
-            var keys = rows.Select(p => p.HeroKey).Distinct().ToArray();
-            // One eligibility rule for every player's career and hero totals.
-            // Raw maps are sparse: an absent counter means zero, an absent map
-            // means unrecorded. Never keep kills from an ineligible record.
-            if (match == null || match.EndedAt <= match.StartedAt ||
-                match.Winner is not (int)TeamType.Team1 and not (int)TeamType.Team2 ||
-                keys.Length != 1 || keys[0] == 0 || rows.Count == 0 ||
-                rows.Any(p => p.JoinedAt > (p.LeftAt ?? match.EndedAt))) { excluded++; continue; }
-            // Merge overlapping reconnect intervals and clamp them to the round.
-            var seconds = PlayedSeconds(match, rows);
-            Dictionary<PlayerMatchStatType,int> stats;
-            Dictionary<ScoreType,float> raw;
-            try { stats = ReadStats(player.Stats); raw = ReadRaw(player.RawStats); }
-            catch (Exception ex) when (ex is IOException or ArgumentException or OverflowException) { excluded++; continue; }
-            if (seconds <= 0 || raw.Count == 0 ||
-                RequiredCombatStats.Any(k => !stats.ContainsKey(k) || stats[k] < 0) ||
-                stats.Values.Any(value => value < 0) ||
-                raw.Values.Any(v => !float.IsFinite(v) || v < 0) ||
-                raw.GetValueOrDefault(ScoreType.KillPlayerCriticalByHero) > stats[PlayerMatchStatType.Kill]) { excluded++; continue; }
-            since = Math.Min(since ?? match.StartedAt, match.StartedAt);
-            var accolades = ArchivedAccolades.Read(player.Accolades);
-            Add(overall, stats, raw, seconds, player.IsWinner);
-            AddAccolades(overall, accolades, match.StartedAt);
-            if (!heroes.TryGetValue(keys[0], out var combat)) heroes[keys[0]] = combat = new();
-            Add(combat, stats, raw, seconds, player.IsWinner);
-            AddAccolades(combat, accolades, match.StartedAt);
+            if (Eligible(match, presences.GetValueOrDefault(player.MatchId) ?? [], player) is not { } round) { excluded++; continue; }
+            since = Math.Min(since ?? match!.StartedAt, match!.StartedAt);
+            round.AddTo(overall);
+            if (!heroes.TryGetValue(round.HeroKey, out var combat)) heroes[round.HeroKey] = combat = new();
+            round.AddTo(combat);
         }
         return new(2, playerId, since, overall, heroes.Select(p => new LifetimeHeroStats(p.Key, p.Value)).ToList(), 0, excluded);
+    }
+
+    /// <summary>One counted round for one player: its counters, played time and single hero.</summary>
+    public sealed record EligibleRound(ArchivedMatchRecord Match, ArchivedMatchPlayerRecord Player, long HeroKey, double Seconds,
+        Dictionary<PlayerMatchStatType, int> Stats, Dictionary<ScoreType, float> Raw,
+        (Dictionary<KillAccolade, int> Counts, int BestStreak)? Accolades)
+    {
+        public void AddTo(LifetimeCombatTotals totals)
+        {
+            Add(totals, Stats, Raw, Seconds, Player.IsWinner);
+            AddAccolades(totals, Accolades, Match.StartedAt);
+        }
+    }
+
+    /// <summary>
+    /// The one eligibility rule for profile careers, hero totals and stat leaderboards: a decided round with valid
+    /// time, a single known hero, and complete, non-negative counters. Null means the round is excluded.
+    /// </summary>
+    public static EligibleRound? Eligible(ArchivedMatchRecord? match, List<ArchivedMatchPresenceRecord> rows, ArchivedMatchPlayerRecord player)
+    {
+        var keys = rows.Select(p => p.HeroKey).Distinct().ToArray();
+        // Raw maps are sparse: an absent counter means zero, an absent map
+        // means unrecorded. Never keep kills from an ineligible record.
+        if (match == null || match.EndedAt <= match.StartedAt ||
+            match.Winner is not (int)TeamType.Team1 and not (int)TeamType.Team2 ||
+            keys.Length != 1 || keys[0] == 0 || rows.Count == 0 ||
+            rows.Any(p => p.JoinedAt > (p.LeftAt ?? match.EndedAt))) return null;
+        // Merge overlapping reconnect intervals and clamp them to the round.
+        var seconds = PlayedSeconds(match, rows);
+        Dictionary<PlayerMatchStatType,int> stats;
+        Dictionary<ScoreType,float> raw;
+        try { stats = ReadStats(player.Stats); raw = ReadRaw(player.RawStats); }
+        catch (Exception ex) when (ex is IOException or ArgumentException or OverflowException) { return null; }
+        if (seconds <= 0 || raw.Count == 0 ||
+            RequiredCombatStats.Any(k => !stats.ContainsKey(k) || stats[k] < 0) ||
+            stats.Values.Any(value => value < 0) ||
+            raw.Values.Any(v => !float.IsFinite(v) || v < 0) ||
+            raw.GetValueOrDefault(ScoreType.KillPlayerCriticalByHero) > stats[PlayerMatchStatType.Kill]) return null;
+        return new EligibleRound(match, player, keys[0], seconds, stats, raw, ArchivedAccolades.Read(player.Accolades));
     }
     public static double PlayedSeconds(ArchivedMatchRecord match, IEnumerable<ArchivedMatchPresenceRecord> rows)
     {

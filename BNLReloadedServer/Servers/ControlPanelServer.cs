@@ -260,6 +260,19 @@ public sealed class ControlPanelServer : IDisposable
                 return;
             }
 
+            if (method == "GET" && path == PlayerLeaderboardPath)
+            {
+                var statName = ctx.Request.QueryString["stat"] ?? "kills";
+                var period = ctx.Request.QueryString["period"] ?? "all";
+                if (!PlayerStatLeaderboards.StatNames.TryGetValue(statName, out var stat) || period is not ("all" or "30d"))
+                {
+                    ctx.Response.StatusCode = 400;
+                    await WriteJson(ctx, new { error = "Unknown stat or period" });
+                }
+                else await WriteJson(ctx, await Databases.MasterServerDatabase.GetPlayerLeaderboard(stat, period == "30d"));
+                return;
+            }
+
             if (method == "GET" && path == "/api/matches")
             {
                 await ServeMatchHistory(ctx);
@@ -710,6 +723,8 @@ public sealed class ControlPanelServer : IDisposable
         return html.Replace("<!-- PANEL-MODE -->", "<script>window.controlPanelAdmin = false;</script>");
     }
 
+    private const string PlayerLeaderboardPath = "/api/leaderboards/players";
+
     private static bool IsPublicReadRequest(string method, string path) => method == "GET" &&
         (path == "/api/status" ||
          path == "/api/queues" ||
@@ -717,6 +732,7 @@ public sealed class ControlPanelServer : IDisposable
          path == "/api/players" ||
          IsPublicPlayerDetailPath(path) ||
          path.StartsWith("/api/profile-stats/", StringComparison.Ordinal) ||
+         path == PlayerLeaderboardPath ||
          path == "/api/matches" ||
          path.StartsWith("/api/matches/", StringComparison.Ordinal) ||
          path == "/api/maps" ||

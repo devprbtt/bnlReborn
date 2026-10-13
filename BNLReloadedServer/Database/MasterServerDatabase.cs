@@ -329,6 +329,23 @@ public class MasterServerDatabase : IMasterServerDatabase
         return result;
     }
 
+    // Public and unauthenticated: one archive pass per stat and period per minute at most.
+    private static readonly TimeSpan LeaderboardCacheTime = TimeSpan.FromSeconds(60);
+    private readonly Dictionary<(PlayerLeaderboardStat, bool), (DateTimeOffset At, PlayerLeaderboard Board)> _leaderboardCache = [];
+
+    public async Task<PlayerLeaderboard> GetPlayerLeaderboard(PlayerLeaderboardStat stat, bool recentOnly)
+    {
+        lock (_leaderboardCache)
+            if (_leaderboardCache.TryGetValue((stat, recentOnly), out var cached) && DateTimeOffset.UtcNow - cached.At < LeaderboardCacheTime)
+                return cached.Board;
+        long[] modes = [CatalogueHelper.ModeRanked.Key.Hash, CatalogueHelper.ModeFriendly.Key.Hash];
+        PlayerLeaderboard result = null!;
+        await _playerDb.RunInTransactionAsync(db =>
+            result = PlayerStatLeaderboards.Read(db, stat, recentOnly, DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(), modes));
+        lock (_leaderboardCache) _leaderboardCache[(stat, recentOnly)] = (DateTimeOffset.UtcNow, result);
+        return result;
+    }
+
     public async Task<List<ArchivedMatchRecord>> GetCompletedMatches(int limit, long? before)
     {
         var query = _playerDb.Table<ArchivedMatchRecord>();
