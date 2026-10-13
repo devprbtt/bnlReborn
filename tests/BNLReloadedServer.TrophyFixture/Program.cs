@@ -1,0 +1,1 @@
+TrophyTests.Run();

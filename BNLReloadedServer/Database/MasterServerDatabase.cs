@@ -41,6 +41,9 @@ public class MasterServerDatabase : IMasterServerDatabase
         _playerDb.ExecuteAsync("CREATE INDEX IF NOT EXISTS IX_MatchPlayers_Player ON MatchPlayers(player_id)").Wait();
         _playerDb.ExecuteAsync("CREATE INDEX IF NOT EXISTS IX_MatchPresences_Player ON MatchPresences(player_id)").Wait();
         _playerDb.CreateTableAsync<InventoryGrantRecord>().Wait();
+        _playerDb.CreateTableAsync<TrophyRecord>().Wait();
+        _playerDb.CreateTableAsync<PlayerTrophyRecord>().Wait();
+        _playerDb.CreateTableAsync<TrophyShowcaseRecord>().Wait();
         _playerDb.CreateTableAsync<AppliedMigrationRecord>().Wait();
         BackfillRankEligibility().Wait();
         ImportLegacyPrivateSkinGrants().Wait();
@@ -326,6 +329,14 @@ public class MasterServerDatabase : IMasterServerDatabase
     {
         LifetimeProfileStats result = null!;
         await _playerDb.RunInTransactionAsync(db => result = LifetimeProfileStats.Read(db, playerId));
+        return result;
+    }
+
+    /// <summary>Runs one trophy operation (Database/Trophies.cs) in a transaction on the player database.</summary>
+    public async Task<T> WithTrophies<T>(Func<SQLiteConnection, T> action)
+    {
+        T result = default!;
+        await _playerDb.RunInTransactionAsync(db => result = action(db));
         return result;
     }
 

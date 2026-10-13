@@ -26,7 +26,9 @@ public class ServiceClan(ISender sender) : IServiceClan
     private enum ClientMessage : byte
     {
         Hello = 0, Create = 1, Invite = 2, Accept = 3, Decline = 4, Leave = 5,
-        Kick = 6, SetRank = 7, Transfer = 8, Rename = 9, Disband = 10, SetTagColor = 11, Browse = 12, InvitePlayer = 13, PlayerTags = 14, Apply = 18, CancelApplication = 19, ApproveApplication = 20, DeclineApplication = 21
+        Kick = 6, SetRank = 7, Transfer = 8, Rename = 9, Disband = 10, SetTagColor = 11, Browse = 12, InvitePlayer = 13, PlayerTags = 14, Apply = 18, CancelApplication = 19, ApproveApplication = 20, DeclineApplication = 21,
+        // Capability 4: replace the player's trophy showcase (byte count, then trophy ids).
+        SetTrophyShowcase = 22
     }
 
     private enum ServerMessage : byte { State = 0, Result = 1 }
@@ -34,6 +36,12 @@ public class ServiceClan(ISender sender) : IServiceClan
     public bool SupportsClans { get; private set; }
     public bool SupportsCompetition { get; private set; }
     public bool SupportsApplications { get; private set; }
+    public bool SupportsTrophies { get; private set; }
+    // Sent once after a capability-4 Hello: this server stores trophy showcases, so the client may offer pinning.
+    private const byte TrophiesSupportedMessage = 9;
+    // The showcase write; a fixture points it at its own database.
+    internal static Func<uint, IReadOnlyList<string>, Task<TrophyResult>> WriteShowcase =
+        (playerId, ids) => Databases.MasterServerDatabase.WithTrophies(db => Trophies.SetShowcase(db, playerId, ids));
 
     private long _lastPoll;
     private readonly Queue<DateTimeOffset> _recent = new();
@@ -55,7 +63,14 @@ public class ServiceClan(ISender sender) : IServiceClan
             SupportsClans = version >= 1 && ClanHub.Started;
             SupportsCompetition = version >= 2 && SupportsClans;
             SupportsApplications = version >= 3 && SupportsClans;
+            SupportsTrophies = version >= 4 && SupportsClans;
             if (!SupportsClans || sender.AssociatedPlayerId is not { } id) return true;
+            if (SupportsTrophies)
+            {
+                using var supported = CreateWriter();
+                supported.Write(TrophiesSupportedMessage); supported.Write((byte)Trophies.ShowcaseSlots);
+                sender.Send(supported);
+            }
             // The first Hello of a connection announces the player online to their clan; later ones (the client
             // re-sends Hello when the CLAN page opens) refresh only this player's view, so they cannot flood a clan.
             if (first) ClanHub.PushClanOf(id);
@@ -78,6 +93,26 @@ public class ServiceClan(ISender sender) : IServiceClan
         if (Throttled())
         {
             SendResult(requestId, ClanResult.NotAllowed);
+            return true;
+        }
+        if (message == ClientMessage.SetTrophyShowcase)
+        {
+            if (!SupportsTrophies) { SendResult(requestId, ClanResult.NotAllowed); return true; }
+            int count = reader.ReadByte();
+            if (count > Trophies.ShowcaseSlots) { SendResult(requestId, ClanResult.TooManyTrophies); return true; }
+            var ids = new List<string>();
+            for (int i = 0; i < count; i++) ids.Add(reader.ReadString());
+            WriteShowcase(playerId, ids).ContinueWith(t =>
+            {
+                if (t.IsFaulted) Log.Error(LogCat.Player, $"Trophy showcase update from player {playerId} failed", t.Exception!);
+                SendResult(requestId, t.IsFaulted ? ClanResult.NotAllowed : t.Result switch
+                {
+                    TrophyResult.Ok => ClanResult.Ok,
+                    TrophyResult.TooMany => ClanResult.TooManyTrophies,
+                    TrophyResult.NotOwned => ClanResult.TrophyNotOwned,
+                    _ => ClanResult.NotAllowed
+                });
+            });
             return true;
         }
         if ((byte)message == 16)

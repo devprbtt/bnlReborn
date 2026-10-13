@@ -17,6 +17,7 @@
     <link rel="stylesheet" href="/css/views/ladder.css" />
     <link rel="stylesheet" href="/css/views/messages.css" />
     <link rel="stylesheet" href="/css/views/bans.css" />
+    <link rel="stylesheet" href="/css/views/trophies.css" />
     <link rel="stylesheet" href="/css/views/console.css" />
     <link rel="stylesheet" href="/css/views/players.css" />
     <link rel="stylesheet" href="/css/views/history.css" />
@@ -89,6 +90,9 @@
         </button>
         <button class="rail-item" data-pane="bans" onclick="showPane('bans')">
           Bans <span class="rail-count" id="railBans"></span>
+        </button>
+        <button class="rail-item" data-pane="trophies" onclick="showPane('trophies')">
+          Trophies <span class="rail-count" id="railTrophies"></span>
         </button>
         <!-- ADMIN-START -->
         <button class="rail-item" data-pane="tools" onclick="showPane('tools')">
@@ -605,6 +609,95 @@
         </div>
       </section>
 
+      <!-- ================= trophies ================= -->
+      <section class="view-pane" id="pane-trophies">
+        <div class="pane-head">
+          <div>
+            <h2>Trophies</h2>
+            <p>
+              Trophies the Reborn team awards for events and tournaments. Players
+              see theirs in the game's Profile &rsaquo; Trophies room and choose up
+              to five to showcase on their profile.
+            </p>
+          </div>
+        </div>
+
+        <!-- ADMIN-START -->
+        <section class="mod-form trophy-form">
+          <h3>Create or update a trophy</h3>
+          <div class="form-row">
+            <div class="form-group">
+              <label for="f-trophy-id">ID</label>
+              <input id="f-trophy-id" type="text" maxlength="48" placeholder="winter-cup-2026" />
+            </div>
+            <div class="form-group form-group-wide">
+              <label for="f-trophy-name">Name</label>
+              <input id="f-trophy-name" type="text" maxlength="40" placeholder="Winter Cup Champion" />
+            </div>
+            <div class="form-group">
+              <label for="f-trophy-image">Art (PNG, up to 1024&times;1024)</label>
+              <input id="f-trophy-image" type="file" accept="image/png" />
+            </div>
+          </div>
+          <div class="form-group">
+            <label for="f-trophy-description">Description</label>
+            <textarea id="f-trophy-description" maxlength="240" placeholder="Won the 2026 Winter Cup clan tournament."></textarea>
+          </div>
+          <div class="card-actions">
+            <button class="save-btn" onclick="saveTrophy()">Save trophy</button>
+          </div>
+          <p class="mod-note">
+            The ID is permanent and appears in image URLs. Saving an existing ID
+            updates its name and description; choose a file only to replace the
+            art. Retire a trophy to stop new awards without taking it from anyone.
+          </p>
+        </section>
+
+        <section class="mod-form">
+          <h3>Award a trophy</h3>
+          <div class="form-row">
+            <div class="form-group form-group-wide">
+              <label for="f-trophy-player">Player</label>
+              <input id="f-trophy-player" type="text" list="trophyPlayerNames" placeholder="Nickname or ID" />
+              <datalist id="trophyPlayerNames"></datalist>
+            </div>
+            <div class="form-group">
+              <label for="f-trophy-grant-id">Trophy</label>
+              <select id="f-trophy-grant-id"></select>
+            </div>
+            <div class="form-group form-group-wide">
+              <label for="f-trophy-note">Note (admins only)</label>
+              <input id="f-trophy-note" type="text" maxlength="200" placeholder="Final vs [RED], 3-1" />
+            </div>
+          </div>
+          <div class="card-actions">
+            <button class="save-btn" onclick="grantTrophy()">Award</button>
+          </div>
+        </section>
+        <!-- ADMIN-END -->
+
+        <div class="trophy-grid" id="trophyGrid"></div>
+
+        <!-- ADMIN-START -->
+        <h3>Recent awards</h3>
+        <div class="table-wrap mod-wrap">
+          <table class="mod-table">
+            <thead>
+              <tr>
+                <th>Trophy</th>
+                <th>Player</th>
+                <th>Awarded</th>
+                <th>By</th>
+                <th>Note</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="trophyGrantBody"></tbody>
+          </table>
+        </div>
+        <!-- ADMIN-END -->
+      </section>
+
       <!-- ADMIN-START -->
       <!-- ================= tools ================= -->
       <section class="view-pane" id="pane-tools">
@@ -1002,6 +1095,7 @@
     <script src="/js/views/history.js"></script>
     <script src="/js/views/ladder.js"></script>
     <script src="/js/views/bans.js"></script>
+    <script src="/js/views/trophies.js"></script>
     <!-- ADMIN-START -->
     <script src="/js/views/tools.js"></script>
     <script src="/js/views/console.js"></script>

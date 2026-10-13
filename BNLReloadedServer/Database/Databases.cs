@@ -14,6 +14,8 @@ public static class Databases
     public static string ConfigsFilePath { get; } = Path.Combine(ConfigsFolderPath, "configs.json");
     public static string ControlPanelUsersFilePath { get; } = Path.Combine(ConfigsFolderPath, "control_panel_users.json");
     public static string CacheFolderPath { get; } = Path.Combine(BaseFolderPath, "Cache");
+    // Trophy art uploaded from the control panel, kept beside the player database it belongs to.
+    public static string TrophyImagesFolderPath { get; } = Path.Combine(BaseFolderPath, "PlayerData", "Trophies");
     public static string LogsFolderPath { get; } = Path.Combine(BaseFolderPath, "Logs");
     public static string PlayerDatabaseFile { get; } = Path.Combine(BaseFolderPath, "PlayerData", "playerData.db");
 

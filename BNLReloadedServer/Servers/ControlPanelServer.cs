@@ -260,6 +260,13 @@ public sealed class ControlPanelServer : IDisposable
                 return;
             }
 
+            if (method == "GET" && path.StartsWith(TrophiesPath, StringComparison.Ordinal) && await ServeTrophyRead(ctx, path))
+                return;
+
+            // Admin only: the gate above has already rejected unauthenticated writes.
+            if (method == "POST" && path.StartsWith(TrophiesPath, StringComparison.Ordinal) && await HandleTrophyWrite(ctx, path))
+                return;
+
             if (method == "GET" && path == PlayerLeaderboardPath)
             {
                 var statName = ctx.Request.QueryString["stat"] ?? "kills";
@@ -724,6 +731,137 @@ public sealed class ControlPanelServer : IDisposable
     }
 
     private const string PlayerLeaderboardPath = "/api/leaderboards/players";
+    private const string TrophiesPath = "/api/trophies";
+    private const string TrophyGrantsPath = "/api/trophies/grants";
+
+    // The catalogue, images and each player's collection are public; who granted what (and notes) is admin-only.
+    private static bool IsPublicTrophyRead(string path) =>
+        (path == TrophiesPath || path.StartsWith(TrophiesPath + "/", StringComparison.Ordinal)) && path != TrophyGrantsPath;
+
+    private sealed record TrophySaveRequest(string? Id, string? Name, string? Description, string? ImagePng);
+    private sealed record TrophyGrantRequest(uint PlayerId, string? TrophyId, string? Note);
+    private sealed record TrophyIdRequest(long GrantId, string? TrophyId, bool Retired);
+
+    /// <summary>GET routes under /api/trophies. False when the path is not a trophy read (it falls through).</summary>
+    private async Task<bool> ServeTrophyRead(HttpListenerContext ctx, string path)
+    {
+        var db = Databases.MasterServerDatabase;
+        if (path == TrophiesPath)
+        {
+            ctx.Response.Headers["Cache-Control"] = "no-cache";
+            await WriteJson(ctx, await db.WithTrophies(Trophies.Catalogue));
+            return true;
+        }
+        if (path == TrophyGrantsPath)
+        {
+            if (!IsAuthenticated(ctx)) return false; // falls through to the 401 gate
+            await WriteJson(ctx, new { grants = await db.WithTrophies(d => Trophies.RecentGrants(d, 200)) });
+            return true;
+        }
+        const string players = TrophiesPath + "/players/";
+        if (path.StartsWith(players, StringComparison.Ordinal))
+        {
+            if (!uint.TryParse(path[players.Length..], out var playerId))
+            {
+                ctx.Response.StatusCode = 400;
+                await WriteJson(ctx, new { error = "Invalid player ID" });
+            }
+            else await WriteJson(ctx, await db.WithTrophies(d => Trophies.Collection(d, playerId)));
+            return true;
+        }
+        if (path.EndsWith(".png", StringComparison.Ordinal))
+        {
+            var id = path[(TrophiesPath.Length + 1)..^4];
+            var file = Trophies.ImagePath(Databases.TrophyImagesFolderPath, id);
+            if (!Trophies.ValidId(id) || !File.Exists(file))
+            {
+                ctx.Response.StatusCode = 404;
+                ctx.Response.Close();
+                return true;
+            }
+            var bytes = await File.ReadAllBytesAsync(file);
+            ctx.Response.ContentType = "image/png";
+            // Image URLs carry ?v=<version>, so a cached copy is never stale.
+            ctx.Response.Headers["Cache-Control"] = "public, max-age=86400";
+            ctx.Response.ContentLength64 = bytes.Length;
+            await ctx.Response.OutputStream.WriteAsync(bytes);
+            ctx.Response.Close();
+            return true;
+        }
+        return false;
+    }
+
+    private async Task<bool> HandleTrophyWrite(HttpListenerContext ctx, string path)
+    {
+        var db = Databases.MasterServerDatabase;
+        var now = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+        var admin = SessionUsername(ctx) ?? "admin";
+        TrophyResult result;
+        object? extra = null;
+        switch (path)
+        {
+            case TrophiesPath:
+            {
+                var request = await JsonSerializer.DeserializeAsync<TrophySaveRequest>(ctx.Request.InputStream, JsonOptions);
+                byte[]? png = null;
+                if (!string.IsNullOrEmpty(request?.ImagePng))
+                {
+                    try { png = Convert.FromBase64String(request.ImagePng); } catch (FormatException) { png = []; }
+                    if (!Trophies.ValidPng(png)) { await TrophyError(ctx, TrophyResult.InvalidImage); return true; }
+                }
+                var id = request?.Id ?? "";
+                if (!Trophies.ValidId(id)) { await TrophyError(ctx, TrophyResult.InvalidId); return true; }
+                if (png is not null) Trophies.SaveImage(Databases.TrophyImagesFolderPath, id, png);
+                result = await db.WithTrophies(d => Trophies.Save(d, id, request?.Name ?? "", request?.Description ?? "", png is not null, now));
+                break;
+            }
+            case TrophiesPath + "/grant":
+            {
+                var request = await JsonSerializer.DeserializeAsync<TrophyGrantRequest>(ctx.Request.InputStream, JsonOptions);
+                var grant = await db.WithTrophies(d => Trophies.Grant(d, request?.PlayerId ?? 0, request?.TrophyId ?? "", admin, request?.Note ?? "", now));
+                result = grant.Result; extra = grant.GrantId;
+                break;
+            }
+            case TrophiesPath + "/revoke":
+            {
+                var request = await JsonSerializer.DeserializeAsync<TrophyIdRequest>(ctx.Request.InputStream, JsonOptions);
+                result = await db.WithTrophies(d => Trophies.Revoke(d, request?.GrantId ?? 0));
+                break;
+            }
+            case TrophiesPath + "/retire":
+            {
+                var request = await JsonSerializer.DeserializeAsync<TrophyIdRequest>(ctx.Request.InputStream, JsonOptions);
+                result = await db.WithTrophies(d => Trophies.SetRetired(d, request?.TrophyId ?? "", request?.Retired ?? true));
+                break;
+            }
+            default:
+                return false;
+        }
+        if (result != TrophyResult.Ok) { await TrophyError(ctx, result); return true; }
+        Log.Info(LogCat.Panel, $"Trophy {path[TrophiesPath.Length..].TrimStart('/')} by '{admin}' succeeded");
+        await WriteJson(ctx, new { message = "OK", grant_id = extra });
+        return true;
+    }
+
+    private static Task TrophyError(HttpListenerContext ctx, TrophyResult result)
+    {
+        ctx.Response.StatusCode = result is TrophyResult.NoSuchTrophy or TrophyResult.NoSuchPlayer or TrophyResult.NoSuchGrant ? 404 : 400;
+        return WriteJson(ctx, new
+        {
+            error = result switch
+            {
+                TrophyResult.InvalidId => "Trophy IDs are 2-48 characters: lowercase letters, digits, '-' or '_'.",
+                TrophyResult.InvalidName => $"Give the trophy a name of up to {Trophies.MaxNameLength} characters.",
+                TrophyResult.InvalidDescription => $"Descriptions are limited to {Trophies.MaxDescriptionLength} characters.",
+                TrophyResult.InvalidImage => $"Upload a PNG image up to {Trophies.MaxImageSide}x{Trophies.MaxImageSide} px and 1 MB (required for a new trophy).",
+                TrophyResult.NoSuchTrophy => "No trophy has that ID.",
+                TrophyResult.NoSuchPlayer => "No player has that ID.",
+                TrophyResult.Retired => "That trophy is retired and cannot be granted.",
+                TrophyResult.NoSuchGrant => "That award no longer exists.",
+                _ => result.ToString()
+            }
+        });
+    }
 
     private static bool IsPublicReadRequest(string method, string path) => method == "GET" &&
         (path == "/api/status" ||
@@ -733,6 +871,7 @@ public sealed class ControlPanelServer : IDisposable
          IsPublicPlayerDetailPath(path) ||
          path.StartsWith("/api/profile-stats/", StringComparison.Ordinal) ||
          path == PlayerLeaderboardPath ||
+         IsPublicTrophyRead(path) ||
          path == "/api/matches" ||
          path.StartsWith("/api/matches/", StringComparison.Ordinal) ||
          path == "/api/maps" ||

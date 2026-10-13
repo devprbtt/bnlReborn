@@ -31,7 +31,10 @@ public enum ClanResult : byte
     TooManyInvites,
     AlreadyApplied,
     NoSuchApplication,
-    TooManyApplications
+    TooManyApplications,
+    // Trophy showcase (ServiceClan.SetTrophyShowcase); appended so older clients' codes keep their values.
+    TrophyNotOwned,
+    TooManyTrophies
 }
 
 // Every clan rule as a pure function, so the fixture can pin them without a database or network.

@@ -1,0 +1,52 @@
+/* ---------- trophies ---------- */
+.trophy-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 12px;
+  margin: 14px 0 22px;
+}
+.trophy-card {
+  display: flex;
+  gap: 12px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  background: var(--panel);
+}
+.trophy-card.retired {
+  opacity: 0.6;
+}
+.trophy-art {
+  width: 72px;
+  height: 72px;
+  flex: 0 0 auto;
+  object-fit: contain;
+  border-radius: 2px;
+  background: var(--panel-2);
+}
+.trophy-info {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.trophy-info code {
+  color: var(--ink-3);
+  font-size: 11px;
+}
+.trophy-info p {
+  margin: 4px 0 0;
+  color: var(--ink-2);
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+.trophy-actions {
+  display: flex;
+  gap: 6px;
+  margin-top: 6px;
+}
+.trophy-form textarea {
+  width: 100%;
+  min-height: 54px;
+  resize: vertical;
+}
