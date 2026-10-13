@@ -67,6 +67,8 @@ public partial class GameZone : Updater
     private readonly Queue<UnitLabel>[] _objectiveConquest = new Queue<UnitLabel>[Enum.GetValues<TeamType>().Length];
     private readonly int[] _initialCubeCounts = new int[Enum.GetValues<TeamType>().Length];
     private readonly MatchParticipationTracker _matchParticipation = new();
+    private readonly KillAccoladeTracker _killAccolades = new();
+    private readonly System.Diagnostics.Stopwatch _accoladeClock = System.Diagnostics.Stopwatch.StartNew();
     private readonly DateTimeOffset?[] _lastSurrenderTime = new DateTimeOffset?[Enum.GetValues<TeamType>().Length];
     private readonly Dictionary<uint, DateTimeOffset> _lastTeamPing = new();
     private readonly Dictionary<uint, DateTimeOffset> _lastHeroEmote = new();
@@ -1243,7 +1245,8 @@ public partial class GameZone : Updater
             archivedTotal = (int)(archivedTotalInfo?.Sum(
                 score => archivedStatInfo?[score.Key] * score.Value) ?? 0);
             _matchParticipation.SetResult(playerId, false, archivedStatInfo, archivedTotal,
-                new Dictionary<ScoreType, float>(player.Stats), CloneDeviceStats(player.DeviceStats));
+                new Dictionary<ScoreType, float>(player.Stats), CloneDeviceStats(player.DeviceStats),
+                CloneAccolades(player.Accolades), player.BestStreak);
         }
 
         if (!_zoneData.MatchEnded && !_gameInitiator.IsMapEditor() && _zoneData.GameModeCard.ExitMatchBehaviour is ExitMatchBehaviourType.Demerit or ExitMatchBehaviourType.Restricted)
@@ -1682,7 +1685,8 @@ public partial class GameZone : Updater
             var totalInfo = zoneDataMatchCard.Stats?.Total;
             _matchParticipation.SetResult(player.PlayerId.Value, player.Team == winner, statInfo,
                 (int)(totalInfo?.Sum(score => statInfo?[score.Key] * score.Value) ?? 0),
-                new Dictionary<ScoreType, float>(player.Stats), CloneDeviceStats(player.DeviceStats));
+                new Dictionary<ScoreType, float>(player.Stats), CloneDeviceStats(player.DeviceStats),
+                CloneAccolades(player.Accolades), player.BestStreak);
 
             var playerInfo = _playerLobbyInfo.GetValueOrDefault(player.PlayerId.Value);
             matchStats.Add(new EndMatchPlayerData
@@ -1940,6 +1944,9 @@ public partial class GameZone : Updater
             Teams = teams,
             Players = _matchParticipation.Complete(endedAt)
         });
+
+    private static Dictionary<KillAccolade, int>? CloneAccolades(Dictionary<KillAccolade, int>? accolades) =>
+        accolades is null ? null : new Dictionary<KillAccolade, int>(accolades);
 
     private static Dictionary<Key, CompletedMatchDeviceStats>? CloneDeviceStats(
         Dictionary<Key, CompletedMatchDeviceStats>? stats) => stats?.ToDictionary(

@@ -877,6 +877,7 @@ public partial class Unit
         {
             Stats = new Dictionary<ScoreType, float>();
             DeviceStats = new Dictionary<Key, CompletedMatchDeviceStats>();
+            Accolades = new Dictionary<KillAccolade, int>();
         }
 
         var effects = new Dictionary<Key, ulong?>();

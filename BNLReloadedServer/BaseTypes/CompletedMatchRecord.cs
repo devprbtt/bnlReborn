@@ -44,6 +44,10 @@ public sealed class CompletedMatchPlayer
     // The latter cannot faithfully reconstruct damage, healing, or detailed build breakdowns.
     public Dictionary<ScoreType, float> RawStats { get; set; } = [];
     public Dictionary<Key, CompletedMatchDeviceStats> DeviceStats { get; set; } = [];
+    // Kill accolade counts (KillAccoladeTracker). Null means the match predates accolade tracking or came from a
+    // region that does not record it, which the profile shows as unknown rather than zero.
+    public Dictionary<KillAccolade, int>? Accolades { get; set; }
+    public int BestStreak { get; set; }
     public int TotalScore { get; set; }
     public List<CompletedMatchPresence> Presences { get; set; } = [];
 }
@@ -68,6 +72,9 @@ public sealed class CompletedMatchRecord
     private const byte ArchiveExtensionVersion = 3;
     private const byte LegacyArchiveExtensionVersion = 1;
     private const byte RatingDeviationExtensionVersion = 2;
+    // A separate block after the version 3 extension: readers that predate it stop at the end of that extension,
+    // so regions and the master can be upgraded in either order.
+    private const byte AccoladeBlockVersion = 1;
     public string MatchId { get; set; } = string.Empty;
     public Key MapKey { get; set; }
     public Key GameModeKey { get; set; }
@@ -133,6 +140,13 @@ public sealed class CompletedMatchRecord
                 pw.Write(presence.Sequence);
                 pw.Write(presence.TeamSlot);
             });
+        });
+        writer.Write(AccoladeBlockVersion);
+        writer.WriteList(Players.Where(player => player.Accolades is not null).ToList(), (w, player) =>
+        {
+            w.Write(player.PlayerId);
+            w.Write(player.BestStreak);
+            w.WriteMap(player.Accolades!, w.WriteByteEnum, w.Write);
         });
     }
 
@@ -219,6 +233,18 @@ public sealed class CompletedMatchRecord
                 player.DeviceStats = extension.deviceStats;
                 foreach (var presence in player.Presences)
                     if (extension.slots.TryGetValue(presence.Sequence, out var slot)) presence.TeamSlot = slot;
+            }
+            if (reader.BaseStream.Position < reader.BaseStream.Length && reader.ReadByte() == AccoladeBlockVersion)
+            {
+                foreach (var accolades in reader.ReadList<(uint playerId, int bestStreak, Dictionary<KillAccolade, int> counts),
+                             List<(uint playerId, int bestStreak, Dictionary<KillAccolade, int> counts)>>(() =>
+                             (reader.ReadUInt32(), reader.ReadInt32(),
+                                 reader.ReadMap<KillAccolade, int, Dictionary<KillAccolade, int>>(reader.ReadByteEnum<KillAccolade>, reader.ReadInt32))))
+                {
+                    if (!playersById.TryGetValue(accolades.playerId, out var player)) continue;
+                    player.Accolades = accolades.counts;
+                    player.BestStreak = accolades.bestStreak;
+                }
             }
         }
         return result;

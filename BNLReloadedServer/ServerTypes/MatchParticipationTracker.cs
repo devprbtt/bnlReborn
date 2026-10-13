@@ -67,7 +67,8 @@ internal sealed class MatchParticipationTracker
     }
 
     public void SetResult(uint playerId, bool winner, Dictionary<PlayerMatchStatType, int>? stats, int total,
-        Dictionary<ScoreType, float>? rawStats, Dictionary<Key, CompletedMatchDeviceStats>? deviceStats)
+        Dictionary<ScoreType, float>? rawStats, Dictionary<Key, CompletedMatchDeviceStats>? deviceStats,
+        Dictionary<KillAccolade, int>? accolades = null, int bestStreak = 0)
     {
         if (!_players.TryGetValue(playerId, out var player)) return;
         player.IsWinner = winner;
@@ -79,6 +80,13 @@ internal sealed class MatchParticipationTracker
             if (!player.DeviceStats.TryGetValue(key, out var existing)) player.DeviceStats[key] = existing = new CompletedMatchDeviceStats();
             existing.Placed += value.Placed;
             existing.Destroyed += value.Destroyed;
+        }
+        if (accolades is not null)
+        {
+            player.Accolades ??= [];
+            foreach (var (accolade, count) in accolades)
+                player.Accolades[accolade] = player.Accolades.GetValueOrDefault(accolade) + count;
+            player.BestStreak = Math.Max(player.BestStreak, bestStreak);
         }
     }
 

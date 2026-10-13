@@ -25,6 +25,51 @@ public sealed class LifetimeCombatTotals
     public double DirectKills { get; set; }
     public double Damage { get; set; }
     public double Healing { get; set; }
+    // Kill accolades, over the AccoladeMatches rounds recorded since tracking began (AccoladeSince). Headshot
+    // accolades are not repeated here: HeadshotKills already reports them.
+    public long AccoladeMatches { get; set; }
+    public long? AccoladeSince { get; set; }
+    public long FirstKills { get; set; }
+    public long DoubleKills { get; set; }
+    public long MultiKills { get; set; }
+    public long UltraKills { get; set; }
+    public long FantasticKills { get; set; }
+    public long UnbelievableKills { get; set; }
+    public int BestStreak { get; set; }
+}
+
+/// <summary>MatchPlayers.accolades: format byte, best streak, then the accolade -> count map.</summary>
+public static class ArchivedAccolades
+{
+    private const byte Format = 1;
+
+    public static byte[]? Write(Dictionary<KillAccolade, int>? accolades, int bestStreak)
+    {
+        if (accolades is null) return null;
+        using var stream = new MemoryStream();
+        using (var writer = new BinaryWriter(stream, System.Text.Encoding.UTF8, true))
+        {
+            writer.Write(Format);
+            writer.Write(bestStreak);
+            writer.WriteMap(accolades, writer.WriteByteEnum, writer.Write);
+        }
+        return stream.ToArray();
+    }
+
+    /// <summary>Null when the round was not tracked or the blob is not understood.</summary>
+    public static (Dictionary<KillAccolade, int> Counts, int BestStreak)? Read(byte[]? bytes)
+    {
+        if (bytes is not { Length: > 0 }) return null;
+        try
+        {
+            using var reader = new BinaryReader(new MemoryStream(bytes));
+            if (reader.ReadByte() != Format) return null;
+            var best = reader.ReadInt32();
+            var counts = reader.ReadMap<KillAccolade, int, Dictionary<KillAccolade, int>>(reader.ReadByteEnum<KillAccolade>, reader.ReadInt32);
+            return best < 0 || counts.Values.Any(v => v < 0) ? null : (counts, best);
+        }
+        catch (Exception ex) when (ex is IOException or ArgumentException or OverflowException) { return null; }
+    }
 }
 public sealed record LifetimeHeroStats(long HeroKey, LifetimeCombatTotals Combat);
 public sealed record LifetimeProfileStats(int Version, uint PlayerId, long? Since, LifetimeCombatTotals Overall,
@@ -69,9 +114,12 @@ public sealed record LifetimeProfileStats(int Version, uint PlayerId, long? Sinc
                 raw.Values.Any(v => !float.IsFinite(v) || v < 0) ||
                 raw.GetValueOrDefault(ScoreType.KillPlayerCriticalByHero) > stats[PlayerMatchStatType.Kill]) { excluded++; continue; }
             since = Math.Min(since ?? match.StartedAt, match.StartedAt);
+            var accolades = ArchivedAccolades.Read(player.Accolades);
             Add(overall, stats, raw, seconds, player.IsWinner);
+            AddAccolades(overall, accolades, match.StartedAt);
             if (!heroes.TryGetValue(keys[0], out var combat)) heroes[keys[0]] = combat = new();
             Add(combat, stats, raw, seconds, player.IsWinner);
+            AddAccolades(combat, accolades, match.StartedAt);
         }
         return new(2, playerId, since, overall, heroes.Select(p => new LifetimeHeroStats(p.Key, p.Value)).ToList(), 0, excluded);
     }
@@ -97,6 +145,19 @@ public sealed record LifetimeProfileStats(int Version, uint PlayerId, long? Sinc
         if (bytes is not {Length: > 0}) return [];
         using var reader = new BinaryReader(new MemoryStream(bytes));
         return reader.ReadMap<ScoreType,float,Dictionary<ScoreType,float>>(reader.ReadByteEnum<ScoreType>,reader.ReadSingle);
+    }
+    static void AddAccolades(LifetimeCombatTotals t, (Dictionary<KillAccolade, int> Counts, int BestStreak)? accolades, long startedAt)
+    {
+        if (accolades is not { } a) return;
+        t.AccoladeMatches++;
+        t.AccoladeSince = Math.Min(t.AccoladeSince ?? startedAt, startedAt);
+        t.FirstKills += a.Counts.GetValueOrDefault(KillAccolade.FirstKill);
+        t.DoubleKills += a.Counts.GetValueOrDefault(KillAccolade.DoubleKill);
+        t.MultiKills += a.Counts.GetValueOrDefault(KillAccolade.MultiKill);
+        t.UltraKills += a.Counts.GetValueOrDefault(KillAccolade.UltraKill);
+        t.FantasticKills += a.Counts.GetValueOrDefault(KillAccolade.Fantastic);
+        t.UnbelievableKills += a.Counts.GetValueOrDefault(KillAccolade.Unbelievable);
+        t.BestStreak = Math.Max(t.BestStreak, a.BestStreak);
     }
     static void Add(LifetimeCombatTotals t, Dictionary<PlayerMatchStatType,int> s, Dictionary<ScoreType,float> raw, double seconds, bool winner)
     {

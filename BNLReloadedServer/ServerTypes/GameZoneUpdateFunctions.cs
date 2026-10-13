@@ -1568,6 +1568,18 @@ public partial class GameZone
     internal static bool OnHitEffectsApply(ImpactData impact) =>
         !impact.PeriodicEffect && IsToolDamage(impact);
 
+    /// <summary>
+    /// Profile accolade counters. A kill counts exactly when KillStatsUpdate credits the Kills stat (an opposing
+    /// player's death); every player death still ends the victim's streak. The waiting arena earns nothing.
+    /// </summary>
+    private void RecordKillAccolades(Unit victim, Unit? killerPlayer, bool killerIsOpponent, bool crit)
+    {
+        if (victim.PlayerId is not { } victimId || _gameInitiator is WaitingArenaInitiator) return;
+        var counted = killerPlayer is not null && killerIsOpponent ? killerPlayer.PlayerId : null;
+        var (accolades, streak) = _killAccolades.Register(victimId, counted, crit, _accoladeClock.Elapsed.TotalSeconds);
+        if (counted is not null) killerPlayer!.RecordAccolades(accolades, streak);
+    }
+
     private void UnitIsKilled(Unit target, ImpactData impact, bool mining = false)
     {
         // This callback runs just before Unit.IsDead changes. Exclude the victim explicitly
@@ -1642,6 +1654,7 @@ public partial class GameZone
             if (target is { PlayerId: not null })
             {
                 UpdateRespawnTime(target);
+                RecordKillAccolades(target, killerPlayer, killerIsOpponent, impact.Crit);
             }
         }
 

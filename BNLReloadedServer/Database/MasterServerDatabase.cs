@@ -175,6 +175,8 @@ public class MasterServerDatabase : IMasterServerDatabase
             await _playerDb.ExecuteAsync("ALTER TABLE MatchPlayers ADD COLUMN rating_deviation_delta REAL");
         if (!playerColumns.Any(column => column.Name.Equals("raw_stats", StringComparison.OrdinalIgnoreCase)))
             await _playerDb.ExecuteAsync("ALTER TABLE MatchPlayers ADD COLUMN raw_stats BLOB");
+        if (!playerColumns.Any(column => column.Name.Equals("accolades", StringComparison.OrdinalIgnoreCase)))
+            await _playerDb.ExecuteAsync("ALTER TABLE MatchPlayers ADD COLUMN accolades BLOB");
         var presenceColumns = await _playerDb.QueryAsync<SchemaColumn>("PRAGMA table_info(MatchPresences)");
         if (!presenceColumns.Any(column => column.Name.Equals("team_slot", StringComparison.OrdinalIgnoreCase)))
             await _playerDb.ExecuteAsync("ALTER TABLE MatchPresences ADD COLUMN team_slot INTEGER NOT NULL DEFAULT 0");
@@ -272,7 +274,8 @@ public class MasterServerDatabase : IMasterServerDatabase
                         RatingDeviationDelta = player.RatingDeviationDelta,
                         TotalScore = player.TotalScore,
                         Stats = statStream.ToArray(),
-                        RawStats = rawStatStream.ToArray()
+                        RawStats = rawStatStream.ToArray(),
+                        Accolades = ArchivedAccolades.Write(player.Accolades, player.BestStreak)
                     });
                     foreach (var (deviceKey, counts) in player.DeviceStats) db.Insert(new ArchivedMatchPlayerDeviceRecord
                     {

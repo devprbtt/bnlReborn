@@ -44,6 +44,8 @@ public sealed class ArchivedMatchPlayerRecord
     [Column("total_score")] public int TotalScore { get; set; }
     [Column("stats")] public byte[] Stats { get; set; } = [];
     [Column("raw_stats")] public byte[] RawStats { get; set; } = [];
+    // ArchivedAccolades blob; null for matches recorded before accolade tracking.
+    [Column("accolades")] public byte[]? Accolades { get; set; }
 }
 
 [Table("MatchPlayerDevices")]

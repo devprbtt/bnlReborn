@@ -9,6 +9,9 @@ public partial class Unit
 {
     public Dictionary<ScoreType, float>? Stats { get; }
     public Dictionary<Key, CompletedMatchDeviceStats>? DeviceStats { get; }
+    // Kill accolades earned this life in the match (see KillAccoladeTracker); null for non-player units.
+    public Dictionary<KillAccolade, int>? Accolades { get; }
+    public int BestStreak { get; private set; }
 
     private const float AssistSeconds = 30;
 
@@ -94,6 +97,13 @@ public partial class Unit
     }
 
     private void RecordDestroyedBlock(Key deviceKey) => UpdateDeviceStat(deviceKey, placed: false);
+
+    public void RecordAccolades(IEnumerable<KillAccolade> accolades, int streak)
+    {
+        if (Accolades is null) return;
+        foreach (var accolade in accolades) Accolades[accolade] = Accolades.GetValueOrDefault(accolade) + 1;
+        BestStreak = Math.Max(BestStreak, streak);
+    }
 
     public void EarnedResource(float resources, bool isMining)
     {
