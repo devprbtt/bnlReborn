@@ -428,6 +428,11 @@ public partial class RegionServerDatabase(AsyncTaskTcpServer server, AsyncTaskTc
         info.ActiveScene = scene;
         LiveStateChanged();
         if (scene.Type == SceneType.Lobby) SendClanDraft(userId);
+        // Stop the match's broadcasts before the scene change is sent: block updates queued after it
+        // reach a client whose zone listener is already gone (logged there as unhandled BlockUpdates).
+        if (scene.Type == SceneType.MainMenu && info.GameInstanceId != null &&
+            _gameInstances.TryGetValue(info.GameInstanceId, out var leaving))
+            leaving.DetachFromZoneStreams(userId);
         sceneService.SendChangeScene(scene);
         NotifyFriends(userId).ObserveFailure(LogCat.Player,
             $"Failed to notify friends after scene update for player {userId}");

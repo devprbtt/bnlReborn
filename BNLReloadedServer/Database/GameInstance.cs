@@ -282,11 +282,25 @@ public partial class GameInstance : IGameInstance
             timer.Dispose();
     }
 
+    public void DetachFromZoneStreams(uint userId)
+    {
+        if (_connectedUsers.TryGetValue(userId, out var player)) DetachSession(player.Guid);
+    }
+
+    private void DetachSession(Guid sessionId)
+    {
+        _lobbySender.Unsubscribe(sessionId);
+        _zoneSender.Unsubscribe(sessionId);
+    }
+
     public void PlayerLeftInstance(uint userId, KickReason reason)
     {
         CancelDisconnectTimer(userId);
         _heroChangeDisconnects.TryRemove(userId, out _);
         _connectedUsers.TryRemove(userId, out var player);
+        // Detach now rather than in the queued lobby/zone work below: the zone keeps broadcasting
+        // block updates until that work runs, and by then the client has already left the scene.
+        if (player is not null) DetachSession(player.Guid);
         // GameZone removes matchmaking spectators from the initiator as part of its cleanup, so
         // preserve the role before that queued work runs and use it for the departure message.
         var wasSpectator = GameInitiator.IsPlayerSpectator(userId);
