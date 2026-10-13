@@ -44,12 +44,76 @@ public class MasterServerDatabase : IMasterServerDatabase
         _playerDb.CreateTableAsync<TrophyRecord>().Wait();
         _playerDb.CreateTableAsync<PlayerTrophyRecord>().Wait();
         _playerDb.CreateTableAsync<TrophyShowcaseRecord>().Wait();
+        _playerDb.CreateTableAsync<LeagueSeasonRecord>().Wait();
+        _playerDb.CreateTableAsync<LeagueStandingRecord>().Wait();
+        _playerDb.CreateTableAsync<LeaguePlayerRecord>().Wait();
+        _playerDb.CreateTableAsync<LeagueResultRecord>().Wait();
         _playerDb.CreateTableAsync<AppliedMigrationRecord>().Wait();
         BackfillRankEligibility().Wait();
         ImportLegacyPrivateSkinGrants().Wait();
         var grants = _playerDb.Table<InventoryGrantRecord>().ToListAsync().Result;
         PlayerInventory.Load(grants);
         ReportGrantsWithoutPrivateCards(grants);
+        AdvanceLeague().Wait();
+        // Seasons end at midnight UTC on the first of the month; check every minute.
+        _leagueTimer = new Timer(_ => AdvanceLeague().ContinueWith(t =>
+        {
+            if (t.IsFaulted) Log.Error(LogCat.Player, "League season update failed", t.Exception!);
+        }), null, TimeSpan.FromMinutes(1), TimeSpan.FromMinutes(1));
+    }
+
+    private readonly Timer _leagueTimer;
+
+    /// <summary>Opens the first season or closes an ended one (rewards and soft reset), then refreshes every badge.</summary>
+    private async Task AdvanceLeague()
+    {
+        await _asyncLock.WaitAsync();
+        List<LeagueClose> closed = [];
+        try
+        {
+            var records = await _playerDb.Table<PlayerRecord>().ToListAsync() ?? [];
+            var hidden = records.ToDictionary(r => r.PlayerId, r => new Rating(r.RatingMean, r.RatingDeviation));
+            long ranked = CatalogueHelper.ModeRanked.Key.Hash, casual = CatalogueHelper.ModeFriendly.Key.Hash;
+            await _playerDb.RunInTransactionAsync(db =>
+            {
+                // Only built for the very first season, which seeds established players.
+                Dictionary<uint, int>? rated = null;
+                int RatedMatches(uint playerId)
+                {
+                    rated ??= db.Query<RatedCount>("SELECT p.player_id AS PlayerId, COUNT(*) AS Matches FROM MatchPlayers p JOIN Matches m ON m.id = p.match_id " +
+                        "WHERE m.game_mode_key IN (?, ?) GROUP BY p.player_id", ranked, casual).ToDictionary(r => (uint)r.PlayerId, r => r.Matches);
+                    return rated.GetValueOrDefault(playerId);
+                }
+                closed = LeagueSeasons.Advance(db, DateTimeOffset.UtcNow, RatedMatches, hidden);
+                LeagueSeasons.Refresh(db);
+            });
+        }
+        finally
+        {
+            _asyncLock.Release();
+        }
+        foreach (var season in closed)
+        {
+            Log.Info(LogCat.Player, $"League season {season.Season} closed: {season.Results.Count(r => r.Rank != null)} ranked, {season.Rewards.Count} trophies awarded");
+            foreach (var playerId in LeagueSeasons.Snapshot.Keys)
+                Databases.PlayerDatabase.UpdatePlayer(playerId, new PlayerUpdate { League = LeagueRanker.Derive(playerId) });
+        }
+    }
+
+    private sealed class RatedCount { public long PlayerId { get; set; } public int Matches { get; set; } }
+
+    public async Task<LeagueSeasonView> GetLeagueSeason()
+    {
+        LeagueSeasonView result = null!;
+        await _playerDb.RunInTransactionAsync(db => result = LeagueSeasons.SeasonView(db));
+        return result;
+    }
+
+    public async Task<LeaguePlayerView> GetLeaguePlayer(uint playerId)
+    {
+        LeaguePlayerView result = null!;
+        await _playerDb.RunInTransactionAsync(db => result = LeagueSeasons.PlayerView(db, playerId));
+        return result;
     }
 
     // A grant whose card is missing or public means the catalogue was not published before this server started:
@@ -880,7 +944,7 @@ public class MasterServerDatabase : IMasterServerDatabase
         return true;
     }
 
-    public async Task<bool> SetNewRatings(List<uint> winners, List<uint> losers, HashSet<uint> excluded)
+    public async Task<bool> SetNewRatings(List<uint> winners, List<uint> losers, HashSet<uint> excluded, bool ranked = false)
     {
         await _asyncLock.WaitAsync();
         try
@@ -904,6 +968,18 @@ public class MasterServerDatabase : IMasterServerDatabase
 
             var newRatings =
                 TrueSkillCalculator.CalculateNewRatings(Databases.DefaultGameInfo, [winnerRatings, loserRatings], 1, 2);
+            if (ranked)
+            {
+                // The league rating moves separately; placements start from the hidden rating before this match.
+                var hidden = winnerPlayers.Concat(loserPlayers).GroupBy(p => p.PlayerId).ToDictionary(g => g.Key, g => g.First().Rating);
+                await _playerDb.RunInTransactionAsync(db =>
+                {
+                    var season = LeagueSeasons.Current(db);
+                    if (season == null) return;
+                    LeagueSeasons.RecordMatch(db, season, winners, losers, excluded, hidden, DateTimeOffset.UtcNow);
+                    LeagueSeasons.Refresh(db);
+                });
+            }
 
             var allPlayers = winnerPlayers.Union(loserPlayers).ToList();
             foreach (var (playerId, rating) in newRatings.ToDictionary(k => k.Key.Id, v => v.Value))
@@ -1168,30 +1244,24 @@ public class MasterServerDatabase : IMasterServerDatabase
 
     public async Task<List<LeagueLeaderboardRecord>> GetLeaderboard()
     {
-        // Same population the tiers are cut from, so the position shown here is the one a Pro
-        // player's badge counts off.
-        var records = (await _playerDb.Table<PlayerRecord>().ToListAsync() ?? [])
-            .Where(LeagueRanker.IsOnLadder)
-            .OrderByDescending(p => p.RatingMean).Take(100)
-            .ToList();
-
-        return records.Select((record, idx) =>
+        // This season's standings: placed players who have played a ranked match since it began.
+        var standings = LeagueSeasons.Snapshot.Values.Where(s => s.Rank != null).OrderBy(s => s.Rank).Take(100).ToList();
+        var ids = standings.Select(s => s.PlayerId).ToList();
+        var records = (await _playerDb.Table<PlayerRecord>().Where(p => ids.Contains(p.PlayerId)).ToListAsync() ?? [])
+            .ToDictionary(r => r.PlayerId);
+        return standings.Where(s => records.ContainsKey(s.PlayerId)).Select(s => new LeagueLeaderboardRecord
         {
-            var p = PlayerData.FromPlayerRecord(record);
-            return new LeagueLeaderboardRecord
-            {
-                PlayerId = p.PlayerId,
-                SteamId = p.SteamId,
-                PlayerName = p.Nickname,
-                Points = LeagueRanker.PointsFor(p.Rating.Mean),
-                Status = idx + 1,
-                Wins = p.HeroStats.Sum(h => h.Wins),
-                TotalMatches = p.HeroStats.Sum(h => h.TotalMatches),
-                RegistrationTime = default,
-                // Region is what the client's last column reads, but it never renders the value
-                // anywhere else, so the slot carries the player's rank badge instead.
-                Region = LeagueRanker.Label(LeagueRanker.Derive(record))
-            };
+            PlayerId = s.PlayerId,
+            SteamId = records[s.PlayerId].SteamId,
+            PlayerName = records[s.PlayerId].Username,
+            Points = LeagueRules.Points(s.Mean),
+            Status = s.Rank!.Value,
+            Wins = s.Wins,
+            TotalMatches = s.Games,
+            RegistrationTime = default,
+            // Region is what the client's last column reads, but it never renders the value
+            // anywhere else, so the slot carries the player's tier instead.
+            Region = LeagueRules.TierNames[(int)s.Tier]
         }).ToList();
     }
 }

@@ -484,7 +484,7 @@ public class DummyPlayerDatabase : IPlayerDatabase
     {
     }
 
-    public void UpdateRatings(List<uint> winners, List<uint> losers, HashSet<uint> excluded)
+    public void UpdateRatings(List<uint> winners, List<uint> losers, HashSet<uint> excluded, bool ranked = false)
     {
     }
 

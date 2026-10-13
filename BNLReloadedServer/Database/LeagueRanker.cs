@@ -85,9 +85,30 @@ public static class LeagueRanker
         return DateTimeOffset.FromUnixTimeMilliseconds((long)qualifying.MatchEndTime).AddDays(EligibilityDays);
     }
 
-    // Null rather than a tier -1 league: the client only knows to hide a rank badge when the whole
-    // league is missing, and UiPlayerCard leaves the badge visible with a null sprite otherwise.
-    public static League? Derive(PlayerRecord record)
+    // Monthly seasons (LeagueSeasons) replace the percentile tiers below: Bronze 0, Silver 1, Gold 2, Masters 3 and
+    // Champions 4, without divisions, from the ranked-only league rating. Null hides the badge (not yet placed).
+    public static League? Derive(PlayerRecord record) => Derive(record.PlayerId, record.LeagueInfo);
+
+    public static League? Derive(uint playerId, byte[]? storedLeague = null)
+    {
+        if (!LeagueSeasons.Snapshot.TryGetValue(playerId, out var standing)) return null;
+        var stored = storedLeague != null ? League.ReadByteRecord(storedLeague) : null;
+        return new League
+        {
+            Tier = (int)standing.Tier,
+            Division = 0,
+            Points = LeagueRules.Points(standing.Mean),
+            JoinedTime = stored?.JoinedTime ?? DateTime.UtcNow,
+            LastPlayedTime = stored?.LastPlayedTime ?? DateTime.UtcNow,
+            Status = standing.Rank
+        };
+    }
+
+    public static string SeasonLabel(League? league) =>
+        league == null || league.Tier < 0 || league.Tier >= LeagueRules.TierNames.Length ? string.Empty : LeagueRules.TierNames[league.Tier];
+
+    // The percentile ladder that preceded seasons; kept for reference and its tests.
+    public static League? DerivePercentile(PlayerRecord record)
     {
         var ladder = _ratingsDescending;
         if (!IsEligible(record.RankEligibleUntil) || ladder.Length == 0) return null;

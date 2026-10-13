@@ -1258,7 +1258,7 @@ public partial class GameZone : Updater
             var exclude = _playerUnits.Values.Where(p => p.PlayerId != playerId).Select(p => p.PlayerId).OfType<uint>()
                 .ToHashSet();
             if (_gameInitiator is not BNLReloadedServer.Clans.ClanFightInitiator)
-                Databases.PlayerDatabase.UpdateRatings(winners, losers, exclude);
+                Databases.PlayerDatabase.UpdateRatings(winners, losers, exclude, _zoneData.GameModeCard.Ranking == GameRankingType.Ranked);
 
             if (archivedStatInfo != null)
             {
@@ -1871,7 +1871,7 @@ public partial class GameZone : Updater
         {
             if (_gameInitiator is BNLReloadedServer.Clans.ClanFightInitiator clanFight)
                 BNLReloadedServer.Clans.ClanRatings.Record(_instanceId ?? clanFight.GameInstanceId!, clanFight.Team1Clan, clanFight.Team2Clan, winner);
-            else Databases.PlayerDatabase.UpdateRatings(winners, losers, exclude);
+            else Databases.PlayerDatabase.UpdateRatings(winners, losers, exclude, zoneDataGameModeCard.Ranking == GameRankingType.Ranked);
             var startedAt = _matchParticipation.StartedAt ?? gameEnd;
             var matchId = $"{_instanceId ?? "unknown"}:{startedAt.ToUnixTimeMilliseconds()}";
             var teams = new[] { TeamType.Team1, TeamType.Team2 }.Select(team =>

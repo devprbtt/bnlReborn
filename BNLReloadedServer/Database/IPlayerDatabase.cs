@@ -47,7 +47,8 @@ public interface IPlayerDatabase
     public void UpdateLastPlayedHero(uint playerId, Key heroKey);
     public void UpdateBadges(uint playerId, Dictionary<BadgeType, List<Key>> badges);
     public void UpdateCurrency(uint playerId, Dictionary<CurrencyType, float> currencies);
-    public void UpdateRatings(List<uint> winners, List<uint> losers, HashSet<uint> excluded);
+    // ranked: the result also moves the monthly league rating (LeagueSeasons).
+    public void UpdateRatings(List<uint> winners, List<uint> losers, HashSet<uint> excluded, bool ranked = false);
     public void UpdateMatchStats(EndMatchResults endMatchResults);
     public void StoreCompletedMatch(CompletedMatchRecord match);
     public void UpdateFriends(uint receiverId, uint senderId, bool accepted);

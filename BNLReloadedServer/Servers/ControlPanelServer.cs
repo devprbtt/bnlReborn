@@ -267,6 +267,24 @@ public sealed class ControlPanelServer : IDisposable
             if (method == "POST" && path.StartsWith(TrophiesPath, StringComparison.Ordinal) && await HandleTrophyWrite(ctx, path))
                 return;
 
+            if (method == "GET" && path == LeaguePath)
+            {
+                ctx.Response.Headers["Cache-Control"] = "no-cache";
+                await WriteJson(ctx, await Databases.MasterServerDatabase.GetLeagueSeason());
+                return;
+            }
+
+            if (method == "GET" && path.StartsWith(LeaguePath + "/players/", StringComparison.Ordinal))
+            {
+                if (!uint.TryParse(path[(LeaguePath + "/players/").Length..], out var leaguePlayerId))
+                {
+                    ctx.Response.StatusCode = 400;
+                    await WriteJson(ctx, new { error = "Invalid player ID" });
+                }
+                else await WriteJson(ctx, await Databases.MasterServerDatabase.GetLeaguePlayer(leaguePlayerId));
+                return;
+            }
+
             if (method == "GET" && path == PlayerLeaderboardPath)
             {
                 var statName = ctx.Request.QueryString["stat"] ?? "kills";
@@ -732,6 +750,7 @@ public sealed class ControlPanelServer : IDisposable
 
     private const string PlayerLeaderboardPath = "/api/leaderboards/players";
     private const string TrophiesPath = "/api/trophies";
+    private const string LeaguePath = "/api/league";
     private const string TrophyGrantsPath = "/api/trophies/grants";
 
     // The catalogue, images and each player's collection are public; who granted what (and notes) is admin-only.
@@ -871,6 +890,7 @@ public sealed class ControlPanelServer : IDisposable
          IsPublicPlayerDetailPath(path) ||
          path.StartsWith("/api/profile-stats/", StringComparison.Ordinal) ||
          path == PlayerLeaderboardPath ||
+         path == LeaguePath || path.StartsWith(LeaguePath + "/players/", StringComparison.Ordinal) ||
          IsPublicTrophyRead(path) ||
          path == "/api/matches" ||
          path.StartsWith("/api/matches/", StringComparison.Ordinal) ||

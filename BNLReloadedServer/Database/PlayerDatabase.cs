@@ -699,8 +699,8 @@ public class PlayerDatabase : IPlayerDatabase
     {
     }
 
-    public void UpdateRatings(List<uint> winners, List<uint> losers, HashSet<uint> excluded) =>
-        PersistAndReload(Databases.MasterServerDatabase.SetNewRatings(winners, losers, excluded), winners.Concat(losers).ToArray());
+    public void UpdateRatings(List<uint> winners, List<uint> losers, HashSet<uint> excluded, bool ranked = false) =>
+        PersistAndReload(Databases.MasterServerDatabase.SetNewRatings(winners, losers, excluded, ranked), winners.Concat(losers).ToArray());
 
     public void UpdateMatchStats(EndMatchResults endMatchResults) =>
         PersistAndReload(Databases.MasterServerDatabase.SetNewMatchDataForPlayer(endMatchResults), endMatchResults.PlayerId);
