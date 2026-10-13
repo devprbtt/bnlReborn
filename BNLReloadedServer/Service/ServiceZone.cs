@@ -225,7 +225,11 @@ public partial class ServiceZone(ISender sender, Func<System.Net.IPAddress?>? pe
             var playerId = sender.AssociatedPlayerId.Value;
             var gameInstance = GameInstance;
             gameInstance?.PlayerLeftInstance(playerId, KickReason.MatchQuit);
-            ServerDatabase.RemoveFromCustomGame(playerId);
+            // Leaving the match is not leaving its room. Keep membership (including
+            // ownership, password access and team) while the room still exists.
+            // Spectator-only memberships are removed by PlayerLeftInstance.
+            if (ServerDatabase.GetFullCustomGameUpdate(playerId) == null)
+                ServerDatabase.RemoveFromCustomGame(playerId);
         }
     }
 
@@ -252,7 +256,11 @@ public partial class ServiceZone(ISender sender, Func<System.Net.IPAddress?>? pe
             var playerId = sender.AssociatedPlayerId.Value;
             var gameInstance = GameInstance;
             gameInstance?.PlayerLeftInstance(playerId, KickReason.MatchQuit);
-            ServerDatabase.RemoveFromCustomGame(playerId);
+            // Leaving the match is not leaving its room. Keep membership (including
+            // ownership, password access and team) while the room still exists.
+            // Spectator-only memberships are removed by PlayerLeftInstance.
+            if (ServerDatabase.GetFullCustomGameUpdate(playerId) == null)
+                ServerDatabase.RemoveFromCustomGame(playerId);
         }
     }
 
