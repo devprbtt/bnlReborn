@@ -183,6 +183,7 @@ public static class CatalogueFactory
     {
         var unitCard = Databases.Catalogue.GetCard<CardUnit>(playerInfo.Hero);
         if (unitCard is not { Data: UnitDataPlayer playerData }) return null;
+        var perks = ClassPerkCatalogue.EffectivePerks(playerInfo.Hero, playerInfo.Perks, out var classPerkId);
 
         var unitInit = new UnitInit
         {
@@ -193,14 +194,14 @@ public static class CatalogueFactory
             Team = playerInfo.Team,
             PlayerId = playerId,
             SkinKey = playerInfo.SkinKey,
-            Gears = playerData.Gears?.ConvertGear(playerInfo.Perks ?? []),
+            Gears = playerData.Gears?.ConvertGear(perks),
         };
 
-        var newUnit = new Unit(id, unitInit, updater);
+        var newUnit = new Unit(id, unitInit, updater) { ClassPerkId = classPerkId };
         newUnit.AssignFreeForAllTeam(gameInitiator is WaitingArenaInitiator ? playerId : null);
 
-        var effects = PerkHelper.ExtractEffects(playerInfo.Perks ?? []);
-        var passives = playerData.Passive?.ConvertPassives(playerInfo.Perks ?? []);
+        var effects = PerkHelper.ExtractEffects(perks);
+        var passives = playerData.Passive?.ConvertPassives(perks);
 
         if (passives is { Count: > 0 })
         {
@@ -238,7 +239,7 @@ public static class CatalogueFactory
         }
         newUnit.ActiveEffects = ConstEffectInfo.Convert(startingEffects);
 
-        var devices = playerInfo.Devices?.ConvertDevices(playerInfo.Perks ?? []);
+        var devices = playerInfo.Devices?.ConvertDevices(perks);
 
         var updatedDevices = new Dictionary<int, DeviceData>();
 
@@ -281,7 +282,7 @@ public static class CatalogueFactory
 
         var abilityCard =
             Databases.Catalogue.GetCard<CardAbility>(
-                playerData.ActiveAbilityKey.ConvertAbility(playerInfo.Perks ?? []));
+                playerData.ActiveAbilityKey.ConvertAbility(perks));
 
         foreach (var ammo in newUnit.Gears.SelectMany(gear => gear.Ammo))
         {

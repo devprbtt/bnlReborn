@@ -390,6 +390,10 @@ public class GameLobby : Updater
         if (!LobbyData.Players.TryGetValue(playerId, out var player) || player.Perks == null) return;
         var perkCard = Databases.Catalogue.GetCard<CardPerk>(perkKey);
         if (perkCard == null) return;
+        // A class perk is chosen per hero and only from that hero's class.
+        if (perkCard.SlotType == PerkSlotType.Class &&
+            (ClassPerkCatalogue.ClassOf(perkCard.Id) is not { } perkClass || perkClass != ClassPerkCatalogue.HeroClass(player.Hero)))
+            return;
         var replacePerk = player.Perks.Select(k => Databases.Catalogue.GetCard<CardPerk>(k)).FirstOrDefault(perk => perk?.SlotType == perkCard.SlotType);
         if (replacePerk == null)
         {

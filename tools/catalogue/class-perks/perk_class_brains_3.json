@@ -1,0 +1,31 @@
+{
+  "_id": "perk_class_brains_3",
+  "category": "perk",
+  "scope": "public",
+  "icon": "",
+  "name": {
+    "text": "Quick Builder",
+    "data": {}
+  },
+  "description": {
+    "text": "Build 30% faster.",
+    "data": {}
+  },
+  "description_2": {
+    "text": "Build 30% faster.",
+    "data": {}
+  },
+  "label": "30% faster building",
+  "level": 1,
+  "slot_type": "class",
+  "hero_dependency": null,
+  "perk_mods": [
+    {
+      "type": "effect",
+      "constant": [
+        "effect_class_brains_3_build_speed"
+      ]
+    }
+  ],
+  "class_perk": {}
+}

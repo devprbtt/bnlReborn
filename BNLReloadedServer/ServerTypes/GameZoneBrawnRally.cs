@@ -8,7 +8,7 @@ namespace BNLReloadedServer.ServerTypes;
 
 public partial class GameZone
 {
-    // Brawn I is the first implemented mandatory class perk. Other choices are not enabled yet.
+    // Brawn I (Rally Point): only while it is the selected Brawn class perk.
     // High-bit spawn IDs distinguish mobile rally points without changing the existing wire record.
     private readonly Dictionary<uint, uint> _rallyPlayers = new(); // spawn ID -> player ID
     private readonly Dictionary<uint, long> _rallyCombatUntil = new();
@@ -17,8 +17,7 @@ public partial class GameZone
     private static long RallyCombatMilliseconds => ClassPerkCatalogue.QuietMilliseconds(ClassPerkCatalogue.BrawnId);
 
     private bool HasBrawnRally(Unit unit) => _gameInitiator is not WaitingArenaInitiator &&
-        unit.PlayerId.HasValue && unit.UnitCard?.Data is UnitDataPlayer data &&
-        data.Class.GetCard<CardHeroClass>()?.Type == HeroClassType.Brawn;
+        unit.PlayerId.HasValue && unit.ActiveClassPerk == ClassPerkCatalogue.BrawnId;
 
     private void MarkRallyCombat(Unit unit)
     {

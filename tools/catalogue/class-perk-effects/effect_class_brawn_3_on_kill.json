@@ -1,0 +1,30 @@
+{
+  "_id": "effect_class_brawn_3_on_kill",
+  "category": "effect",
+  "scope": "public",
+  "prefab_unit": "",
+  "prefab_player": "",
+  "sound_for_player": null,
+  "sound_for_unit": null,
+  "gui_info": null,
+  "positive": true,
+  "interrupt": null,
+  "scores": null,
+  "duration": null,
+  "labels": [],
+  "effect": {
+    "type": "on_kill",
+    "targeting": null,
+    "effect": {
+      "type": "bunch",
+      "interrupt": null,
+      "targeting": null,
+      "impact": null,
+      "break_on_effect_fail": false,
+      "instant": [],
+      "constant": [
+        "effect_class_brawn_3_demolish"
+      ]
+    }
+  }
+}

@@ -1,27 +1,37 @@
-# Class perk balance in CouchDB
+# Class perks in CouchDB
 
-The first mandatory class perks are public `CardPerk` documents with `slot_type: "class"` (wire enum 4). They are automatic class passives, not shop purchases or ordinary inventory perks. Brawn/Brains/Skill II and III remain unavailable.
+Each hero class has three class perks: public `CardPerk` documents `perk_class_<brawn|brains|skill>_<1|2|3>` with `slot_type: "class"` (wire enum 4). A hero always plays exactly one class perk of its own class. They are not shop purchases or ordinary inventory perks.
 
-| Document | `class_perk` field | Default | Accepted range |
-| --- | --- | --- | --- |
-| `perk_class_brawn_1` | `out_of_combat_seconds` | 5 | 0..60 seconds |
-| `perk_class_brawn_1` | `spawn_distance` | 1.15 | 1..3 world units |
-| `perk_class_brains_1` | `healing_return_percent` | 50 | 0..100 percent |
-| `perk_class_skill_1` | `out_of_combat_seconds` | 5 | 0..60 seconds |
-| `perk_class_skill_1` | `regen_max_health_percent_per_second` | 10 | 0..100 percent |
+## Selection
 
-Edit the numeric fields inside `class_perk` through CDB. Do not type a percent sign. Fractions are supported. Missing cards/fields retain the existing defaults for staged rollout. Invalid/nonfinite values are rejected before replacing the server catalogue. Keep descriptions as templates: `{out_of_combat_seconds}`, `{healing_return_percent}`, `{regen_max_health_percent_per_second}`, `{spawn_distance}`. The server resolves them into the existing binary CardPerk record; no new wire fields are appended. Updated clients read these names/descriptions from the catalogue; old clients retain their fixed descriptions until updated. Players refresh the catalogue on reconnect.
+The chosen class perk is stored as a regular key in the hero loadout's `perks` list, beside the offensive/defensive/hero perks. The lobby's native select-perk message replaces it by slot type, and the Your Heroes loadout save carries it like any other perk. The server accepts a class key in the lobby only for the player's current hero class. At spawn, `ClassPerkCatalogue.EffectivePerks` strips every class key that does not belong to the hero and adds the class default (I) when none is selected, so loadouts saved before II/III existed play class I and its `perk_mods` always apply. `Unit.ActiveClassPerk` is what gameplay checks.
 
-CDB replication changes healing rates for existing heroes on their next heal/tick. Brawn's delay is evaluated against its most recent combat time. Skill records its next eligibility time on combat/respawn, so editing its delay affects the next such event; an already recorded deadline is retained. Health-station exclusion, actual-healing accounting, grounded/clearance checks, team restriction and combat triggers remain server rules.
+## Perks and where their numbers live
 
-## First activation
+Everything tunable is in CDB. Perks that are pure catalogue effects keep their numbers on effect cards; the server-side rules read `class_perk` settings. Descriptions on effect-card perks state the numbers in text, as regular perks do: edit both together.
 
-1. Build and deploy this server revision using the normal DLL/PDB hotfix procedure. **Do not restart while players are in a casual match.** Read `/api/public/home` from the local control panel and inspect `play.matches` immediately before any restart. If a match is active or presence is unavailable, leave the server running and defer activation. Do not install these cards into an older running binary: it cannot parse the new enum.
-2. Stage `tools/register_class_perks.py` and its `catalogue/class-perks` JSON directory on the host. Run the script with sudo (dry run first), then `--apply`. It reads credentials only from the host config, checks deployed binary support, creates only missing documents and preserves existing tuned values. It writes a private before/after snapshot under `/root/config-backups/class-perks-*`.
-3. Verify three change-watcher events and CDB readback, then reconnect an updated client to obtain resolved descriptions. Subsequent numeric changes need no server/client rebuild or restart.
+| Perk | Behaviour | Tune in |
+| --- | --- | --- |
+| Brawn I `perk_class_brawn_1` Rally Point | Mobile team respawn | `class_perk.out_of_combat_seconds` (0..60), `spawn_distance` (1..3) |
+| Brawn II `perk_class_brawn_2` Bulwark | `effect_class_brawn_2_aura`: friendly heroes within `outer_radius` (8) receive `effect_class_brawn_2_guard`, a `shield` buff (0.15). One effect key, so several Bulwarks do not stack; `shield` combines by maximum, so it does not stack with other shields either. | aura `outer_radius`, guard `buffs.shield` |
+| Brawn III `perk_class_brawn_3` Demolisher | `effect_class_brawn_3_on_kill` gives `effect_class_brawn_3_demolish` on an enemy hero kill: `tool_world_damage` 0.5 (dig tool vs blocks) and `objective_damage` 0.5, `duration` 10 | demolish card |
+| Brains I `perk_class_brains_1` Shared Recovery | Healer regains a share of ally healing | `class_perk.healing_return_percent` (0..100) |
+| Brains II `perk_class_brains_2` Supply Line | Whenever the hero's healing restores an ally's health, the ally receives `class_perk.healed_ally_effect` (`effect_class_brains_2_ammo_regen`: `interval` 0.5 s of `add_ammo_percent` 0.025, `duration` 2, refreshed by each heal). Same eligibility as Shared Recovery: allies only, no self-heal, no health stations. | `class_perk.healed_ally_effect`, effect card |
+| Brains III `perk_class_brains_3` Quick Builder | `effect_class_brains_3_build_speed`: `build_speed` 0.3 | effect card |
+| Skill I `perk_class_skill_1` Second Wind | Out-of-combat regeneration | `class_perk.out_of_combat_seconds`, `regen_max_health_percent_per_second` |
+| Skill II `perk_class_skill_2` Accomplice | A kill assist runs the assister's `on_kill` effects (Killer Shield, Killer Ammo, Rapid Reset...) as if they had made the kill | no numbers |
+| Skill III `perk_class_skill_3` Reinforcements | An enemy hero kill removes `respawn_reduction_percent` (70) of the remaining respawn time of every dead teammate and of the killer; the new times are published in `RespawnInfo` | `class_perk.respawn_reduction_percent` (0..100) |
 
-Rollback before reverting the server binary: remove only cards created by this migration using their current CDB revisions, backed up in the migration snapshot, then verify the catalogue watcher processed deletion. Never delete preexisting tuned cards without restoring the saved document. The old binary cannot ingest class enum 4.
+All three Brawn cards carry `effect_class_brawn_guard_immunity` in `perk_mods`, so no Brawn receives Bulwark. Description templates: `{out_of_combat_seconds}`, `{healing_return_percent}`, `{regen_max_health_percent_per_second}`, `{spawn_distance}`, `{respawn_reduction_percent}`. Do not type a percent sign into numeric fields. Invalid values are rejected before replacing the server catalogue; missing cards/fields keep defaults. Players refresh the catalogue on reconnect.
+
+## Activation
+
+1. Deploy the server revision first (normal DLL/PDB hotfix). **Do not restart while players are in a casual match**: read `/api/public/home` and inspect `play.matches` immediately before any restart. An older binary rejects the II/III cards (unknown class perk ids fail validation).
+2. Stage `tools/register_class_perks.py` with `catalogue/class-perks` and `catalogue/class-perk-effects`. Run with sudo as a dry run, then `--apply`. It creates missing effect cards before the perks that use them, creates missing perks, fills Brawn I's empty `perk_mods` with the guard immunity, never changes tuned `class_perk` values, and writes a before/after snapshot under `/root/config-backups/class-perks-*`.
+3. Verify the change-watcher events and CDB readback. Clients without class perk II/III support keep playing class I (they never send a II/III key); updated clients show and select all three.
+
+Rollback before reverting the server binary: delete only the cards this migration created (revisions in the snapshot) and restore Brawn I from `before.json`, then verify the catalogue watcher processed the changes.
 
 ## Validation
 
-Run the BrawnRally, BrainsRecovery, SkillRecovery and ClassPerkCatalogue fixtures under `tests/`. They verify original gameplay predicates, altered CDB rates/delays on existing heroes, serialization compatibility, fractional text and rejection of invalid updates without replacing the snapshot.
+`tests/BNLReloadedServer.ClassPerksExpandedFixture` loads these JSON cards into a real `GameZone` and checks selection/spawn resolution, Supply Line ammo regeneration and refresh, Quick Builder, Bulwark radius/exclusions/non-stacking/damage, Demolisher, Accomplice and Reinforcements including a live CDB edit. Also run the BrawnRally, BrainsRecovery, SkillRecovery and ClassPerkCatalogue fixtures.

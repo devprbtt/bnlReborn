@@ -1709,6 +1709,7 @@ public partial class GameZone
                 {
                     ApplyInstEffect(killerPlayer.GetSelfSource(selfImpact), [killerPlayer], effect, selfImpact);
                 }
+                ApplyClassKillPerks(killerPlayer, assists);
                 break;
 
             case UnitDataPortal when target.PortalLinked.LinkedPortalUnitId is not null:

@@ -1,0 +1,32 @@
+{
+  "_id": "perk_class_brawn_2",
+  "category": "perk",
+  "scope": "public",
+  "icon": "",
+  "name": {
+    "text": "Bulwark",
+    "data": {}
+  },
+  "description": {
+    "text": "Allied heroes within 8m of you take 15% less damage.\nDoes not stack with other Bulwarks or shields. Brawn heroes do not receive it.",
+    "data": {}
+  },
+  "description_2": {
+    "text": "Allies within 8m take 15% less damage. Brawns excluded.",
+    "data": {}
+  },
+  "label": "15% damage reduction aura",
+  "level": 1,
+  "slot_type": "class",
+  "hero_dependency": null,
+  "perk_mods": [
+    {
+      "type": "effect",
+      "constant": [
+        "effect_class_brawn_2_aura",
+        "effect_class_brawn_guard_immunity"
+      ]
+    }
+  ],
+  "class_perk": {}
+}

@@ -10,8 +10,7 @@ public partial class GameZone
     private Func<long> _skillRecoveryClock = () => Environment.TickCount64;
 
     private static bool HasSkillRecovery(Unit unit) => unit.PlayerId.HasValue &&
-        unit.UnitCard?.Data is UnitDataPlayer data &&
-        data.Class.GetCard<CardHeroClass>()?.Type == HeroClassType.Skills;
+        unit.ActiveClassPerk == ClassPerkCatalogue.SkillId;
 
     // Shared event entry point keeps both class perks on the same accepted attack/damage rules.
     private void MarkClassPerkCombat(Unit unit)

@@ -1,0 +1,36 @@
+{
+  "_id": "effect_class_brawn_2_aura",
+  "category": "effect",
+  "scope": "public",
+  "prefab_unit": "",
+  "prefab_player": "",
+  "sound_for_player": null,
+  "sound_for_unit": null,
+  "gui_info": null,
+  "positive": true,
+  "interrupt": null,
+  "scores": null,
+  "duration": null,
+  "labels": [],
+  "effect": {
+    "type": "aura",
+    "targeting": {
+      "affected_labels": null,
+      "affected_units": [
+        "player"
+      ],
+      "affected_team": "friendly",
+      "caster_owned_only": false,
+      "ignore_caster": true
+    },
+    "outer_radius": 8,
+    "inner_radius": null,
+    "interval_effects": [],
+    "interval": 0,
+    "enter_effect": null,
+    "leave_effect": null,
+    "constant_effects": [
+      "effect_class_brawn_2_guard"
+    ]
+  }
+}

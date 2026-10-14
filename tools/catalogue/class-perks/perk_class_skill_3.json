@@ -1,0 +1,26 @@
+{
+  "_id": "perk_class_skill_3",
+  "category": "perk",
+  "scope": "public",
+  "icon": "",
+  "name": {
+    "text": "Reinforcements",
+    "data": {}
+  },
+  "description": {
+    "text": "Each enemy hero you kill removes {respawn_reduction_percent}% of the remaining respawn time of every dead teammate, including you.",
+    "data": {}
+  },
+  "description_2": {
+    "text": "Kills cut {respawn_reduction_percent}% from allied respawn timers.",
+    "data": {}
+  },
+  "label": "{respawn_reduction_percent}% faster team respawn",
+  "level": 1,
+  "slot_type": "class",
+  "hero_dependency": null,
+  "perk_mods": [],
+  "class_perk": {
+    "respawn_reduction_percent": 70
+  }
+}

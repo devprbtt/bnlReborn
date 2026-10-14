@@ -1,0 +1,26 @@
+{
+  "_id": "perk_class_brains_2",
+  "category": "perk",
+  "scope": "public",
+  "icon": "",
+  "name": {
+    "text": "Supply Line",
+    "data": {}
+  },
+  "description": {
+    "text": "Allies you heal also regenerate ammo: 5% of every ammo pool per second, lasting 2s after your last heal on them.\nHealth stations, self-healing and overhealing do not trigger this perk.",
+    "data": {}
+  },
+  "description_2": {
+    "text": "Allies you heal regenerate 5% ammo per second for 2s.",
+    "data": {}
+  },
+  "label": "Healing restores ammo",
+  "level": 1,
+  "slot_type": "class",
+  "hero_dependency": null,
+  "perk_mods": [],
+  "class_perk": {
+    "healed_ally_effect": "effect_class_brains_2_ammo_regen"
+  }
+}

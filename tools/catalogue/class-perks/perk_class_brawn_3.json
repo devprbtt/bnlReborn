@@ -1,0 +1,32 @@
+{
+  "_id": "perk_class_brawn_3",
+  "category": "perk",
+  "scope": "public",
+  "icon": "",
+  "name": {
+    "text": "Demolisher",
+    "data": {}
+  },
+  "description": {
+    "text": "Killing an enemy hero grants 50% more dig tool damage to blocks and 50% more damage to objectives for 10s.",
+    "data": {}
+  },
+  "description_2": {
+    "text": "Kills grant +50% dig and objective damage for 10s.",
+    "data": {}
+  },
+  "label": "Kills boost digging",
+  "level": 1,
+  "slot_type": "class",
+  "hero_dependency": null,
+  "perk_mods": [
+    {
+      "type": "effect",
+      "constant": [
+        "effect_class_brawn_3_on_kill",
+        "effect_class_brawn_guard_immunity"
+      ]
+    }
+  ],
+  "class_perk": {}
+}

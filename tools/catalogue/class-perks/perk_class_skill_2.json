@@ -1,0 +1,24 @@
+{
+  "_id": "perk_class_skill_2",
+  "category": "perk",
+  "scope": "public",
+  "icon": "",
+  "name": {
+    "text": "Accomplice",
+    "data": {}
+  },
+  "description": {
+    "text": "Kill assists trigger your on-kill perks, such as Killer Shield, Killer Ammo and Rapid Reset, as if you had made the kill.",
+    "data": {}
+  },
+  "description_2": {
+    "text": "Assists trigger your on-kill perks.",
+    "data": {}
+  },
+  "label": "Assists count as kills",
+  "level": 1,
+  "slot_type": "class",
+  "hero_dependency": null,
+  "perk_mods": [],
+  "class_perk": {}
+}

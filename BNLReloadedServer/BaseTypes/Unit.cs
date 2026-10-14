@@ -1,4 +1,4 @@
-using System.Collections.Immutable;
+﻿using System.Collections.Immutable;
 using System.Numerics;
 using BNLReloadedServer.Database;
 using BNLReloadedServer.Octree_Extensions;
@@ -78,6 +78,16 @@ public partial class Unit
     private float _abilityCooldownMultiplier = 1f;
     public DateTimeOffset? AbilityTriggerTimeEnd;
     public DateTimeOffset? RespawnTime;
+    // Selected class perk card id; null for units built outside CreatePlayerUnit, which play the class default.
+    public string? ClassPerkId;
+    public string? ActiveClassPerk
+    {
+        get
+        {
+            var type = (UnitCard?.Data as UnitDataPlayer)?.Class.GetCard<CardHeroClass>()?.Type;
+            return type != null && ClassPerkCatalogue.ClassOf(ClassPerkId) == type ? ClassPerkId : ClassPerkCatalogue.DefaultFor(type);
+        }
+    }
     public DateTimeOffset? RecallTime;
     public DateTimeOffset? SpawnProtectionTime;
     public DateTimeOffset? LastMoveTime;

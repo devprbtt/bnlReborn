@@ -1,0 +1,24 @@
+{
+  "_id": "effect_class_brawn_guard_immunity",
+  "category": "effect",
+  "scope": "public",
+  "prefab_unit": "",
+  "prefab_player": "",
+  "sound_for_player": null,
+  "sound_for_unit": null,
+  "gui_info": null,
+  "positive": true,
+  "interrupt": null,
+  "scores": null,
+  "duration": null,
+  "labels": [],
+  "effect": {
+    "type": "immunity",
+    "positive": false,
+    "negative": false,
+    "effect_labels": [],
+    "effect_keys": [
+      "effect_class_brawn_2_guard"
+    ]
+  }
+}

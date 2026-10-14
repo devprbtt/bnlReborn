@@ -17,7 +17,14 @@
   "label": "Mobile team respawn",
   "level": 1,
   "slot_type": "class",
-  "perk_mods": [],
+  "perk_mods": [
+    {
+      "type": "effect",
+      "constant": [
+        "effect_class_brawn_guard_immunity"
+      ]
+    }
+  ],
   "class_perk": {
     "out_of_combat_seconds": 5,
     "spawn_distance": 1.15

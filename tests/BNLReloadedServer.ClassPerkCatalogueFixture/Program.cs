@@ -5,7 +5,7 @@ int checks=0;
 void Check(bool ok,string label){if(!ok)throw new Exception(label);checks++;Console.WriteLine("PASS "+label);}
 var folder=Path.GetFullPath(Path.Combine(AppContext.BaseDirectory,"../../../../../tools/catalogue/class-perks"));
 var cards=Directory.GetFiles(folder,"*.json").Select(p=>File.ReadAllText(p).Deserialize<CardPerk>()!).ToList();
-Check(cards.Count==3,"three class perk CDB documents");
+Check(cards.Count==9,"nine class perk CDB documents");
 foreach(var card in cards){
     ClassPerkCatalogue.Validate(card);
     using var stream=new MemoryStream();

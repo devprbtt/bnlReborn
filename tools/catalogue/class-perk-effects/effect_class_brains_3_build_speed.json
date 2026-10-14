@@ -1,0 +1,22 @@
+{
+  "_id": "effect_class_brains_3_build_speed",
+  "category": "effect",
+  "scope": "public",
+  "prefab_unit": "",
+  "prefab_player": "",
+  "sound_for_player": null,
+  "sound_for_unit": null,
+  "gui_info": null,
+  "positive": true,
+  "interrupt": null,
+  "scores": null,
+  "duration": null,
+  "labels": [],
+  "effect": {
+    "type": "buff",
+    "targeting": null,
+    "buffs": {
+      "build_speed": 0.3
+    }
+  }
+}

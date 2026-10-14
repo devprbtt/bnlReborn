@@ -1,0 +1,35 @@
+{
+  "_id": "effect_class_brains_2_ammo_regen",
+  "category": "effect",
+  "scope": "public",
+  "prefab_unit": "",
+  "prefab_player": "",
+  "sound_for_player": null,
+  "sound_for_unit": null,
+  "gui_info": {
+    "name": null,
+    "description": null,
+    "icon": "gameplayeffects_restockammo",
+    "icon_pos_type": "positive",
+    "icon_form_type": "round"
+  },
+  "positive": true,
+  "interrupt": null,
+  "scores": null,
+  "duration": 2,
+  "labels": [],
+  "effect": {
+    "type": "interval",
+    "targeting": null,
+    "interval": 0.5,
+    "interval_effects": [
+      {
+        "type": "add_ammo_percent",
+        "interrupt": null,
+        "targeting": null,
+        "impact": null,
+        "fraction": 0.025
+      }
+    ]
+  }
+}

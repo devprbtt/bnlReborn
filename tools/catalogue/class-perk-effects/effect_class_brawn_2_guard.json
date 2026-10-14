@@ -1,0 +1,28 @@
+{
+  "_id": "effect_class_brawn_2_guard",
+  "category": "effect",
+  "scope": "public",
+  "prefab_unit": "",
+  "prefab_player": "",
+  "sound_for_player": null,
+  "sound_for_unit": null,
+  "gui_info": {
+    "name": null,
+    "description": null,
+    "icon": "gameplayeffects_shielded",
+    "icon_pos_type": "positive",
+    "icon_form_type": "round"
+  },
+  "positive": true,
+  "interrupt": null,
+  "scores": null,
+  "duration": null,
+  "labels": [],
+  "effect": {
+    "type": "buff",
+    "targeting": null,
+    "buffs": {
+      "shield": 0.15
+    }
+  }
+}
