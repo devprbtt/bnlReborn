@@ -11,13 +11,15 @@ public partial class GameZone
     /// <summary>
     /// Class perks that react to an opposing hero's death. The killer's own on_kill effects have already run.
     /// </summary>
-    private void ApplyClassKillPerks(Unit killerPlayer, IEnumerable<uint> assistPlayerIds)
+    private void ApplyClassKillPerks(Unit killerPlayer, IEnumerable<uint> assistPlayerIds, HashSet<uint> topDamagerIds)
     {
         // Skill II: an assist triggers the assister's on_kill effects (Killer Shield, Killer Ammo, Rapid Reset...)
-        // exactly as a kill would. Assists already exclude the killer and are opponents of the victim.
+        // exactly as a kill would, but only when the assister dealt the most damage to the victim (ties count).
+        // Assists already exclude the killer and are opponents of the victim.
         foreach (var playerId in assistPlayerIds.Distinct())
         {
-            if (GetPlayerFromPlayerId(playerId) is not { IsDead: false } assister ||
+            if (!topDamagerIds.Contains(playerId) ||
+                GetPlayerFromPlayerId(playerId) is not { IsDead: false } assister ||
                 assister.ActiveClassPerk != ClassPerkCatalogue.Skill2Id)
                 continue;
             var assistImpact = assister.CreateImpactData();
@@ -29,6 +31,21 @@ public partial class GameZone
         if (killerPlayer.ActiveClassPerk == ClassPerkCatalogue.Skill3Id)
             ReduceAlliedRespawnTimers(killerPlayer,
                 ClassPerkCatalogue.Balance(ClassPerkCatalogue.Skill3Id).RespawnReductionPercent / 100f);
+    }
+
+    /// <summary>
+    /// Players who dealt the victim the most enemy damage within the assist window, killing blow included
+    /// (damage is recorded before the death is processed). Several players share the top on a tie.
+    /// </summary>
+    private HashSet<uint> TopDamagers(Unit victim)
+    {
+        var now = DateTimeOffset.Now;
+        var damage = victim.RecentDamageTaken
+            .Where(d => d.Key.PlayerId != null && victim.RecentDamagers.GetValueOrDefault(d.Key) > now && AreOpponents(victim, d.Key))
+            .ToList();
+        if (damage.Count == 0) return [];
+        var most = damage.Max(d => d.Value);
+        return damage.Where(d => d.Value >= most - 0.001f).Select(d => d.Key.PlayerId!.Value).ToHashSet();
     }
 
     private void ReduceAlliedRespawnTimers(Unit killerPlayer, float share)

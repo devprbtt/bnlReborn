@@ -231,9 +231,34 @@ Check(u[11].ActiveEffects.Single(e => e.Key == K("effect_class_brawn_3_demolish"
       Math.Abs((long)end - DateTimeOffset.Now.AddSeconds(10).ToUnixTimeMilliseconds()) < 1000, "Demolisher lasts 10 seconds");
 Check(u[3].GetBuff(BuffType.ToolWorldDamage) == 0, "other Brawns do not gain Demolisher");
 
-Kill(u[12], u[6], u[9], u[10]);
-Check(Math.Abs(u[9].GetBuff(BuffType.Shield) - 0.5f) < 0.001f, "Skill II assist triggers the assister's on-kill perk");
-Check(u[10].GetBuff(BuffType.Shield) == 0, "an assist without Skill II triggers nothing");
+// Skill II: real hits through TakeDamage -> UnitIsDamaged, and a real killing blow, so the killer's last hit
+// is counted exactly as live. The victim has 100 health.
+void Hit(Unit attacker, Unit victim, float damage) => OnZone(() =>
+{
+    victim.TakeDamage(new DamageData(0, 0, damage, 0, 0, 0, 0, 0, false, false, false, false),
+        attacker.CreateImpactData(casterPlayerId: attacker.PlayerId), false, attacker, attacker.Team);
+    return true;
+});
+void Fresh(Unit victim) => OnZone(() =>
+{
+    victim.IsDead = false; victim.IsActive = true; victim.UpdateData(new UnitUpdate { Health = 100 });
+    victim.RecentDamagers.Clear(); victim.RecentDamageTaken.Clear();
+    foreach (var a in new[] { u[9], u[10] }) a.ActiveEffects = a.ActiveEffects.RemoveAll(e => e.Key == killerBunch.Key);
+    return true;
+});
+bool Proc(Unit assister) => Has(assister, killerBunch.Id!);
+Fresh(u[6]); Hit(u[9], u[6], 60); Hit(u[12], u[6], 40);
+Check(u[6].IsDead, "the killing blow kills the victim");
+Check(Proc(u[9]), "Skill II assist with the most damage (60 vs 40) triggers the on-kill perk");
+Fresh(u[6]); Hit(u[9], u[6], 30); Hit(u[12], u[6], 30); Hit(u[12], u[6], 40);
+Check(u[6].IsDead && !Proc(u[9]), "the killer's killing blow counts: 30 assist vs 70 kill triggers nothing");
+Fresh(u[6]); Hit(u[9], u[6], 50); Hit(u[12], u[6], 50);
+Check(Proc(u[9]), "a tie for the most damage triggers the on-kill perk");
+Fresh(u[6]); Hit(u[9], u[6], 40); Hit(u[10], u[6], 45); Hit(u[12], u[6], 15);
+Check(!Proc(u[9]), "another assister with more damage (45 vs 40) blocks the Skill II proc");
+Check(!Proc(u[10]), "the top-damage assister without Skill II triggers nothing");
+Fresh(u[6]); Hit(u[10], u[6], 70); Hit(u[12], u[6], 30);
+Check(!Proc(u[10]), "an assist without Skill II triggers nothing even with the most damage");
 
 var reduced = OnZone(() =>
 {

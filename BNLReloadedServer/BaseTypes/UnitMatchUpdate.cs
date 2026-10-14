@@ -174,6 +174,7 @@ public partial class Unit
                     DamageAccounting.IsEnemyPlayerDamage(targetTeam, attackerPlayer.Team))
                 {
                     RecentDamagers[attackerPlayer] = DateTimeOffset.Now.AddSeconds(AssistSeconds);
+                    RecentDamageTaken[attackerPlayer] = RecentDamageTaken.GetValueOrDefault(attackerPlayer) + damage;
 
                     var playerData = PlayerUnitData;
                     if (playerData?.Class == CatalogueHelper.BrawnClassKey)
@@ -326,6 +327,7 @@ public partial class Unit
                     assister.UpdateStat(ScoreType.Assists, 1);
                 }
                 RecentDamagers.Clear();
+                RecentDamageTaken.Clear();
                 break;
 
             case HealthType.World when killerPlayer is not null:

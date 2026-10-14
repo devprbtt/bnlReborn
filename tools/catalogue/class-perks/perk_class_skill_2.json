@@ -8,14 +8,14 @@
     "data": {}
   },
   "description": {
-    "text": "Kill assists trigger your on-kill perks, such as Killer Shield, Killer Ammo and Rapid Reset, as if you had made the kill.",
+    "text": "Kill assists trigger your on-kill perks, such as Killer Shield, Killer Ammo and Rapid Reset, as if you had made the kill, when you dealt the most damage to that enemy hero.",
     "data": {}
   },
   "description_2": {
-    "text": "Assists trigger your on-kill perks.",
+    "text": "Assists where you dealt the most damage trigger your on-kill perks.",
     "data": {}
   },
-  "label": "Assists count as kills",
+  "label": "Top-damage assists count as kills",
   "level": 1,
   "slot_type": "class",
   "hero_dependency": null,

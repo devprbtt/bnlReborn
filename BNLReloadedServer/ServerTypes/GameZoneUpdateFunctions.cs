@@ -1590,6 +1590,8 @@ public partial class GameZone
             ? target.RecentDamagers.Where(a => a.Value > DateTimeOffset.Now && AreOpponents(target, a.Key))
                 .Select(k => k.Key.PlayerId)
             .Where(a => a is not null && a != impact.CasterPlayerId).OfType<uint>().ToList() : [];
+        // Read before KillStatsUpdate clears the victim's damage record.
+        var topDamagers = TopDamagers(target);
 
         var targetUnitCard = target.UnitCard;
         var isObjective = targetUnitCard?.IsObjective is true;
@@ -1709,7 +1711,7 @@ public partial class GameZone
                 {
                     ApplyInstEffect(killerPlayer.GetSelfSource(selfImpact), [killerPlayer], effect, selfImpact);
                 }
-                ApplyClassKillPerks(killerPlayer, assists);
+                ApplyClassKillPerks(killerPlayer, assists, topDamagers);
                 break;
 
             case UnitDataPortal when target.PortalLinked.LinkedPortalUnitId is not null:

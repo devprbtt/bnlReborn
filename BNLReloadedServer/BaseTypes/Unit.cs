@@ -122,6 +122,8 @@ public partial class Unit
     public readonly EffectArea? LandmineEffect;
 
     public readonly Dictionary<Unit, DateTimeOffset> RecentDamagers = new();
+    // Enemy player damage taken this life, per attacker; an attacker drops out when its assist window expires.
+    public readonly Dictionary<Unit, float> RecentDamageTaken = new();
 
     private float _activePullForce;
     private uint? _activePuller;
@@ -1370,6 +1372,7 @@ public partial class Unit
         foreach (var assister in RecentDamagers.Where(assister => assister.Value < DateTimeOffset.Now))
         {
             RecentDamagers.Remove(assister.Key);
+            RecentDamageTaken.Remove(assister.Key);
         }
 
         if (_rechargeForcefieldTime is not null && UnitCard?.Health?.Forcefield is { } forcefield &&
