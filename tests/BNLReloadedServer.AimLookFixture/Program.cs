@@ -89,6 +89,7 @@ byte[] Body(int count, byte aimTool = 255)
         writer.Write((byte)2);
         writer.Write(0xDEADBEEFu);
         writer.Write(12.5f);
+        writer.Write((ushort)48);
         writer.Write((byte)count);
         for (var index = 0; index < count; index++)
         {
