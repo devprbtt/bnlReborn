@@ -513,6 +513,7 @@ public sealed class ControlPanelServer : IDisposable
         await WriteJson(ctx, new
         {
             id = detail.Match.Id,
+            replay_id = ReplayStore.Exists(detail.Match.Id) ? ReplayStore.ReplayIdFor(detail.Match.Id).ToString() : null,
             map = DescribeArchiveKey(detail.Match.MapKey),
             mode = DescribeArchiveKey(detail.Match.GameModeKey),
             started_at = detail.Match.StartedAt,
