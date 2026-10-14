@@ -8,11 +8,11 @@
     "data": {}
   },
   "description": {
-    "text": "Allies you heal also regenerate ammo: 5% of every ammo pool per second, lasting 2s after your last heal on them.\nHealth stations, self-healing and overhealing do not trigger this perk.",
+    "text": "Allies you heal also regenerate ammo, even at full health: 5% of every ammo pool per second, lasting 2s after your last heal on them.\nHealth stations and self-healing do not trigger this perk.",
     "data": {}
   },
   "description_2": {
-    "text": "Allies you heal regenerate 5% ammo per second for 2s.",
+    "text": "Allies you heal regenerate 5% ammo per second for 2s, even at full health.",
     "data": {}
   },
   "label": "Healing restores ammo",

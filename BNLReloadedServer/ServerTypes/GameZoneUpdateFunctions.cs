@@ -974,11 +974,17 @@ public partial class GameZone
                         unit.AddForcefield(instEffectHeal.ForcefieldAmount);
                     }
 
+                    var healerPlayer = source is not UnitSource { Unit.PickupUnitData: not null } && impactData.CasterPlayerId.HasValue
+                        ? GetPlayerFromPlayerId(impactData.CasterPlayerId.Value)
+                        : null;
+                    // Brains II reacts to the heal landing, even on an ally already at full health.
+                    if (unit.PlayerId != null && instEffectHeal.PlayerHeal > 0)
+                    {
+                        unit.ApplySupplyLine(source, healerPlayer);
+                    }
+
                     if (hpGain > 0)
                     {
-                        var healerPlayer = source is not UnitSource { Unit.PickupUnitData: not null } && impactData.CasterPlayerId.HasValue
-                            ? GetPlayerFromPlayerId(impactData.CasterPlayerId.Value)
-                            : null;
                         unit.Healed(hpGain, source, healerPlayer);
                         unit.ApplyBrainsRecovery(hpGain, source, healerPlayer);
                         if (Unit.HealCredit(source, healerPlayer, unit) is { } credit)

@@ -48,10 +48,11 @@ var killerEffect = new CardEffect
     Effect = new ConstEffectOnKill { Effect = new InstEffectBunch { Constant = [], Instant = [] } }
 };
 var killerPerk = new CardPerk { Id = "fixture_killer_perk", SlotType = PerkSlotType.Offensive };
+var regenCard = new CardEffect { Id = "fixture_cp_regen", Positive = true, Effect = new ConstEffectBuff { Buffs = new() { [BuffType.HealthRegen] = 5f } } };
 var mode = new CardGameMode { Id = "game_mode_friendly" };
 var catalogue = (ServerCatalogue)Databases.Catalogue;
 catalogue.Replicate([
-    brawn, brains, skill, gear, brawnHero, brainsHero, skillHero, killerBunch, killerEffect, killerPerk, mode,
+    brawn, brains, skill, gear, brawnHero, brainsHero, skillHero, killerBunch, killerEffect, killerPerk, regenCard, mode,
     new CardGameMode { Id = "game_mode_custom" }, new CardMatch { Id = "fixture_cp_match", Data = new MatchDataShieldCapture() },
     new CardBlock { Id = "fixture_air", BlockId = 0, Passable = BlockPassableType.Any, Transparent = true, LightTransparent = true, SkylightTransparent = true },
     new CardGlobalLogic { Id = "global_logic" }, .. perkCards, .. effectCards
@@ -169,6 +170,45 @@ Check(!Has(u[6], "effect_class_brains_2_ammo_regen"), "healing an enemy does not
 OnZone(() => { u[5].UpdateData(new UnitUpdate { Health = 40 }); return true; });
 HealFrom(u[4], u[5], 20);
 Check(!Has(u[5], "effect_class_brains_2_ammo_regen"), "a non-Brains healer does not grant Supply Line");
+
+// Full health: the heal restores nothing, but Supply Line still applies (owner request).
+const string Supply = "effect_class_brains_2_ammo_regen";
+// Remove an effect the way expiry does: the active list and its recorded sources.
+var effectSources = typeof(Unit).GetField("_effectSources", Any)!;
+void Strip(Unit unit, Key key)
+{
+    unit.ActiveEffects = unit.ActiveEffects.RemoveAll(e => e.Key == key);
+    effectSources.GetValue(unit)!.GetType().GetMethod("Remove", [typeof(Key)])!.Invoke(effectSources.GetValue(unit), [key]);
+}
+void Full(Unit unit) => OnZone(() =>
+{
+    Strip(unit, K(Supply));
+    unit.UpdateData(new UnitUpdate { Health = 100, Ammo = new() { [gear.Key] = [new Ammo { Index = 0, Pool = 0 }] } });
+    return true;
+});
+Full(u[2]); HealFrom(u[1], u[2], 20);
+Check(Math.Abs(HP(u[2]) - 100) < 0.01f && Has(u[2], Supply) && Pool(u[2]) > 2.4f, "a direct heal on a full-health ally still grants Supply Line ammo");
+Full(u[5]); HealFrom(u[4], u[5], 20);
+Check(!Has(u[5], Supply), "a full-health ally healed by a non-Brains hero gets nothing");
+Full(u[1]); HealFrom(u[1], u[1], 20);
+Check(!Has(u[1], Supply), "self-healing at full health does not trigger Supply Line");
+Full(u[2]);
+OnZone(() =>
+{
+    u[2].AddEffect(new ConstEffectInfo(regenCard.Key), u[1].Team, u[1].GetSelfSource(u[1].CreateImpactData()));
+    u[2].ApplyBuffEffects(0.25f);
+    return true;
+});
+Check(Math.Abs(HP(u[2]) - 100) < 0.01f && Has(u[2], Supply), "a regeneration tick from the Brains healer on a full-health ally grants Supply Line");
+OnZone(() => { Strip(u[2], regenCard.Key); Strip(u[2], K(Supply)); return true; });
+OnZone(() =>
+{
+    u[2].AddEffect(new ConstEffectInfo(regenCard.Key), u[4].Team, u[4].GetSelfSource(u[4].CreateImpactData()));
+    u[2].ApplyBuffEffects(0.25f);
+    Strip(u[2], regenCard.Key);
+    return true;
+});
+Check(!Has(u[2], Supply), "regeneration from a non-Brains hero does not grant Supply Line");
 
 // ---- Brains III: build speed from the class card's perk_mods ----
 Check(Math.Abs(u[7].GetBuff(BuffType.BuildSpeed) - 0.3f) < 0.001f && u[1].GetBuff(BuffType.BuildSpeed) == 0, "Brains III builds 30% faster, Brains II does not");

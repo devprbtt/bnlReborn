@@ -76,6 +76,34 @@ public partial class Unit
     // and Trondson's regen, each get their part).
     private void AttributeRegen(BuffType buffKey, float healAmount)
     {
+        var shares = RegenShares(buffKey);
+        var total = shares.Sum(s => s.Weight);
+        if (total <= 0) return;
+        foreach (var (source, weight) in shares)
+        {
+            if (source is null) continue;
+            var healer = source.Impact?.CasterPlayerId is { } playerId ? _updater.GetPlayerFromPlayerId(playerId) : null;
+            if (HealCredit(source, healer, this) is { } credit)
+            {
+                SendHealAttribution(credit, healAmount * weight / total, source.Impact?.SourceKey);
+                ApplyBrainsRecovery(healAmount * weight / total, source, healer ?? credit);
+            }
+        }
+    }
+
+    // Brains II: every regeneration tick from a Brains healer counts as their healing landing, full health or not.
+    private void SupplyLineFromRegen(BuffType buffKey)
+    {
+        foreach (var (source, _) in RegenShares(buffKey))
+        {
+            if (source is null) continue;
+            var healer = source.Impact?.CasterPlayerId is { } playerId ? _updater.GetPlayerFromPlayerId(playerId) : null;
+            if (HealCredit(source, healer, this) is { } credit) ApplySupplyLine(source, healer ?? credit);
+        }
+    }
+
+    private List<(EffectSource? Source, float Weight)> RegenShares(BuffType buffKey)
+    {
         var shares = new List<(EffectSource? Source, float Weight)>();
         foreach (var effect in ActiveEffects)
         {
@@ -98,19 +126,7 @@ public partial class Unit
                 shares.Add((source, rate / byPlayer.Count));
             }
         }
-
-        var total = shares.Sum(s => s.Weight);
-        if (total <= 0) return;
-        foreach (var (source, weight) in shares)
-        {
-            if (source is null) continue;
-            var healer = source.Impact?.CasterPlayerId is { } playerId ? _updater.GetPlayerFromPlayerId(playerId) : null;
-            if (HealCredit(source, healer, this) is { } credit)
-            {
-                SendHealAttribution(credit, healAmount * weight / total, source.Impact?.SourceKey);
-                ApplyBrainsRecovery(healAmount * weight / total, source, healer ?? credit);
-            }
-        }
+        return shares;
     }
 
     public void ApplyBuffEffects(float multiplier)
@@ -130,6 +146,10 @@ public partial class Unit
 
                 case (BuffType.HealthRegen, _):
                     var healAmount = AddHealth(value * multiplier, unitUpdate);
+                    if (PlayerId is not null && value > 0)
+                    {
+                        SupplyLineFromRegen(buffKey);
+                    }
 
                     if (healAmount > 0)
                     {
