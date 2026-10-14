@@ -172,6 +172,10 @@ Check(!Has(u[5], "effect_class_brains_2_ammo_regen"), "a non-Brains healer does 
 
 // ---- Brains III: build speed from the class card's perk_mods ----
 Check(Math.Abs(u[7].GetBuff(BuffType.BuildSpeed) - 0.3f) < 0.001f && u[1].GetBuff(BuffType.BuildSpeed) == 0, "Brains III builds 30% faster, Brains II does not");
+var sent = u[7].GetUpdateData().Buffs;
+Check(sent != null && Math.Abs(sent.GetValueOrDefault(BuffType.BuildSpeed) - 0.3f) < 0.001f, "the state sent to clients carries build_speed 0.3");
+// Client BuffHelper.BuildTime divides the device build time by (1 + build_speed).
+Check(Math.Abs(2f / (1f + sent![BuffType.BuildSpeed]) - 1.5385f) < 0.001f, "a 2 s build takes 1.54 s");
 
 // ---- Brawn II: Bulwark ----
 void Tick(ulong n) => ((Action)Call("OnTick", n)!)();
