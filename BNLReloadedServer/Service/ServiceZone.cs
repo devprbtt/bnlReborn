@@ -260,6 +260,16 @@ public partial class ServiceZone(ISender sender, Func<System.Net.IPAddress?>? pe
         return body;
     }
 
+    // The framed message a spectator connection receives for a relayed batch.
+    public static byte[] BuildAimLookPacket(uint playerId, byte[] body)
+    {
+        using var writer = CreateWriter();
+        writer.Write((byte)ServiceZoneId.MessageAimLook);
+        writer.Write(playerId);
+        writer.Write(body);
+        return RecordingSender.Frame(writer);
+    }
+
     public void SendAimLook(uint playerId, byte[] body)
     {
         if (!SupportsAimLook) return;

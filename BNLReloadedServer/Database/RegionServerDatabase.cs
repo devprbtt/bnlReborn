@@ -698,6 +698,7 @@ public partial class RegionServerDatabase(AsyncTaskTcpServer server, AsyncTaskTc
 
     public CustomGameSpectateResult CheckSpectateCustomGame(uint playerId, ulong gameId, string password)
     {
+        if (ReplayStore.IsReplayId(gameId)) return CheckReplay(playerId, gameId);
         if (_spectatableMatchIds.TryGetValue(gameId, out var instanceId))
         {
             if (!UserConnected(playerId, out _) ||
@@ -725,6 +726,7 @@ public partial class RegionServerDatabase(AsyncTaskTcpServer server, AsyncTaskTc
 
     public bool SpectateCustomGame(uint playerId, ulong gameId)
     {
+        if (ReplayStore.IsReplayId(gameId)) return WatchReplay(playerId, gameId);
         if (_spectatableMatchIds.TryGetValue(gameId, out var instanceId))
         {
             if (!UserConnected(playerId, out var info) ||

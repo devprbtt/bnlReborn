@@ -7,6 +7,8 @@ public struct Key(string id) : IEquatable<Key>
 {
     public static readonly Key None = new() { Hash = 0 };
 
+    public static Key FromHash(uint hash) => new() { Hash = hash };
+
     public uint Hash { get; private set; } = Crc32.GetHash(id);
 
     public void Read(BinaryReader reader) => Hash = reader.ReadUInt32();

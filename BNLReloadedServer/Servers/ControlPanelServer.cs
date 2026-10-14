@@ -68,6 +68,7 @@ public sealed class ControlPanelServer : IDisposable
             _listener.Start();
             _listenTask = Task.Run(() => ListenLoop(_cts.Token));
             LiveStreamDirectory.Start(_cts.Token);
+            ReplayStore.Start(_cts.Token);
             Log.Info(LogCat.Panel, $"Listening on {string.Join(", ", _listener.Prefixes)}");
         }
         catch (Exception ex)
@@ -473,7 +474,9 @@ public sealed class ControlPanelServer : IDisposable
                 ended_at = match.EndedAt,
                 duration_seconds = Math.Max(0, match.EndedAt - match.StartedAt) / 1000,
                 winner = ((TeamType)match.Winner).ToString(),
-                end_reason = ((MatchEndReason)match.EndReason).ToString()
+                end_reason = ((MatchEndReason)match.EndReason).ToString(),
+                // String: JavaScript numbers lose precision above 2^53.
+                replay_id = ReplayStore.Exists(match.Id) ? ReplayStore.ReplayIdFor(match.Id).ToString() : null
             }),
             next_before = matches.Count == Math.Clamp(limit, 1, 100) ? matches[^1].EndedAt : (long?)null
         });

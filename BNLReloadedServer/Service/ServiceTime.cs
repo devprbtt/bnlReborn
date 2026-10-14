@@ -49,7 +49,11 @@ public class ServiceTime(ISender sender) : IServiceTime
     private void ReceiveSync(BinaryReader reader)
     {
         var rpcId = reader.ReadUInt16();
-        SendSync(rpcId, DateTimeOffset.Now.ToUnixTimeMilliseconds());
+        // A replay viewer's clock follows the recording's server time.
+        var offset = sender.AssociatedPlayerId is { } playerId
+            ? BNLReloadedServer.Database.RegionServerDatabase.ReplayClockOffset(playerId)
+            : 0;
+        SendSync(rpcId, DateTimeOffset.Now.ToUnixTimeMilliseconds() + offset);
     }
 
     public bool Receive(BinaryReader reader)

@@ -37,6 +37,7 @@ public partial class GameZone : Updater
     private readonly IServiceZone _unbufferedZone;
     private readonly IBuffer _sendBuffer;
     private readonly ISender _sessionsSender;
+    private MatchRecorder? _replayRecorder;
 
     private readonly IGameInitiator _gameInitiator;
 
@@ -269,6 +270,92 @@ public partial class GameZone : Updater
     public void SendInitializeZone(IServiceZone zoneService)
     {
         zoneService.SendInitZone(BeginningZoneInitData);
+    }
+
+    // Public and ranked (matchmade casual/ranked) matches are recorded for replays.
+    // BNL_REPLAY_RECORD_CUSTOM=1 also records custom games, for testing playback.
+    private static readonly bool RecordCustomGames =
+        Environment.GetEnvironmentVariable("BNL_REPLAY_RECORD_CUSTOM") == "1";
+
+    private bool IsReplayEligible() =>
+        !_gameInitiator.IsMapEditor() && _gameInitiator is not WaitingArenaInitiator &&
+        (_gameInitiator is MatchmakerInitiator &&
+         _zoneData.GameModeCard.Ranking is GameRankingType.Friendly or GameRankingType.Ranked ||
+         RecordCustomGames && _gameInitiator is CustomGamePlayerGroup);
+
+    private void StartReplayRecording(DateTimeOffset startedAt)
+    {
+        if (_sessionsSender is not RecordingSender recordingSender || !IsReplayEligible()) return;
+        recordingSender.Detach()?.Abort();
+
+        var matchId = $"{_instanceId ?? "unknown"}:{startedAt.ToUnixTimeMilliseconds()}";
+        var recorder = MatchRecorder.TryStart(matchId, startedAt.ToUnixTimeMilliseconds(), new
+        {
+            match_id = matchId,
+            instance_id = _instanceId,
+            started_at = startedAt.ToUnixTimeMilliseconds(),
+            // The server clock the recording's absolute timestamps use; playback offsets viewers' clocks from it.
+            server_time_at_start = DateTimeOffset.Now.ToUnixTimeMilliseconds(),
+            map_key = _zoneData.MapKey?.Hash,
+            mode_key = _zoneData.GameModeCard.Key.Hash,
+            match_key = _zoneData.MatchCard.Key.Hash,
+            ranking = _zoneData.GameModeCard.Ranking.ToString()
+        });
+        if (recorder == null) return;
+
+        // Deliver anything already queued for live sessions before the keyframe,
+        // so the keyframe is the state the first recorded packet builds on.
+        FlushBuffer();
+        var initZone = new CaptureSender();
+        SendInitializeZone(new ServiceZone(initZone));
+        var load = new CaptureSender();
+        SendObserverSnapshot(new ServiceZone(load));
+        recorder.RecordKeyframe(initZone.ToArray(), load.ToArray());
+        _replayRecorder = recorder;
+        recordingSender.Attach(recorder);
+        Log.Info(LogCat.Match, $"Replay recording started: {matchId}, {DiagnosticName}");
+    }
+
+    // A look-stream batch relayed to spectators, recorded as the framed zone
+    // message a spectator connection receives.
+    public void RecordAimLook(uint playerId, byte[] body) =>
+        _replayRecorder?.RecordStream(ServiceZone.BuildAimLookPacket(playerId, body));
+
+    private void FinishReplayRecording(string matchId, DateTimeOffset endedAt, MatchEndReason reason)
+    {
+        var recorder = _replayRecorder;
+        if (recorder == null || recorder.MatchId != matchId) return;
+        _replayRecorder = null;
+        // Keep the end-of-match broadcasts (results, scene change) in the replay.
+        var sender = _sessionsSender as RecordingSender;
+        _ = Task.Delay(TimeSpan.FromSeconds(4)).ContinueWith(_ =>
+        {
+            if (sender?.Recorder == recorder) sender.Detach();
+            recorder.Finish(endedAt.ToUnixTimeMilliseconds(), reason.ToString());
+        });
+    }
+
+    // Everything a spectator receives on joining a match in progress, without
+    // the participation, unit creation or stat side effects of a real join.
+    public void SendObserverSnapshot(IServiceZone zoneService)
+    {
+        zoneService.SendUpdateZone(GetInitialZoneUpdate());
+        zoneService.SendUpdateBarriers(GetBarriersForPhase(_zoneData.Phase.PhaseType));
+        foreach (var unit in _units.Where(u => u.Value.PlayerId is null && !u.Value.IsDead))
+        {
+            zoneService.SendUnitCreate(unit.Key, unit.Value.GetInitData());
+            zoneService.SendUnitUpdate(unit.Key, unit.Value.GetUpdateData());
+        }
+        foreach (var player in _playerUnits.Where(p => !p.Value.IsDead))
+        {
+            zoneService.SendUnitCreate(player.Key, player.Value.GetInitData());
+            zoneService.SendUnitUpdate(player.Key, player.Value.GetUpdateData());
+        }
+        if (BeginningZoneInitData.Updates is { Count: > 0 })
+        {
+            zoneService.SendBlockUpdates(BeginningZoneInitData.Updates);
+        }
+        SendObserverZoneState(zoneService);
     }
 
     public void SendLoadZone(IServiceZone zoneService, IServiceZone savedService, uint playerId)
@@ -725,6 +812,17 @@ public partial class GameZone : Updater
                 startingRatings[player.PlayerId] = rating;
         }
         _matchParticipation.Start(startedAt, initialPlayers, startingRatings);
+        try
+        {
+            StartReplayRecording(startedAt);
+        }
+        catch (Exception exception)
+        {
+            // A replay is optional; never let it stop a match from starting.
+            (_sessionsSender as RecordingSender)?.Detach()?.Abort();
+            _replayRecorder = null;
+            Log.Warn(LogCat.Match, $"Replay recording failed to start for {DiagnosticName}: {exception.Message}");
+        }
         foreach (var team in Enum.GetValues<TeamType>())
             _initialCubeCounts[(int)team] = CountCubes(_objectiveConquest[(int)team]);
         UpdatePhase();
@@ -983,6 +1081,15 @@ public partial class GameZone : Updater
         var lobbyInfo = _playerLobbyInfo.GetValueOrDefault(playerId);
         if (lobbyInfo == null)
         {
+            SendObserverZoneState(zoneService);
+            return;
+        }
+        JoinedInProgressAsParticipant(playerId, lobbyInfo, zoneService);
+    }
+
+    private void SendObserverZoneState(IServiceZone zoneService)
+    {
+        {
             zoneService.SendUpdateZone(new ZoneUpdate
             {
                 Statistics = new MatchStats
@@ -1002,9 +1109,11 @@ public partial class GameZone : Updater
                     : null,
                 SpawnPoints = _zoneData.SpawnPoints.Values.ToList()
             });
-            return;
         }
+    }
 
+    private void JoinedInProgressAsParticipant(uint playerId, PlayerLobbyState lobbyInfo, IServiceZone zoneService)
+    {
         if (!_zoneData.PlayerStats.ContainsKey(playerId))
         {
             _zoneData.PlayerStats.Add(playerId, new MatchPlayerStats
@@ -1935,6 +2044,13 @@ public partial class GameZone : Updater
     }
 
     private void StoreCompletedMatch(string matchId, DateTimeOffset startedAt, DateTimeOffset endedAt,
+        TeamType winner, MatchEndReason reason, List<CompletedMatchTeam> teams)
+    {
+        FinishReplayRecording(matchId, endedAt, reason);
+        StoreCompletedMatchRecord(matchId, startedAt, endedAt, winner, reason, teams);
+    }
+
+    private void StoreCompletedMatchRecord(string matchId, DateTimeOffset startedAt, DateTimeOffset endedAt,
         TeamType winner, MatchEndReason reason, List<CompletedMatchTeam> teams) =>
         Databases.PlayerDatabase.StoreCompletedMatch(new CompletedMatchRecord
         {

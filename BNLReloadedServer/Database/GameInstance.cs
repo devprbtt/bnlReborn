@@ -50,7 +50,7 @@ public partial class GameInstance : IGameInstance
     private readonly ConcurrentDictionary<uint, PlayerLobbyState> _zonePlayerInfo = new();
 
     private readonly SessionSender _lobbySender;
-    private readonly SessionSender _zoneSender;
+    private readonly RecordingSender _zoneSender;
 
     // Removed from during session teardown on arbitrary threads, read from the lobby and zone
     // action queues. Inner dictionaries are built once at registration and only read afterwards.
@@ -76,7 +76,7 @@ public partial class GameInstance : IGameInstance
         GameInstanceId = gameInstanceId;
         GameInitiator = gameInitiator;
         _lobbySender = new SessionSender(matchServer);
-        _zoneSender = new SessionSender(matchServer);
+        _zoneSender = new RecordingSender(new SessionSender(matchServer));
         ChatRooms = CreateChatRooms(regionServer);
     }
 
@@ -366,6 +366,10 @@ public partial class GameInstance : IGameInstance
             CancelDisconnectTimer(pending);
         }
         finalZone?.GameCanceler.Cancel();
+        // The abandoned-match archive above finishes a recording on the zone
+        // queue; anything still open after that never reached an archive.
+        if (_zoneSender.Recorder is { } openRecording)
+            _ = Task.Delay(TimeSpan.FromSeconds(30)).ContinueWith(_ => openRecording.Abort());
         IsStarted = false;
         Lobby?.Stop();
         finalZone?.Stop();
@@ -931,6 +935,7 @@ public partial class GameInstance : IGameInstance
 
                 zoneService.SendAimLook(playerId, body);
             }
+            Zone.RecordAimLook(playerId, body);
         });
 
     public static bool ShouldRelayAimLook(uint senderId, uint recipientId, bool recipientIsSpectator,
