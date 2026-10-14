@@ -57,6 +57,8 @@ Assert(ServiceZone.ReadAimLookBody(Reader(Body(ServiceZone.AimLookMaxSamples + 1
 var truncated = Body(4);
 Assert(ServiceZone.ReadAimLookBody(Reader(truncated[..^1])) == null, "a truncated batch is rejected");
 Assert(ServiceZone.ReadAimLookBody(Reader(truncated[..5])) == null, "a truncated header is rejected");
+Assert(ServiceZone.ReadAimLookBody(Reader(truncated[..(ServiceZone.AimLookHeaderBytes - 1)])) == null,
+    "a header missing its count byte is rejected");
 
 // An unassociated connection has no player to relay for: accepted, ignored.
 Receive(v6Zone, receiveAimLookId, writer => writer.Write(Body(3)));
@@ -84,6 +86,9 @@ byte[] Body(int count, byte aimTool = 255)
     {
         writer.Write(123456789L);
         writer.Write(aimTool);
+        writer.Write((byte)2);
+        writer.Write(0xDEADBEEFu);
+        writer.Write(12.5f);
         writer.Write((byte)count);
         for (var index = 0; index < count; index++)
         {

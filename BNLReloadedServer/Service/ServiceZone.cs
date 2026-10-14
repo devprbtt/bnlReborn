@@ -135,8 +135,9 @@ public partial class ServiceZone(ISender sender, Func<System.Net.IPAddress?>? pe
     public bool SupportsHeroEmote { get; private set; }
     public bool SupportsAimLook { get; private set; }
 
-    // Look batch body: long send time, byte aim tool, byte count, count x 6 bytes.
-    public const int AimLookHeaderBytes = 10;
+    // Look batch body: long send time, byte aim tool, byte device slot, uint device
+    // key, float device cost, byte count, then count x 6 bytes.
+    public const int AimLookHeaderBytes = 19;
     public const int AimLookSampleBytes = 6;
     public const int AimLookMaxSamples = 32;
     private const long AimLookMinIntervalTicks = TimeSpan.TicksPerMillisecond * 8;
