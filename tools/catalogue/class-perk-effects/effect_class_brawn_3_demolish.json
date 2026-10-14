@@ -9,9 +9,9 @@
   "gui_info": {
     "name": null,
     "description": null,
-    "icon": "gameplayeffects_boosted",
+    "icon": "icon_killscore_trondson_tool",
     "icon_pos_type": "positive",
-    "icon_form_type": "round"
+    "icon_form_type": "square"
   },
   "positive": true,
   "interrupt": null,
