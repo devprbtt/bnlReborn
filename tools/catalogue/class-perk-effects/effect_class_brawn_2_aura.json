@@ -23,7 +23,7 @@
       "caster_owned_only": false,
       "ignore_caster": true
     },
-    "outer_radius": 8,
+    "outer_radius": 4,
     "inner_radius": null,
     "interval_effects": [],
     "interval": 0,

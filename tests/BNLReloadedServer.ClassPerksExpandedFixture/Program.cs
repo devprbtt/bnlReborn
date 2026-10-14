@@ -181,17 +181,17 @@ var bulwarkCenter = new Vector3(40, 4, 58);
 OnZone(() =>
 {
     Place(u[3], bulwarkCenter);
-    Place(u[5], bulwarkCenter + new Vector3(5, 0, 0));
-    Place(u[4], bulwarkCenter + new Vector3(0, 0, 5));
-    Place(u[2], bulwarkCenter + new Vector3(12, 0, 0));
+    Place(u[5], bulwarkCenter + new Vector3(3, 0, 0));
+    Place(u[4], bulwarkCenter + new Vector3(0, 0, 3));
+    Place(u[2], bulwarkCenter + new Vector3(6, 0, 0));
     Ticks();
     return true;
 });
-Check(Math.Abs(u[5].GetBuff(BuffType.Shield) - 0.15f) < 0.001f, "ally within 8m takes 15% less damage");
+Check(Math.Abs(u[5].GetBuff(BuffType.Shield) - 0.15f) < 0.001f, "ally within 4m takes 15% less damage");
 Check(u[4].GetBuff(BuffType.Shield) == 0 && !Has(u[4], "effect_class_brawn_2_guard"), "another Brawn in range does not receive Bulwark");
 Check(u[3].GetBuff(BuffType.Shield) == 0, "the Bulwark Brawn does not protect itself");
-Check(u[2].GetBuff(BuffType.Shield) == 0, "ally outside 8m is not protected");
-OnZone(() => { Place(u[8], bulwarkCenter + new Vector3(3, 0, 0)); Ticks(); return true; });
+Check(u[2].GetBuff(BuffType.Shield) == 0, "ally outside 4m is not protected");
+OnZone(() => { Place(u[8], bulwarkCenter + new Vector3(2, 0, 2)); Ticks(); return true; });
 Check(u[5].ActiveEffects.Count(e => e.Key == K("effect_class_brawn_2_guard")) == 1 && Math.Abs(u[5].GetBuff(BuffType.Shield) - 0.15f) < 0.001f,
     "two Bulwarks do not stack");
 OnZone(() => { Place(u[3], bulwarkCenter + new Vector3(-20, 0, 0)); Ticks(); return true; });

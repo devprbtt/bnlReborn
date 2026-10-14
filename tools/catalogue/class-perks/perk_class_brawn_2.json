@@ -8,11 +8,11 @@
     "data": {}
   },
   "description": {
-    "text": "Allied heroes within 8m of you take 15% less damage.\nDoes not stack with other Bulwarks or shields. Brawn heroes do not receive it.",
+    "text": "Allied heroes within 4m of you take 15% less damage.\nDoes not stack with other Bulwarks or shields. Brawn heroes do not receive it.",
     "data": {}
   },
   "description_2": {
-    "text": "Allies within 8m take 15% less damage. Brawns excluded.",
+    "text": "Allies within 4m take 15% less damage. Brawns excluded.",
     "data": {}
   },
   "label": "15% damage reduction aura",

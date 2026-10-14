@@ -13,7 +13,7 @@ Everything tunable is in CDB. Perks that are pure catalogue effects keep their n
 | Perk | Behaviour | Tune in |
 | --- | --- | --- |
 | Brawn I `perk_class_brawn_1` Rally Point | Mobile team respawn | `class_perk.out_of_combat_seconds` (0..60), `spawn_distance` (1..3) |
-| Brawn II `perk_class_brawn_2` Bulwark | `effect_class_brawn_2_aura`: friendly heroes within `outer_radius` (8) receive `effect_class_brawn_2_guard`, a `shield` buff (0.15). One effect key, so several Bulwarks do not stack; `shield` combines by maximum, so it does not stack with other shields either. | aura `outer_radius`, guard `buffs.shield` |
+| Brawn II `perk_class_brawn_2` Bulwark | `effect_class_brawn_2_aura`: friendly heroes within `outer_radius` (4) receive `effect_class_brawn_2_guard`, a `shield` buff (0.15). One effect key, so several Bulwarks do not stack; `shield` combines by maximum, so it does not stack with other shields either. | aura `outer_radius`, guard `buffs.shield` |
 | Brawn III `perk_class_brawn_3` Demolisher | `effect_class_brawn_3_on_kill` gives `effect_class_brawn_3_demolish` on an enemy hero kill: `tool_world_damage` 0.5 (dig tool vs blocks) and `objective_damage` 0.5, `duration` 10 | demolish card |
 | Brains I `perk_class_brains_1` Shared Recovery | Healer regains a share of ally healing | `class_perk.healing_return_percent` (0..100) |
 | Brains II `perk_class_brains_2` Supply Line | Whenever the hero's healing restores an ally's health, the ally receives `class_perk.healed_ally_effect` (`effect_class_brains_2_ammo_regen`: `interval` 0.5 s of `add_ammo_percent` 0.025, `duration` 2, refreshed by each heal). Same eligibility as Shared Recovery: allies only, no self-heal, no health stations. | `class_perk.healed_ally_effect`, effect card |
