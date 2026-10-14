@@ -90,6 +90,7 @@ public interface IGameInstance
     public void PlayerCommand(uint playerId, Key command);
     public void TeamPing(uint playerId, Vector3 position, Vector3 normal);
     public void HeroEmote(uint playerId, bool active, int emoteIndex);
+    public void AimLook(uint playerId, byte[] body);
     public void ScoreboardMetadata(uint playerId, IServiceZone requester);
     public void StartRecall(uint playerId);
     public void Surrender(ushort rpcId, uint playerId, IServiceZone surrenderService);

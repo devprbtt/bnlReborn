@@ -117,7 +117,9 @@ public partial class ServiceZone(ISender sender, Func<System.Net.IPAddress?>? pe
         MessageReceiveBuildPreview = 103,
         MessageBuildPreview = 104,
         MessageReceiveScoreboardMetadata = 105,
-        MessageScoreboardMetadata = 106
+        MessageScoreboardMetadata = 106,
+        MessageReceiveAimLook = 107,
+        MessageAimLook = 108
     }
 
     private IRegionServerDatabase ServerDatabase => Databases.RegionServerDatabase;
@@ -125,11 +127,20 @@ public partial class ServiceZone(ISender sender, Func<System.Net.IPAddress?>? pe
 
     private const uint TeamPingCapabilityMagic = 0x42504E47u;
     // 5: scoreboard metadata carries each player's clan tag and tag colour.
-    private const int TeamPingProtocolVersion = 5;
+    // 6: high-rate look stream with aim state, relayed to spectators.
+    private const int TeamPingProtocolVersion = 6;
     private const int TeamPingMinimumProtocolVersion = 1;
 
     public bool SupportsTeamPing { get; private set; }
     public bool SupportsHeroEmote { get; private set; }
+    public bool SupportsAimLook { get; private set; }
+
+    // Look batch body: long send time, byte aim tool, byte count, count x 6 bytes.
+    public const int AimLookHeaderBytes = 10;
+    public const int AimLookSampleBytes = 6;
+    public const int AimLookMaxSamples = 32;
+    private const long AimLookMinIntervalTicks = TimeSpan.TicksPerMillisecond * 8;
+    private long _lastAimLookTicks;
 
     private static BinaryWriter CreateWriter()
     {
@@ -160,6 +171,7 @@ public partial class ServiceZone(ISender sender, Func<System.Net.IPAddress?>? pe
                 SupportsBuildPreview = version >= 3;
                 SupportsScoreboardMetadata = version >= 4;
                 SupportsClanTags = version >= 5;
+                SupportsAimLook = version >= 6;
                 SendTeamPingCapability(Math.Min(version, TeamPingProtocolVersion));
             }
         }
@@ -215,6 +227,46 @@ public partial class ServiceZone(ISender sender, Func<System.Net.IPAddress?>? pe
         writer.Write(playerId);
         writer.Write(active);
         writer.Write(emoteIndex);
+        sender.Send(writer);
+    }
+
+    // The body is validated for shape only and relayed byte-for-byte; it is
+    // presentation data for spectators and never feeds server simulation.
+    private void ReceiveAimLook(BinaryReader reader)
+    {
+        var body = ReadAimLookBody(reader);
+        if (body == null || !SupportsAimLook || !sender.AssociatedPlayerId.HasValue) return;
+
+        var now = DateTime.UtcNow.Ticks;
+        if (now - _lastAimLookTicks < AimLookMinIntervalTicks) return;
+        _lastAimLookTicks = now;
+
+        GameInstance?.AimLook(sender.AssociatedPlayerId.Value, body);
+    }
+
+    public static byte[]? ReadAimLookBody(BinaryReader reader)
+    {
+        var stream = reader.BaseStream;
+        if (stream.Length - stream.Position < AimLookHeaderBytes) return null;
+        var header = reader.ReadBytes(AimLookHeaderBytes);
+        int count = header[AimLookHeaderBytes - 1];
+        if (count is < 1 or > AimLookMaxSamples) return null;
+        var sampleBytes = count * AimLookSampleBytes;
+        if (stream.Length - stream.Position < sampleBytes) return null;
+        var body = new byte[AimLookHeaderBytes + sampleBytes];
+        header.CopyTo(body, 0);
+        if (reader.Read(body, AimLookHeaderBytes, sampleBytes) != sampleBytes) return null;
+        return body;
+    }
+
+    public void SendAimLook(uint playerId, byte[] body)
+    {
+        if (!SupportsAimLook) return;
+
+        using var writer = CreateWriter();
+        writer.Write((byte)ServiceZoneId.MessageAimLook);
+        writer.Write(playerId);
+        writer.Write(body);
         sender.Send(writer);
     }
 
@@ -1417,6 +1469,9 @@ public partial class ServiceZone(ISender sender, Func<System.Net.IPAddress?>? pe
                 break;
             case ServiceZoneId.MessageReceiveScoreboardMetadata:
                 ReceiveScoreboardMetadata();
+                break;
+            case ServiceZoneId.MessageReceiveAimLook:
+                ReceiveAimLook(reader);
                 break;
             default:
                 Log.Warn(LogCat.Net, $"Zone service received unsupported serviceId: {Log.EnumName(zoneEnum, serviceZoneId)}");

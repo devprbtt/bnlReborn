@@ -1113,6 +1113,10 @@ public partial class GameZone : Updater
         return true;
     }
 
+    public bool IsLivingPlayer(uint playerId) =>
+        _playerIdToUnitId.TryGetValue(playerId, out var unitId) &&
+        _playerUnits.TryGetValue(unitId, out var player) && !player.IsDead && player.IsActive;
+
     public bool TryAcceptHeroEmote(uint playerId, bool active, int emoteIndex, out int safeIndex)
     {
         safeIndex = active ? emoteIndex : -1;

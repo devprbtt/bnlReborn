@@ -7,6 +7,7 @@ public interface IServiceZone : IService
 {
     public bool SupportsTeamPing { get; }
     public bool SupportsHeroEmote { get; }
+    public bool SupportsAimLook { get; }
     public bool SupportsScoreboardMetadata { get; }
     public bool SupportsClanTags { get; }
     public string CountryCode { get; }
@@ -76,6 +77,7 @@ public interface IServiceZone : IService
     public void SendTeamPingCapability(int version);
     public void SendTeamPing(uint playerId, Vector3 position, Vector3 normal);
     public void SendHeroEmote(uint playerId, bool active, int emoteIndex);
+    public void SendAimLook(uint playerId, byte[] body);
     public void SendScoreboardMetadata(IReadOnlyList<ScoreboardPlayerNetworkInfo> players);
 }
 

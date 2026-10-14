@@ -911,6 +911,32 @@ public partial class GameInstance : IGameInstance
             }
         });
 
+    // Spectator-only relay of a living player's look stream. Players never
+    // receive each other's stream, so it cannot be used to read enemy aim.
+    public void AimLook(uint playerId, byte[] body) =>
+        Zone?.EnqueueAction(() =>
+        {
+            if (Zone == null || GameInitiator.IsPlayerSpectator(playerId) || !Zone.IsLivingPlayer(playerId))
+                return;
+
+            foreach (var (connectedPlayerId, player) in _connectedUsers)
+            {
+                if (!_services.TryGetValue(player.Guid, out var services) ||
+                    !services.TryGetValue(ServiceId.ServiceZone, out var service) ||
+                    service is not IServiceZone zoneService ||
+                    !ShouldRelayAimLook(playerId, connectedPlayerId,
+                        GameInitiator.IsPlayerSpectator(connectedPlayerId),
+                        player.LoadStage == ZoneLoadStage.Finished, zoneService.SupportsAimLook))
+                    continue;
+
+                zoneService.SendAimLook(playerId, body);
+            }
+        });
+
+    public static bool ShouldRelayAimLook(uint senderId, uint recipientId, bool recipientIsSpectator,
+        bool recipientLoaded, bool recipientSupportsAimLook) =>
+        recipientId != senderId && recipientIsSpectator && recipientLoaded && recipientSupportsAimLook;
+
     public void ScoreboardMetadata(uint playerId, IServiceZone requester)
     {
         if (!_connectedUsers.ContainsKey(playerId) || !requester.SupportsScoreboardMetadata) return;
