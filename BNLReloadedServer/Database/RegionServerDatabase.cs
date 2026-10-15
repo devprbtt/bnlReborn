@@ -104,11 +104,6 @@ public partial class RegionServerDatabase(AsyncTaskTcpServer server, AsyncTaskTc
         lock (_customGamesLock) _customGamePlayerLists.Add(gameId, entry);
     }
 
-    private bool RemoveCustomGameEntry(ulong gameId)
-    {
-        lock (_customGamesLock) return _customGamePlayerLists.Remove(gameId);
-    }
-
     private bool GetService<TService>(Guid guid, ServiceId id, [MaybeNullWhen(false)] out TService serviceCaller) where TService : IService
     {
         serviceCaller = default;
@@ -293,6 +288,7 @@ public partial class RegionServerDatabase(AsyncTaskTcpServer server, AsyncTaskTc
         LiveStateChanged();
         _matchmaker.RemovePlayer(userId, null);
         _waitingArenaEnabled.TryRemove(userId, out _);
+        CloseEmptyCustomGames();
         var customId = playerInfo.CustomGameId;
         var gameInstanceId = playerInfo.GameInstanceId;
         if (customId.HasValue && TryGetCustomGame(customId.Value, out var list))
@@ -530,6 +526,7 @@ public partial class RegionServerDatabase(AsyncTaskTcpServer server, AsyncTaskTc
 
     public List<CustomGameInfo> GetCustomGames()
     {
+        CloseEmptyCustomGames();
         List<CustomGameInfo> games;
         lock (_customGamesLock)
             games = _customGamePlayerLists.Values.Select(x => x.custom.GameInfo).ToList();
@@ -603,6 +600,7 @@ public partial class RegionServerDatabase(AsyncTaskTcpServer server, AsyncTaskTc
         {
             if (BNLReloadedServer.Clans.ClanCompetition.IsReserved(playerId)) return null;
             if (!UserConnected(playerId, out var playerInfo)) return null;
+            RemoveFromCustomGame(playerId);
             var newCustom = CatalogueFactory.CreateCustomGame(name, password,
                 Databases.PlayerDatabase.GetPlayerProfile(playerId).Nickname ?? string.Empty);
             var playerGuid = playerInfo.Guid;
@@ -633,15 +631,50 @@ public partial class RegionServerDatabase(AsyncTaskTcpServer server, AsyncTaskTc
         }
     }
 
+    // A retained reconnect seat is not an occupant. Check the current room ID too:
+    // older clients could create another room without leaving their previous roster.
+    private void CloseEmptyCustomGames()
+    {
+        lock (BNLReloadedServer.Clans.ClanCompetition.Gate)
+        {
+            ulong[] ids;
+            lock (_customGamesLock) ids = _customGamePlayerLists.Keys.ToArray();
+            var occupied = _connectedUsers.Values
+                .Where(p => p.Online && p.CustomGameId.HasValue)
+                .Select(p => p.CustomGameId!.Value).ToHashSet();
+            foreach (var id in ids)
+                if (!occupied.Contains(id)) RemoveCustomGame(id);
+        }
+    }
+
     public bool RemoveCustomGame(ulong gameId)
     {
-        if (!TryGetCustomGame(gameId, out var list)) return false;
-        foreach (var playerId in list.custom.PlayersSnapshot().Select(player => player.Id))
+        lock (BNLReloadedServer.Clans.ClanCompetition.Gate)
+            return RemoveCustomGameCore(gameId);
+    }
+
+    private bool RemoveCustomGameCore(ulong gameId)
+    {
+        // Unpublish before callbacks: removing the last player can re-enter closure.
+        (CustomGamePlayerGroup custom, ISender customSender) room;
+        lock (_customGamesLock)
         {
-            if (UserConnected(playerId, out _))
-                RemoveFromCustomGame(playerId);
+            if (!_customGamePlayerLists.Remove(gameId, out room)) return false;
         }
-        return RemoveCustomGameEntry(gameId);
+        foreach (var (playerId, info) in _connectedUsers.ToArray())
+        {
+            // Never follow a stale roster entry into the player's newer room.
+            if (info.CustomGameId != gameId) continue;
+            RemoveFromCustomGame(playerId);
+            if (info.GameInstanceId is { } instanceId &&
+                instanceId == room.custom.GameInstanceId &&
+                _gameInstances.TryGetValue(instanceId, out var instance))
+                instance.PlayerLeftInstance(playerId, KickReason.MatchQuit);
+        }
+        room.customSender.UnsubscribeAll();
+        room.custom.ChatRoom.ClearRoom();
+        LiveStateChanged();
+        return true;
     }
 
     public CustomGameJoinResult AddToCustomGame(uint playerId, ulong gameId, string password)
@@ -666,6 +699,7 @@ public partial class RegionServerDatabase(AsyncTaskTcpServer server, AsyncTaskTc
                 return joinResult;
             }
 
+            if (playerInfo.CustomGameId != gameId) RemoveFromCustomGame(playerId);
             playerInfo.CustomGameId = gameId;
             if (GetService<IServiceChat>(playerGuid, ServiceId.ServiceChat, out var chatService))
             {
@@ -779,6 +813,11 @@ public partial class RegionServerDatabase(AsyncTaskTcpServer server, AsyncTaskTc
         playerInfo.CustomGameId = null;
         GetService<IServiceMatchmaker>(playerGuid, ServiceId.ServiceMatchmaker, out var matchService);
         matchService?.SendExitCustomGame();
+        lock (BNLReloadedServer.Clans.ClanCompetition.Gate)
+        {
+            if (!_connectedUsers.Values.Any(p => p.Online && p.CustomGameId == gameId))
+                RemoveCustomGame(gameId);
+        }
         LiveStateChanged();
         return true;
     }
