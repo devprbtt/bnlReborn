@@ -711,8 +711,8 @@ public partial class Unit
                     },
                     (units, instEffects) =>
                     {
-                        var impact = CreateImpactData().AsPeriodicEffect();
-                        _updater.OnApplyInstEffect(GetSelfSource(impact), units, instEffects, impact);
+                        ApplyAuraInterval(constKey, aura.Interval, units, instEffects,
+                            System.Diagnostics.Stopwatch.GetTimestamp());
                     });
                 break;
             case ConstEffectInterval { Interval: > 0, IntervalEffects: not null } interval:
