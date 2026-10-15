@@ -194,8 +194,9 @@ public static class ReplayStore
 
     // Replays are entered through the spectate request, whose id is a ulong. The
     // id is a 63-bit FNV-1a hash of the replay file name with the top bit set,
-    // so it never collides with the small sequential live/custom game ids. The
-    // client computes the same value from a match id.
+    // separating it from small custom-game ids. Live matchmaking browser ids
+    // also use the high bit: spectate dispatch must check the live registry
+    // first. The client computes the same value from a match id.
     public static ulong ReplayIdFor(string matchId) => ReplayIdForFileName(FileNameFor(matchId));
 
     public static bool IsReplayId(ulong id) => (id & 0x8000_0000_0000_0000UL) != 0;

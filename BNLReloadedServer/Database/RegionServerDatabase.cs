@@ -732,7 +732,8 @@ public partial class RegionServerDatabase(AsyncTaskTcpServer server, AsyncTaskTc
 
     public CustomGameSpectateResult CheckSpectateCustomGame(uint playerId, ulong gameId, string password)
     {
-        if (ReplayStore.IsReplayId(gameId)) return CheckReplay(playerId, gameId);
+        // Live browser ids also have the high bit set. Resolve registered live
+        // matches before treating an otherwise unclaimed id as a replay.
         if (_spectatableMatchIds.TryGetValue(gameId, out var instanceId))
         {
             if (!UserConnected(playerId, out _) ||
@@ -743,6 +744,8 @@ public partial class RegionServerDatabase(AsyncTaskTcpServer server, AsyncTaskTc
                 ? CustomGameSpectateResult.TooManySpectators
                 : CustomGameSpectateResult.Accepted;
         }
+
+        if (ReplayStore.IsReplayId(gameId)) return CheckReplay(playerId, gameId);
 
         if (!UserConnected(playerId, out var playerInfo) || !TryGetCustomGame(gameId, out var customGame))
             return CustomGameSpectateResult.NoSuchGame;
@@ -760,7 +763,6 @@ public partial class RegionServerDatabase(AsyncTaskTcpServer server, AsyncTaskTc
 
     public bool SpectateCustomGame(uint playerId, ulong gameId)
     {
-        if (ReplayStore.IsReplayId(gameId)) return WatchReplay(playerId, gameId);
         if (_spectatableMatchIds.TryGetValue(gameId, out var instanceId))
         {
             if (!UserConnected(playerId, out var info) ||
@@ -773,6 +775,8 @@ public partial class RegionServerDatabase(AsyncTaskTcpServer server, AsyncTaskTc
             match.SendUserToZone(playerId);
             return true;
         }
+
+        if (ReplayStore.IsReplayId(gameId)) return WatchReplay(playerId, gameId);
 
         if (!UserConnected(playerId, out var playerInfo) || !TryGetCustomGame(gameId, out var customGame) ||
             customGame.custom.GameInstanceId is null ||
