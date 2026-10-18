@@ -220,6 +220,7 @@ public class GameLobby : Updater
             UpdatePerks(player, heroLoadout.Perks);
         }
         player.SkinKey = heroLoadout.SkinKey;
+        ClassPerkCatalogue.TrimDevices(player.Hero, player.Perks, player.Devices);
 
         SendLobbyUpdate(players: LobbyData.Players.Values.ToList());
     }
@@ -333,7 +334,7 @@ public class GameLobby : Updater
     public void UpdateDeviceSlot(uint playerId, int slot, Key? deviceKey)
     {
         if (!LobbyData.Players.TryGetValue(playerId, out var player) || player.Devices == null) return;
-        if (slot is < 1 or > 6 ||
+        if (slot < 1 || slot > ClassPerkCatalogue.DeviceSlots(player.Hero, player.Perks) ||
             deviceKey is { } selectedDevice && selectedDevice.GetCard<CardDevice>() == null ||
             slot == 1 && (deviceKey == null || !CatalogueHelper.IsHeroSpecialDevice(player.Hero, deviceKey.Value)))
             return;
@@ -351,6 +352,8 @@ public class GameLobby : Updater
     public void SwapDevices(uint playerId, int slot1, int slot2)
     {
         if (!LobbyData.Players.TryGetValue(playerId, out var player) || player.Devices == null || slot1 == 1 || slot2 == 1) return;
+        var maxSlot = ClassPerkCatalogue.DeviceSlots(player.Hero, player.Perks);
+        if (slot1 < 1 || slot2 < 1 || slot1 > maxSlot || slot2 > maxSlot) return;
         player.Devices.TryGetValue(slot1, out var dev1);
         player.Devices.TryGetValue(slot2, out var dev2);
         if (dev1 == default && dev2 == default) return;
@@ -404,6 +407,8 @@ public class GameLobby : Updater
             var perkIdx = player.Perks.IndexOf(replacePerk.Key);
             player.Perks[perkIdx] = perkKey;
         }
+        // Leaving Brains III gives up its extra device slot.
+        ClassPerkCatalogue.TrimDevices(player.Hero, player.Perks, player.Devices);
         SendLobbyUpdate(players: LobbyData.Players.Values.ToList());
     }
 
@@ -414,6 +419,7 @@ public class GameLobby : Updater
         {
             player.Perks.RemoveAll(p => p == perkKey);
         }
+        ClassPerkCatalogue.TrimDevices(player.Hero, player.Perks, player.Devices);
         SendLobbyUpdate(players: LobbyData.Players.Values.ToList());
     }
 

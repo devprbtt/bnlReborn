@@ -1,5 +1,5 @@
 // Class perks II and III, driven through a real GameZone with the CDB cards from tools/catalogue: selection and
-// spawn resolution, Brains II ammo regeneration on healed allies, Brains III build speed, the Brawn II damage
+// spawn resolution, Brains II ammo regeneration on healed allies, the Brains III seventh device slot, the Brawn II damage
 // reduction aura, Brawn III's on-kill demolition buff, Skill II assists and Skill III respawn reduction.
 using System.Collections.Concurrent;
 using System.Numerics;
@@ -50,13 +50,17 @@ var killerEffect = new CardEffect
 var killerPerk = new CardPerk { Id = "fixture_killer_perk", SlotType = PerkSlotType.Offensive };
 var regenCard = new CardEffect { Id = "fixture_cp_regen", Positive = true, Effect = new ConstEffectBuff { Buffs = new() { [BuffType.HealthRegen] = 5f } } };
 var mode = new CardGameMode { Id = "game_mode_friendly" };
+// A buildable device for loadouts that fill slots 1-7.
+var cpBlock = new CardBlock { Id = "fixture_cp_block", BlockId = 1, BaseCost = 1, Solid = true };
+var cpDevice = new CardDevice { Id = "fixture_cp_device" };
 var catalogue = (ServerCatalogue)Databases.Catalogue;
 catalogue.Replicate([
     brawn, brains, skill, gear, brawnHero, brainsHero, skillHero, killerBunch, killerEffect, killerPerk, regenCard, mode,
     new CardGameMode { Id = "game_mode_custom" }, new CardMatch { Id = "fixture_cp_match", Data = new MatchDataShieldCapture() },
     new CardBlock { Id = "fixture_air", BlockId = 0, Passable = BlockPassableType.Any, Transparent = true, LightTransparent = true, SkylightTransparent = true },
-    new CardGlobalLogic { Id = "global_logic" }, .. perkCards, .. effectCards
+    new CardGlobalLogic { Id = "global_logic" }, cpBlock, cpDevice, .. perkCards, .. effectCards
 ]);
+cpDevice.DeviceLevels = [cpBlock.Key];
 ((ConstEffectOnKill)killerEffect.Effect!).Effect = new InstEffectBunch { Constant = [killerBunch.Key], Instant = [] };
 killerPerk.PerkMods = [new PerkModEffect { Constant = [killerEffect.Key] }];
 foreach (var (hero, cls) in new[] { (brawnHero, brawn), (brainsHero, brains), (skillHero, skill) })
@@ -102,6 +106,9 @@ var roster = new (uint Id, TeamType Team, CardUnit Hero, string[] Perks)[]
 var players = new ConcurrentDictionary<uint, PlayerLobbyState>();
 foreach (var r in roster)
     players[r.Id] = new PlayerLobbyState { PlayerId = r.Id, Team = r.Team, Hero = r.Hero.Key, Nickname = $"p{r.Id}", Perks = r.Perks.Select(K).ToList() };
+// Brains III (7) and Brains II (1) both arrive with seven filled slots; only Brains III keeps the seventh.
+foreach (var id in new uint[] { 1, 7 })
+    players[id].Devices = Enumerable.Range(1, 7).ToDictionary(slot => slot, _ => cpDevice.Key);
 var map = new MapData
 {
     Match = MatchType.ShieldCapture, Properties = new MapDataProps(), Size = new Vector3s(64, 16, 64),
@@ -210,12 +217,12 @@ OnZone(() =>
 });
 Check(!Has(u[2], Supply), "regeneration from a non-Brains hero does not grant Supply Line");
 
-// ---- Brains III: build speed from the class card's perk_mods ----
-Check(Math.Abs(u[7].GetBuff(BuffType.BuildSpeed) - 0.3f) < 0.001f && u[1].GetBuff(BuffType.BuildSpeed) == 0, "Brains III builds 30% faster, Brains II does not");
-var sent = u[7].GetUpdateData().Buffs;
-Check(sent != null && Math.Abs(sent.GetValueOrDefault(BuffType.BuildSpeed) - 0.3f) < 0.001f, "the state sent to clients carries build_speed 0.3");
-// Client BuffHelper.BuildTime divides the device build time by (1 + build_speed).
-Check(Math.Abs(2f / (1f + sent![BuffType.BuildSpeed]) - 1.5385f) < 0.001f, "a 2 s build takes 1.54 s");
+// ---- Brains III: a seventh device slot instead of build speed ----
+Check(u[7].Devices.Count == 7 && u[7].Devices.ContainsKey(7), "Brains III spawns with all seven devices");
+Check(u[1].Devices.Count == 6 && !u[1].Devices.ContainsKey(7), "Brains II spawns without the seventh device");
+var sentDevices = u[7].GetUpdateData().Devices;
+Check(sentDevices != null && sentDevices.ContainsKey(7), "the state sent to clients carries device slot 7");
+Check(u[7].GetBuff(BuffType.BuildSpeed) == 0, "Brains III no longer grants build speed");
 
 // ---- Brawn II: Bulwark ----
 void Tick(ulong n) => ((Action)Call("OnTick", n)!)();
