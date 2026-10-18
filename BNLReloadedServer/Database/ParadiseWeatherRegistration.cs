@@ -6,9 +6,11 @@ public static class ParadiseWeatherRegistration
 {
     public const string OriginalId = "map_sr2_paradise";
     public const string MapId = "map_sr2_paradise_weather_test";
-    public static bool IsEnabled(Key? map) => map == new Key(MapId);
+    public static bool IsEnabled(Key? map, bool dynamicWeather = false) => map.HasValue && (dynamicWeather || map == new Key(MapId));
     public static long? StartTime(Key? map, DateTimeOffset? assaultStart) =>
-        IsEnabled(map) ? assaultStart?.ToUnixTimeMilliseconds() : null;
+        StartTime(map, assaultStart, map.HasValue && Databases.Catalogue.GetCard<CardMap>(map.Value)?.DynamicWeather == true);
+    public static long? StartTime(Key? map, DateTimeOffset? assaultStart, bool dynamicWeather) =>
+        IsEnabled(map, dynamicWeather) ? assaultStart?.ToUnixTimeMilliseconds() : null;
 
     public static void Register(List<Card> cards)
     {
@@ -39,9 +41,7 @@ public static class ParadiseWeatherRegistration
             list.Custom ??= [];
             if (!list.Custom.Contains(key)) list.Custom.Add(key);
             if (original != null && !list.Custom.Contains(original.Key)) list.Custom.Add(original.Key);
-            list.Friendly ??= [];
-            if (original != null && !list.Friendly.Contains(original.Key)) list.Friendly.Add(original.Key);
-            if (!list.Friendly.Contains(key)) list.Friendly.Add(key);
+            // Matchmaking rotation is operator-owned; never re-add removed maps.
         }
     }
 }

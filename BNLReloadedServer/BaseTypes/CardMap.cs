@@ -18,6 +18,10 @@ public class CardMap : Card
 
     public MapData? Data { get; set; }
 
+    // Value in the unused eighth header bit: no appended bytes; old readers ignore it.
+    [JsonPropertyName("dynamic_weather")]
+    public bool DynamicWeather { get; set; }
+
     // JSON/CDB-only match tuning for the dedicated Conquest map. Do not append
     // this to Write/Read: clients do not need these authoritative server rules.
     public ConquestLogic? Conquest { get; set; }
@@ -28,7 +32,7 @@ public class CardMap : Card
 
     public override void Write(BinaryWriter writer)
     {
-        new BitField(Id != null, true, Name != null, Description != null, Image != null, LargeImage != null, Data != null).Write(writer);
+        new BitField(Id != null, true, Name != null, Description != null, Image != null, LargeImage != null, Data != null, DynamicWeather).Write(writer);
         if (Id != null)
             writer.Write(Id);
         writer.WriteByteEnum(Scope);
@@ -47,8 +51,9 @@ public class CardMap : Card
 
     public override void Read(BinaryReader reader)
     {
-        var bitField = new BitField(7);
+        var bitField = new BitField(8);
         bitField.Read(reader);
+        DynamicWeather = bitField[7];
         Id = bitField[0] ? reader.ReadString() : null;
         if (bitField[1])
             Scope = reader.ReadByteEnum<ScopeType>();

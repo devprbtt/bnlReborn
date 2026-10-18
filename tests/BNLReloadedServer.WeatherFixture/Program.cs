@@ -15,11 +15,11 @@ var list=new CardMapList{Id="map_list",Custom=[original.Key],Friendly=[original.
 List<Card> cards=[original,list];
 ParadiseWeatherRegistration.Register(cards);ParadiseWeatherRegistration.Register(cards);
 Check(cards.OfType<CardMap>().Count()==2 && list.Custom.Count==2,"separate id and idempotent custom registration");
-Check(list.Friendly.SequenceEqual([original.Key,key]) && list.Ranked.SequenceEqual([original.Key]) && original.Name.Text=="Paradise","original Paradise retained, dynamic variant added to casual, Ranked unchanged");
+Check(list.Friendly.SequenceEqual([original.Key]) && list.Ranked.SequenceEqual([original.Key]) && original.Name.Text=="Paradise","matchmaking pools remain operator-owned");
 var start=DateTimeOffset.FromUnixTimeMilliseconds(1800000000000);
-Check(ParadiseWeatherRegistration.StartTime(original.Key,start)==null,"no weather timestamp on ordinary map");
-Check(ParadiseWeatherRegistration.StartTime(key,null)==null,"daytime before combat");
-Check(ParadiseWeatherRegistration.StartTime(key,start)==1800000000000,"combat epoch preserved");
+Check(ParadiseWeatherRegistration.StartTime(original.Key,start,false)==null,"no weather timestamp on ordinary map");
+Check(ParadiseWeatherRegistration.StartTime(key,null,false)==null,"daytime before combat");
+Check(ParadiseWeatherRegistration.StartTime(key,start,false)==1800000000000,"combat epoch preserved");
 foreach(long? epoch in new long?[]{null,1800000000000})
 {
     using var stream=new MemoryStream();
@@ -36,7 +36,7 @@ using(var stream=new MemoryStream())
 foreach(var phase in new[]{ZonePhaseType.Assault,ZonePhaseType.Build2,ZonePhaseType.Assault2,ZonePhaseType.SuddenDeath})
 {
     using var stream=new MemoryStream();
-    new ZoneUpdate{Phase=new ZonePhase{PhaseType=phase,StartTime=1800001200000},WeatherStartTime=ParadiseWeatherRegistration.StartTime(key,start)}.Write(new BinaryWriter(stream));
+    new ZoneUpdate{Phase=new ZonePhase{PhaseType=phase,StartTime=1800001200000},WeatherStartTime=ParadiseWeatherRegistration.StartTime(key,start,false)}.Write(new BinaryWriter(stream));
     stream.Position=0;var read=ZoneUpdate.ReadRecord(new BinaryReader(stream));
     Check(read.WeatherStartTime==1800000000000 && read.Phase?.PhaseType==phase,"epoch independent of phase "+phase);
 }
@@ -45,4 +45,27 @@ Console.WriteLine($"PASS {checks} checks");
 var emptyPool = new CardMapList { Id="map_list", Custom=[], Friendly=[], Ranked=[] };
 List<Card> emptyCards=[emptyPool];
 ParadiseWeatherRegistration.Register(emptyCards); ParadiseWeatherRegistration.Register(emptyCards);
-Check(emptyCards.OfType<CardMap>().Count()==2 && emptyPool.Friendly.Count==2 && emptyPool.Custom.Count==2 && emptyPool.Ranked.Count==0,"register both maps once when original is absent");
+Check(emptyCards.OfType<CardMap>().Count()==2 && emptyPool.Friendly.Count==0 && emptyPool.Custom.Count==2 && emptyPool.Ranked.Count==0,"register both maps once when original is absent");
+
+foreach(bool enabled in new[]{false,true}) {
+    var configured = new CardMap { Id="map_sr2_eco_city", DynamicWeather=enabled };
+    using var bytes=new MemoryStream(); configured.Write(new BinaryWriter(bytes));
+    var encoded=bytes.ToArray(); bytes.Position=0;
+    var decoded=CardMap.ReadRecord(new BinaryReader(bytes));
+    Check(decoded.DynamicWeather==enabled && decoded.Id==configured.Id && bytes.Position==bytes.Length,"per-map setting wire roundtrip "+enabled);
+    var legacyHeader=(byte)(encoded[0]&0xfe);encoded[0]=legacyHeader;
+    using var legacy=new MemoryStream(encoded);
+    Check(!CardMap.ReadRecord(new BinaryReader(legacy)).DynamicWeather,"legacy header defaults disabled");
+    Check(ParadiseWeatherRegistration.StartTime(new Key(configured.Id),start,enabled)==(enabled?start.ToUnixTimeMilliseconds():(long?)null),"arbitrary map epoch "+enabled);
+    Check(ParadiseWeatherRegistration.StartTime(new Key(configured.Id),null,enabled)==null,"no clock before first assault");
+    var json=System.Text.Json.JsonSerializer.Serialize(configured);
+    Check(System.Text.Json.JsonSerializer.Deserialize<CardMap>(json)!.DynamicWeather==enabled,"JSON setting roundtrip");
+}
+var off=new CardMap{Id="map_sr2_eco_city"};var on=new CardMap{Id=off.Id,DynamicWeather=true};
+using var oldBytes=new MemoryStream();using var newBytes=new MemoryStream();
+off.Write(new BinaryWriter(oldBytes));on.Write(new BinaryWriter(newBytes));
+Check(oldBytes.Length==newBytes.Length && oldBytes.ToArray().Skip(1).SequenceEqual(newBytes.ToArray().Skip(1)) && (oldBytes.ToArray()[0]^newBytes.ToArray()[0])==1,"only unused header bit changes; legacy payload length/layout preserved");
+Check(!ParadiseWeatherRegistration.IsEnabled(null,true),"missing map cannot enable weather");
+Console.WriteLine($"PASS {checks} checks including configurable map weather");
+
+Check(JsonSerializer.Deserialize<CardMap>("{\"dynamic_weather\":true}")!.DynamicWeather,"CDB snake-case setting");
