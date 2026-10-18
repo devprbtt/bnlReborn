@@ -240,6 +240,9 @@ public static class CatalogueFactory
         newUnit.ActiveEffects = ConstEffectInfo.Convert(startingEffects);
 
         var devices = playerInfo.Devices?.ConvertDevices(perks);
+        // Slot 7 exists only with Brains III; a stale or forged loadout cannot spawn it.
+        var deviceSlots = ClassPerkCatalogue.DeviceSlots(playerInfo.Hero, playerInfo.Perks);
+        devices = devices?.Where(d => d.Key >= 1 && d.Key <= deviceSlots).ToDictionary(d => d.Key, d => d.Value);
 
         var updatedDevices = new Dictionary<int, DeviceData>();
 

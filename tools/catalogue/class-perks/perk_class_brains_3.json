@@ -4,28 +4,21 @@
   "scope": "public",
   "icon": "",
   "name": {
-    "text": "Quick Builder",
+    "text": "Extra Block",
     "data": {}
   },
   "description": {
-    "text": "Build 30% faster.",
+    "text": "Unlocks a 7th block slot in your loadout.\nThe extra slot is available only while this class perk is selected.",
     "data": {}
   },
   "description_2": {
-    "text": "Build 30% faster.",
+    "text": "Unlocks a 7th block slot in your loadout.",
     "data": {}
   },
-  "label": "30% faster building",
+  "label": "+1 block slot",
   "level": 1,
   "slot_type": "class",
   "hero_dependency": null,
-  "perk_mods": [
-    {
-      "type": "effect",
-      "constant": [
-        "effect_class_brains_3_build_speed"
-      ]
-    }
-  ],
+  "perk_mods": [],
   "class_perk": {}
 }

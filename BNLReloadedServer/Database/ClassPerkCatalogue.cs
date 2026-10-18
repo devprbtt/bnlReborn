@@ -60,6 +60,22 @@ public static class ClassPerkCatalogue
         return list;
     }
 
+    public const int BaseDeviceSlots = 6;
+
+    /// <summary>Device (block) slots a hero may fill: Brains III adds slot 7.</summary>
+    public static int DeviceSlots(Key hero, IEnumerable<Key>? perks) =>
+        Selected(hero, perks) == Brains3Id ? BaseDeviceSlots + 1 : BaseDeviceSlots;
+
+    /// <summary>Drops devices in slots the selected class perk does not grant. Returns true when one was removed.</summary>
+    public static bool TrimDevices(Key hero, IEnumerable<Key>? perks, Dictionary<int, Key>? devices)
+    {
+        if (devices == null) return false;
+        var max = DeviceSlots(hero, perks);
+        var extra = devices.Keys.Where(slot => slot > max).ToList();
+        foreach (var slot in extra) devices.Remove(slot);
+        return extra.Count != 0;
+    }
+
     public static ClassPerkBalance Balance(string id) => Databases.Catalogue.GetCard<CardPerk>(id)?.ClassPerk ?? new ClassPerkBalance();
     public static long QuietMilliseconds(string id) => (long)Math.Round(Balance(id).OutOfCombatSeconds * 1000d);
     public static void Validate(CardPerk card)
