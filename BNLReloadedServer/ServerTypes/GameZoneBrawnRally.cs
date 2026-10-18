@@ -14,6 +14,10 @@ public partial class GameZone
     private readonly Dictionary<uint, long> _rallyCombatUntil = new();
     private Func<long> _rallyClock = () => Environment.TickCount64;
     private long _nextRallyRefresh;
+    // Last grounded eligible spot per carrier: a jump keeps offering it instead of the airborne position.
+    private readonly Dictionary<uint, (Vector3 Feet, Vector3 Spawn, long At)> _rallyGrounded = new();
+    private const long RallyJumpMilliseconds = 1500;
+    private const float RallyJumpRise = 3.5f, RallyJumpDrop = 1f, RallyJumpReach = 4f;
     private static long RallyCombatMilliseconds => ClassPerkCatalogue.QuietMilliseconds(ClassPerkCatalogue.BrawnId);
 
     private bool HasBrawnRally(Unit unit) => _gameInitiator is not WaitingArenaInitiator &&
@@ -51,16 +55,17 @@ public partial class GameZone
             host.Team == TeamType.Neutral || host.IsBuff(BuffType.Disabled) ||
             (guest != null && (guest.PlayerId == host.PlayerId || guest.Team != host.Team || AreOpponents(guest, host))) ||
             _rallyClock() < _rallyCombatUntil.GetValueOrDefault(host.PlayerId!.Value) ||
-            host.CurrentChannelData != null || host.Transform.IsJump || host.Transform.IsWallClimb ||
-            host.Transform.IsDash || host.Transform.IsGroundSlam ||
-            host.Transform.GetLocalVelocity().Y > .1f)
+            host.CurrentChannelData != null || host.Transform.IsWallClimb ||
+            host.Transform.IsDash || host.Transform.IsGroundSlam)
             return SpawnPointLockType.ServerBlocked;
 
+        var feet = host.Transform.Position;
+        if (host.Transform.IsJump) return RallyJumpState(host, feet, out position);
         // Grounded clients always report a downward stick-to-ground velocity of at least 1m/s
         // (PlayerMovementGroundMove), so only upward motion disqualifies; the airborne flag
         // and the support check below reject falling carriers.
-        var feet = host.Transform.Position;
-        if (!RallySupported(feet)) return SpawnPointLockType.ServerBlocked;
+        _rallyGrounded.Remove(host.PlayerId.Value);
+        if (host.Transform.GetLocalVelocity().Y > .1f || !RallySupported(feet)) return SpawnPointLockType.ServerBlocked;
         // Eight nearby spots, standing clearance for the arriving hero, and a clear path
         // from the carrier prevent spawning through a wall, on a ledge, or inside a player.
         bool playerBlocked = false;
@@ -69,18 +74,39 @@ public partial class GameZone
         {
             var offset = Vector3.Normalize(direction) * ClassPerkCatalogue.Balance(ClassPerkCatalogue.BrawnId).SpawnDistance;
             var candidate = feet + offset;
-            if (!RallySupported(candidate)) continue;
-            bool clear = true;
-            for (int step = 1; step <= 4 && clear; step++) clear = RallyWorldClear(feet + offset * (step / 4f));
-            if (!clear) continue;
-            var box = new BoundingBoxEx(candidate + new Vector3(0, .95f, 0), new Vector3(.9f, 1.88f, .9f));
-            var occupants = _unitOctree.GetColliding(box).Where(u => !u.IsDead && u.IsActive).ToArray();
-            if (occupants.Length != 0)
-            { playerBlocked |= occupants.Any(u => u.PlayerId.HasValue); continue; }
+            var spot = RallySpotState(feet, candidate);
+            if (spot != SpawnPointLockType.Free) { playerBlocked |= spot == SpawnPointLockType.PlayerBlocked; continue; }
             position = candidate;
+            _rallyGrounded[host.PlayerId.Value] = (feet, candidate, _rallyClock());
             return SpawnPointLockType.Free;
         }
         return playerBlocked ? SpawnPointLockType.PlayerBlocked : SpawnPointLockType.WorldBlocked;
+    }
+
+    // A short hop keeps the spot found just before take-off; long or high flight, falls and
+    // carriers that travel away from it stay blocked. The spot itself is checked again.
+    private SpawnPointLockType RallyJumpState(Unit host, Vector3 feet, out Vector3 position)
+    {
+        position = default;
+        if (!_rallyGrounded.TryGetValue(host.PlayerId!.Value, out var ground) ||
+            _rallyClock() - ground.At > RallyJumpMilliseconds ||
+            feet.Y - ground.Feet.Y > RallyJumpRise || ground.Feet.Y - feet.Y > RallyJumpDrop ||
+            Vector2.Distance(new Vector2(feet.X, feet.Z), new Vector2(ground.Spawn.X, ground.Spawn.Z)) > RallyJumpReach)
+            return SpawnPointLockType.ServerBlocked;
+        var spot = RallySpotState(ground.Feet, ground.Spawn);
+        if (spot == SpawnPointLockType.Free) position = ground.Spawn;
+        return spot;
+    }
+
+    private SpawnPointLockType RallySpotState(Vector3 feet, Vector3 candidate)
+    {
+        if (!RallySupported(candidate)) return SpawnPointLockType.WorldBlocked;
+        for (int step = 1; step <= 4; step++)
+            if (!RallyWorldClear(feet + (candidate - feet) * (step / 4f))) return SpawnPointLockType.WorldBlocked;
+        var box = new BoundingBoxEx(candidate + new Vector3(0, .95f, 0), new Vector3(.9f, 1.88f, .9f));
+        var occupants = _unitOctree.GetColliding(box).Where(u => !u.IsDead && u.IsActive).ToArray();
+        if (occupants.Length == 0) return SpawnPointLockType.Free;
+        return occupants.Any(u => u.PlayerId.HasValue) ? SpawnPointLockType.PlayerBlocked : SpawnPointLockType.WorldBlocked;
     }
 
     private bool RallySupported(Vector3 feet)

@@ -92,9 +92,12 @@ void Move(Unit unit, Vector3 pos) {
     unit.Transform.Position=pos;
     Call("UnitMoved", unit, 0UL, unit.Transform, pos);
 }
-SpawnPointLockType State(Unit? arriving = null) {
+SpawnPointLockType State(Unit? arriving = null) => StateAt(out _, arriving);
+SpawnPointLockType StateAt(out Vector3 spot, Unit? arriving = null) {
     object?[] args=[host, arriving, Vector3.Zero];
-    return (SpawnPointLockType)typeof(GameZone).GetMethod("RallyState", Any)!.Invoke(zone,args)!;
+    var state=(SpawnPointLockType)typeof(GameZone).GetMethod("RallyState", Any)!.Invoke(zone,args)!;
+    spot=(Vector3)args[2]!;
+    return state;
 }
 OnZone(() => {
     Move(host,new Vector3(8.5f,FloorTop+.08f,8.5f));
@@ -110,8 +113,24 @@ OnZone(() => {
     clock+=5000;
 
     Check(State(host)==SpawnPointLockType.ServerBlocked,"cannot spawn on yourself");
-    host.Transform.IsJump=true;Check(State()==SpawnPointLockType.ServerBlocked,"jumping carrier blocked");host.Transform.IsJump=false;
-    host.Transform.SetLocalVelocity(new Vector3(0,2,0));Check(State()==SpawnPointLockType.ServerBlocked,"vertical motion blocked");host.Transform.SetLocalVelocity(Vector3.Zero);
+    // Jumping keeps the spot found on the ground before take-off; flight and falls stay blocked.
+    var ground=host.Transform.Position;
+    Check(StateAt(out var groundSpot)==SpawnPointLockType.Free,"grounded carrier records a take-off spot");
+    host.Transform.IsJump=true;host.Transform.SetLocalVelocity(new Vector3(0,6,0));
+    Move(host,ground+new Vector3(0,1.5f,0));
+    Check(StateAt(out var jumpSpot)==SpawnPointLockType.Free && jumpSpot==groundSpot,"rising jump offers the take-off spot");
+    Move(host,ground+new Vector3(.8f,2.5f,0));clock+=1500;
+    Check(State()==SpawnPointLockType.Free,"jump apex within 1.5s and 3.5 blocks is eligible");
+    clock++;Check(State()==SpawnPointLockType.ServerBlocked,"airborne longer than 1.5s blocked");clock-=1501;
+    Move(host,ground+new Vector3(0,3.6f,0));Check(State()==SpawnPointLockType.ServerBlocked,"flying above jump height blocked");
+    Move(host,ground+new Vector3(0,-1.1f,0));Check(State()==SpawnPointLockType.ServerBlocked,"falling below take-off ground blocked");
+    Move(host,ground+new Vector3(-5,1,0));Check(State()==SpawnPointLockType.ServerBlocked,"jumping away from take-off spot blocked");
+    Move(host,ground+new Vector3(0,1,0));host.Transform.IsWallClimb=true;Check(State()==SpawnPointLockType.ServerBlocked,"wall climb blocked");host.Transform.IsWallClimb=false;
+    Move(host,ground);host.Transform.IsJump=false;host.Transform.SetLocalVelocity(new Vector3(0,2,0));
+    Check(State()==SpawnPointLockType.ServerBlocked,"grounded upward motion blocked and forgets take-off spot");
+    host.Transform.IsJump=true;Move(host,ground+new Vector3(0,1,0));
+    Check(State()==SpawnPointLockType.ServerBlocked,"jump without an eligible take-off blocked");
+    host.Transform.IsJump=false;Move(host,ground);host.Transform.SetLocalVelocity(Vector3.Zero);
     host.Transform.SetLocalVelocity(new Vector3(0,-1,0));Check(State()==SpawnPointLockType.Free,"standing client stick-to-ground velocity is eligible");
     host.Transform.SetLocalVelocity(new Vector3(0,-7.5f,6.5f));Check(State()==SpawnPointLockType.Free,"walking client stick-to-ground velocity is eligible");host.Transform.SetLocalVelocity(Vector3.Zero);
     Move(host,new Vector3(8.5f,FloorTop+3,8.5f));Check(State()==SpawnPointLockType.ServerBlocked,"airborne at jump apex blocked without flag");
@@ -165,8 +184,8 @@ OnZone(() => {
     Check(zoneData.PlayerSpawnPoints.GetValueOrDefault(guest.PlayerId.Value)==before,"forged enemy selection rejected");guest.Team=TeamType.Team1;
     // Real two-dead-player tick tests the narrow window between marker selection and respawn.
     foreach(var u in new[]{guest,second}) {u.IsDead=true;u.IsDropped=true;u.RespawnTime=DateTimeOffset.Now.AddSeconds(-1);zone.ReceivedSelectSpawnPoint(u.PlayerId!.Value,rallyId);}
-    host.Transform.IsJump=true;Tick(1);
-    Check(guest.IsDead && second.IsDead,"carrier jump after selection blocks actual respawn");host.Transform.IsJump=false;
+    var landed=host.Transform.Position;host.Transform.IsJump=true;Move(host,landed+new Vector3(0,4,0));Tick(1);
+    Check(guest.IsDead && second.IsDead,"carrier flight after selection blocks actual respawn");host.Transform.IsJump=false;Move(host,landed);
     guest.RespawnTime=DateTimeOffset.Now.AddHours(1);second.RespawnTime=DateTimeOffset.Now.AddHours(1);clock+=100;Tick(2);
     Check(guest.IsDead && second.IsDead,"rally point does not bypass normal respawn timers");
     guest.RespawnTime=DateTimeOffset.Now.AddSeconds(-1);second.RespawnTime=DateTimeOffset.Now.AddSeconds(-1);
@@ -177,6 +196,14 @@ OnZone(() => {
     Check(Vector3.Distance(guest.Transform.Position,second.Transform.Position)>.9f,"simultaneous guests never overlap");
     Check(Vector3.Distance(guest.Transform.Position,host.Transform.Position)>.9f,"guest never overlaps the carrier");
     Check(Vector3.Distance(guest.Transform.Position,host.Transform.Position)<1.3f,"guest spawns beside current carrier position");
+    // Real respawn tick while the carrier is mid-jump lands the guest at the take-off spot.
+    var takeOff=host.Transform.Position;clock+=100;Call("RefreshRallySpawns");
+    guest.IsDead=true;guest.IsDropped=true;guest.RespawnTime=DateTimeOffset.Now.AddSeconds(-1);
+    Move(guest,new Vector3(2.5f,FloorTop+.08f,12.5f));zone.ReceivedSelectSpawnPoint(guest.PlayerId!.Value,rallyId);
+    host.Transform.IsJump=true;Move(host,takeOff+new Vector3(0,1.5f,0));clock+=200;Tick(3);
+    Check(!guest.IsDead,"guest respawns while the carrier is jumping");
+    Check(MathF.Abs(guest.Transform.Position.Y-takeOff.Y)<.01f && Vector3.Distance(guest.Transform.Position,takeOff)<1.3f,"jump respawn lands on the take-off ground");
+    host.Transform.IsJump=false;Move(host,takeOff);
     return 0;
 });
 zone.Stop();
