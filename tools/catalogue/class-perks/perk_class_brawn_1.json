@@ -7,11 +7,11 @@
     "data": {}
   },
   "description": {
-    "text": "Teammates can respawn beside you while alive, grounded and out of combat for {out_of_combat_seconds}s, with room for both players.\nAttacking or taking enemy damage restarts the timer.",
+    "text": "Teammates can respawn beside you while alive, on the ground or jumping, and out of combat for {out_of_combat_seconds}s, with room for both players.\nAttacking or taking enemy damage restarts the timer.",
     "data": {}
   },
   "description_2": {
-    "text": "Team respawn while grounded, safe for {out_of_combat_seconds}s, with space nearby.",
+    "text": "Team respawn on foot or mid-jump, safe for {out_of_combat_seconds}s, with space nearby.",
     "data": {}
   },
   "label": "Mobile team respawn",
