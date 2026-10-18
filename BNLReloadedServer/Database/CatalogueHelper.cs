@@ -101,6 +101,12 @@ public static class CatalogueHelper
     public static Key SpecialBadge { get; } = new("badge_icon_community_representative");
     public static Key AntimatterShieldImpact { get; } = new("impact_antimatter_shield");
 
+    // Kira's kill-thrill regen does not stack with health pickups (their 5 s wrapper) or heal stations
+    // (the generic regen applied by a health_supply unit's aura).
+    public static Key KillThrillRegenKey { get; } = new("effect_status_regen_health_5");
+    public static Key PickupRegenKey { get; } = new("effect_status_regen_health_5s");
+    public static Key GenericRegenKey { get; } = new("effect_status_regen_health");
+
     public static readonly List<Key> ObjectiveShieldKeys =
     [
         new("effect_shield_for_line_base"),

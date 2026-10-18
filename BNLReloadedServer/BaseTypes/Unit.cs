@@ -1431,8 +1431,12 @@ public partial class Unit
 
     private Dictionary<BuffType, float> ExtractBuffs(IEnumerable<Key> effects)
     {
+        var keys = effects.ToList();
+        if (keys.Contains(CatalogueHelper.KillThrillRegenKey) && HasPickupOrStationRegen(keys))
+            keys.Remove(CatalogueHelper.KillThrillRegenKey);
+
         var buffResult = new Dictionary<BuffType, float>();
-        foreach (var card in effects.Select(effect => Databases.Catalogue.GetCard<CardEffect>(effect)))
+        foreach (var card in keys.Select(effect => Databases.Catalogue.GetCard<CardEffect>(effect)))
         {
             if (card?.Effect is not ConstEffectBuff { Buffs: not null } effectBuff) continue;
             foreach (var buff in effectBuff.Buffs)
@@ -1451,6 +1455,13 @@ public partial class Unit
         return buffResult;
     }
 
+    private bool HasPickupOrStationRegen(List<Key> effects) =>
+        effects.Contains(CatalogueHelper.PickupRegenKey) ||
+        effects.Contains(CatalogueHelper.GenericRegenKey) &&
+        _effectSources.TryGetValue(CatalogueHelper.GenericRegenKey, out var sources) &&
+        sources.Any(source => source is UnitSource { Unit.UnitCard.Labels: { } labels } &&
+                              labels.Contains(UnitLabel.HealthSupply));
+
     private void OnEffectsChanged(in NotifyCollectionChangedEventArgs<ImmutableList<ConstEffectInfo>> e)
     {
         // ActiveEffects replaces the one immutable list stored at _constEffects[0]. A range/reset
@@ -1468,8 +1479,11 @@ public partial class Unit
         var added = addedItems.Select(info => (info.Key.GetCard<CardEffect>(), info)).ToList();
         if (added.Count == 0 && removed.Count == 0) return;
 
+        // A pickup's regen wrapper is not a buff itself, but it switches off Kira's kill-thrill regen.
         var buffEffectsChanged = removed.Exists(eff => eff.Item1?.Effect is ConstEffectBuff) ||
-                                 added.Exists(eff => eff.Item1?.Effect is ConstEffectBuff);
+                                 added.Exists(eff => eff.Item1?.Effect is ConstEffectBuff) ||
+                                 removed.Exists(eff => eff.info.Key == CatalogueHelper.PickupRegenKey) ||
+                                 added.Exists(eff => eff.info.Key == CatalogueHelper.PickupRegenKey);
         if (buffEffectsChanged)
         {
             // UpdateData may supply the authoritative Buffs map together with Effects. In that

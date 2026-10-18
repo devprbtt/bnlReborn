@@ -360,7 +360,8 @@ public partial class GameZone : Updater
 
     public void SendLoadZone(IServiceZone zoneService, IServiceZone savedService, uint playerId)
     {
-        if (_matchParticipation.StartedAt.HasValue && _playerLobbyInfo.TryGetValue(playerId, out var joiningPlayer))
+        if (_matchParticipation.StartedAt.HasValue && !_gameInitiator.IsPlayerSpectator(playerId) &&
+            _playerLobbyInfo.TryGetValue(playerId, out var joiningPlayer))
         {
             var kind = _matchParticipation.HasParticipant(playerId) ? MatchJoinKind.Reconnect : MatchJoinKind.Backfill;
             _matchParticipation.Join(joiningPlayer, DateTimeOffset.Now, kind,
@@ -1078,7 +1079,9 @@ public partial class GameZone : Updater
 
     public void JoinedInProgress(uint playerId, IServiceZone zoneService)
     {
-        var lobbyInfo = _playerLobbyInfo.GetValueOrDefault(playerId);
+        // A player who quits keeps their roster entry; spectating the same match afterwards must not
+        // put them back on their old team's scoreboard.
+        var lobbyInfo = _gameInitiator.IsPlayerSpectator(playerId) ? null : _playerLobbyInfo.GetValueOrDefault(playerId);
         if (lobbyInfo == null)
         {
             SendObserverZoneState(zoneService);
@@ -1320,6 +1323,9 @@ public partial class GameZone : Updater
 
             _zoneData.PlayerStats.Remove(playerId);
             _zoneData.PlayerInfo.Remove(playerId);
+            // A player who leaves while dead (or before spawning) has no unit; without this update
+            // every other client keeps their scoreboard row.
+            SendRosterUpdate();
             return true;
         }
 
@@ -1450,6 +1456,12 @@ public partial class GameZone : Updater
             _zoneData.PlayerStats.Remove(playerId);
             _zoneData.PlayerInfo.Remove(playerId);
         }
+        SendRosterUpdate();
+
+        return true;
+    }
+
+    private void SendRosterUpdate() =>
         _serviceZone.SendUpdateZone(new ZoneUpdate
         {
             PlayerInfo = _zoneData.PlayerInfo,
@@ -1462,9 +1474,6 @@ public partial class GameZone : Updater
             },
             RespawnInfo = _zoneData.RespawnInfo
         });
-
-        return true;
-    }
 
     public void PreparePlayerHeroChange(uint playerId)
     {
