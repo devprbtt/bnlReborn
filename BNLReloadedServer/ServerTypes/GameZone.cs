@@ -2290,6 +2290,7 @@ public partial class GameZone : Updater
             if (doBuffCheck)
             {
                 _winningTeam = GetWinningTeam();
+                RefreshAssistLeads();
             }
 
             foreach (var unit in _units.Values.ToList())

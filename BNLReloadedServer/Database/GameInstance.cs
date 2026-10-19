@@ -588,6 +588,7 @@ public partial class GameInstance : IGameInstance
 
         Zone = new GameZone(new ServiceZone(bufferedSender), new ServiceZone(_zoneSender), bufferedSender, _zoneSender,
             MapData, GameInitiator, _zonePlayerInfo, mapKey);
+        Zone.AssistLeadSender = AssistLeadConnection;
 
         while (_preZoneActions.TryTake(out var action))
         {
@@ -660,6 +661,17 @@ public partial class GameInstance : IGameInstance
 
     public bool IsCustomHeroSwitchEnabled =>
         GameInitiator is CustomGamePlayerGroup && Zone?.CanSwitchHero == true;
+
+    // A loaded player's own zone connection, when it understands the Skill II lead list.
+    private (object Connection, Action<IReadOnlyCollection<uint>> Send)? AssistLeadConnection(uint playerId)
+    {
+        if (!_connectedUsers.TryGetValue(playerId, out var player) || player.LoadStage != ZoneLoadStage.Finished ||
+            !_services.TryGetValue(player.Guid, out var services) ||
+            !services.TryGetValue(ServiceId.ServiceZone, out var service) ||
+            service is not ServiceZone { SupportsAssistLead: true } zoneService)
+            return null;
+        return (zoneService, zoneService.SendAssistLead);
+    }
 
     public bool SendWaitingArenaUserToLobby(uint playerId)
     {
