@@ -457,10 +457,13 @@ public partial class GameInstance : IGameInstance
                 .Select(k => k.GetCard<CardMap>())
                 .Where(map => map is not null && Databases.MapDatabase.HasMap(map.Key))
                 .Select(map => map!).ToList();
+            var playersPerTeam = GameInitiator is MatchmakerInitiator matchmaker
+                ? matchmaker.PlayersPerTeam : gameMode.PlayersPerTeam;
+            playable = CasualMapPool.Filter(playable, gameMode.Ranking, playersPerTeam, CasualMapPool.CubeCount).ToList();
             maps = MapVoteSelection.Select(playable, mapGrabCount, gameMode.Ranking, rnd)
                 .Select(MapInfo (key) => new MapInfoCard { MapKey = key }).ToList();
             Log.Info(LogCat.Match, $"Map ballot instance={GameInstanceId} mode={gameMode.Id} ranking={gameMode.Ranking} " +
-                $"eligible={playable.Count} candidates=[{string.Join(",", playable.Select(m => $"{m.Id}:{MapVoteSelection.ValidWeight(m.CasualVoteWeight)}"))}] " +
+                $"teamSize={playersPerTeam} eligible={playable.Count} candidates=[{string.Join(",", playable.Select(m => $"{m.Id}:{MapVoteSelection.ValidWeight(m.CasualVoteWeight)}"))}] " +
                 $"offered=[{string.Join(",", maps.OfType<MapInfoCard>().Select(m => m.MapKey.GetCard<CardMap>()?.Id))}]");
         }
 

@@ -13,6 +13,22 @@ public class MapDatabase : IMapDatabase
     private static string MapPath { get; } = Path.Combine(Databases.BaseFolderPath, "Maps");
 
     private readonly ConcurrentDictionary<Key, string> _maps = Scan();
+    private readonly ConcurrentDictionary<Key, (long Modified, long Length, int Count)> _cubeCounts = new();
+
+    public int GetCubeCount(Key key)
+    {
+        if (!_maps.TryGetValue(key, out var path)) return 0;
+        var file = new FileInfo(path);
+        if (!file.Exists) return 0;
+        long modified = file.LastWriteTimeUtc.Ticks, length = file.Length;
+        if (_cubeCounts.TryGetValue(key, out var cached) && cached.Modified == modified && cached.Length == length)
+            return cached.Count;
+        var data = LoadMapData(key);
+        if (data == null) return 0;
+        int count = CasualMapPool.CountCubes(data, k => k.GetCard<CardUnit>());
+        _cubeCounts[key] = (modified, length, count);
+        return count;
+    }
 
     private static ConcurrentDictionary<Key, string> Scan()
     {
@@ -79,6 +95,7 @@ public class MapDatabase : IMapDatabase
         }
 
         _maps[mapKey] = mapFile;
+        _cubeCounts.TryRemove(mapKey, out _);
 
         Log.Info(LogCat.Map, $"Saved map '{key}' to {mapFile}");
 

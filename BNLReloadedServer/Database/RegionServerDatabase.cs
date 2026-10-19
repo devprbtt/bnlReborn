@@ -1328,7 +1328,12 @@ public partial class RegionServerDatabase(AsyncTaskTcpServer server, AsyncTaskTc
         return new PublicPlaySnapshot(DateTimeOffset.UtcNow.ToUnixTimeSeconds(),
             queues.SelectMany(q => q.Players.Select(p => new PublicQueuePlayer(p.PlayerId, p.Nickname ?? $"Player {p.PlayerId}", p.JoinTime / 1000, p.Mode,
                 (GetGameInstance(p.PlayerId) as GameInstance)?.GameInstanceId == _waitingArenaInstanceId && _waitingArenaInstanceId != null))).ToArray(),
-            matches.ToArray(), Maps(pool?.Friendly), Maps(pool?.Ranked));
+            matches.ToArray(), Maps(pool?.Friendly), Maps(pool?.Ranked))
+        {
+            Friendly5v5Maps = Maps(CasualMapPool.Filter((pool?.Friendly ?? [])
+                .Select(k => k.GetCard<CardMap>()).OfType<CardMap>().Where(m => Databases.MapDatabase.HasMap(m.Key)),
+                GameRankingType.Friendly, 5, CasualMapPool.CubeCount).Select(m => m.Key))
+        };
     }
 
     public PlayerActivity GetPlayerActivity()
