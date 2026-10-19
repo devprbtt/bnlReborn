@@ -119,7 +119,8 @@ public partial class ServiceZone(ISender sender, Func<System.Net.IPAddress?>? pe
         MessageReceiveScoreboardMetadata = 105,
         MessageScoreboardMetadata = 106,
         MessageReceiveAimLook = 107,
-        MessageAimLook = 108
+        MessageAimLook = 108,
+        MessageAssistLead = 109
     }
 
     private IRegionServerDatabase ServerDatabase => Databases.RegionServerDatabase;
@@ -128,12 +129,14 @@ public partial class ServiceZone(ISender sender, Func<System.Net.IPAddress?>? pe
     private const uint TeamPingCapabilityMagic = 0x42504E47u;
     // 5: scoreboard metadata carries each player's clan tag and tag colour.
     // 6: high-rate look stream with aim state, relayed to spectators.
-    private const int TeamPingProtocolVersion = 6;
+    // 7: Skill II (Accomplice) players are told which enemy heroes they currently lead on damage.
+    private const int TeamPingProtocolVersion = 7;
     private const int TeamPingMinimumProtocolVersion = 1;
 
     public bool SupportsTeamPing { get; private set; }
     public bool SupportsHeroEmote { get; private set; }
     public bool SupportsAimLook { get; private set; }
+    public bool SupportsAssistLead { get; private set; }
 
     // Look batch body: long send time, byte aim tool, byte device slot, uint device
     // key, float device cost, ushort hero level, byte count, then count x 6 bytes.
@@ -173,6 +176,7 @@ public partial class ServiceZone(ISender sender, Func<System.Net.IPAddress?>? pe
                 SupportsScoreboardMetadata = version >= 4;
                 SupportsClanTags = version >= 5;
                 SupportsAimLook = version >= 6;
+                SupportsAssistLead = version >= 7;
                 SendTeamPingCapability(Math.Min(version, TeamPingProtocolVersion));
             }
         }
@@ -278,6 +282,18 @@ public partial class ServiceZone(ISender sender, Func<System.Net.IPAddress?>? pe
         writer.Write((byte)ServiceZoneId.MessageAimLook);
         writer.Write(playerId);
         writer.Write(body);
+        sender.Send(writer);
+    }
+
+    // The enemy hero unit ids this Accomplice player currently leads on damage (GameZone.RefreshAssistLeads).
+    public void SendAssistLead(IReadOnlyCollection<uint> victimUnitIds)
+    {
+        if (!SupportsAssistLead) return;
+
+        using var writer = CreateWriter();
+        writer.Write((byte)ServiceZoneId.MessageAssistLead);
+        writer.Write((ushort)Math.Min(victimUnitIds.Count, ushort.MaxValue));
+        foreach (var id in victimUnitIds.Take(ushort.MaxValue)) writer.Write(id);
         sender.Send(writer);
     }
 

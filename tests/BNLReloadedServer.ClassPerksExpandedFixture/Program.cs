@@ -307,6 +307,58 @@ Check(!Proc(u[10]), "the top-damage assister without Skill II triggers nothing")
 Fresh(u[6]); Hit(u[10], u[6], 70); Hit(u[12], u[6], 30);
 Check(!Proc(u[10]), "an assist without Skill II triggers nothing even with the most damage");
 
+// Skill II lead list: Accomplice players are told which enemy heroes they currently lead on damage, by the
+// same TopDamagers rule, only when it changes, and again after a reconnect.
+var leadSends = new List<(uint Player, object Connection, uint[] Victims)>();
+object connection9 = new object(), connection10 = new object();
+var connection = new Dictionary<uint, object> { [9] = connection9, [10] = connection10 };
+zone.AssistLeadSender = playerId => connection.TryGetValue(playerId, out var c)
+    ? (c, victims => leadSends.Add((playerId, c, victims.ToArray()))) : null;
+uint[]? Refresh(uint player)
+{
+    int before = leadSends.Count;
+    OnZone(() => { Call("RefreshAssistLeads"); return true; });
+    return leadSends.Skip(before).Where(s => s.Player == player).Select(s => s.Victims).LastOrDefault();
+}
+Fresh(u[6]); Hit(u[9], u[6], 20); Hit(u[12], u[6], 15);
+Check(Refresh(9) is [var led] && led == u[6].Id, "the Accomplice player leading on damage (20 vs 15) is told so");
+Check(leadSends.All(s => s.Player != 10), "a player without Skill II is never sent a lead list");
+Check(Refresh(9) == null, "an unchanged lead is not resent");
+Hit(u[12], u[6], 10);
+Check(Refresh(9) is { Length: 0 }, "losing the lead (20 vs 25) clears it");
+Hit(u[9], u[6], 5);
+Check(Refresh(9) is [var tied] && tied == u[6].Id, "a tie for the most damage counts as the lead, as the proc does");
+connection[9] = new object();
+Check(Refresh(9) is [var again] && again == u[6].Id, "a reconnected player is sent the current lead again");
+OnZone(() => { u[6].RecentDamagers[u[9]] = DateTimeOffset.Now.AddSeconds(-1); return true; });
+Check(Refresh(9) is { Length: 0 }, "the lead ends when the assist window for that damage runs out");
+OnZone(() => { u[6].RecentDamagers[u[9]] = DateTimeOffset.Now.AddSeconds(10); return true; });
+Check(Refresh(9) is [_], "and returns while the damage is still inside the window");
+Hit(u[9], u[6], 50);
+Check(u[6].IsDead && Refresh(9) is { Length: 0 }, "a dead victim is no longer listed");
+zone.AssistLeadSender = null;
+
+// Wire: message 109 (ushort count, uint unit ids), only to clients that advertised zone capability 7.
+byte[] LeadBytes(int clientVersion)
+{
+    var sender = Stub<ISender>();
+    var zoneService = new ServiceZone(sender);
+    using (var ready = new MemoryStream())
+    {
+        using (var w = new BinaryWriter(ready, System.Text.Encoding.UTF8, true)) { w.Write(0x42504E47u); w.Write(clientVersion); }
+        ready.Position = 0;
+        typeof(ServiceZone).GetMethod("ReceiveZoneReady", Any)!.Invoke(zoneService, [new BinaryReader(ready)]);
+    }
+    zoneService.SendAssistLead([7u, 300u]);
+    var sends = ((StubProxy)(object)sender).Calls.Where(c => c.Name == "Send" && c.Args[0] is BinaryWriter).ToList();
+    var last = sends.Count == 0 ? null : (MemoryStream)((BinaryWriter)sends[^1].Args[0]!).BaseStream;
+    return last == null ? [] : last.ToArray();
+}
+var old = LeadBytes(6);
+Check(old.Length == 0 || old[1] != 109, "a version-6 client is never sent the lead list");
+Check(LeadBytes(7).SequenceEqual(new byte[] { (byte)ServiceId.ServiceZone, 109, 2, 0, 7, 0, 0, 0, 44, 1, 0, 0 }),
+    "a version-7 client gets message 109 with the count and unit ids");
+
 var reduced = OnZone(() =>
 {
     var now = DateTimeOffset.Now;
