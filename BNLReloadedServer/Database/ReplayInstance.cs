@@ -47,7 +47,9 @@ public sealed class ReplayInstance : GameInstanceBase
     private bool _controls;
     private bool _acknowledgedSeeking;
     private int _barrierSequence;
-    private TaskCompletionSource<bool>? _barrier;
+    private readonly List<(int Id, TaskCompletionSource<bool> Completion)> _barriers = [];
+    private bool _presentationReady;
+    private readonly int _seekWindow;
 
     private int _generation;
     private ReplayRecord? _initZone;
@@ -59,9 +61,10 @@ public sealed class ReplayInstance : GameInstanceBase
     public string GameInstanceId { get; }
     public string MatchId { get; }
 
-    public ReplayInstance(IReplayHost host, string path, string matchId, uint viewerId)
+    public ReplayInstance(IReplayHost host, string path, string matchId, uint viewerId, int seekWindow = 8)
     {
         _host = host;
+        _seekWindow = Math.Clamp(seekWindow, 1, 8);
         _path = path;
         _viewerId = viewerId;
         MatchId = matchId;
@@ -123,9 +126,9 @@ public sealed class ReplayInstance : GameInstanceBase
         Send(_initZone.Data);
     }
 
-    public void EnableControls(uint playerId, bool acknowledgedSeeking = false)
+    public void EnableControls(uint playerId, bool acknowledgedSeeking = false, bool presentationReady = false)
     {
-        if (playerId == _viewerId) { _controls = true; _acknowledgedSeeking = acknowledgedSeeking; }
+        if (playerId == _viewerId) { _controls = true; _acknowledgedSeeking = acknowledgedSeeking; _presentationReady = presentationReady; }
     }
 
     private long Position => Math.Min(_timeline.DurationMs, _position + _clock.ElapsedMilliseconds);
@@ -139,8 +142,13 @@ public sealed class ReplayInstance : GameInstanceBase
             if (playerId != _viewerId || !_controls || IsOver()) return;
             if (command == 5)
             {
-                if (_seeking && _acknowledgedSeeking && argument == _barrierSequence)
-                    _barrier?.TrySetResult(true);
+                // ACKs are ordered on the viewer's connection. A valid later ACK
+                // confirms all preceding batches too; stale/foreign ids cannot advance.
+                if (_seeking && _acknowledgedSeeking)
+                {
+                    int index = _barriers.FindIndex(b => b.Id == argument);
+                    for (int i = 0; i <= index; i++) _barriers[i].Completion.TrySetResult(true);
+                }
                 return;
             }
             if (_streaming == 0 || _seeking) return;
@@ -161,7 +169,7 @@ public sealed class ReplayInstance : GameInstanceBase
             else if (command == 4) target = _timeline.NextCombat(Position);
             else return;
             if (target < 0 && command == 4) { SendState(); return; }
-            target = Math.Clamp(target, 0, Math.Max(0L, (long)_timeline.DurationMs - 1));
+            target = Math.Clamp(target, _presentationReady ? _timeline.FirstPlayableOffset : 0, Math.Max(0L, (long)_timeline.DurationMs - 1));
             _position = Position;
             _clock.Reset();
             _seekTarget = target;
@@ -175,6 +183,7 @@ public sealed class ReplayInstance : GameInstanceBase
             }
             _generation++;
             _playback?.Cancel();
+            _barriers.Clear();
             _streaming = 0;
             SendState(); // unfreeze client before its scene reload
             SendUserToZone(_viewerId);
@@ -207,6 +216,11 @@ public sealed class ReplayInstance : GameInstanceBase
             _streaming = 1;
             _position = 0;
             _clock.Reset();
+            if (_presentationReady && !_seeking)
+            {
+                _seekTarget = _timeline.FirstPlayableOffset;
+                _seeking = true;
+            }
             if (!_seeking && !_paused) _clock.Start();
             SetClock();
             SendState();
@@ -269,7 +283,7 @@ public sealed class ReplayInstance : GameInstanceBase
                 }
                 if (finishSeek)
                 {
-                    await DrainSeekBatchAsync(token);
+                    await DrainSeekBatchAsync(token, true);
                     lock (_gate)
                     {
                         token.ThrowIfCancellationRequested();
@@ -308,28 +322,33 @@ public sealed class ReplayInstance : GameInstanceBase
         lock (_gate) { if (generation == _generation) End(); }
     }
 
-    private async Task DrainSeekBatchAsync(CancellationToken token)
+    private async Task DrainSeekBatchAsync(CancellationToken token, bool final = false)
     {
         if (!_acknowledgedSeeking)
         {
             await Task.Delay(20, token);
             return;
         }
-        Task completion;
+        Task? wait = null;
         lock (_gate)
         {
             token.ThrowIfCancellationRequested();
-            _barrier = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
-            completion = _barrier.Task;
+            _barriers.RemoveAll(b => b.Completion.Task.IsCompletedSuccessfully);
+            var completion = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            int id = ++_barrierSequence;
+            // Capability 11: negative final barriers additionally wait for the
+            // spectator HUD/scene to finish loading before playback starts.
+            if (final && _presentationReady) id = -id;
+            _barriers.Add((id, completion));
             using var writer = new BinaryWriter(new MemoryStream());
             writer.Write((byte)6);
             writer.Write((byte)113);
-            writer.Write(++_barrierSequence);
+            writer.Write(id);
             Send(RecordingSender.Frame(writer));
+            if (final) wait = Task.WhenAll(_barriers.Select(b => b.Completion.Task));
+            else if (_barriers.Count >= _seekWindow) wait = _barriers[0].Completion.Task;
         }
-        // Never leave a viewer indefinitely stuck in Seeking if the connection
-        // stops consuming packets. End() returns them through normal cleanup.
-        await completion.WaitAsync(TimeSpan.FromSeconds(30), token);
+        if (wait != null) await wait.WaitAsync(TimeSpan.FromSeconds(30), token);
     }
 
     private void Send(byte[] framed)

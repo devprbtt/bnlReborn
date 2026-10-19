@@ -7,6 +7,7 @@ using BNLReloadedServer.Servers;
 using BNLReloadedServer.ServerTypes;
 
 var path = Path.Combine(Path.GetTempPath(), Guid.NewGuid()+".bnlreplay");
+var readyPath = path + ".waiting";
 int checks=0;
 void Check(bool ok,string name) { if(!ok)throw new Exception(name);checks++;Console.WriteLine("PASS "+name); }
 byte[] Phase(ZonePhaseType phase) {
@@ -30,7 +31,7 @@ try {
         Record(1,0,[2,6,0]);
         Record(2,0,Phase(ZonePhaseType.Build));
         Record(3,100,[2,6,70]);
-        for(int i=0;i<300;i++) Record(3,200,[2,6,72]);
+        for(int i=0;i<1500;i++) Record(3,200,[2,6,72]);
         Record(3,1000,Phase(ZonePhaseType.Assault));
         Record(3,1500,[2,6,71]);
         Record(3,2000,Phase(ZonePhaseType.Build2));
@@ -83,11 +84,11 @@ try {
     ackReplay.EnableControls(7,true);ackReplay.LinkGuidToPlayer(7,Guid.NewGuid(),Guid.NewGuid());
     ackReplay.PlayerEnterScene(7);ackReplay.PlayerZoneReady(7);ackReplay.Control(7,1,0);
     ackReplay.Control(7,3,2200);
-    await Until(()=>ackHost.Barrier>0);
+    await Until(()=>ackHost.Barrier>=8);
     int barrier=ackHost.Barrier;
     await Task.Delay(80);
     Check(ackHost.State.Seeking,"seek remains pending until the client applies catch-up packets");
-    Check(ackHost.Packets.Count<=130,"large catch-up stops after 128 records until acknowledged");
+    Check(ackHost.Packets.Count<=1026,"large catch-up stops at eight 128-record batches until acknowledged");
     int blockedCount=ackHost.Packets.Count;
     await Task.Delay(80);
     Check(ackHost.Packets.Count==blockedCount,"slow client cannot accumulate an unbounded catch-up queue");
@@ -111,15 +112,61 @@ try {
     await Until(()=>ackHost.State.Seeking);
     ackReplay.PlayerLeftInstance(7,KickReason.MatchQuit);
     Check(ackReplay.IsOver() && ackHost.Ends==1,"leaving during pending catch-up cancels cleanly");
+    using(var original=new ReplayReader(path))
+    using(var file=File.Create(readyPath))
+    using(var zipped=new BrotliStream(file,CompressionLevel.Fastest))
+    using(var writer=new BinaryWriter(zipped))
+    {
+        writer.Write(MatchRecorder.Magic);writer.Write(MatchRecorder.FormatVersion);
+        var metadata=Encoding.UTF8.GetBytes(original.Metadata.RootElement.GetRawText());
+        writer.Write(metadata.Length);writer.Write(metadata);
+        void Record(byte kind,uint at,byte[] data) {writer.Write(kind);writer.Write(at);writer.Write(data.Length);writer.Write(data);}
+        while(original.Next() is {} record)
+        {
+            Record(record.Kind,record.OffsetMs,record.Kind==2?Phase(ZonePhaseType.Waiting):record.Data);
+            if(record.Kind==2) Record(3,50,Phase(ZonePhaseType.Build));
+        }
+    }
+    var readyHost=new Host();var readyReplay=new ReplayInstance(readyHost,readyPath,"ready",7);
+    readyReplay.EnableControls(7,true,true);readyReplay.LinkGuidToPlayer(7,Guid.NewGuid(),Guid.NewGuid());
+    readyReplay.PlayerEnterScene(7);readyReplay.PlayerZoneReady(7);
+    await Until(()=>readyHost.Barrier<0);
+    long loadingPosition=readyHost.State.Position;
+    await Task.Delay(250);
+    Check(readyHost.State.Seeking && readyHost.State.Position==loadingPosition,"initial playback clock stays stopped until spectator presentation is ready");
+    readyReplay.Control(7,5,readyHost.Barrier);
+    await Until(()=>!readyHost.State.Seeking);
+    Check(readyHost.State.Position==50,"initial ready acknowledgement begins at first playable build transition, not the waiting snapshot");
+    readyReplay.PlayerLeftInstance(7,KickReason.MatchQuit);
     var oldHost=new Host();var old=new ReplayInstance(oldHost,path,"old",7);
     old.LinkGuidToPlayer(7,Guid.NewGuid(),Guid.NewGuid());old.PlayerZoneReady(7);old.Control(7,1,0);
     Check(!oldHost.HasState,"old clients receive no unsupported replay control messages");
     old.PlayerLeftInstance(7,KickReason.MatchQuit);
+    if(args.Contains("--seek-window-benchmark"))
+    {
+        foreach(int window in new[]{1,8})
+        {
+            var measurements=new List<long>();
+            for(int sample=0;sample<3;sample++)
+            {
+                var measuredHost=new Host();var measured=new ReplayInstance(measuredHost,path,"benchmark",7,window);
+                measured.EnableControls(7,true);measured.LinkGuidToPlayer(7,Guid.NewGuid(),Guid.NewGuid());
+                measured.PlayerEnterScene(7);measured.PlayerZoneReady(7);measured.Control(7,1,0);
+                measuredHost.OnBarrier = sequence => { _ = Task.Run(async()=> { await Task.Delay(100); measured.Control(7,5,sequence); }); };
+                var timer=System.Diagnostics.Stopwatch.StartNew();measured.Control(7,3,2200);
+                await Until(()=>!measuredHost.State.Seeking);
+                timer.Stop();measurements.Add(timer.ElapsedMilliseconds);
+                Check(measuredHost.State.Position==2200,"benchmark reaches identical target");
+                measured.PlayerLeftInstance(7,KickReason.MatchQuit);
+            }
+            Console.WriteLine($"SEEK_WINDOW_BENCHMARK records=1500 ack_delay_ms=100 window={window} samples_ms={string.Join(',',measurements)} median_ms={measurements.Order().ElementAt(1)}");
+        }
+    }
     Console.WriteLine($"REPLAY_CONTROLS_OK checks={checks}");
 } finally {
     // Cancellation is cooperative; let the playback reader release its file handle.
     for(int attempt=0;;attempt++) {
-        try { File.Delete(path);break; }
+        try { File.Delete(path);File.Delete(readyPath);break; }
         catch(IOException) when(attempt<40) { await Task.Delay(50); }
     }
 }
@@ -132,6 +179,7 @@ sealed class Host:IReplayHost {
     public bool HasState;
     public int Ends;
     public volatile int Barrier;
+    public Action<int>? OnBarrier;
     public void UpdateScene(uint player,Scene scene)=>Scenes.Enqueue((SceneZone)scene);
     public void SetReplayClock(uint player,long? offset){}
     public void EndReplay(uint player,string instance)=>Interlocked.Increment(ref Ends);
@@ -139,7 +187,7 @@ sealed class Host:IReplayHost {
         using var r=new BinaryReader(new MemoryStream(bytes));
         int length=r.Read7BitEncodedInt();
         int service=r.ReadByte(), message=r.ReadByte();
-        if(service==6 && message==113){Barrier=r.ReadInt32();return;}
+        if(service==6 && message==113){Barrier=r.ReadInt32();OnBarrier?.Invoke(Barrier);return;}
         if(length>=2 && service==6 && message==111){
             State=new(r.ReadInt64(),r.ReadInt64(),r.ReadInt64(),r.ReadBoolean(),r.ReadBoolean(),r.ReadInt64());HasState=true;
         } else Packets.Enqueue(bytes);
