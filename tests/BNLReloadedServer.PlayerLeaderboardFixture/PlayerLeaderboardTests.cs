@@ -10,12 +10,13 @@ public static class PlayerLeaderboardTests
     static readonly long[] Modes = [Ranked, Casual];
     static void Check(bool ok, string label) { if (!ok) throw new Exception(label); Console.WriteLine("PASS " + label); }
 
-    static byte[] Stats(int kills, int assists, int objective)
+    static byte[] Stats(int kills, int assists, int objective, int deaths = 0)
     {
         using var stream = new MemoryStream(); using (var w = new BinaryWriter(stream, System.Text.Encoding.UTF8, true))
             w.WriteMap(Enum.GetValues<PlayerMatchStatType>().ToDictionary(k => k, k => k switch
             {
-                PlayerMatchStatType.Kill => kills, PlayerMatchStatType.Assist => assists, PlayerMatchStatType.Objective => objective, _ => 0
+                PlayerMatchStatType.Kill => kills, PlayerMatchStatType.Assist => assists, PlayerMatchStatType.Objective => objective,
+                PlayerMatchStatType.Death => deaths, _ => 0
             }), w.WriteByteEnum, w.Write);
         return stream.ToArray();
     }
@@ -31,11 +32,12 @@ public static class PlayerLeaderboardTests
     static int round;
     // One 100-second round for one player.
     static void Round(SQLiteConnection db, uint player, string nickname, long mode, long endedAt, int kills, int assists = 0, int objective = 0,
-        float headshots = 0, float damage = 0, Dictionary<KillAccolade, int>? accolades = null, int streak = 0, bool twoHeroes = false)
+        float headshots = 0, float damage = 0, Dictionary<KillAccolade, int>? accolades = null, int streak = 0, bool twoHeroes = false,
+        int deaths = 0, bool winner = true)
     {
         var id = "r" + round++;
         db.Insert(new ArchivedMatchRecord { Id = id, GameModeKey = mode, StartedAt = endedAt - 100_000, EndedAt = endedAt, Winner = 1 });
-        db.Insert(new ArchivedMatchPlayerRecord { MatchId = id, PlayerId = player, Nickname = nickname, IsWinner = true, Stats = Stats(kills, assists, objective),
+        db.Insert(new ArchivedMatchPlayerRecord { MatchId = id, PlayerId = player, Nickname = nickname, IsWinner = winner, Stats = Stats(kills, assists, objective, deaths),
             RawStats = Raw(headshots, damage), Accolades = ArchivedAccolades.Write(accolades, streak) });
         db.Insert(new ArchivedMatchPresenceRecord { MatchId = id, PlayerId = player, HeroKey = 5, Sequence = 0, JoinedAt = endedAt - 100_000, LeftAt = endedAt - 50_000 });
         db.Insert(new ArchivedMatchPresenceRecord { MatchId = id, PlayerId = player, HeroKey = twoHeroes ? 6 : 5, Sequence = 1, JoinedAt = endedAt - 50_000, LeftAt = endedAt });
@@ -104,5 +106,38 @@ public static class PlayerLeaderboardTests
             Check(PlayerStatLeaderboards.StatNames.Count == Enum.GetValues<PlayerLeaderboardStat>().Length, "every stat has a public name");
         }
         finally { File.Delete(path); }
+        Careers();
+    }
+
+    // Hours, matches, win rate and KDR, on their own archive so the totals are exact.
+    static void Careers()
+    {
+        var path = Path.Combine(Path.GetTempPath(), "bnl-leaderboards-careers-" + Guid.NewGuid() + ".db");
+        try
+        {
+            using var db = new SQLiteConnection(path);
+            db.CreateTable<ArchivedMatchRecord>(); db.CreateTable<ArchivedMatchPlayerRecord>(); db.CreateTable<ArchivedMatchPresenceRecord>(); db.CreateTable<PlayerRecord>();
+            // 1: 10 rounds, 7 won, 30 kills / 10 deaths. 2: 12 rounds, 6 won, 24 kills, never died. 3: 3 rounds, all won, 99 kills.
+            for (int i = 0; i < 10; i++) Round(db, 1, "Atlas", Ranked, Now - Day, kills: 3, deaths: 1, winner: i < 7);
+            for (int i = 0; i < 12; i++) Round(db, 2, "Nova", Casual, Now - Day, kills: 2, winner: i % 2 == 0);
+            for (int i = 0; i < 3; i++) Round(db, 3, "Flint", Ranked, Now - Day, kills: 33);
+            Round(db, 4, "Echo", Custom, Now - Day, kills: 500);
+
+            var hours = Board(db, PlayerLeaderboardStat.Hours);
+            Check(hours.Rows.Select(r => (r.PlayerId, r.Value)).SequenceEqual([(2u, Math.Round(1200 / 3600d, 2)), (1u, Math.Round(1000 / 3600d, 2)), (3u, Math.Round(300 / 3600d, 2))]),
+                "hours rank played time in counted rounds (100 s each), custom games excluded");
+            var matches = Board(db, PlayerLeaderboardStat.Matches);
+            Check(matches.Rows.Select(r => (r.PlayerId, r.Value)).SequenceEqual([(2u, 12d), (1u, 10d), (3u, 3d)]) && matches.MinMatches == 1, "matches rank counted rounds");
+            var wins = Board(db, PlayerLeaderboardStat.WinRate);
+            Check(wins.Rows.Select(r => (r.PlayerId, r.Value)).SequenceEqual([(1u, 70d), (2u, 50d)]), "win rate is the percent of counted rounds won");
+            Check(wins.MinMatches == PlayerStatLeaderboards.MinRateMatches && wins.Rows.All(r => r.PlayerId != 3), "win rate needs ten rounds: three straight wins do not qualify");
+            var kdr = Board(db, PlayerLeaderboardStat.Kdr);
+            Check(kdr.Rows.Select(r => (r.PlayerId, r.Value)).SequenceEqual([(2u, 24d), (1u, 3d)]), "KDR is kills per death, a deathless record dividing by one");
+            Check(kdr.MinMatches == PlayerStatLeaderboards.MinRateMatches && kdr.Rows.All(r => r.PlayerId != 3), "KDR needs ten rounds too");
+            Check(PlayerStatLeaderboards.StatNames["hours"] == PlayerLeaderboardStat.Hours && PlayerStatLeaderboards.StatNames["matches"] == PlayerLeaderboardStat.Matches &&
+                  PlayerStatLeaderboards.StatNames["win_rate"] == PlayerLeaderboardStat.WinRate && PlayerStatLeaderboards.StatNames["kdr"] == PlayerLeaderboardStat.Kdr,
+                "the new stats have public names hours, matches, win_rate and kdr");
+        }
+        finally { SQLiteAsyncConnection.ResetPool(); try { File.Delete(path); } catch (IOException) { } }
     }
 }
