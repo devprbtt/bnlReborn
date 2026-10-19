@@ -54,12 +54,24 @@ public static class LeagueTests
         using var db = new SQLiteConnection(path);
         LeagueSeasons.CreateTables(db); Trophies.CreateTables(db); db.CreateTable<PlayerRecord>();
         for (int i = 1; i <= 300; i++) db.Insert(new PlayerRecord { Username = "P" + i });
+        var casual = db.Find<PlayerRecord>(1u);
+        casual.RatingMean = 41.23; db.Update(casual);
+        Check(LeagueSeasons.PlayerView(db, 1).CasualMmr == 4123, "casual MMR is available before ranked placements or a season");
+        Check(LeagueSeasons.PlayerView(db, 9999).CasualMmr == null, "unknown player has no casual MMR");
+        casual.RatingMean = 0; db.Update(casual);
+        Check(LeagueSeasons.PlayerView(db, 1).CasualMmr == 0, "zero casual MMR stays zero");
+        casual.RatingMean = 41.23; db.Update(casual);
 
         // Season one seeds everyone with five rated matches at the reset start of their tier; newcomers need placements.
         var hidden = Hidden((1, 40), (2, 31), (3, 26), (4, 20), (5, 12), (6, 30), (7, 45));
         var matches = new Dictionary<uint, int> { [1] = 9, [2] = 5, [3] = 30, [4] = 7, [5] = 5, [6] = 4, [7] = 12 };
         var closed = LeagueSeasons.Advance(db, Oct13, id => matches.GetValueOrDefault(id), hidden);
         var season = LeagueSeasons.Current(db)!;
+        LeagueSeasons.Refresh(db);
+        var profileRatings = LeagueSeasons.PlayerView(db, 1);
+        Check(profileRatings.CasualMmr == 4123 && profileRatings.Points == 3500, "casual MMR remains separate from reset ranked points");
+        var ratingsJson = JsonSerializer.Serialize(profileRatings, new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower });
+        Check(JsonDocument.Parse(ratingsJson).RootElement.GetProperty("casual_mmr").GetInt32() == 4123, "public player response carries casual_mmr in display points");
         Check(closed.Count == 0 && season.Id == "2026-10" && season.StartsAt == Oct13.ToUnixTimeMilliseconds() &&
               season.EndsAt == new DateTimeOffset(2026, 11, 1, 0, 0, 0, TimeSpan.Zero).ToUnixTimeMilliseconds(), "the first season opens now and ends with the month");
         var seeded = db.Table<LeagueStandingRecord>().ToList().ToDictionary(r => (uint)r.PlayerId, r => LeagueRules.Points(r.Mean));
