@@ -4,14 +4,14 @@ namespace BNLReloadedServer.ServerTypes;
 
 public partial class GameZone
 {
-    public bool AllowsCustomTeamCombat => _gameInitiator is CustomGamePlayerGroup custom && custom.GameInfo.TeamCombat;
+    public bool AllowsCustomTeamCombat => _gameInitiator is CustomGamePlayerGroup custom && custom.GameInfo.TeamKilling;
 
     private bool IsCustomFriendlyDamageTarget(Unit target, Unit? source, TeamType sourceTeam, InstEffect effect) =>
         AllowsCustomTeamCombat && effect is (InstEffectDamage or InstEffectSplashDamage) &&
         effect.Targeting?.AffectedTeam == RelativeTeamType.Opponent && target.PlayerId.HasValue &&
         target != source && target.Team == sourceTeam && sourceTeam is (TeamType.Team1 or TeamType.Team2);
 
-    public bool HasCustomTeamParticipant(uint playerId) => AllowsCustomTeamCombat && !HasEnded &&
+    public bool HasCustomTeamParticipant(uint playerId) => _gameInitiator is CustomGamePlayerGroup custom && custom.GameInfo.TeamSwitching && !HasEnded &&
         _playerLobbyInfo.ContainsKey(playerId) && _playerIdToUnitId.ContainsKey(playerId) && !_gameInitiator.IsPlayerSpectator(playerId);
 
     // On the zone queue. Re-entering the zone rebuilds the local team-dependent HUD,

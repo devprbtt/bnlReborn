@@ -61,8 +61,25 @@ var sender=DispatchProxy.Create<ISender,Sink>();var wire=(ServiceMatchmaker)Raw(
 wire.SendUpdateCustomGame(group.GetCustomGameUpdate());
 var bytes=((Sink)(object)sender).Bytes!;
 using(var reader=new BinaryReader(new MemoryStream(bytes))){reader.ReadByte();reader.ReadByte();var old=CustomGameUpdate.ReadRecord(reader);
-Check(old.Players?.Count==3&&reader.BaseStream.Length-reader.BaseStream.Position==5,"legacy record remains readable with only an optional tail");
-Check(reader.ReadUInt32()==0x54434D31u&&reader.ReadBoolean(),"new message tail carries enabled flag");}
+Check(old.Players?.Count==3&&reader.BaseStream.Length-reader.BaseStream.Position==11,"legacy record remains readable with only an optional tail");
+Check(reader.ReadUInt32()==0x54434D31u&&reader.ReadBoolean(),"new message tail carries enabled flag");
+Check(reader.ReadUInt32()==0x54434D32u && reader.ReadBoolean() && reader.ReadBoolean(), "independent extension carries both flags");}
+foreach (bool killing in new[]{false,true}) foreach(bool switching in new[]{false,true}) {
+    group.GameInfo.Status=CustomGameStatus.Preparing;
+    Check(!group.UpdateTeamOption(2,false,killing) && !group.UpdateTeamOption(99,true,switching), "independent settings require owner");
+    Check(group.UpdateTeamOption(1,false,killing) && group.UpdateTeamOption(1,true,switching), "owner sets both independent flags");
+    Check(group.GameInfo.TeamKilling==killing && group.GameInfo.TeamSwitching==switching && group.GetCustomGameUpdate().TeamKilling==killing && ((Sink)(object)service).Last?.TeamSwitching==switching, "independent snapshot and broadcast");
+    Check(Damage(false).FriendDamage==(killing?100:0) && Damage(true).FriendDamage==(killing?100:0), "damage depends only on team killing");
+    group.GameInfo.Status=CustomGameStatus.Match;
+    Check(!group.UpdateTeamOption(1,false,!killing)&&!group.UpdateTeamOption(1,true,!switching), "independent flags locked during match");
+    Check(group.TrySwitchInMatch(1,out _)==switching, "switching depends only on team switching");
+    if(switching) group.TrySwitchInMatch(1,out _);
+}
+group.GameInfo.Status=CustomGameStatus.Preparing;
+group.UpdateTeamOption(1,false,true); group.UpdateRandomHeroes(1,true);
+Check(group.GameInfo.TeamKilling && !group.GameInfo.TeamSwitching && group.GameInfo.RandomHeroes, "random heroes preserves team killing");
+group.UpdateTeamOption(1,false,false);
+Check(group.GameInfo.RandomHeroes, "team killing toggle preserves random heroes");
 Console.WriteLine($"Custom team combat: {checks} checks passed.");
 
 public class Sink:DispatchProxy

@@ -285,8 +285,20 @@ public class CustomGamePlayerGroup(IServiceMatchmaker matchService) : IGameIniti
         {
             if (GameInfo.Status != CustomGameStatus.Preparing || !_players.Any(p => p.Id == playerId && p.Owner)) return;
             GameInfo.RandomHeroes = enabled;
-            if (enabled) GameInfo.TeamCombat = false;
+            if (enabled) GameInfo.TeamSwitching = false;
             Send(BuildUpdate(randomHeroes: enabled));
+        }
+    }
+
+    public bool UpdateTeamOption(uint playerId, bool switching, bool enabled)
+    {
+        lock (_lock)
+        {
+            if (GameInfo.Status != CustomGameStatus.Preparing || !_players.Any(p => p.Id == playerId && p.Owner)) return false;
+            if (switching) { GameInfo.TeamSwitching = enabled; if (enabled) GameInfo.RandomHeroes = false; }
+            else GameInfo.TeamKilling = enabled;
+            Send(BuildUpdate(randomHeroes: GameInfo.RandomHeroes));
+            return true;
         }
     }
 
@@ -308,7 +320,7 @@ public class CustomGamePlayerGroup(IServiceMatchmaker matchService) : IGameIniti
         lock (_lock)
         {
             team = TeamType.Neutral;
-            if (!GameInfo.TeamCombat || GameInfo.RandomHeroes || GameInfo.Status != CustomGameStatus.Match) return false;
+            if (!GameInfo.TeamSwitching || GameInfo.RandomHeroes || GameInfo.Status != CustomGameStatus.Match) return false;
             var player = _players.FirstOrDefault(p => p.Id == playerId);
             if (player == null || player.Team is not (TeamType.Team1 or TeamType.Team2)) return false;
             var target = player.Team == TeamType.Team1 ? TeamType.Team2 : TeamType.Team1;
@@ -440,7 +452,9 @@ public class CustomGamePlayerGroup(IServiceMatchmaker matchService) : IGameIniti
                 Status = GameInfo.Status,
                 ForceThirdPerson = GameInfo.ForceThirdPerson,
                 RandomHeroes = GameInfo.RandomHeroes,
-                TeamCombat = GameInfo.TeamCombat
+                TeamCombat = GameInfo.TeamCombat,
+                TeamKilling = GameInfo.TeamKilling,
+                TeamSwitching = GameInfo.TeamSwitching
             };
         }
     }
@@ -482,6 +496,8 @@ public class CustomGamePlayerGroup(IServiceMatchmaker matchService) : IGameIniti
     {
         if (update == null) return;
         update.TeamCombat = GameInfo.TeamCombat;
+        update.TeamKilling = GameInfo.TeamKilling;
+        update.TeamSwitching = GameInfo.TeamSwitching;
         matchService.SendUpdateCustomGame(update);
     }
 }

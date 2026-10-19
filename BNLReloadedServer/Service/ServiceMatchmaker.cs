@@ -41,7 +41,8 @@ public class ServiceMatchmaker(ISender sender) : IServiceMatchmaker
         MessageWaitingArenaUpdate = 28,
         MessageChangeWaitingArenaHero = 29,
         MessageSetCustomGameRandomHeroes = 30,
-        MessageSetCustomGameTeamCombat = 31
+        MessageSetCustomGameTeamCombat = 31,
+        MessageSetCustomGameTeamOption = 32
     }
 
     private readonly IRegionServerDatabase _serverDatabase = Databases.RegionServerDatabase;
@@ -291,6 +292,9 @@ public class ServiceMatchmaker(ISender sender) : IServiceMatchmaker
         {
             writer.Write(0x54434D31u); // TCM1; older clients ignore the message tail.
             writer.Write(update.TeamCombat.Value);
+            if (update.TeamKilling.HasValue && update.TeamSwitching.HasValue) {
+                writer.Write(0x54434D32u); writer.Write(update.TeamKilling.Value); writer.Write(update.TeamSwitching.Value);
+            }
         }
         sender.Send(writer);
     }
@@ -445,6 +449,12 @@ public class ServiceMatchmaker(ISender sender) : IServiceMatchmaker
                 break;
             case ServiceMatchmakerId.MessageSetCustomGameRandomHeroes:
                 ReceiveSetCustomGameRandomHeroes(reader);
+                break;
+            case ServiceMatchmakerId.MessageSetCustomGameTeamOption:
+                var switching = reader.ReadBoolean();
+                var optionEnabled = reader.ReadBoolean();
+                if (sender.AssociatedPlayerId.HasValue)
+                    _serverDatabase.UpdateCustomTeamOption(sender.AssociatedPlayerId.Value, switching, optionEnabled);
                 break;
             case ServiceMatchmakerId.MessageSetCustomGameTeamCombat:
                 var enabled = reader.ReadBoolean();

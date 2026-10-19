@@ -9,7 +9,7 @@ public partial class GameInstance
 
     public bool SwitchCustomTeam(uint playerId)
     {
-        if (GameInitiator is not CustomGamePlayerGroup custom || !custom.GameInfo.TeamCombat ||
+        if (GameInitiator is not CustomGamePlayerGroup custom || !custom.GameInfo.TeamSwitching ||
             Zone == null || Lobby == null || !IsStarted || HasEnded == true ||
             !_connectedUsers.TryGetValue(playerId, out var player) || player.LoadStage != ZoneLoadStage.Finished)
             return false;

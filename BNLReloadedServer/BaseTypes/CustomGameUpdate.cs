@@ -6,6 +6,8 @@ public class CustomGameUpdate
 {
     // Optional message-level extension, outside the legacy record framing.
     public bool? TeamCombat { get; set; }
+        public bool? TeamKilling { get; set; }
+        public bool? TeamSwitching { get; set; }
     public string? GameName { get; set; }
 
     public string? Password { get; set; }

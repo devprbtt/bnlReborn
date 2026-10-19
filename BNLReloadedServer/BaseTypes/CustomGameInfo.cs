@@ -6,7 +6,10 @@ public class CustomGameInfo
 {
     // Session setting replicated through CustomGameUpdate, not the legacy browser record.
     public bool RandomHeroes { get; set; }
-    public bool TeamCombat { get; set; }
+    public bool TeamKilling { get; set; }
+    public bool TeamSwitching { get; set; }
+    // Compatibility for clients with the original combined control.
+    public bool TeamCombat { get => TeamKilling && TeamSwitching; set { TeamKilling = value; TeamSwitching = value; } }
 
     public ulong Id { get; set; }
 
