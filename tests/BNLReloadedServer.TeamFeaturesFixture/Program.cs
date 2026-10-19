@@ -221,6 +221,27 @@ foreach (bool initial in new[] { true, false })
 Receive(v3Zone, 103, writer => { writer.Write(9u); BuildInfo.WriteRecord(writer, preview); });
 Assert(v3Sender.Messages.Count == 0, "unassociated sender cannot relay a build preview");
 
+var v9Sender = new FixtureSender();
+var v9Zone = new ServiceZone(v9Sender);
+Receive(v9Zone, zoneReadyId, writer => { writer.Write(capabilityMagic); writer.Write(9); });
+AssertCapability(v9Sender.TakeSingle(), 9);
+Assert(v9Zone.SupportsFarmPing && !v3Zone.SupportsFarmPing, "farm request requires capability 9");
+var presentation = typeof(GameInstance).GetMethod("SendTeamMarkerPresentation", System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.NonPublic)!;
+foreach (bool farm in new[] { true, false })
+{
+    presentation.Invoke(null, [v9Zone, 42u, new Vector3(1,2,3), Vector3.UnitY, farm]);
+    Assert(v9Sender.Messages.Count == 2, "marker emits one 3D ping and exactly one command");
+    AssertTeamPing(v9Sender.Messages.Dequeue(), 42, new Vector3(1,2,3), Vector3.UnitY);
+    using var command = Reader(v9Sender.Messages.Dequeue());
+    Assert(command.ReadByte() == 6 && command.ReadByte() == 65, "marker uses native player command packet");
+    Assert(command.ReadUInt32() == 42 && Key.ReadRecord(command) == (farm ? new Key("note_command_farm") : TeamPingRegistration.EnemySpottedNotification),
+        farm ? "farm marker only announces farm" : "ordinary ping still announces enemy spotted");
+    Assert(command.BaseStream.Position == command.BaseStream.Length, "no second command appended");
+    v9Sender.Messages.Clear();
+}
+Receive(v9Zone, 112, writer => { for(int i=0;i<6;i++) writer.Write(1f); });
+Assert(v9Sender.Messages.Count == 0, "unassociated sender cannot issue a farm ping");
+
 const float serverSecondsPerTick = 0.05f;
 var primaryCaulkTicks = GameZone.GetChannelIntervalTicks(0.3f, serverSecondsPerTick);
 var alternateCaulkTicks = GameZone.GetChannelIntervalTicks(0.15f, serverSecondsPerTick);

@@ -89,6 +89,7 @@ public interface IGameInstance
     public void UpdateTesla(uint teslaId, uint? targetId, List<uint> teslasInRange);
     public void PlayerCommand(uint playerId, Key command);
     public void TeamPing(uint playerId, Vector3 position, Vector3 normal);
+    public void FarmPing(uint playerId, Vector3 position, Vector3 normal);
     public void HeroEmote(uint playerId, bool active, int emoteIndex);
     public void AimLook(uint playerId, byte[] body);
     public void ScoreboardMetadata(uint playerId, IServiceZone requester);

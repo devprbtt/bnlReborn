@@ -882,6 +882,12 @@ public partial class GameInstance : IGameInstance
         Zone?.EnqueueAction(() => Zone?.ReceivedPlayerCommand(playerId, command));
 
     public void TeamPing(uint playerId, Vector3 position, Vector3 normal) =>
+        SendTeamMarker(playerId, position, normal, false);
+
+    public void FarmPing(uint playerId, Vector3 position, Vector3 normal) =>
+        SendTeamMarker(playerId, position, normal, true);
+
+    private void SendTeamMarker(uint playerId, Vector3 position, Vector3 normal, bool farm) =>
         Zone?.EnqueueAction(() =>
         {
             if (Zone == null || !Zone.TryAcceptTeamPing(playerId, position, normal, out var team, out var safeNormal))
@@ -904,13 +910,16 @@ public partial class GameInstance : IGameInstance
                     zoneService.SendHeroEmote(playerId, false, -1);
 
                 if (player.Team != team) continue;
-                if (zoneService.SupportsTeamPing)
-                    zoneService.SendTeamPing(playerId, position, safeNormal);
-                // Reuse the original player-command presentation. Every teammate
-                // hears the sender hero/skin's VO and sees the native notice.
-                zoneService.SendPlayerCommand(playerId, TeamPingRegistration.EnemySpottedNotification);
+                SendTeamMarkerPresentation(zoneService, playerId, position, safeNormal, farm);
             }
         });
+
+    internal static void SendTeamMarkerPresentation(IServiceZone service, uint playerId, Vector3 position, Vector3 normal, bool farm)
+    {
+        if (service.SupportsTeamPing) service.SendTeamPing(playerId, position, normal);
+        // Exactly one native notice/VO accompanies either kind of marker.
+        service.SendPlayerCommand(playerId, farm ? new Key("note_command_farm") : TeamPingRegistration.EnemySpottedNotification);
+    }
 
     public void HeroEmote(uint playerId, bool active, int emoteIndex) =>
         Zone?.EnqueueAction(() =>

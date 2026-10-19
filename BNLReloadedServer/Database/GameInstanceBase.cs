@@ -88,6 +88,7 @@ public abstract class GameInstanceBase : IGameInstance
     public virtual void UpdateTesla(uint teslaId, uint? targetId, List<uint> teslasInRange) { }
     public virtual void PlayerCommand(uint playerId, Key command) { }
     public virtual void TeamPing(uint playerId, Vector3 position, Vector3 normal) { }
+    public virtual void FarmPing(uint playerId, Vector3 position, Vector3 normal) { }
     public virtual void HeroEmote(uint playerId, bool active, int emoteIndex) { }
     public virtual void AimLook(uint playerId, byte[] body) { }
     public virtual void ScoreboardMetadata(uint playerId, IServiceZone requester) { }

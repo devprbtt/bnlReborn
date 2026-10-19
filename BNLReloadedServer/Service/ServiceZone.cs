@@ -121,7 +121,8 @@ public partial class ServiceZone(ISender sender, Func<System.Net.IPAddress?>? pe
         MessageReceiveAimLook = 107,
         MessageAimLook = 108,
         MessageAssistLead = 109,
-        MessageReplayControl = 110
+        MessageReplayControl = 110,
+        MessageFarmPing = 112
     }
 
     private IRegionServerDatabase ServerDatabase => Databases.RegionServerDatabase;
@@ -131,11 +132,12 @@ public partial class ServiceZone(ISender sender, Func<System.Net.IPAddress?>? pe
     // 5: scoreboard metadata carries each player's clan tag and tag colour.
     // 6: high-rate look stream with aim state, relayed to spectators.
     // 7: Skill II (Accomplice) players are told which enemy heroes they currently lead on damage.
-    private const int TeamPingProtocolVersion = 8;
+    private const int TeamPingProtocolVersion = 9;
     private bool _supportsReplayControls;
     private const int TeamPingMinimumProtocolVersion = 1;
 
     public bool SupportsTeamPing { get; private set; }
+    public bool SupportsFarmPing { get; private set; }
     public bool SupportsHeroEmote { get; private set; }
     public bool SupportsAimLook { get; private set; }
     public bool SupportsAssistLead { get; private set; }
@@ -173,6 +175,7 @@ public partial class ServiceZone(ISender sender, Func<System.Net.IPAddress?>? pe
             if (magic == TeamPingCapabilityMagic && version >= TeamPingMinimumProtocolVersion)
             {
                 SupportsTeamPing = true;
+                SupportsFarmPing = version >= 9;
                 SupportsHeroEmote = version >= 2;
                 SupportsBuildPreview = version >= 3;
                 SupportsScoreboardMetadata = version >= 4;
@@ -206,6 +209,14 @@ public partial class ServiceZone(ISender sender, Func<System.Net.IPAddress?>? pe
         var normal = reader.ReadVector3();
         if (SupportsTeamPing && sender.AssociatedPlayerId.HasValue)
             GameInstance?.TeamPing(sender.AssociatedPlayerId.Value, position, normal);
+    }
+
+    private void ReceiveFarmPing(BinaryReader reader)
+    {
+        var position = reader.ReadVector3();
+        var normal = reader.ReadVector3();
+        if (SupportsFarmPing && sender.AssociatedPlayerId.HasValue)
+            GameInstance?.FarmPing(sender.AssociatedPlayerId.Value, position, normal);
     }
 
     public void SendTeamPing(uint playerId, Vector3 position, Vector3 normal)
@@ -1489,6 +1500,9 @@ public partial class ServiceZone(ISender sender, Func<System.Net.IPAddress?>? pe
                 break;
             case ServiceZoneId.MessageExecuteMapEditorCommand:
                 ReceiveExecuteMapEditorCommand(reader);
+                break;
+            case ServiceZoneId.MessageFarmPing:
+                ReceiveFarmPing(reader);
                 break;
             case ServiceZoneId.MessageReceiveTeamPing:
                 ReceiveTeamPing(reader);
