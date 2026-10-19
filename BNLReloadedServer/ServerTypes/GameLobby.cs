@@ -510,6 +510,13 @@ public class GameLobby : Updater
         SendLobbyUpdate(players: LobbyData.Players.Values.ToList(), requeuePlayers: LobbyData.RequeuePlayers);
     }
 
+    public void SetCustomPlayerTeam(uint playerId, TeamType team)
+    {
+        if (!LobbyData.Players.TryGetValue(playerId, out var player)) return;
+        player.Team = team;
+        SendLobbyUpdate(players: LobbyData.Players.Values.ToList());
+    }
+
     public void LoadProgressUpdate(uint playerId, float progress)
     {
         LobbyData.PlayersProgress[playerId] = progress;

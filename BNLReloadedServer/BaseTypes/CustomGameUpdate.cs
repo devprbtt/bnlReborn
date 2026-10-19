@@ -4,6 +4,8 @@ namespace BNLReloadedServer.BaseTypes;
 
 public class CustomGameUpdate
 {
+    // Optional message-level extension, outside the legacy record framing.
+    public bool? TeamCombat { get; set; }
     public string? GameName { get; set; }
 
     public string? Password { get; set; }

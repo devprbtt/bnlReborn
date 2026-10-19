@@ -307,7 +307,7 @@ public partial class GameZone
 
         if (effect.Targeting is { } targeting)
             actualUnits = actualUnits.Where(u => RelationshipApplies(u, unitSource, source.Team,
-                targeting.AffectedTeam));
+                targeting.AffectedTeam) || IsCustomFriendlyDamageTarget(u, unitSource, source.Team, effect));
 
         if (effect.Targeting?.AffectedUnits is { Count: > 0 } inclUnits)
         {
