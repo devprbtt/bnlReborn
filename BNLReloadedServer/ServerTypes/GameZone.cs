@@ -2098,6 +2098,10 @@ public partial class GameZone : Updater
 
         var objDmg = source?.ObjectiveDamageAmount(damage.ObjectiveDamage) ?? damage.ObjectiveDamage;
 
+        var blockDmg = splashDamage && !damage.Mining
+            ? source?.SplashBlockDamageAmount(worldDmg) ?? worldDmg
+            : worldDmg;
+
         Func<float, float> falloffFunc = dmg => dmg;
         if (falloff is { MaxDamageRange: >= 0 } && falloff.MaxDamageRange < falloff.MinDamageRange)
         {
@@ -2136,7 +2140,7 @@ public partial class GameZone : Updater
             : objDmg);
 
         return new DamageData(selfDmg, teamDmg, falloffFunc(playerDmg), teamDeviceDmg, falloffFunc(worldDmg),
-            falloffFunc(worldDmg), teamObjDmg,
+            falloffFunc(blockDmg), teamObjDmg,
             falloffFunc(objDmg), damage.Mining, damage.Melee, damage.IgnoreInvincibility, damage.IgnoreDefences);
     }
 

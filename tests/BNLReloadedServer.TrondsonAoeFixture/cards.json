@@ -1,0 +1,158 @@
+[
+  {
+    "_id": "effect_hero_trondson_heigh_ho_buff_icon",
+    "scope": "public",
+    "prefab_unit": "",
+    "prefab_player": "",
+    "sound_for_player": null,
+    "sound_for_unit": null,
+    "gui_info": {
+      "name": {
+        "text": "Heigh-Ho!",
+        "data": {}
+      },
+      "description": {
+        "text": "While near Trondson, deal 50% more explosion damage to blocks.",
+        "data": {}
+      },
+      "icon": "progress_trondson_item_prog100_50",
+      "icon_pos_type": "positive",
+      "icon_form_type": "round"
+    },
+    "positive": true,
+    "interrupt": null,
+    "scores": 1,
+    "duration": null,
+    "labels": [
+      "buff_combat"
+    ],
+    "effect": {
+      "type": "buff",
+      "targeting": {
+        "affected_labels": null,
+        "affected_units": [
+          "player"
+        ],
+        "affected_team": "friendly",
+        "caster_owned_only": false,
+        "ignore_caster": false
+      },
+      "buffs": {}
+    },
+    "category": "effect",
+    "splash_block_damage_bonus": 0.5
+  },
+  {
+    "_id": "effect_hero_trondson_heigh_ho_aura",
+    "scope": "public",
+    "prefab_unit": "",
+    "prefab_player": "",
+    "sound_for_player": null,
+    "sound_for_unit": null,
+    "gui_info": null,
+    "positive": true,
+    "interrupt": null,
+    "scores": null,
+    "duration": 12,
+    "labels": [],
+    "effect": {
+      "type": "aura",
+      "targeting": {
+        "affected_labels": null,
+        "affected_units": null,
+        "affected_team": "friendly",
+        "caster_owned_only": false,
+        "ignore_caster": true
+      },
+      "outer_radius": 10,
+      "inner_radius": null,
+      "interval_effects": [],
+      "interval": 0,
+      "enter_effect": null,
+      "leave_effect": null,
+      "constant_effects": [
+        "effect_hero_trondson_heigh_ho_buff",
+        "effect_hero_trondson_heigh_ho_torpedo_buff",
+        "effect_hero_trondson_heigh_ho_buff_icon"
+      ]
+    },
+    "category": "effect"
+  },
+  {
+    "_id": "effect_hero_trondson_heigh_ho_aura_singin_in_the_mine",
+    "scope": "public",
+    "prefab_unit": "",
+    "prefab_player": "",
+    "sound_for_player": null,
+    "sound_for_unit": null,
+    "gui_info": null,
+    "positive": true,
+    "interrupt": null,
+    "scores": null,
+    "duration": 12,
+    "labels": [],
+    "effect": {
+      "type": "aura",
+      "targeting": {
+        "affected_labels": null,
+        "affected_units": null,
+        "affected_team": "friendly",
+        "caster_owned_only": false,
+        "ignore_caster": true
+      },
+      "outer_radius": 16,
+      "inner_radius": null,
+      "interval_effects": [],
+      "interval": 0,
+      "enter_effect": null,
+      "leave_effect": null,
+      "constant_effects": [
+        "effect_hero_trondson_heigh_ho_buff",
+        "effect_hero_trondson_singing_in_the_mine",
+        "effect_hero_trondson_heigh_ho_torpedo_buff",
+        "effect_hero_trondson_heigh_ho_buff_icon"
+      ]
+    },
+    "category": "effect"
+  },
+  {
+    "_id": "effect_hero_trondson_heigh_ho_buff_self",
+    "scope": "public",
+    "prefab_unit": "",
+    "prefab_player": "",
+    "sound_for_player": null,
+    "sound_for_unit": null,
+    "gui_info": {
+      "name": null,
+      "description": null,
+      "icon": "progress_trondson_item_prog100_50",
+      "icon_pos_type": "positive",
+      "icon_form_type": "round"
+    },
+    "positive": true,
+    "interrupt": null,
+    "scores": 1,
+    "duration": 12,
+    "labels": [
+      "buff_combat"
+    ],
+    "effect": {
+      "type": "self",
+      "targeting": {
+        "affected_labels": null,
+        "affected_units": [
+          "player"
+        ],
+        "affected_team": "friendly",
+        "caster_owned_only": true,
+        "ignore_caster": false
+      },
+      "interval_effects": [],
+      "interval": 0,
+      "constant_effects": [
+        "effect_hero_trondson_heigh_ho_buff"
+      ]
+    },
+    "category": "effect"
+  }
+]
