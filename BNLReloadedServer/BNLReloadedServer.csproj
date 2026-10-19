@@ -10,6 +10,7 @@
     </PropertyGroup>
 
     <ItemGroup>
+      <Content Include="LeaderboardTrophies\*.png" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
       <Content Include="ControlPanel\**">
         <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       </Content>

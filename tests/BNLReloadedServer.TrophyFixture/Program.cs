@@ -1,1 +1,2 @@
 TrophyTests.Run();
+LeaderboardTrophyTests.Run();

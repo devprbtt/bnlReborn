@@ -107,6 +107,18 @@ public static class PlayerLeaderboardTests
         }
         finally { File.Delete(path); }
         Careers();
+        TiedLeaders();
+    }
+
+    static void TiedLeaders()
+    {
+        using var db = new SQLiteConnection(":memory:");
+        db.CreateTable<ArchivedMatchRecord>(); db.CreateTable<ArchivedMatchPlayerRecord>(); db.CreateTable<ArchivedMatchPresenceRecord>(); db.CreateTable<PlayerRecord>();
+        for (uint id = 1; id <= 102; id++) Round(db, id, "Tied", Ranked, Now - 40 * Day, kills: 10);
+        var all = PlayerStatLeaderboards.ReadAll(db, false, Now, Modes, includeAllLeaders: true);
+        Check(all[PlayerLeaderboardStat.Kills].Rows.Count == 102 && all[PlayerLeaderboardStat.Kills].Rows.All(r => r.Rank == 1), "trophy snapshot includes tied all-time leaders beyond top 100 and older than 30 days");
+        Check(Board(db, PlayerLeaderboardStat.Kills).Rows.Count == 100 && Board(db, PlayerLeaderboardStat.Kills, true).Rows.Count == 0, "public top 100 and 30-day filters stay unchanged");
+        Check(all.Count == 16 && all[PlayerLeaderboardStat.Kdr].Rows.Count == 0, "complete snapshot retains eligibility thresholds");
     }
 
     // Hours, matches, win rate and KDR, on their own archive so the totals are exact.

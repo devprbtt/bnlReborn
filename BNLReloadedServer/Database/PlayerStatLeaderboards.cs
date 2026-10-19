@@ -67,6 +67,13 @@ public static class PlayerStatLeaderboards
     public static PlayerLeaderboard Read(SQLiteConnection db, PlayerLeaderboardStat stat, bool recentOnly, long nowMs,
         IReadOnlyCollection<long> modeKeys)
     {
+        return ReadAll(db, recentOnly, nowMs, modeKeys, onlyStat: stat)[stat];
+    }
+
+    // Aggregate the archive once for the complete trophy reconciliation. Include every tied leader beyond top 100.
+    public static Dictionary<PlayerLeaderboardStat, PlayerLeaderboard> ReadAll(SQLiteConnection db, bool recentOnly,
+        long nowMs, IReadOnlyCollection<long> modeKeys, bool includeAllLeaders = false, PlayerLeaderboardStat? onlyStat = null)
+    {
         var after = recentOnly ? nowMs - RecentDays * 86_400_000L : long.MinValue;
         var matches = db.Table<ArchivedMatchRecord>().ToList()
             .Where(m => modeKeys.Contains(m.GameModeKey) && m.EndedAt >= after)
@@ -89,23 +96,28 @@ public static class PlayerStatLeaderboards
         // Current account names win over the name used in the last archived round.
         var accounts = db.Table<PlayerRecord>().ToList().ToDictionary(p => p.PlayerId, p => p.Username);
 
-        var ranked = totals
-            .Select(pair => (Id: pair.Key, Value: Value(stat, pair.Value), Matches: pair.Value.Matches))
-            .Where(r => r.Value is > 0)
-            .OrderByDescending(r => r.Value).ThenBy(r => r.Matches).ThenBy(r => r.Id)
-            .ToList();
-        var rows = new List<PlayerLeaderboardRow>();
-        for (int i = 0; i < ranked.Count && rows.Count < Limit; i++)
+        var boards = new Dictionary<PlayerLeaderboardStat, PlayerLeaderboard>();
+        foreach (var stat in StatNames.Values.Where(s => onlyStat == null || s == onlyStat))
         {
-            // Equal values share a rank (1, 2, 2, 4).
-            int rank = i > 0 && ranked[i].Value == ranked[i - 1].Value ? rows[^1].Rank : i + 1;
-            var name = accounts.TryGetValue(ranked[i].Id, out var username) && !string.IsNullOrWhiteSpace(username)
-                ? username
-                : nicknames.GetValueOrDefault(ranked[i].Id).Name ?? string.Empty;
-            rows.Add(new PlayerLeaderboardRow(rank, ranked[i].Id, name, ranked[i].Value!.Value, ranked[i].Matches));
+            var ranked = totals
+                .Select(pair => (Id: pair.Key, Value: Value(stat, pair.Value), Matches: pair.Value.Matches))
+                .Where(r => r.Value is > 0)
+                .OrderByDescending(r => r.Value).ThenBy(r => r.Matches).ThenBy(r => r.Id)
+                .ToList();
+            var rows = new List<PlayerLeaderboardRow>();
+            for (int i = 0; i < ranked.Count && (rows.Count < Limit || (includeAllLeaders && ranked[i].Value == ranked[0].Value)); i++)
+            {
+                // Equal values share a rank (1, 2, 2, 4).
+                int rank = i > 0 && ranked[i].Value == ranked[i - 1].Value ? rows[^1].Rank : i + 1;
+                var name = accounts.TryGetValue(ranked[i].Id, out var username) && !string.IsNullOrWhiteSpace(username)
+                    ? username
+                    : nicknames.GetValueOrDefault(ranked[i].Id).Name ?? string.Empty;
+                rows.Add(new PlayerLeaderboardRow(rank, ranked[i].Id, name, ranked[i].Value!.Value, ranked[i].Matches));
+            }
+            boards[stat] = new PlayerLeaderboard(1, StatNames.First(p => p.Value == stat).Key, recentOnly ? "30d" : "all", nowMs,
+                MinMatches(stat), ranked.Count, rows);
         }
-        return new PlayerLeaderboard(1, StatNames.First(p => p.Value == stat).Key, recentOnly ? "30d" : "all", nowMs,
-            MinMatches(stat), ranked.Count, rows);
+        return boards;
     }
 
     public static int MinMatches(PlayerLeaderboardStat stat) => stat switch

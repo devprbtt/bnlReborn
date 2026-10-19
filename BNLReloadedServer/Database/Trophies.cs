@@ -26,6 +26,7 @@ public sealed class PlayerTrophyRecord
     [Indexed, Column("trophy_id")] public string TrophyId { get; set; } = string.Empty;
     [Column("granted_at_ms")] public long GrantedAt { get; set; }
     [Column("granted_by")] public string GrantedBy { get; set; } = string.Empty;
+    [Column("notified")] public bool Notified { get; set; }
     [Column("note")] public string Note { get; set; } = string.Empty;
 }
 

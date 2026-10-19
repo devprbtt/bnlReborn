@@ -172,6 +172,27 @@ public static class TrophyTests
         Check(service.SupportsTrophies && sender.Packets.Any(p => p.Length == 3 && p[0] == 16 && p[1] == 9 && p[2] == Trophies.ShowcaseSlots),
             "a capability-4 Hello is answered with trophy support and the slot count");
 
+        uint acknowledgedBy = 0; long[] acknowledged = [];
+        ServiceClan.ReadTrophyNotices = id => Task.FromResult(new List<LeaderboardTrophies.Notice> { new(42, "leaderboard-kills", "Top 1 - Kills") });
+        ServiceClan.AckTrophyNotices = (id, ids) => { acknowledgedBy = id; acknowledged = ids.ToArray(); return Task.FromResult(true); };
+        var modern = new Capture { AssociatedPlayerId = 2 };
+        var modernService = new ServiceClan(modern);
+        modernService.Receive(new BinaryReader(new MemoryStream(Frame(w => { w.Write((byte)0); w.Write(5); }))));
+        for (int i = 0; i < 100; i++) { lock (modern.Packets) { if (modern.Packets.Any(p => p[1] == 10)) break; } await Task.Delay(10); }
+        byte[] packet; lock (modern.Packets) packet = modern.Packets.Single(p => p[1] == 10);
+        using (var notice = new BinaryReader(new MemoryStream(packet)))
+        {
+            Check(notice.ReadByte() == 16 && notice.ReadByte() == 10 && notice.ReadUInt32() == 2 && notice.ReadByte() == 1 &&
+                notice.ReadInt64() == 42 && notice.ReadString() == "leaderboard-kills" && notice.ReadString() == "Top 1 - Kills", "capability 5 login sends exact trophy notice wire format");
+        }
+        Check(sender.Packets.All(p => p[1] != 10), "capability 4 receives no unknown notification message");
+        modernService.Receive(new BinaryReader(new MemoryStream(Frame(w => { w.Write((byte)23); w.Write((ushort)200); w.Write((byte)1); w.Write(42L); }))));
+        Check((ClanResult?)await Result(modern, 200) == ClanResult.Ok && acknowledgedBy == 2 && acknowledged.SequenceEqual([42L]), "acknowledgement identity comes from authenticated connection");
+        service.Receive(new BinaryReader(new MemoryStream(Frame(w => { w.Write((byte)23); w.Write((ushort)201); w.Write((byte)1); w.Write(42L); }))));
+        Check((ClanResult?)await Result(sender, 201) == ClanResult.NotAllowed, "older client cannot acknowledge notifications");
+        modernService.Receive(new BinaryReader(new MemoryStream(Frame(w => { w.Write((byte)23); w.Write((ushort)202); w.Write((byte)18); }))));
+        Check((ClanResult?)await Result(modern, 202) == ClanResult.NotAllowed, "oversized notification ack rejected before payload read");
+
         async Task<ClanResult?> Pin(ServiceClan target, Capture capture, ushort id, params string[] trophies)
         {
             target.Receive(new BinaryReader(new MemoryStream(Frame(w =>

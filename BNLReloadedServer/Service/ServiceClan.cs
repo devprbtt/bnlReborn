@@ -28,7 +28,7 @@ public class ServiceClan(ISender sender) : IServiceClan
         Hello = 0, Create = 1, Invite = 2, Accept = 3, Decline = 4, Leave = 5,
         Kick = 6, SetRank = 7, Transfer = 8, Rename = 9, Disband = 10, SetTagColor = 11, Browse = 12, InvitePlayer = 13, PlayerTags = 14, Apply = 18, CancelApplication = 19, ApproveApplication = 20, DeclineApplication = 21,
         // Capability 4: replace the player's trophy showcase (byte count, then trophy ids).
-        SetTrophyShowcase = 22
+        SetTrophyShowcase = 22, AcknowledgeTrophies = 23
     }
 
     private enum ServerMessage : byte { State = 0, Result = 1 }
@@ -43,6 +43,11 @@ public class ServiceClan(ISender sender) : IServiceClan
     internal static Func<uint, IReadOnlyList<string>, Task<TrophyResult>> WriteShowcase =
         (playerId, ids) => Databases.MasterServerDatabase.WithTrophies(db => Trophies.SetShowcase(db, playerId, ids));
 
+    public bool SupportsTrophyNotices { get; private set; }
+    internal static Func<uint, Task<List<LeaderboardTrophies.Notice>>> ReadTrophyNotices =
+        player => Databases.MasterServerDatabase.WithTrophies(db => LeaderboardTrophies.Pending(db, player));
+    internal static Func<uint, IReadOnlyCollection<long>, Task<bool>> AckTrophyNotices =
+        (player, ids) => Databases.MasterServerDatabase.WithTrophies(db => LeaderboardTrophies.Acknowledge(db, player, ids));
     private long _lastPoll;
     private readonly Queue<DateTimeOffset> _recent = new();
 
@@ -64,6 +69,7 @@ public class ServiceClan(ISender sender) : IServiceClan
             SupportsCompetition = version >= 2 && SupportsClans;
             SupportsApplications = version >= 3 && SupportsClans;
             SupportsTrophies = version >= 4 && SupportsClans;
+            SupportsTrophyNotices = version >= 5 && SupportsClans;
             if (!SupportsClans || sender.AssociatedPlayerId is not { } id) return true;
             if (SupportsTrophies)
             {
@@ -71,6 +77,15 @@ public class ServiceClan(ISender sender) : IServiceClan
                 supported.Write(TrophiesSupportedMessage); supported.Write((byte)Trophies.ShowcaseSlots);
                 sender.Send(supported);
             }
+            if (first && SupportsTrophyNotices)
+                ReadTrophyNotices(id).ContinueWith(t =>
+                {
+                    if (t.IsFaulted) { Log.Error(LogCat.Player, "Trophy notifications failed", t.Exception!); return; }
+                    using var notice = CreateWriter();
+                    notice.Write((byte)10); notice.Write(id); notice.Write((byte)t.Result.Count);
+                    foreach (var award in t.Result) { notice.Write(award.GrantId); notice.Write(award.TrophyId); notice.Write(award.Name); }
+                    sender.Send(notice);
+                });
             // The first Hello of a connection announces the player online to their clan; later ones (the client
             // re-sends Hello when the CLAN page opens) refresh only this player's view, so they cannot flood a clan.
             if (first) ClanHub.PushClanOf(id);
@@ -93,6 +108,20 @@ public class ServiceClan(ISender sender) : IServiceClan
         if (Throttled())
         {
             SendResult(requestId, ClanResult.NotAllowed);
+            return true;
+        }
+        if (message == ClientMessage.AcknowledgeTrophies)
+        {
+            if (!SupportsTrophyNotices) { SendResult(requestId, ClanResult.NotAllowed); return true; }
+            int count = reader.ReadByte();
+            if (count > 17) { SendResult(requestId, ClanResult.NotAllowed); return true; }
+            var ids = new List<long>();
+            for (int i = 0; i < count; i++) ids.Add(reader.ReadInt64());
+            AckTrophyNotices(playerId, ids).ContinueWith(t =>
+            {
+                if (t.IsFaulted) Log.Error(LogCat.Player, "Trophy acknowledgement failed", t.Exception!);
+                SendResult(requestId, !t.IsFaulted && t.Result ? ClanResult.Ok : ClanResult.NotAllowed);
+            });
             return true;
         }
         if (message == ClientMessage.SetTrophyShowcase)

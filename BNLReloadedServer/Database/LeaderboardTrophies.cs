@@ -1,0 +1,75 @@
+using SQLite;
+
+namespace BNLReloadedServer.Database;
+
+/// <summary>Transferable trophies for the current all-time stat leaders and current season league leader.</summary>
+public static class LeaderboardTrophies
+{
+    public const string Awarder = "leaderboard", Prefix = "leaderboard-";
+    public static readonly IReadOnlyDictionary<string, string> Names = new Dictionary<string, string>
+    {
+        ["league"] = "League", ["kills"] = "Kills", ["headshots"] = "Headshot Kills",
+        ["average_dps"] = "Average DPS", ["assists"] = "Assists", ["objective_damage"] = "Objective Damage",
+        ["hours"] = "Hours", ["matches"] = "Matches", ["win_rate"] = "Win Rate", ["kdr"] = "KDR",
+        ["first_kills"] = "First Kills", ["double_kills"] = "Double Kills", ["multi_kills"] = "Multi Kills",
+        ["ultra_kills"] = "Ultra Kills", ["fantastic_kills"] = "Fantastic Kills",
+        ["unbelievable_kills"] = "Unbelievable Kills", ["best_streak"] = "Best Streak"
+    };
+
+    // Assets ship with the server; import before granting anything, fail closed if the package is incomplete.
+    public static void InstallArt(SQLiteConnection db, string assets, string images, long now)
+    {
+        var files = Names.Keys.ToDictionary(k => k, k => File.ReadAllBytes(Path.Combine(assets, k + ".png")));
+        if (files.Values.Any(png => !Trophies.ValidPng(png))) throw new InvalidDataException("Invalid leaderboard trophy art");
+        foreach (var (stat, name) in Names)
+        {
+            string id = Prefix + stat, target = Trophies.ImagePath(images, id);
+            var old = db.Find<TrophyRecord>(id);
+            bool changed = old == null || !File.Exists(target) || !File.ReadAllBytes(target).SequenceEqual(files[stat]);
+            if (changed) Trophies.SaveImage(images, id, files[stat]);
+            string period = stat == "league" ? "current season's League" : "all-time " + name;
+            string meaning = stat == "best_streak" ? " Best Streak means kills without dying." : "";
+            var result = Trophies.Save(db, id, "Top 1 - " + name,
+                "Held while ranked #1 on the " + period + " leaderboard. Transfers when the lead changes. Tied stat leaders all qualify." + meaning, changed, now);
+            if (result != TrophyResult.Ok) throw new InvalidOperationException("Trophy install failed: " + id + " " + result);
+        }
+    }
+
+    /// <summary>Caller supplies complete winners from one database snapshot; missing categories are an error.</summary>
+    public static void Reconcile(SQLiteConnection db, IReadOnlyDictionary<string, HashSet<uint>> winners, long now)
+    {
+        if (Names.Keys.Any(k => !winners.ContainsKey(k))) throw new ArgumentException("Incomplete leaderboard snapshot");
+        var accounts = db.Table<PlayerRecord>().ToList().Select(p => p.PlayerId).ToHashSet();
+        foreach (string stat in Names.Keys)
+        {
+            string id = Prefix + stat;
+            var definition = db.Find<TrophyRecord>(id) ?? throw new InvalidOperationException("Missing trophy " + id);
+            var desired = definition.Retired ? new HashSet<uint>() : winners[stat].Where(accounts.Contains).ToHashSet();
+            var held = db.Table<PlayerTrophyRecord>().Where(g => g.TrophyId == id).ToList();
+            var keep = new HashSet<uint>();
+            foreach (var grant in held)
+                if (!desired.Contains((uint)grant.PlayerId) || !keep.Add((uint)grant.PlayerId)) Trophies.Revoke(db, grant.Id);
+            foreach (uint player in desired.Except(keep))
+                if (Trophies.Grant(db, player, id, Awarder, stat == "league" ? "Current season rank 1" : "All-time rank 1", now).Result != TrophyResult.Ok)
+                    throw new InvalidOperationException("Leaderboard grant failed");
+        }
+    }
+
+    public sealed record Notice(long GrantId, string TrophyId, string Name);
+    public static List<Notice> Pending(SQLiteConnection db, uint player)
+    {
+        long id = player;
+        var names = db.Table<TrophyRecord>().ToList().ToDictionary(t => t.Id, t => t.Name);
+        return db.Table<PlayerTrophyRecord>().Where(g => g.PlayerId == id && !g.Notified && g.GrantedBy == Awarder)
+            .ToList().OrderBy(g => g.Id).Take(17)
+            .Select(g => new Notice(g.Id, g.TrophyId, names.GetValueOrDefault(g.TrophyId, g.TrophyId))).ToList();
+    }
+
+    public static bool Acknowledge(SQLiteConnection db, uint player, IReadOnlyCollection<long> grants)
+    {
+        if (grants.Count > 17 || grants.Any(id => id <= 0)) return false;
+        foreach (long id in grants.Distinct())
+            db.Execute("UPDATE PlayerTrophies SET notified = 1 WHERE id = ? AND player_id = ? AND granted_by = ?", id, (long)player, Awarder);
+        return true;
+    }
+}

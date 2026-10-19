@@ -54,6 +54,9 @@ public class MasterServerDatabase : IMasterServerDatabase
         var grants = _playerDb.Table<InventoryGrantRecord>().ToListAsync().Result;
         PlayerInventory.Load(grants);
         ReportGrantsWithoutPrivateCards(grants);
+        _playerDb.RunInTransactionAsync(db => LeaderboardTrophies.InstallArt(db,
+            Path.Combine(AppContext.BaseDirectory, "LeaderboardTrophies"), Databases.TrophyImagesFolderPath,
+            DateTimeOffset.UtcNow.ToUnixTimeMilliseconds())).Wait();
         AdvanceLeague().Wait();
         // Seasons end at midnight UTC on the first of the month; check every minute.
         _leagueTimer = new Timer(_ => AdvanceLeague().ContinueWith(t =>
@@ -86,6 +89,7 @@ public class MasterServerDatabase : IMasterServerDatabase
                 }
                 closed = LeagueSeasons.Advance(db, DateTimeOffset.UtcNow, RatedMatches, hidden);
                 LeagueSeasons.Refresh(db);
+                ReconcileLeaderboardTrophies(db);
             });
         }
         finally
@@ -98,6 +102,17 @@ public class MasterServerDatabase : IMasterServerDatabase
             foreach (var playerId in LeagueSeasons.Snapshot.Keys)
                 Databases.PlayerDatabase.UpdatePlayer(playerId, new PlayerUpdate { League = LeagueRanker.Derive(playerId) });
         }
+    }
+
+    private static void ReconcileLeaderboardTrophies(SQLiteConnection db)
+    {
+        long now = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+        long[] modes = [CatalogueHelper.ModeRanked.Key.Hash, CatalogueHelper.ModeFriendly.Key.Hash];
+        var boards = PlayerStatLeaderboards.ReadAll(db, false, now, modes, includeAllLeaders: true);
+        var winners = PlayerStatLeaderboards.StatNames.ToDictionary(p => p.Key,
+            p => boards[p.Value].Rows.Where(r => r.Rank == 1).Select(r => r.PlayerId).ToHashSet());
+        winners["league"] = LeagueSeasons.Snapshot.Values.Where(s => s.Rank == 1).Select(s => s.PlayerId).ToHashSet();
+        LeaderboardTrophies.Reconcile(db, winners, now);
     }
 
     private sealed class RatedCount { public long PlayerId { get; set; } public int Matches { get; set; } }
@@ -382,6 +397,8 @@ public class MasterServerDatabase : IMasterServerDatabase
                     }
                 }
             });
+            await _playerDb.RunInTransactionAsync(ReconcileLeaderboardTrophies);
+            lock (_leaderboardCache) _leaderboardCache.Clear();
         }
         finally
         {
