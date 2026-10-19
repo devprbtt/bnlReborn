@@ -29,7 +29,8 @@ public partial class GameInstance
             _serverDatabase.UpdateScene(playerId, new SceneZone
             {
                 GameMode = GameInitiator.GetGameMode(), MatchKey = MatchKey,
-                MyTeam = team, IsSpectator = false, IsMapEditor = false, Restart = true
+                // Team-dependent map colliders and colours must be rebuilt, including on older clients.
+                MyTeam = team, IsSpectator = false, IsMapEditor = false, Restart = false
             }, true);
         });
         return true;
