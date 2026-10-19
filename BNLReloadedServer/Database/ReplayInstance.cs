@@ -45,6 +45,10 @@ public sealed class ReplayInstance : GameInstanceBase
     private bool _paused;
     private bool _seeking;
     private bool _controls;
+    private bool _acknowledgedSeeking;
+    private int _barrierSequence;
+    private TaskCompletionSource<bool>? _barrier;
+
     private int _generation;
     private ReplayRecord? _initZone;
     private ReplayRecord? _load;
@@ -119,20 +123,27 @@ public sealed class ReplayInstance : GameInstanceBase
         Send(_initZone.Data);
     }
 
-    public void EnableControls(uint playerId)
+    public void EnableControls(uint playerId, bool acknowledgedSeeking = false)
     {
-        if (playerId == _viewerId) _controls = true;
+        if (playerId == _viewerId) { _controls = true; _acknowledgedSeeking = acknowledgedSeeking; }
     }
 
     private long Position => Math.Min(_timeline.DurationMs, _position + _clock.ElapsedMilliseconds);
 
     // Commands are accepted only on this viewer's replay instance, never a live game.
-    // 0=query, 1=pause, 2=resume, 3=relative seek in ms, 4=skip current build.
+    // 0=query, 1=pause, 2=resume, 3=relative seek in ms, 4=skip current build, 5=catch-up ACK.
     public void Control(uint playerId, byte command, int argument)
     {
         lock (_gate)
         {
-            if (playerId != _viewerId || !_controls || IsOver() || _streaming == 0 || _seeking) return;
+            if (playerId != _viewerId || !_controls || IsOver()) return;
+            if (command == 5)
+            {
+                if (_seeking && _acknowledgedSeeking && argument == _barrierSequence)
+                    _barrier?.TrySetResult(true);
+                return;
+            }
+            if (_streaming == 0 || _seeking) return;
             if (command == 0) { SendState(); return; }
             if (command is 1 or 2)
             {
@@ -155,6 +166,13 @@ public sealed class ReplayInstance : GameInstanceBase
             _clock.Reset();
             _seekTarget = target;
             _seeking = true;
+            // Forward catch-up can continue from the existing reader/world.
+            // Only rewind requires reconstructing from the initial snapshot.
+            if (target >= _position)
+            {
+                SendState();
+                return;
+            }
             _generation++;
             _playback?.Cancel();
             _streaming = 0;
@@ -189,6 +207,7 @@ public sealed class ReplayInstance : GameInstanceBase
             _streaming = 1;
             _position = 0;
             _clock.Reset();
+            if (!_seeking && !_paused) _clock.Start();
             SetClock();
             SendState();
             Send(_load.Data);
@@ -207,60 +226,63 @@ public sealed class ReplayInstance : GameInstanceBase
             using var reader = new ReplayReader(_path);
             reader.Next(); reader.Next(); // InitZone and join snapshot were sent by the join handshake.
             var next = reader.Next();
-            int batchBytes = 0;
-            // Rebuild from the original map snapshot, including all block/unit changes.
-            while (next != null && next.Kind != MatchRecorder.KindEnd)
-            {
-                lock (_gate)
-                {
-                    token.ThrowIfCancellationRequested();
-                    if (!_seeking || next.OffsetMs > _seekTarget) break;
-                    _position = next.OffsetMs;
-                    // Ordered clock updates let client interpolation timestamp each
-                    // catch-up packet correctly, even when many arrive in one frame.
-                    SendState();
-                    if (next.Kind == MatchRecorder.KindStream) Send(next.Data);
-                }
-                batchBytes += next.Data.Length;
-                next = reader.Next();
-                if (batchBytes >= 64 * 1024)
-                {
-                    lock (_gate) { token.ThrowIfCancellationRequested(); SendState(); }
-                    batchBytes = 0;
-                    await Task.Delay(20, token); // bounded replay catch-up traffic
-                }
-            }
-            lock (_gate)
-            {
-                token.ThrowIfCancellationRequested();
-                if (_seeking) _position = _seekTarget;
-                _seeking = false;
-                _clock.Reset();
-                if (!_paused) _clock.Start();
-                if (_controls) { SetClock(); SendState(); }
-            }
+            int batchBytes = 0, batchRecords = 0;
             long lastState = 0;
             var updates = Stopwatch.StartNew();
             while (next != null)
             {
-                bool delivered = false;
+                bool delivered = false, catchup = false, finishSeek = false;
                 lock (_gate)
                 {
                     token.ThrowIfCancellationRequested();
-                    if (!_paused && next.OffsetMs <= Position)
+                    if (_seeking)
+                    {
+                        if (next.Kind == MatchRecorder.KindEnd || next.OffsetMs > _seekTarget) finishSeek = true;
+                        else
+                        {
+                            _position = next.OffsetMs;
+                            SendState();
+                            if (next.Kind == MatchRecorder.KindStream) Send(next.Data);
+                            delivered = catchup = true;
+                        }
+                    }
+                    else if (!_paused && next.OffsetMs <= Position)
                     {
                         if (next.Kind == MatchRecorder.KindEnd) break;
                         if (next.Kind == MatchRecorder.KindStream) Send(next.Data);
                         delivered = true;
                     }
-                    if (_controls && updates.ElapsedMilliseconds - lastState >= 500)
+                    if (!_seeking && _controls && updates.ElapsedMilliseconds - lastState >= 500)
                     {
                         SendState();
                         lastState = updates.ElapsedMilliseconds;
                     }
                 }
+                if (catchup)
+                {
+                    batchBytes += next.Data.Length;
+                    if (batchBytes >= 32 * 1024 || ++batchRecords >= 128)
+                    {
+                        await DrainSeekBatchAsync(token);
+                        batchBytes = batchRecords = 0;
+                    }
+                }
+                if (finishSeek)
+                {
+                    await DrainSeekBatchAsync(token);
+                    lock (_gate)
+                    {
+                        token.ThrowIfCancellationRequested();
+                        _position = _seekTarget;
+                        _seeking = false;
+                        _clock.Reset();
+                        if (!_paused) _clock.Start();
+                        SetClock(); SendState();
+                    }
+                    batchBytes = batchRecords = 0;
+                }
                 if (delivered) next = reader.Next();
-                else await Task.Delay(10, token);
+                else if (!finishSeek) await Task.Delay(10, token);
             }
             if (_controls)
             {
@@ -284,6 +306,30 @@ public sealed class ReplayInstance : GameInstanceBase
         }
         finally { lock (_gate) { if (ReferenceEquals(_playback, cancellation)) _playback = null; cancellation.Dispose(); } }
         lock (_gate) { if (generation == _generation) End(); }
+    }
+
+    private async Task DrainSeekBatchAsync(CancellationToken token)
+    {
+        if (!_acknowledgedSeeking)
+        {
+            await Task.Delay(20, token);
+            return;
+        }
+        Task completion;
+        lock (_gate)
+        {
+            token.ThrowIfCancellationRequested();
+            _barrier = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            completion = _barrier.Task;
+            using var writer = new BinaryWriter(new MemoryStream());
+            writer.Write((byte)6);
+            writer.Write((byte)113);
+            writer.Write(++_barrierSequence);
+            Send(RecordingSender.Frame(writer));
+        }
+        // Never leave a viewer indefinitely stuck in Seeking if the connection
+        // stops consuming packets. End() returns them through normal cleanup.
+        await completion.WaitAsync(TimeSpan.FromSeconds(30), token);
     }
 
     private void Send(byte[] framed)

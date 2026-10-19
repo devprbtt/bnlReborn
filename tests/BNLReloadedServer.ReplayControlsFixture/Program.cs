@@ -30,6 +30,7 @@ try {
         Record(1,0,[2,6,0]);
         Record(2,0,Phase(ZonePhaseType.Build));
         Record(3,100,[2,6,70]);
+        for(int i=0;i<300;i++) Record(3,200,[2,6,72]);
         Record(3,1000,Phase(ZonePhaseType.Assault));
         Record(3,1500,[2,6,71]);
         Record(3,2000,Phase(ZonePhaseType.Build2));
@@ -51,8 +52,7 @@ try {
     replay.Control(8,2,0);
     Check(host.State.Paused,"another account cannot resume this replay");
     replay.Control(7,4,0);
-    Check(host.State.Seeking && host.Scenes.Last().Restart,"skip build requests a fresh spectator scene");
-    replay.PlayerEnterScene(7);replay.PlayerZoneReady(7);
+    Check(host.State.Seeking && host.Scenes.IsEmpty,"skip build catches up in place without reloading the scene");
     await Until(()=>!host.State.Seeking);
     Check(host.State.Position==1000 && host.State.Paused,"skip build reaches combat and preserves pause");
     Check(host.Packets.Any(p=>p.SequenceEqual(new byte[]{2,6,70})),"seeking replays earlier world changes instead of discarding them");
@@ -61,11 +61,9 @@ try {
     await Until(()=>!host.State.Seeking);
     Check(host.State.Position==0 && host.State.Paused,"rewind clamps to start and preserves pause");
     replay.Control(7,3,2200);
-    replay.PlayerEnterScene(7);replay.PlayerZoneReady(7);
     await Until(()=>!host.State.Seeking);
     Check(host.State.Position==2200 && host.State.NextCombat==3000,"forward seeking reconstructs second build phase");
     replay.Control(7,4,0);
-    replay.PlayerEnterScene(7);replay.PlayerZoneReady(7);
     await Until(()=>!host.State.Seeking);
     Check(host.State.Position==3000,"skip-build also handles the second build phase");
     replay.Control(7,2,0);
@@ -81,6 +79,38 @@ try {
     int count=host.Packets.Count;await Task.Delay(80);
     Check(replay.IsOver() && host.Ends==1 && host.Packets.Count==count,"leaving cancels streaming and cleans up once");
     replay.PlayerDisconnected(7);Check(host.Ends==1,"disconnect after leave is idempotent");
+    var ackHost=new Host();var ackReplay=new ReplayInstance(ackHost,path,"ack",7);
+    ackReplay.EnableControls(7,true);ackReplay.LinkGuidToPlayer(7,Guid.NewGuid(),Guid.NewGuid());
+    ackReplay.PlayerEnterScene(7);ackReplay.PlayerZoneReady(7);ackReplay.Control(7,1,0);
+    ackReplay.Control(7,3,2200);
+    await Until(()=>ackHost.Barrier>0);
+    int barrier=ackHost.Barrier;
+    await Task.Delay(80);
+    Check(ackHost.State.Seeking,"seek remains pending until the client applies catch-up packets");
+    Check(ackHost.Packets.Count<=130,"large catch-up stops after 128 records until acknowledged");
+    int blockedCount=ackHost.Packets.Count;
+    await Task.Delay(80);
+    Check(ackHost.Packets.Count==blockedCount,"slow client cannot accumulate an unbounded catch-up queue");
+    ackReplay.Control(8,5,barrier);ackReplay.Control(7,5,barrier-1);
+    await Task.Delay(80);
+    Check(ackHost.State.Seeking,"another viewer and stale acknowledgements cannot release catch-up");
+    await Until(()=>{ ackReplay.Control(7,5,ackHost.Barrier); return !ackHost.State.Seeking; });
+    barrier=ackHost.Barrier;
+    Check(ackHost.State.Position==2200 && ackHost.State.Paused,"acknowledged seek completes at target with pause intent");
+    ackReplay.Control(7,3,-2200);ackReplay.PlayerEnterScene(7);ackReplay.PlayerZoneReady(7);
+    await Until(()=>ackHost.Barrier>barrier);
+    ackReplay.Control(7,5,barrier);
+    await Task.Delay(80);
+    Check(ackHost.State.Seeking,"previous seek acknowledgement cannot complete a new seek");
+    ackReplay.Control(7,5,ackHost.Barrier);
+    await Until(()=>!ackHost.State.Seeking);
+    ackReplay.Control(7,2,0);
+    await Until(()=>ackHost.Packets.Any(p=>p.SequenceEqual(new byte[]{2,6,70})) && ackHost.State.Position>0);
+    Check(!ackHost.State.Paused,"playback resumes after acknowledged rewind");
+    ackReplay.Control(7,3,1000);
+    await Until(()=>ackHost.State.Seeking);
+    ackReplay.PlayerLeftInstance(7,KickReason.MatchQuit);
+    Check(ackReplay.IsOver() && ackHost.Ends==1,"leaving during pending catch-up cancels cleanly");
     var oldHost=new Host();var old=new ReplayInstance(oldHost,path,"old",7);
     old.LinkGuidToPlayer(7,Guid.NewGuid(),Guid.NewGuid());old.PlayerZoneReady(7);old.Control(7,1,0);
     Check(!oldHost.HasState,"old clients receive no unsupported replay control messages");
@@ -101,13 +131,16 @@ sealed class Host:IReplayHost {
     public State State=new(0,0,0,false,false,-1);
     public bool HasState;
     public int Ends;
+    public volatile int Barrier;
     public void UpdateScene(uint player,Scene scene)=>Scenes.Enqueue((SceneZone)scene);
     public void SetReplayClock(uint player,long? offset){}
     public void EndReplay(uint player,string instance)=>Interlocked.Increment(ref Ends);
     public void SendToSession(Guid session,byte[] bytes){
         using var r=new BinaryReader(new MemoryStream(bytes));
         int length=r.Read7BitEncodedInt();
-        if(length>=2 && r.ReadByte()==6 && r.ReadByte()==111){
+        int service=r.ReadByte(), message=r.ReadByte();
+        if(service==6 && message==113){Barrier=r.ReadInt32();return;}
+        if(length>=2 && service==6 && message==111){
             State=new(r.ReadInt64(),r.ReadInt64(),r.ReadInt64(),r.ReadBoolean(),r.ReadBoolean(),r.ReadInt64());HasState=true;
         } else Packets.Enqueue(bytes);
     }

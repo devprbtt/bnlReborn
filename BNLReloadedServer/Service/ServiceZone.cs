@@ -132,8 +132,9 @@ public partial class ServiceZone(ISender sender, Func<System.Net.IPAddress?>? pe
     // 5: scoreboard metadata carries each player's clan tag and tag colour.
     // 6: high-rate look stream with aim state, relayed to spectators.
     // 7: Skill II (Accomplice) players are told which enemy heroes they currently lead on damage.
-    private const int TeamPingProtocolVersion = 9;
+    private const int TeamPingProtocolVersion = 10;
     private bool _supportsReplayControls;
+    private bool _supportsReplaySeekAck;
     private const int TeamPingMinimumProtocolVersion = 1;
 
     public bool SupportsTeamPing { get; private set; }
@@ -183,6 +184,7 @@ public partial class ServiceZone(ISender sender, Func<System.Net.IPAddress?>? pe
                 SupportsAimLook = version >= 6;
                 SupportsAssistLead = version >= 7;
                 _supportsReplayControls = version >= 8;
+                _supportsReplaySeekAck = version >= 10;
                 SendTeamPingCapability(Math.Min(version, TeamPingProtocolVersion));
             }
         }
@@ -190,7 +192,7 @@ public partial class ServiceZone(ISender sender, Func<System.Net.IPAddress?>? pe
         if (sender.AssociatedPlayerId.HasValue)
         {
             if (_supportsReplayControls && GameInstance is ReplayInstance replay)
-                replay.EnableControls(sender.AssociatedPlayerId.Value);
+                replay.EnableControls(sender.AssociatedPlayerId.Value, _supportsReplaySeekAck);
             GameInstance?.PlayerZoneReady(sender.AssociatedPlayerId.Value);
         }
     }
