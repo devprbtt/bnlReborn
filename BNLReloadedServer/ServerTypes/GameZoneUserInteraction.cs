@@ -1495,7 +1495,7 @@ public partial class GameZone
     public void ReceivedSurrenderRequest(ushort rpcId, uint playerId, IServiceZone surrenderService)
     {
         // Deathmatch is free-for-all: there is no team to surrender on behalf of.
-        if (_gameInitiator is WaitingArenaInitiator)
+        if (_gameInitiator is WaitingArenaInitiator || HasEnded || _endMatchStarted != 0)
         {
             surrenderService.SendSurrenderStart(rpcId, SurrenderStartResultType.Disabled);
             return;
@@ -1515,17 +1515,20 @@ public partial class GameZone
                                               DateTimeOffset.Now))
         {
             surrenderService.SendSurrenderStart(rpcId, SurrenderStartResultType.TooEarly);
+            return;
         }
 
         if (_lastSurrenderTime[(int)player.Team] is { } surrTime &&
             surrTime.AddSeconds(_zoneData.MatchCard.SurrenderLogic?.TimeBetweenVoting ?? 0) > DateTimeOffset.Now)
         {
             surrenderService.SendSurrenderStart(rpcId, SurrenderStartResultType.TooFrequent);
+            return;
         }
 
         if (_zoneData.IsSurrenderRequest[(int)player.Team])
         {
             surrenderService.SendSurrenderStart(rpcId, SurrenderStartResultType.InProgress);
+            return;
         }
 
         _zoneData.IsSurrenderRequest[(int)player.Team] = true;
@@ -1556,7 +1559,7 @@ public partial class GameZone
 
     public void ReceivedSurrenderVoteRequest(uint playerId, bool accept)
     {
-        if (_gameInitiator is WaitingArenaInitiator) return;
+        if (_gameInitiator is WaitingArenaInitiator || HasEnded || _endMatchStarted != 0) return;
 
         if (!_playerIdToUnitId.TryGetValue(playerId, out var playerUnitId) ||
             !_playerUnits.TryGetValue(playerUnitId, out var player) ||

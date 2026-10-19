@@ -236,6 +236,27 @@ Assert(GameZone.IsChannelPulseDue(106, nextPulseTick), "a channel pulses at its 
 Assert(GameZone.GetNextChannelPulseTick(108, primaryCaulkTicks) == 114,
     "a delayed tick schedules from now instead of issuing catch-up pulses");
 
+var participation = new MatchParticipationTracker();
+var started = DateTimeOffset.UtcNow;
+var participant = new PlayerLobbyState { PlayerId = 17, Team = TeamType.Team1 };
+participation.Start(started, [participant], new Dictionary<uint, Moserware.Skills.Rating>());
+participation.SetResult(17, false, new() { [PlayerMatchStatType.Kill] = 4 }, 100, null, null);
+participation.Leave(17, started.AddMinutes(1), MatchLeaveKind.Disconnect);
+participation.Join(participant, started.AddMinutes(2), MatchJoinKind.Reconnect, false);
+participation.SetResult(17, true, new() { [PlayerMatchStatType.Kill] = 11 }, 200, null, null);
+var completed = participation.Complete(started.AddMinutes(3));
+Assert(completed[0].Stats[PlayerMatchStatType.Kill] == 15 && completed[0].TotalScore == 300 &&
+       completed[0].Presences.Count == 2, "reconnect contributions are retained across both play segments");
+participation.SetResult(17, false, new() { [PlayerMatchStatType.Kill] = 15 }, 300, null, null);
+participation.Leave(17, started.AddMinutes(4), MatchLeaveKind.Quit);
+participation.Join(participant, started.AddMinutes(5), MatchJoinKind.Reconnect, false);
+participation.Join(new PlayerLobbyState { PlayerId = 18 }, started.AddMinutes(5), MatchJoinKind.Backfill, true);
+var repeated = participation.Complete(started.AddMinutes(6));
+Assert(repeated.Count == 1 && completed[0].Stats[PlayerMatchStatType.Kill] == 15 &&
+       completed[0].TotalScore == 300 && completed[0].IsWinner && completed[0].Presences.Count == 2 &&
+       completed[0].Presences[1].LeftAt == (ulong)started.AddMinutes(3).ToUnixTimeMilliseconds(),
+       "late disconnects, rejoins and repeated completion cannot mutate archived results");
+
 Console.WriteLine($"Server team-feature protocol fixture passed ({assertions} assertions).");
 return;
 

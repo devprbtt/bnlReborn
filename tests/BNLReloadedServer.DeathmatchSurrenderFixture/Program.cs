@@ -60,9 +60,10 @@ foreach (var id in new uint[] { 1, 2, 3 })
 foreach (var deathmatch in new[] { false, true })
 {
 var service=Stub<IServiceZone>();
+var unbuffered=Stub<IServiceZone>();
 IGameInitiator initiator=deathmatch ? new WaitingArenaInitiator(mode,mapData) :
     Stub<IGameInitiator>(new() { ["GetGameMode"]=mode.Key, ["get_GameInstanceId"]="fixture" });
-var zone=new GameZone(service,Stub<IServiceZone>(),Stub<IBuffer>(),Stub<ISender>(),mapData,initiator,players);
+var zone=new GameZone(service,unbuffered,Stub<IBuffer>(),Stub<ISender>(),mapData,initiator,players);
 var done=new TaskCompletionSource();
 zone.EnqueueAction(() => {
 try {
@@ -90,6 +91,44 @@ try {
         Check(data.IsSurrenderRequest[(int)TeamType.Team1],"team mode starts a ballot");
         zone.ReceivedSurrenderVoteRequest(2,false);
         Check(data.SurrenderVotes[2]==false,"team mode still records votes");
+        var duplicateReply=Stub<IServiceZone>();
+        zone.ReceivedSurrenderRequest(43,1,duplicateReply);
+        Check(((StubProxy)(object)duplicateReply).Calls is { Count: 1 } duplicateCalls &&
+            (SurrenderStartResultType)duplicateCalls[0].Args[1]! == SurrenderStartResultType.InProgress &&
+            data.SurrenderVotes[2]==false,"duplicate surrender request preserves existing votes and sends one rejection");
+
+        data.IsSurrenderRequest[(int)TeamType.Team1]=false;
+        data.Phase.PhaseType=ZonePhaseType.Build;
+        var earlyReply=Stub<IServiceZone>();
+        zone.ReceivedSurrenderRequest(44,1,earlyReply);
+        Check(((StubProxy)(object)earlyReply).Calls.Count==1 && !data.IsSurrenderRequest[(int)TeamType.Team1],
+            "too-early surrender does not start a ballot");
+        data.Phase.PhaseType=ZonePhaseType.Assault;
+
+        // Suppress actual persistence in this fixture; exercise the real end scheduling path twice.
+        typeof(GameZone).GetField("_matchResultsFinalized",Any)!.SetValue(zone,1);
+        var begin=typeof(GameZone).GetMethod("BeginEndOfGame",Any)!;
+        ((Task)begin.Invoke(zone,[TeamType.Team2,MatchEndReason.Surrender,false])!).GetAwaiter().GetResult();
+        ((Task)begin.Invoke(zone,[TeamType.Team1,MatchEndReason.ObjectivesDestroyed,false])!).GetAwaiter().GetResult();
+        var lateReply=Stub<IServiceZone>();
+        zone.ReceivedSurrenderRequest(45,1,lateReply);
+        Check(((StubProxy)(object)lateReply).Calls.Count==1 &&
+            (SurrenderStartResultType)((StubProxy)(object)lateReply).Calls[0].Args[1]! == SurrenderStartResultType.Disabled,
+            "surrender is rejected immediately while completion is queued");
+        data.IsSurrenderRequest[(int)TeamType.Team1]=true;
+        zone.ReceivedSurrenderVoteRequest(2,true);
+        Check(data.SurrenderVotes[2]==false,"late surrender vote cannot change a finishing match");
+        zone.EnqueueAction(() => {
+            try {
+                Check(data.MatchEnded && data.Winner==TeamType.Team2,"first ending wins against competing callbacks");
+                Check(((StubProxy)(object)initiator).Calls.Count(c=>c.Name=="SetBackfillReady")==1,
+                    "completion scheduling runs only once");
+                Check(!((StubProxy)(object)unbuffered).Calls.Any(c=>c.Name=="SendEndMatch"),
+                    "already-finalized callback has no result side effects");
+                done.SetResult();
+            } catch(Exception e) { done.SetException(e); }
+        });
+        return;
     }
     done.SetResult();
 } catch(Exception e) { done.SetException(e); }

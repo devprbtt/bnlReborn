@@ -6,6 +6,7 @@ namespace BNLReloadedServer.ServerTypes;
 internal sealed class MatchParticipationTracker
 {
     private readonly Dictionary<uint, CompletedMatchPlayer> _players = [];
+    private bool _completed;
     public DateTimeOffset? StartedAt { get; private set; }
     public bool HasParticipant(uint playerId) => _players.ContainsKey(playerId);
 
@@ -22,7 +23,7 @@ internal sealed class MatchParticipationTracker
     public void Join(PlayerLobbyState state, DateTimeOffset at, MatchJoinKind kind, bool backfiller,
         Rating? startingRating = null)
     {
-        if (!StartedAt.HasValue) return;
+        if (_completed || !StartedAt.HasValue) return;
         if (!_players.TryGetValue(state.PlayerId, out var player))
         {
             player = new CompletedMatchPlayer
@@ -60,6 +61,7 @@ internal sealed class MatchParticipationTracker
 
     public void Leave(uint playerId, DateTimeOffset at, MatchLeaveKind reason)
     {
+        if (_completed) return;
         var presence = _players.GetValueOrDefault(playerId)?.Presences.LastOrDefault();
         if (presence is null || presence.LeftAt.HasValue) return;
         presence.LeftAt = (ulong)at.ToUnixTimeMilliseconds();
@@ -70,7 +72,7 @@ internal sealed class MatchParticipationTracker
         Dictionary<ScoreType, float>? rawStats, Dictionary<Key, CompletedMatchDeviceStats>? deviceStats,
         Dictionary<KillAccolade, int>? accolades = null, int bestStreak = 0)
     {
-        if (!_players.TryGetValue(playerId, out var player)) return;
+        if (_completed || !_players.TryGetValue(playerId, out var player)) return;
         player.IsWinner = winner;
         foreach (var (type, value) in stats ?? []) player.Stats[type] = player.Stats.GetValueOrDefault(type) + value;
         player.TotalScore += total;
@@ -92,6 +94,7 @@ internal sealed class MatchParticipationTracker
 
     public List<CompletedMatchPlayer> Complete(DateTimeOffset endedAt)
     {
+        _completed = true;
         foreach (var player in _players.Values)
         {
             var open = player.Presences.LastOrDefault();

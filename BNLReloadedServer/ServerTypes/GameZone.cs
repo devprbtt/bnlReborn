@@ -92,6 +92,8 @@ public partial class GameZone : Updater
 
     private Task? _gameLoop;
     private Task? _endMatchTask;
+    private int _endMatchStarted;
+    private int _matchResultsFinalized;
 
 
     private float _respawnTime;
@@ -1679,6 +1681,9 @@ public partial class GameZone : Updater
 
     private async Task BeginEndOfGame(TeamType winner, MatchEndReason reason, bool doWait = true)
     {
+        // Claim completion before queuing work or waiting for the reward-screen delay.
+        if (Interlocked.CompareExchange(ref _endMatchStarted, 1, 0) != 0) return;
+
         EnqueueAction(() =>
         {
             _gameInitiator.SetBackfillReady(false);
@@ -1770,6 +1775,9 @@ public partial class GameZone : Updater
 
     private void EndGame(TeamType winner, MatchEndReason reason)
     {
+        // A repeated callback must never award rewards, append history, or add stats again.
+        if (Interlocked.CompareExchange(ref _matchResultsFinalized, 1, 0) != 0) return;
+
         _unbufferedZone.SendEndMatch(winner);
         var matchStats = new List<EndMatchPlayerData>();
         var gameEnd = DateTimeOffset.Now;
