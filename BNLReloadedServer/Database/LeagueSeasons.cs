@@ -116,7 +116,7 @@ public sealed record LeagueTierView(string Name, int MinPoints);
 public sealed record LeagueSeasonView(int Version, string Season, long StartsAt, long EndsAt, int PlacementGames, int MinSeasonGames, List<LeagueTierView> Tiers);
 public sealed record LeagueHistoryView(string Season, int? Rank, string Tier, int Points, int Games, int Wins);
 public sealed record LeaguePlayerView(int Version, uint PlayerId, string Season, bool Placed, int PlacementGames, string? Tier, int? Points, int? Rank,
-    int Games, int Wins, bool Provisional, List<LeagueHistoryView> History);
+    int Games, int Wins, bool Provisional, List<LeagueHistoryView> History, int? CasualMmr = null);
 public sealed record LeagueClose(string Season, List<LeagueResultRecord> Results, List<(uint PlayerId, string TrophyId)> Rewards);
 
 /// <summary>
@@ -338,6 +338,7 @@ public static class LeagueSeasons
         long id = playerId;
         var season = Current(db);
         var league = db.Find<LeaguePlayerRecord>(id);
+        var player = db.Find<PlayerRecord>(playerId);
         var placed = league?.PlacedAt != null;
         Snapshot.TryGetValue(playerId, out var standing);
         var history = db.Table<LeagueResultRecord>().Where(r => r.PlayerId == id).ToList().OrderByDescending(r => r.SeasonId)
@@ -345,6 +346,7 @@ public static class LeagueSeasons
         return new LeaguePlayerView(1, playerId, season?.Id ?? "", placed, league?.PlacementGames ?? 0,
             placed && standing != null ? LeagueRules.TierNames[(int)standing.Tier] : null,
             placed && standing != null ? LeagueRules.Points(standing.Mean) : null,
-            standing?.Rank, standing?.Games ?? 0, standing?.Wins ?? 0, standing?.Provisional ?? false, history);
+            standing?.Rank, standing?.Games ?? 0, standing?.Wins ?? 0, standing?.Provisional ?? false, history,
+            player != null ? LeagueRules.Points(player.RatingMean) : null);
     }
 }
