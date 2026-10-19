@@ -16,6 +16,35 @@ public static class LeaderboardTrophies
         ["unbelievable_kills"] = "Unbelievable Kills", ["best_streak"] = "Best Streak"
     };
 
+    public static string Description(string stat)
+    {
+        if (stat == "league") return "Current season #1: highest placed League rank. Based on Ranked results. Held only while leading this season; transfers when the lead changes.";
+        string meaning = stat switch
+        {
+            "kills" => "most credited player kills",
+            "headshots" => "most kills finished with a headshot, not total headshot hits",
+            "average_dps" => "highest player damage from heroes and devices per second played. Minimum 10 qualifying matches",
+            "assists" => "most credited assists in player kills",
+            "objective_damage" => "most damage dealt to enemy objectives",
+            "hours" => "most time played in qualifying matches, excluding disconnected time",
+            "matches" => "most qualifying matches played, won or lost",
+            "win_rate" => "highest percentage of qualifying matches won. Minimum 10 matches",
+            "kdr" => "highest kills divided by deaths (at least 1 death used as divisor). Minimum 10 qualifying matches",
+            "first_kills" => "most First Kill awards for scoring a match's first counted kill",
+            "double_kills" => Chain("Double Kill", "2nd"),
+            "multi_kills" => Chain("Multi Kill", "3rd"),
+            "ultra_kills" => Chain("Ultra Kill", "4th"),
+            "fantastic_kills" => Chain("Fantastic", "5th"),
+            "unbelievable_kills" => Chain("Unbelievable", "6th and later"),
+            "best_streak" => "most kills in one life without dying, regardless of time between kills",
+            _ => throw new ArgumentOutOfRangeException(nameof(stat))
+        };
+        return "All-time #1: " + meaning + ". Ranked + Casual only. Tied leaders qualify. Transfers when the lead changes.";
+    }
+
+    private static string Chain(string name, string ordinal) =>
+        "most " + name + " awards: " + ordinal + " kill in a chain, at most 8s between kills; death ends the chain";
+
     // Assets ship with the server; import before granting anything, fail closed if the package is incomplete.
     public static void InstallArt(SQLiteConnection db, string assets, string images, long now)
     {
@@ -27,10 +56,7 @@ public static class LeaderboardTrophies
             var old = db.Find<TrophyRecord>(id);
             bool changed = old == null || !File.Exists(target) || !File.ReadAllBytes(target).SequenceEqual(files[stat]);
             if (changed) Trophies.SaveImage(images, id, files[stat]);
-            string period = stat == "league" ? "current season's League" : "all-time " + name;
-            string meaning = stat == "best_streak" ? " Best Streak means kills without dying." : "";
-            var result = Trophies.Save(db, id, "Top 1 - " + name,
-                "Held while ranked #1 on the " + period + " leaderboard. Transfers when the lead changes. Tied stat leaders all qualify." + meaning, changed, now);
+            var result = Trophies.Save(db, id, "Top 1 - " + name, Description(stat), changed, now);
             if (result != TrophyResult.Ok) throw new InvalidOperationException("Trophy install failed: " + id + " " + result);
         }
     }

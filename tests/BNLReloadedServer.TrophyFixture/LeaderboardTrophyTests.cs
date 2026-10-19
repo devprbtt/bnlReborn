@@ -19,6 +19,9 @@ public static class LeaderboardTrophyTests
             Check(Trophies.Catalogue(db).Trophies.All(t => Trophies.ValidPng(File.ReadAllBytes(Trophies.ImagePath(folder, t.Id)))), "all packaged PNGs meet upload constraints");
             LeaderboardTrophies.InstallArt(db, Path.Combine(AppContext.BaseDirectory, "LeaderboardTrophies"), folder, 2);
             Check(db.Table<TrophyRecord>().ToList().All(t => t.ImageVersion == 1), "restart does not bump unchanged art versions");
+            Check(LeaderboardTrophies.Names.Keys.All(k => LeaderboardTrophies.Description(k).Length <= Trophies.MaxDescriptionLength), "all 17 stat meanings fit the catalogue limit");
+            Check(LeaderboardTrophies.Description("best_streak").Contains("without dying") && LeaderboardTrophies.Description("double_kills").Contains("8s between kills"), "life streak and rapid-chain trophy meanings are distinct");
+            Check(LeaderboardTrophies.Description("kdr").Contains("divided by deaths") && LeaderboardTrophies.Description("win_rate").Contains("percentage") && LeaderboardTrophies.Description("average_dps").Contains("per second"), "rate trophy descriptions explain their measurements");
             var winners = LeaderboardTrophies.Names.Keys.ToDictionary(k => k, _ => new HashSet<uint>());
             winners["kills"] = [1, 2]; winners["best_streak"] = [1]; winners["league"] = [2];
             db.RunInTransaction(() => LeaderboardTrophies.Reconcile(db, winners, 10));
