@@ -120,7 +120,8 @@ public partial class ServiceZone(ISender sender, Func<System.Net.IPAddress?>? pe
         MessageScoreboardMetadata = 106,
         MessageReceiveAimLook = 107,
         MessageAimLook = 108,
-        MessageAssistLead = 109
+        MessageAssistLead = 109,
+        MessageReplayControl = 110
     }
 
     private IRegionServerDatabase ServerDatabase => Databases.RegionServerDatabase;
@@ -130,7 +131,8 @@ public partial class ServiceZone(ISender sender, Func<System.Net.IPAddress?>? pe
     // 5: scoreboard metadata carries each player's clan tag and tag colour.
     // 6: high-rate look stream with aim state, relayed to spectators.
     // 7: Skill II (Accomplice) players are told which enemy heroes they currently lead on damage.
-    private const int TeamPingProtocolVersion = 7;
+    private const int TeamPingProtocolVersion = 8;
+    private bool _supportsReplayControls;
     private const int TeamPingMinimumProtocolVersion = 1;
 
     public bool SupportsTeamPing { get; private set; }
@@ -177,12 +179,15 @@ public partial class ServiceZone(ISender sender, Func<System.Net.IPAddress?>? pe
                 SupportsClanTags = version >= 5;
                 SupportsAimLook = version >= 6;
                 SupportsAssistLead = version >= 7;
+                _supportsReplayControls = version >= 8;
                 SendTeamPingCapability(Math.Min(version, TeamPingProtocolVersion));
             }
         }
 
         if (sender.AssociatedPlayerId.HasValue)
         {
+            if (_supportsReplayControls && GameInstance is ReplayInstance replay)
+                replay.EnableControls(sender.AssociatedPlayerId.Value);
             GameInstance?.PlayerZoneReady(sender.AssociatedPlayerId.Value);
         }
     }
@@ -1499,6 +1504,12 @@ public partial class ServiceZone(ISender sender, Func<System.Net.IPAddress?>? pe
                 break;
             case ServiceZoneId.MessageReceiveAimLook:
                 ReceiveAimLook(reader);
+                break;
+            case ServiceZoneId.MessageReplayControl:
+                var command = reader.ReadByte();
+                var argument = reader.ReadInt32();
+                if (_supportsReplayControls && sender.AssociatedPlayerId is { } viewer && GameInstance is ReplayInstance replay)
+                    replay.Control(viewer, command, argument);
                 break;
             default:
                 Log.Warn(LogCat.Net, $"Zone service received unsupported serviceId: {Log.EnumName(zoneEnum, serviceZoneId)}");
