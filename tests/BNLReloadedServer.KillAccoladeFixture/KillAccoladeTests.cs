@@ -45,6 +45,20 @@ public static class KillAccoladeTests
         Check(d.Register(3, null, false, 5).Accolades.Count == 0, "an uncounted death (fall, suicide, team kill) earns nothing");
         Check(d.Register(54, 3, false, 6).Streak == 1, "an uncounted death still ends the victim's streak");
         Check(d.Register(55, 55, false, 7).Accolades.Count == 0, "a suicide earns nothing");
+
+        // BEST STREAK: kills since the killer last died, however far apart.
+        var l = new KillAccoladeTracker();
+        Check(l.Register(60, 4, false, 0).LifeStreak == 1, "the first kill of a life is a life streak of 1");
+        l.Register(61, 4, false, 30); l.Register(62, 4, false, 90);
+        var fourth = l.Register(63, 4, false, 400);
+        Check(fourth.LifeStreak == 4 && fourth.Streak == 1, "kills minutes apart keep the life streak (4) while the 8 s chain restarts");
+        Check(l.Register(4, 60, false, 401).LifeStreak == 1, "the killer's own killer starts their count; it is not credited the victim's streak");
+        Check(l.Register(64, 4, false, 402).LifeStreak == 1, "dying ends your life streak");
+        l.Register(65, 4, false, 403); l.Register(4, null, false, 404);
+        Check(l.Register(66, 4, false, 405).LifeStreak == 1, "an uncounted death (fall, suicide, team kill) also ends it");
+        Check(l.Register(67, null, false, 406).LifeStreak == 0 && l.Register(68, 4, false, 407).LifeStreak == 2,
+            "an uncounted kill neither counts nor resets the killer");
+        Check(l.Register(69, 69, false, 408).LifeStreak == 0, "a suicide counts nothing");
     }
 
     static CompletedMatchRecord Match() => new()
@@ -153,6 +167,11 @@ public static class KillAccoladeTests
             Check(cog.AccoladeMatches == 2 && cog.DoubleKills == 2 && cog.BestStreak == 3, "per-hero accolade totals use that hero's rounds");
             Check(ArchivedAccolades.Read(null) == null && ArchivedAccolades.Read([]) == null && ArchivedAccolades.Read([1, 0, 0]) == null,
                 "missing or truncated accolade blobs read as untracked");
+            var written = ArchivedAccolades.Write(new() { [KillAccolade.DoubleKill] = 1 }, 7)!;
+            Check(written[0] == 2 && ArchivedAccolades.Read(written)?.BestStreak == 7, "new rounds store the life streak as format 2");
+            var legacy = (byte[])written.Clone(); legacy[0] = 1;
+            Check(ArchivedAccolades.Read(legacy)?.BestStreak == 7, "format 1 rounds (8 s chains, a lower bound) still read");
+            Check(ArchivedAccolades.Read([3, 0, 0, 0, 0, 0, 0, 0, 0]) == null, "an unknown future format reads as untracked");
 
             var json = JsonSerializer.Serialize(stats, new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower });
             Check(json.StartsWith("{\"version\":2,"), "profile-stats version stays 2 so current clients keep parsing it");

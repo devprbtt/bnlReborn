@@ -1582,8 +1582,8 @@ public partial class GameZone
     {
         if (victim.PlayerId is not { } victimId || _gameInitiator is WaitingArenaInitiator) return;
         var counted = killerPlayer is not null && killerIsOpponent ? killerPlayer.PlayerId : null;
-        var (accolades, streak) = _killAccolades.Register(victimId, counted, crit, _accoladeClock.Elapsed.TotalSeconds);
-        if (counted is not null) killerPlayer!.RecordAccolades(accolades, streak);
+        var (accolades, _, lifeStreak) = _killAccolades.Register(victimId, counted, crit, _accoladeClock.Elapsed.TotalSeconds);
+        if (counted is not null) killerPlayer!.RecordAccolades(accolades, lifeStreak);
     }
 
     private void UnitIsKilled(Unit target, ImpactData impact, bool mining = false)

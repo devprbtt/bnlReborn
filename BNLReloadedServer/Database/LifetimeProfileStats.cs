@@ -41,7 +41,9 @@ public sealed class LifetimeCombatTotals
 /// <summary>MatchPlayers.accolades: format byte, best streak, then the accolade -> count map.</summary>
 public static class ArchivedAccolades
 {
-    private const byte Format = 1;
+    // 1: best streak was the longest 8 s multi-kill chain. 2: most kills without dying. Same layout; a chain never
+    // spans a death, so format 1 values are a lower bound of the life streak and are read as such.
+    private const byte Format = 2;
 
     public static byte[]? Write(Dictionary<KillAccolade, int>? accolades, int bestStreak)
     {
@@ -63,7 +65,7 @@ public static class ArchivedAccolades
         try
         {
             using var reader = new BinaryReader(new MemoryStream(bytes));
-            if (reader.ReadByte() != Format) return null;
+            if (reader.ReadByte() is not (1 or Format)) return null;
             var best = reader.ReadInt32();
             var counts = reader.ReadMap<KillAccolade, int, Dictionary<KillAccolade, int>>(reader.ReadByteEnum<KillAccolade>, reader.ReadInt32);
             return best < 0 || counts.Values.Any(v => v < 0) ? null : (counts, best);

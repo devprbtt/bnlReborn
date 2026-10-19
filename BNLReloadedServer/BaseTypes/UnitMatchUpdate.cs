@@ -98,11 +98,12 @@ public partial class Unit
 
     private void RecordDestroyedBlock(Key deviceKey) => UpdateDeviceStat(deviceKey, placed: false);
 
-    public void RecordAccolades(IEnumerable<KillAccolade> accolades, int streak)
+    /// <param name="lifeStreak">Kills since this player last died, counting this one.</param>
+    public void RecordAccolades(IEnumerable<KillAccolade> accolades, int lifeStreak)
     {
         if (Accolades is null) return;
         foreach (var accolade in accolades) Accolades[accolade] = Accolades.GetValueOrDefault(accolade) + 1;
-        BestStreak = Math.Max(BestStreak, streak);
+        BestStreak = Math.Max(BestStreak, lifeStreak);
     }
 
     public void EarnedResource(float resources, bool isMining)

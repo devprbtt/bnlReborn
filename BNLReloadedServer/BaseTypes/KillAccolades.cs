@@ -20,6 +20,8 @@ public enum KillAccolade : byte
 /// the killer's streak if it lands within <see cref="StreakWindowSeconds"/> of their previous kill; the second to
 /// sixth-and-later kills of a streak earn Double, Multi, Ultra, Fantastic and Unbelievable. A death ends the victim's
 /// streak. The match's first counted kill earns First Kill and a critical kill earns Headshot.
+/// Separately, the life streak counts the killer's kills since their last death, however far apart: profile and
+/// leaderboard BEST STREAK.
 /// </summary>
 public sealed class KillAccoladeTracker
 {
@@ -27,16 +29,20 @@ public sealed class KillAccoladeTracker
     public const double StreakWindowSeconds = 8;
 
     private readonly Dictionary<uint, (double At, int Chain)> _streaks = [];
+    private readonly Dictionary<uint, int> _lifeKills = [];
     private bool _firstKillAwarded;
 
     /// <summary>A player died. <paramref name="killerPlayerId"/> is null unless the death counts as a kill.</summary>
-    /// <returns>The killer's accolades for this kill and their streak length (0 when it is not a counted kill).</returns>
-    public (List<KillAccolade> Accolades, int Streak) Register(uint victimPlayerId, uint? killerPlayerId, bool crit,
-        double nowSeconds)
+    /// <returns>The killer's accolades for this kill, their 8 s multi-kill chain length and their kills since they
+    /// last died (both 0 when it is not a counted kill).</returns>
+    public (List<KillAccolade> Accolades, int Streak, int LifeStreak) Register(uint victimPlayerId, uint? killerPlayerId,
+        bool crit, double nowSeconds)
     {
         _streaks.Remove(victimPlayerId);
+        _lifeKills.Remove(victimPlayerId);
         var accolades = new List<KillAccolade>();
-        if (killerPlayerId is not { } killer || killer == victimPlayerId) return (accolades, 0);
+        if (killerPlayerId is not { } killer || killer == victimPlayerId) return (accolades, 0, 0);
+        var lifeStreak = _lifeKills[killer] = _lifeKills.GetValueOrDefault(killer) + 1;
 
         if (!_firstKillAwarded)
         {
@@ -58,6 +64,6 @@ public sealed class KillAccoladeTracker
                 5 => KillAccolade.Fantastic,
                 _ => KillAccolade.Unbelievable
             });
-        return (accolades, streak);
+        return (accolades, streak, lifeStreak);
     }
 }
