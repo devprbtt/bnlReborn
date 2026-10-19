@@ -48,6 +48,7 @@ public class ServerCatalogue : Catalogue
             ParadiseWeatherRegistration.Register(cards);
             TeamPingRegistration.Register(cards);
             RankedDraftRegistration.Register(cards);
+            GenieHealingVisualRegistration.Register(cards);
             var tempDict = new Dictionary<Key, Card>(KeyEqualityComparer.Instance);
             foreach (var card in cards)
             {
@@ -66,6 +67,7 @@ public class ServerCatalogue : Catalogue
     {
         if (card is CardPerk perk) ClassPerkCatalogue.Validate(perk);
         RankedDraftRegistration.Register([card]);
+        GenieHealingVisualRegistration.RegisterAura(card);
         if (card.Id == null) return;
         lock (_updateLock)
         {

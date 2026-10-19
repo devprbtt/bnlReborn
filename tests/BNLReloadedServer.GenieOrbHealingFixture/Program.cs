@@ -38,8 +38,10 @@ CardEffect Regen(string id, float rate) => new()
 var stationRegen = Regen("fixture_ha_station_regen", 10f);
 var staffRegen = Regen("fixture_ha_staff_regen", 5f);
 var mode = new CardGameMode { Id = "game_mode_friendly" };
+var healingAura = new CardEffect { Id = GenieHealingVisualRegistration.AuraId, Positive = true,
+    Effect = new ConstEffectAura { OuterRadius = 4, Interval = .2f, IntervalEffects = [new InstEffectHeal { PlayerHeal = 1 }] } };
 ((ServerCatalogue)Databases.Catalogue).Replicate([
-    gear, hero, orb, sprayImpact, stationRegen, staffRegen, mode, new CardGameMode { Id = "game_mode_custom" },
+    gear, hero, orb, sprayImpact, stationRegen, staffRegen, mode, healingAura, new CardGameMode { Id = "game_mode_custom" },
     new CardMatch { Id = "fixture_ha_match", Data = new MatchDataShieldCapture() },
     new CardBlock { Id = "fixture_air", BlockId = 0, Passable = BlockPassableType.Any, Transparent = true, LightTransparent = true, SkylightTransparent = true },
     new CardGlobalLogic { Id = "global_logic" }
@@ -126,6 +128,32 @@ OnZone(() =>
         HealOrb(otherGenie, teammate, time + 0.1);
     }
     Check(Near(Hp(teammate), 90), "ten seconds of three overlapping orbs heals 50 HP, not 150");
+    return true;
+});
+OnZone(() =>
+{
+    var key = GenieHealingVisualRegistration.RecipientKey;
+    var marker = Databases.Catalogue.GetCard<CardEffect>(key)!;
+    var aura = (ConstEffectAura)healingAura.Effect!;
+    Check(aura.ConstantEffects!.Count(k => k == key) == 1, "healing aura includes recipient marker");
+    GenieHealingVisualRegistration.RegisterAura(healingAura);
+    Check(aura.ConstantEffects!.Count(k => k == key) == 1, "registration is idempotent");
+    Check(marker.Effect == null && marker.Duration == null && marker.PrefabPlayer == null && marker.PrefabUnit == null,
+        "marker has no gameplay buffs, timer or unknown prefab for older clients");
+    teammate.UpdateData(new UnitUpdate { Health = 100 });
+    teammate.AddEffects([new ConstEffectInfo(key)], first.Team, first.GetSelfSource());
+    Check(teammate.ActiveEffects.Any(e => e.Key == key) && Near(Hp(teammate), 100), "full-health recipient has visual without healing or damage");
+    teammate.AddEffects([new ConstEffectInfo(key)], second.Team, second.GetSelfSource());
+    Check(teammate.ActiveEffects.Count(e => e.Key == key) == 1, "overlapping orbs share a single visual");
+    teammate.RemoveEffects([new ConstEffectInfo(key)], first.Team, first.GetSelfSource());
+    Check(teammate.ActiveEffects.Any(e => e.Key == key), "leaving one overlapping orb retains visual");
+    teammate.RemoveEffects([new ConstEffectInfo(key)], second.Team, second.GetSelfSource());
+    Check(!teammate.ActiveEffects.Any(e => e.Key == key), "leaving last orb clears visual");
+    first.AddEffects([new ConstEffectInfo(healingAura.Key)], first.Team, first.GetSelfSource());
+    first.UnitsInAuraSinceLastUpdate[aura] = [teammate];
+    teammate.AddEffects([new ConstEffectInfo(key)], first.Team, first.GetSelfSource());
+    first.RemoveEffects([new ConstEffectInfo(healingAura.Key)], first.Team, first.GetSelfSource());
+    Check(!teammate.ActiveEffects.Any(e => e.Key == key), "removing aura cleans recipient visual");
     return true;
 });
 zone.Stop();
