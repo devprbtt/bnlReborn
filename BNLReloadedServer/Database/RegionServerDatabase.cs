@@ -854,6 +854,8 @@ public partial class RegionServerDatabase(AsyncTaskTcpServer server, AsyncTaskTc
         if (!customId.HasValue) return false;
         var gameId = customId.Value;
         if (!TryGetCustomGame(gameId, out var customGame)) return false;
+        if (customGame.custom.GameInfo.Status != CustomGameStatus.Preparing)
+            return GetGameInstance(playerId) is GameInstance match && match.SwitchCustomTeam(playerId);
         customGame.custom.SwapTeam(playerId);
         return true;
     }
@@ -875,6 +877,13 @@ public partial class RegionServerDatabase(AsyncTaskTcpServer server, AsyncTaskTc
         if (!TryGetCustomGame(playerInfo.CustomGameId.Value, out var customGame)) return false;
         customGame.custom.UpdateRandomHeroes(playerId, enabled);
         return true;
+    }
+
+    public bool UpdateCustomTeamCombat(uint playerId, bool enabled)
+    {
+        if (!UserConnected(playerId, out var playerInfo) || !playerInfo.CustomGameId.HasValue) return false;
+        if (!TryGetCustomGame(playerInfo.CustomGameId.Value, out var customGame)) return false;
+        return customGame.custom.UpdateTeamCombat(playerId, enabled);
     }
 
     public bool UpdateCustomThirdPerson(uint playerId, bool enabled)

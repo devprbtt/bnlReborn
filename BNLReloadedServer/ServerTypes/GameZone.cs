@@ -2117,7 +2117,7 @@ public partial class GameZone : Updater
                 : (1 - friendlyFire.DirectDamageReduction) * playerDmg
             : playerDmg);
 
-        var teamDmg = falloffFunc(friendlyFire is not null
+        var teamDmg = falloffFunc(!AllowsCustomTeamCombat && friendlyFire is not null
             ? splashDamage
                 ? (1 - friendlyFire.SplashDamageReduction) * playerDmg
                 : (1 - friendlyFire.DirectDamageReduction) * playerDmg

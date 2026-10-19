@@ -40,6 +40,7 @@ public interface IRegionServerDatabase
     public bool SwitchTeam(uint playerId);
     public bool UpdateCustomSettings(uint playerId, CustomGameSettings settings);
     public bool UpdateCustomRandomHeroes(uint playerId, bool enabled);
+    public bool UpdateCustomTeamCombat(uint playerId, bool enabled) => false;
 
     public bool UpdateCustomThirdPerson(uint playerId, bool enabled);
     public CustomGameUpdate? GetFullCustomGameUpdate(uint playerId);

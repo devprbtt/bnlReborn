@@ -160,7 +160,7 @@ public class CustomGamePlayerGroup(IServiceMatchmaker matchService) : IGameIniti
 
     private CustomGameUpdate? SwapTeamLocked(uint playerId)
     {
-        if (GameInfo.RandomHeroes && GameInfo.Status != CustomGameStatus.Preparing) return null;
+        if (GameInfo.Status != CustomGameStatus.Preparing) return null;
         var player = _players.FirstOrDefault(p => p.Id == playerId);
 
         if (player == null)
@@ -285,7 +285,39 @@ public class CustomGamePlayerGroup(IServiceMatchmaker matchService) : IGameIniti
         {
             if (GameInfo.Status != CustomGameStatus.Preparing || !_players.Any(p => p.Id == playerId && p.Owner)) return;
             GameInfo.RandomHeroes = enabled;
+            if (enabled) GameInfo.TeamCombat = false;
             Send(BuildUpdate(randomHeroes: enabled));
+        }
+    }
+
+    public bool UpdateTeamCombat(uint playerId, bool enabled)
+    {
+        lock (_lock)
+        {
+            if (GameInfo.Status != CustomGameStatus.Preparing || !_players.Any(p => p.Id == playerId && p.Owner)) return false;
+            GameInfo.TeamCombat = enabled;
+            // Random heroes reserves fixed team seats for its per-team hero pools.
+            if (enabled) GameInfo.RandomHeroes = false;
+            Send(BuildUpdate(randomHeroes: GameInfo.RandomHeroes));
+            return true;
+        }
+    }
+
+    public bool TrySwitchInMatch(uint playerId, out TeamType team)
+    {
+        lock (_lock)
+        {
+            team = TeamType.Neutral;
+            if (!GameInfo.TeamCombat || GameInfo.RandomHeroes || GameInfo.Status != CustomGameStatus.Match) return false;
+            var player = _players.FirstOrDefault(p => p.Id == playerId);
+            if (player == null || player.Team is not (TeamType.Team1 or TeamType.Team2)) return false;
+            var target = player.Team == TeamType.Team1 ? TeamType.Team2 : TeamType.Team1;
+            if (_players.Count(p => p.Team == target) >= GameInfo.MaxPlayers / 2) return false;
+            player.Team = team = target;
+            player.SwitchTeamRequest = false;
+            _changeTeamRequestsTeam1.Clear(); _changeTeamRequestsTeam2.Clear();
+            Send(BuildUpdate(players: [.. _players]));
+            return true;
         }
     }
 
@@ -407,7 +439,8 @@ public class CustomGamePlayerGroup(IServiceMatchmaker matchService) : IGameIniti
                 Players = [.. _players],
                 Status = GameInfo.Status,
                 ForceThirdPerson = GameInfo.ForceThirdPerson,
-                RandomHeroes = GameInfo.RandomHeroes
+                RandomHeroes = GameInfo.RandomHeroes,
+                TeamCombat = GameInfo.TeamCombat
             };
         }
     }
@@ -448,6 +481,7 @@ public class CustomGamePlayerGroup(IServiceMatchmaker matchService) : IGameIniti
     private void Send(CustomGameUpdate? update)
     {
         if (update == null) return;
+        update.TeamCombat = GameInfo.TeamCombat;
         matchService.SendUpdateCustomGame(update);
     }
 }
