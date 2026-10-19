@@ -6,7 +6,7 @@ perk-exclusive cards are deleted):
 - Cogwheel: Heavier Metal (health +20% / movement -15%)
 - Trondson: Fire Lamps (lamps burn for 7.5 s / lamp pool -4)
 
-Kobold Lamps: both tools now apply the 7.5 s burning buff (burning 3) that Fire Lamps applied,
+Kobold Lamps: both tools inherit the current live Fire Lamps burn (including its duration),
 under a new id. The pool (12) and reload flags stay those of the base lamps; only the burn
 moves over. The English description gains one sentence and its stale translations are dropped.
 The Splashing Damage shop item, which was named "Beautiful Bubbles", takes its perk's name.
@@ -58,7 +58,8 @@ DELETED = REMOVED_SHOP_ITEMS + tuple(REMOVED.values()) + (
     OLD_BURN,
 )
 UPDATED = ("global_logic", "shop_logic", LAMPS, SPLASHING_ITEM)
-READ = UPDATED + DELETED + (BURN, SPLASHING_PERK)
+BRICKED_UP = "gear_trondson_kobold_lamps_bricked_up"
+READ = UPDATED + DELETED + (BURN, SPLASHING_PERK, BRICKED_UP)
 
 LAMPS_TEXT_BASE = ("Enchanted lamps fueled by earth spirits. While originally designed as an excavation tool "
                    "they also make effective weapons. <BINDING_CAST1> throws a lamp that explodes on landing, "
@@ -85,8 +86,8 @@ def burn_lists(gear):
 
 
 def burn_effect(old):
-    assert old["effect"] == {"type": "buff", "targeting": None, "buffs": {"burning": 3}}, old["effect"]
-    assert old["duration"] == 7.5 and old["positive"] is False, old
+    assert old["effect"] in ({"type": "buff", "targeting": None, "buffs": {"burning": amount}} for amount in (3, 5)), old["effect"]
+    assert old["duration"] in (3, 7.5) and old["positive"] is False, old
     card = {key: copy.deepcopy(value) for key, value in old.items() if key not in ("_id", "_rev", "hercules_metadata")}
     card["_id"] = BURN
     return card
@@ -97,7 +98,8 @@ def migrate_global_logic(card):
     heroes = changed["perks"]["heroes"]
     for hero, perk in REMOVED.items():
         heroes[hero] = [p for p in heroes[hero] if p != perk]
-        assert sorted(heroes[hero]) == sorted(REMAINING[hero]), (hero, heroes[hero])
+        assert set(REMAINING[hero]).issubset(heroes[hero]), (hero, heroes[hero])
+        # Preserve newer live perks (Upgraded Gears / Bricked Up).
     return changed
 
 
@@ -108,16 +110,17 @@ def migrate_shop_logic(card):
     return changed
 
 
-def migrate_lamps(card, fire_lamps):
+def migrate_lamps(card, fire_lamps, duration=7.5):
+    lamp_text = LAMPS_TEXT_BASE + f" Enemies hit burn for {duration:g} seconds."
     changed = copy.deepcopy(card)
     for hit in burn_lists(changed):
-        assert hit["unit_const_effects"] in ([], [BURN]), hit["unit_const_effects"]
+        assert hit["unit_const_effects"] in ([], [BURN], [OLD_BURN]), hit["unit_const_effects"]
         hit["unit_const_effects"] = [BURN]
     assert changed["ammo"][0]["pool"]["pool_size"] == 12, "lamp pool changed"
     current = changed["description"]["text"]
-    assert current in (LAMPS_TEXT_BASE, LAMPS_TEXT), current
-    if current != LAMPS_TEXT:
-        changed["description"] = text(LAMPS_TEXT)
+    assert current in (LAMPS_TEXT_BASE, LAMPS_TEXT, lamp_text), current
+    if current != lamp_text:
+        changed["description"] = text(lamp_text)
     if fire_lamps is not None:
         # The burn is exactly the live Fire Lamps hit, renamed.
         expected = [[BURN if e == OLD_BURN else e for e in hit["unit_const_effects"]] for hit in burn_lists(fire_lamps)]
@@ -144,13 +147,18 @@ def plan(cards):
         desired_burn = burn_effect(cards[OLD_BURN])
     else:
         desired_burn = without_rev(existing_burn)
-        assert desired_burn["effect"]["buffs"] == {"burning": 3} and desired_burn["duration"] == 7.5, "a different " + BURN + " exists"
+        assert desired_burn["effect"]["buffs"] in ({"burning": 3}, {"burning": 5}) and desired_burn["duration"] in (3, 7.5), "a different " + BURN + " exists"
     migrated = {
         "global_logic": migrate_global_logic(cards["global_logic"]),
         "shop_logic": migrate_shop_logic(cards["shop_logic"]),
-        LAMPS: migrate_lamps(cards[LAMPS], cards.get(FIRE_LAMPS)),
+        LAMPS: migrate_lamps(cards[LAMPS], cards.get(FIRE_LAMPS), desired_burn["duration"]),
         SPLASHING_ITEM: migrate_splashing_item(cards[SPLASHING_ITEM], cards[SPLASHING_PERK]),
     }
+    if BRICKED_UP in cards:
+        variant = copy.deepcopy(cards[BRICKED_UP])
+        for hit in burn_lists(variant):
+            hit["unit_const_effects"] = [BURN if e == OLD_BURN else e for e in hit["unit_const_effects"]]
+        migrated[BRICKED_UP] = variant
     writes = {card_id: card for card_id, card in migrated.items() if card != cards[card_id]}
     if existing_burn is None:
         writes = {BURN: desired_burn, **writes}  # created before the lamps reference it
@@ -219,6 +227,7 @@ if __name__ == "__main__":
     catalogue = {row["id"]: row["doc"] for row in rows if not row["id"].startswith("_design")}
     before = {card_id: catalogue[card_id] for card_id in READ if card_id in catalogue}
     writes, deletes, after = plan(catalogue)
+    assert plan(after)[:2] == ({}, []), "migration must be idempotent"
     print(json.dumps({"write": list(writes), "delete": deletes,
                       "revisions": {card_id: before[card_id]["_rev"] for card_id in list(writes) + deletes
                                     if card_id in before},
