@@ -73,6 +73,12 @@ public static class BuffHelper
         public float WorldDamageAmount(float initialDamage) =>
           initialDamage * Math.Max(0.0f, 1f + unit.GetBuff(BuffType.WorldDamage));
 
+        public float SplashBlockDamageAmount(float worldDamage) =>
+          worldDamage * (1f + unit.ActiveEffects.Where(effect => !effect.IsExpired)
+              .DistinctBy(effect => effect.Key)
+              .Sum(effect => float.IsFinite(effect.Card.SplashBlockDamageBonus)
+                  ? Math.Max(0f, effect.Card.SplashBlockDamageBonus) : 0f));
+
         public float ObjectiveDamageAmount(float initialDamage) =>
           initialDamage * Math.Max(0.0f, 1f + unit.GetBuff(BuffType.ObjectiveDamage));
 
