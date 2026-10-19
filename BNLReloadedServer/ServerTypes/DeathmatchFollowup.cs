@@ -10,13 +10,13 @@ internal static class DeathmatchFollowup
             .Sum(key => raw?.GetValueOrDefault(key) ?? 0));
         return stats;
     }
-    internal static void RemoveMapForcefields(MapBinary map)
+    internal static void RemoveMapRestrictions(MapBinary map)
     {
-        // Built-in spawn forcefields only; player force-gate devices remain available.
+        // Remove inherited forcefields and invisible no-build cells only in the deathmatch copy.
         for (int x=0;x<map.Size.x;x++) for(int y=0;y<map.Size.y;y++) for(int z=0;z<map.Size.z;z++)
         {
             var block=map[new Vector3s(x,y,z)];
-            if (block.Id != 44) continue;
+            if (block.Id != 44 && !block.IsLocked) continue;
             block.Id=0; block.Damage=0; block.VData=0; block.LData=0;
         }
     }

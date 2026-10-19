@@ -61,7 +61,7 @@ foreach (var deathmatch in new[] { false, true })
 {
 var service=Stub<IServiceZone>();
 var unbuffered=Stub<IServiceZone>();
-IGameInitiator initiator=deathmatch ? new WaitingArenaInitiator(mode,mapData) :
+IGameInitiator initiator=deathmatch ? new WaitingArenaInitiator(mode) :
     Stub<IGameInitiator>(new() { ["GetGameMode"]=mode.Key, ["get_GameInstanceId"]="fixture" });
 var zone=new GameZone(service,unbuffered,Stub<IBuffer>(),Stub<ISender>(),mapData,initiator,players);
 var done=new TaskCompletionSource();

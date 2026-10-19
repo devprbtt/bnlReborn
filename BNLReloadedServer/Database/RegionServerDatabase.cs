@@ -1507,7 +1507,7 @@ public partial class RegionServerDatabase(AsyncTaskTcpServer server, AsyncTaskTc
                 var map = Databases.MapDatabase.LoadMapData(mapKey);
                 if (map == null) return false;
                 PrepareWaitingArenaMap(map);
-                initiator = new WaitingArenaInitiator(CatalogueHelper.ModeCustom, map);
+                initiator = new WaitingArenaInitiator(CatalogueHelper.ModeCustom);
                 instance = new GameInstance(matchServer, server, Guid.NewGuid().ToString(), initiator);
                 initiator.GameInstanceId = instance.GameInstanceId;
                 instance.SetMap(new MapInfoCard { MapKey = mapKey }, map);
@@ -1623,7 +1623,7 @@ public partial class RegionServerDatabase(AsyncTaskTcpServer server, AsyncTaskTc
             UnitLabel.Objective or UnitLabel.Base or UnitLabel.ShieldGenerator or UnitLabel.ShieldGeneratorDestroyed or
             UnitLabel.DropPointResource or UnitLabel.DropPointBlockbuster or UnitLabel.DropPointBase or
             UnitLabel.SupplyResource or UnitLabel.SupplyBlockbuster or UnitLabel.HealthSupply or UnitLabel.AmmmoSupply or
-            UnitLabel.Srv2Objective1 or UnitLabel.Srv2Objective2) == true);
+            UnitLabel.Srv2Objective1 or UnitLabel.Srv2Objective2 or UnitLabel.NoBuildZone) == true);
 
         map.SpawnPoints = WaitingArenaInitiator.SpawnPositions.Select((position, index) => new MapSpawnPoint
         {

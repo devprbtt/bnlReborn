@@ -43,17 +43,22 @@ catalogue.Replicate(JsonSerializer.Deserialize<List<Card>>(File.ReadAllText(args
 var map=Databases.MapDatabase.LoadMapData(new Key("map_sr2_search_and_destroy"))!;var original=map.BlocksData!.ToArray();
 var updater=new MapUpdater((_,_)=>{},(_,_)=>{},_=>{},_=>true);
 var normal=new MapBinary(map.Schema,map.BlocksData!,map.Size,map.Properties?.PlanePosition??0,updater);
-int removed=0,unchanged=0;
-var arena=new MapBinary(map.Schema,map.BlocksData!,map.Size,map.Properties?.PlanePosition??0,updater,DeathmatchFollowup.RemoveMapForcefields);
+int removed=0,lockedRemoved=0,unchanged=0;
+var arena=new MapBinary(map.Schema,map.BlocksData!,map.Size,map.Properties?.PlanePosition??0,updater,DeathmatchFollowup.RemoveMapRestrictions);
 for(int x=0;x<map.Size.x;x++)for(int y=0;y<map.Size.y;y++)for(int z=0;z<map.Size.z;z++) {
  var pos=new Vector3s(x,y,z);
  if(normal[pos].Id==44){if(arena[pos].Id!=0)throw new Exception("forcefield remains");removed++;}
+ else if(normal[pos].IsLocked){if(arena[pos].Id!=0)throw new Exception("no-build cell remains");lockedRemoved++;}
  else {if(normal[pos].Id!=arena[pos].Id)throw new Exception("unrelated terrain changed");unchanged++;}
 }
 Check(removed>0 && unchanged>0,"actual Search and Destroy forcefields removed; other blocks preserved ("+removed+")");
+Check(lockedRemoved>0,"actual map no-build cells removed ("+lockedRemoved+")");
 Check(original.SequenceEqual(map.BlocksData),"shared map source bytes unchanged");
 var late=new MapBinary(arena.ToBinary(),map.Properties?.PlanePosition??0,updater);
 Check(late.Size==arena.Size,"late join receives valid edited map snapshot");
+for(int x=0;x<late.Size.x;x++)for(int y=0;y<late.Size.y;y++)for(int z=0;z<late.Size.z;z++)
+ if(late[x,y,z].IsLocked) throw new Exception("late join retains no-build cell");
+Check(true,"late join snapshot has no no-build cells");
 // Exercise the actual block publication path with separate buffered/immediate services.
 var zone=(GameZone)RuntimeHelpers.GetUninitializedObject(typeof(GameZone));
 var zd=(ZoneData)RuntimeHelpers.GetUninitializedObject(typeof(ZoneData));zd.BlocksData=arena;

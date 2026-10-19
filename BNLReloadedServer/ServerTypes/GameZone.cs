@@ -231,7 +231,7 @@ public partial class GameZone : Updater
             BlocksData = new MapBinary(mapData.Schema, mapData.BlocksData ?? [],
                 mapData.Size, mapData.Properties?.PlanePosition ?? 0, new MapUpdater(OnCut, OnMined, OnDetached, EnqueueAction),
                 terrain => { ConquestZoneFloor.Apply(terrain, mapKey, mapData);
-                    if (gameInitiator is WaitingArenaInitiator) DeathmatchFollowup.RemoveMapForcefields(terrain); }),
+                    if (gameInitiator is WaitingArenaInitiator) DeathmatchFollowup.RemoveMapRestrictions(terrain); }),
             CanSwitchHero = gameInitiator.CanSwitchHero(),
             ForceThirdPerson = gameInitiator.IsThirdPersonForced(),
             Phase = new ZonePhase

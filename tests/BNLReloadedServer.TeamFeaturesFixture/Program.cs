@@ -23,7 +23,7 @@ var waitingArenaMap = new MapData
         new MapSpawnPoint { Position = new Vector3(20.5f, 10f, 30.5f), Team = TeamType.Neutral }
     ]
 };
-var waitingArena = new WaitingArenaInitiator(new CardGameMode(), waitingArenaMap);
+var waitingArena = new WaitingArenaInitiator(new CardGameMode());
 Assert(waitingArena.AddPlayer(10) == TeamType.Neutral && waitingArena.AddPlayer(11) == TeamType.Neutral,
     "waiting arena assigns every player to the neutral FFA team");
 for (uint playerId = 1000; playerId < 1256; playerId++) waitingArena.AddPlayer(playerId);
@@ -55,8 +55,8 @@ Assert(WaitingArenaInitiator.SelectRandomSpawn([7u, 9u], 1u, 7u) == 9u,
 Assert(WaitingArenaInitiator.SelectRandomSpawn([], 3u) == 3u,
     "waiting arena spawn selection retains a safe fallback");
 AssertWaitingArenaSpawnSupport();
-Assert(waitingArena.IsInSpawnNoBuildZone(new Vector3s(20, 25, 30)),
-    "waiting arena spawn protection covers the full vertical column");
+Assert(!waitingArena.IsInSpawnNoBuildZone(new Vector3s(20, 25, 30)),
+    "deathmatch allows building in the former spawn column");
 Assert(!waitingArena.IsInSpawnNoBuildZone(new Vector3s(27, 10, 30)),
     "waiting arena spawn protection ends outside its six-block radius");
 Assert(Unit.DoesFreeForAllRelationshipApply(RelativeTeamType.Friendly, 10, 10),

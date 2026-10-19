@@ -6,9 +6,8 @@ using Moserware.Skills;
 namespace BNLReloadedServer.ServerTypes;
 
 /// <summary>Shared, unscored free-for-all used while players remain in matchmaking.</summary>
-public sealed class WaitingArenaInitiator(CardGameMode gameMode, MapData map) : IGameInitiator
+public sealed class WaitingArenaInitiator(CardGameMode gameMode) : IGameInitiator
 {
-    private const float SpawnNoBuildRadius = 6f;
     public static IReadOnlyList<System.Numerics.Vector3> SpawnPositions { get; } =
     [
         new(26.5f, 19f, 27.5f), new(26.5f, 19f, 39.5f),
@@ -56,14 +55,6 @@ public sealed class WaitingArenaInitiator(CardGameMode gameMode, MapData map) : 
     public void SetBackfillReady(bool backfillReady) { }
     public (Dictionary<uint, Rating> team1, Dictionary<uint, Rating> team2) GetTeamRatings() => ([], []);
 
-    public bool IsInSpawnNoBuildZone(Vector3s position)
-    {
-        var radiusSquared = SpawnNoBuildRadius * SpawnNoBuildRadius;
-        return map.SpawnPoints.Any(spawn =>
-        {
-            var deltaX = position.x + 0.5f - spawn.Position.X;
-            var deltaZ = position.z + 0.5f - spawn.Position.Z;
-            return deltaX * deltaX + deltaZ * deltaZ <= radiusSquared;
-        });
-    }
+    // Deathmatch allows building around every spawn; keep the query for existing build paths.
+    public bool IsInSpawnNoBuildZone(Vector3s position) => false;
 }
