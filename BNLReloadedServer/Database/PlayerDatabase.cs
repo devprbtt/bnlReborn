@@ -683,6 +683,21 @@ public class PlayerDatabase : IPlayerDatabase
         Databases.RegionServerDatabase.NotifyInventory(playerId, GetInventory(playerId));
     }
 
+    // A live CDB delete can take a card online players still hold: their inventory was sent at login and
+    // their cached loadouts were sanitized only then. Clients throw "Invalid card id" on every player
+    // update while they hold a card they were told is gone, so rebuild each online inventory and strip
+    // the card from cached profiles before the removal is broadcast.
+    public void ReconcileRemovedCard(string cardId)
+    {
+        foreach (var (playerId, player) in _players)
+        {
+            // Reloading goes through LoadSanitized, which also saves the stripped record.
+            if (player.SanitizeAgainstCatalogue()) PersistAndReload(Task.CompletedTask, playerId);
+            RefreshInventory(playerId);
+        }
+        Log.Info(LogCat.Catalogue, $"Card {cardId} removed: refreshed {_players.Count} online inventories");
+    }
+
     public void UpdateLoadout(uint playerId, Key hero, LobbyLoadout loadout) =>
         PersistAndReload(Databases.MasterServerDatabase.SetLoadoutForPlayer(playerId, hero, loadout), playerId);
 
