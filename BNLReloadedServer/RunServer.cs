@@ -76,8 +76,7 @@ new CouchChangesWatcher(
     {
         if (change.Deleted)
         {
-            if (serverCatalogue.RemoveCard(change.DocumentId))
-                catalogueService.SendRemoveCard(change.DocumentId);
+            CatalogueRemoval.Apply(serverCatalogue, change.DocumentId, catalogueService.SendRemoveCard);
             return;
         }
 
@@ -86,8 +85,7 @@ new CouchChangesWatcher(
         {
             // CouchDB can contain design/configuration documents which are not cards.
             // If this id used to be a card, removing it is also the correct client update.
-            if (serverCatalogue.RemoveCard(change.DocumentId))
-                catalogueService.SendRemoveCard(change.DocumentId);
+            CatalogueRemoval.Apply(serverCatalogue, change.DocumentId, catalogueService.SendRemoveCard);
             return;
         }
 

@@ -464,6 +464,10 @@ public class DummyPlayerDatabase : IPlayerDatabase
     {
     }
 
+    public void ReconcileRemovedCard(string cardId)
+    {
+    }
+
     public void UpdateLoadout(uint playerId, Key hero, LobbyLoadout loadout)
     {
     }
