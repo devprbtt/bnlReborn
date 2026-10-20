@@ -132,11 +132,12 @@ public partial class ServiceZone(ISender sender, Func<System.Net.IPAddress?>? pe
     // 5: scoreboard metadata carries each player's clan tag and tag colour.
     // 6: high-rate look stream with aim state, relayed to spectators.
     // 7: Skill II (Accomplice) players are told which enemy heroes they currently lead on damage.
-    // 12 is the client's in-place replay rewind (server branch fix/replay-snappy-seek); 13 adds clan emblems.
+    // 12 is the client's in-place replay rewind (replay rewinds rebuild state in the loaded scene); 13 adds clan emblems.
     private const int TeamPingProtocolVersion = 13;
     private bool _supportsReplayControls;
     private bool _supportsReplaySeekAck;
     private bool _supportsReplayPresentationReady;
+    private bool _supportsReplayInPlaceRewind;
     private const int TeamPingMinimumProtocolVersion = 1;
 
     public bool SupportsTeamPing { get; private set; }
@@ -189,6 +190,7 @@ public partial class ServiceZone(ISender sender, Func<System.Net.IPAddress?>? pe
                 _supportsReplayControls = version >= 8;
                 _supportsReplaySeekAck = version >= 10;
                 _supportsReplayPresentationReady = version >= 11;
+                _supportsReplayInPlaceRewind = version >= 12;
                 SendTeamPingCapability(Math.Min(version, TeamPingProtocolVersion));
             }
         }
@@ -196,7 +198,8 @@ public partial class ServiceZone(ISender sender, Func<System.Net.IPAddress?>? pe
         if (sender.AssociatedPlayerId.HasValue)
         {
             if (_supportsReplayControls && GameInstance is ReplayInstance replay)
-                replay.EnableControls(sender.AssociatedPlayerId.Value, _supportsReplaySeekAck, _supportsReplayPresentationReady);
+                replay.EnableControls(sender.AssociatedPlayerId.Value, _supportsReplaySeekAck, _supportsReplayPresentationReady,
+                    _supportsReplayInPlaceRewind);
             GameInstance?.PlayerZoneReady(sender.AssociatedPlayerId.Value);
         }
     }
