@@ -41,7 +41,7 @@ Check(participant.TotalScore==75 && participant.Stats[PlayerMatchStatType.Action
 var flags=BindingFlags.Instance|BindingFlags.NonPublic;
 var zone=(GameZone)RuntimeHelpers.GetUninitializedObject(typeof(GameZone));
 void Set(string name,object value)=>typeof(GameZone).GetField(name,flags)!.SetValue(zone,value);
-object? Call(string name,params object?[] values)=>typeof(GameZone).GetMethod(name,flags)!.Invoke(zone,values);
+object? Call(string name,params object?[] values)=>typeof(GameZone).GetMethod(name,flags)!.Invoke(zone,name=="ScoreKill" && values.Length==5?values.Concat(new object?[]{null}).ToArray():values);
 var data=(ZoneData)RuntimeHelpers.GetUninitializedObject(typeof(ZoneData));data.Phase=new ZonePhase{PhaseType=ZonePhaseType.Assault};
 Set("_zoneData",data);Set("_gameInitiator",DispatchProxy.Create<IGameInitiator,EmptyInitiator>());Set("_actionScoreRules",rules);Set("_scoreClock",Stopwatch.StartNew());
 var actual=new ActionScoreLedger(rules);Set("_actionScores",actual);Set("_cubeContributors",new Dictionary<uint,Dictionary<uint,double>>());
@@ -93,6 +93,19 @@ Check(actual.Total(1)==beforeSpot+6,"real radar mark attributes owner and object
 var abilityVictim=Make(7,playerCard,TeamType.Team2,7);beforeSpot=actual.Total(1);
 abilityVictim.AddEffects([new ConstEffectInfo(markCard.Key)],a.Team,a.GetSelfSource(a.CreateImpactData()));
 Check(actual.Total(1)==beforeSpot+12,"real hero ability mark awards spotter");
+// Drive the same authoritative accolade registration used by UnitIsKilled.
+data.MatchEnded=false;data.Phase.PhaseType=ZonePhaseType.Assault;units.Clear();units[a.Id]=a;units[enemy.Id]=enemy;
+Set("_killAccolades",new KillAccoladeTracker());Set("_accoladeClock",Stopwatch.StartNew());
+foreach(var expected in new[]{("First kill",60),("Double kill",75),("Multi kill",100),("Ultra kill",125),("Fantastic",150),("Unbelievable",175),("Unbelievable",175)})
+{
+ actual.Published();int before=actual.Total(1);
+ var accolade=Call("RecordKillAccolades",enemy,a,true,false);
+ Call("ScoreKill",enemy,a,true,false,Array.Empty<uint>(),accolade);
+ using var doc=JsonDocument.Parse(actual.Snapshot(false));var awards=doc.RootElement.GetProperty("awards");
+ Check(actual.Total(1)-before==expected.Item2 && awards.GetArrayLength()==1 && awards[0].GetProperty("reason").GetString()==expected.Item1,"accolade replaces kill: "+expected.Item1+" +"+expected.Item2);
+}
+actual.Published();int prior=actual.Total(1);Call("ScoreKill",enemy,a,true,true,Array.Empty<uint>(),KillAccolade.DoubleKill);
+Check(actual.Total(1)-prior==85,"double kill and headshot stack once (75 + 10)");
 Console.WriteLine($"PASS action scoring: {checks} checks");
 public class EmptyInitiator : DispatchProxy
 {

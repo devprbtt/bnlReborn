@@ -35,6 +35,8 @@ public partial class GameZone
                 break;
         }
         int points = reason switch {
+            "First kill" => rules.FirstKill, "Double kill" => rules.DoubleKill, "Multi kill" => rules.MultiKill,
+            "Ultra kill" => rules.UltraKill, "Fantastic" => rules.Fantastic, "Unbelievable" => rules.Unbelievable,
             "Kill" => rules.Kill, "Assist" => rules.Assist, "Headshot" => rules.Headshot,
             "Supply pickup" => rules.Supply, "Blockbuster pickup" => rules.Blockbuster,
             "Cube destroyed" => rules.Cube, "Cube assist" => rules.CubeAssist,
@@ -54,7 +56,7 @@ public partial class GameZone
             attacker == player, attacker?.UnitCard?.DeviceType) == DamageCreditType.Block)
             AwardAction(player, "Device damage", damage, target.GetMidpoint(), target.Id);
     }
-    private void ScoreKill(Unit target, Unit? killer, bool opponent, bool headshot, IEnumerable<uint> assists)
+    private void ScoreKill(Unit target, Unit? killer, bool opponent, bool headshot, IEnumerable<uint> assists, KillAccolade? accolade = null)
     {
         if (!CanScore || !target.IsActive) return;
         var position = target.GetMidpoint();
@@ -62,7 +64,11 @@ public partial class GameZone
         {
             if (killer != null && opponent)
             {
-                AwardAction(killer, "Kill", 1, position, target.Id);
+                string reason = accolade switch {
+                    KillAccolade.FirstKill => "First kill", KillAccolade.DoubleKill => "Double kill",
+                    KillAccolade.MultiKill => "Multi kill", KillAccolade.UltraKill => "Ultra kill",
+                    KillAccolade.Fantastic => "Fantastic", KillAccolade.Unbelievable => "Unbelievable", _ => "Kill" };
+                AwardAction(killer, reason, 1, position, target.Id);
                 if (headshot) AwardAction(killer, "Headshot", 1, position, target.Id);
             }
             foreach (var id in assists.Distinct())

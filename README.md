@@ -17,6 +17,9 @@ Set `BNL_ACTION_SCORE_RULES` to a JSON file path to override any property of `Ac
 | Action | Default points |
 | --- | ---: |
 | Kill / assist / headshot bonus | 50 / 25 / 10 |
+| First kill | 60 |
+| Double / multi / ultra kill | 75 / 100 / 125 |
+| Fantastic / unbelievable | 150 / 175 |
 | Supply / blockbuster pickup | 25 / 100 |
 | Cube destroyed / assist | 200 / 75 |
 | Device built | 10 |
@@ -25,6 +28,8 @@ Set `BNL_ACTION_SCORE_RULES` to a JSON file path to override any property of `Ac
 | Device damage to enemy players | 5 per 100 damage |
 | Radar / ability spot | 5 / 10 |
 | Action within 12 world units of a live cube or blockbuster drop zone | +25%, floored with minimum 1 |
+
+Kill accolades replace the regular kill award and label: e.g. Double kill +75, not Kill +50 plus another +75. Headshot +10 and objective bonuses still stack. The highest kill-chain tier wins; first kill uses 60. The authoritative existing eight-second chain resets on death or expiry, with the sixth and subsequent chain kills using Unbelievable. Tunable `FirstKill`, `DoubleKill`, `MultiKill`, `UltraKill`, `Fantastic`, and `Unbelievable` must increase above `Kill` in that order.
 
 Objective proximity checks the action location, applies once even if zones overlap, and uses either team's cubes. Device damage and healing bank partial progress until a five-point chunk. Cube assists require damage within 30 seconds. Repeated spotting of the same target has a shared 15-second cooldown per spotter; rebuilding at the same grid cell has a 30-second cooldown. Self/friendly damage, self healing, full-health healing, neutral-device destruction and disconnect cleanup award no points. Device type refers to deployable devices, not ordinary terrain blocks.
 

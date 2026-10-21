@@ -1581,12 +1581,14 @@ public partial class GameZone
     /// Profile accolade counters. A kill counts exactly when KillStatsUpdate credits the Kills stat (an opposing
     /// player's death); every player death still ends the victim's streak. The waiting arena earns nothing.
     /// </summary>
-    private void RecordKillAccolades(Unit victim, Unit? killerPlayer, bool killerIsOpponent, bool crit)
+    private KillAccolade? RecordKillAccolades(Unit victim, Unit? killerPlayer, bool killerIsOpponent, bool crit)
     {
-        if (victim.PlayerId is not { } victimId || _gameInitiator is WaitingArenaInitiator) return;
+        if (victim.PlayerId is not { } victimId || _gameInitiator is WaitingArenaInitiator) return null;
         var counted = killerPlayer is not null && killerIsOpponent ? killerPlayer.PlayerId : null;
         var (accolades, _, lifeStreak) = _killAccolades.Register(victimId, counted, crit, _accoladeClock.Elapsed.TotalSeconds);
         if (counted is not null) killerPlayer!.RecordAccolades(accolades, lifeStreak);
+        // Highest chain accolade replaces the base kill. Headshot stays a separate bonus.
+        return accolades.Where(a => a != KillAccolade.Headshot).Select(a => (KillAccolade?)a).LastOrDefault();
     }
 
     private void UnitIsKilled(Unit target, ImpactData impact, bool mining = false)
@@ -1625,7 +1627,8 @@ public partial class GameZone
             ? null
             : _playerUnits.GetValueOrDefault(_playerIdToUnitId.GetValueOrDefault(impact.CasterPlayerId.Value));
         var killerIsOpponent = killerPlayer is not null && AreOpponents(target, killerPlayer);
-        ScoreKill(target, killerPlayer, killerIsOpponent, impact.Crit, assists);
+        var scoreAccolade = target.IsActive ? RecordKillAccolades(target, killerPlayer, killerIsOpponent, impact.Crit) : null;
+        ScoreKill(target, killerPlayer, killerIsOpponent, impact.Crit, assists, scoreAccolade);
 
         var targetTeam = target.Team;
 
@@ -1666,7 +1669,6 @@ public partial class GameZone
             if (target is { PlayerId: not null })
             {
                 UpdateRespawnTime(target);
-                RecordKillAccolades(target, killerPlayer, killerIsOpponent, impact.Crit);
             }
         }
 

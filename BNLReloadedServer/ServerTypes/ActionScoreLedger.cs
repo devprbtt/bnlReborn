@@ -6,6 +6,12 @@ namespace BNLReloadedServer.ServerTypes;
 public sealed class ActionScoreRules
 {
     public int Kill { get; set; } = 50;
+    public int FirstKill { get; set; } = 60;
+    public int DoubleKill { get; set; } = 75;
+    public int MultiKill { get; set; } = 100;
+    public int UltraKill { get; set; } = 125;
+    public int Fantastic { get; set; } = 150;
+    public int Unbelievable { get; set; } = 175;
     public int Assist { get; set; } = 25;
     public int Headshot { get; set; } = 10;
     public int Supply { get; set; } = 25;
@@ -40,6 +46,8 @@ public sealed class ActionScoreRules
             var value = Convert.ToDouble(p.GetValue(this));
             if (!double.IsFinite(value) || value < 0 || value > 100000) throw new InvalidDataException("Invalid action score setting: " + p.Name);
         }
+        if (FirstKill <= Kill || DoubleKill <= FirstKill || MultiKill <= DoubleKill || UltraKill <= MultiKill || Fantastic <= UltraKill || Unbelievable <= Fantastic)
+            throw new InvalidDataException("Kill accolade scores must increase above the regular kill value");
         if (HealPerPoint == 0 || DeviceDamagePerPoint == 0 || DeviceCostPerPoint == 0 || ContinuousChunk == 0 || DeviceMax < DeviceMin)
             throw new InvalidDataException("Invalid action score denominator or device range");
     }
