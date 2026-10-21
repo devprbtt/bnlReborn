@@ -68,6 +68,9 @@ public partial class Unit
     public void SendHealAttribution(Unit credit, float amount, Key? sourceKey)
     {
         if (amount <= 0) return;
+        if (credit.PlayerId != null && PlayerId != null && credit.PlayerId != PlayerId &&
+            credit.Team == Team && Team != TeamType.Neutral)
+            credit.ReportActionScore("Healing", amount, GetMidpoint(), Id);
         _updater.OnImpactOccur(GetMidpoint(), new Vector3(amount, 0, 0), false, credit, sourceKey, null, [Id]);
     }
 

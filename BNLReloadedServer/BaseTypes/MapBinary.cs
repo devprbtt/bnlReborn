@@ -1019,6 +1019,8 @@ public class MapBinary
                 }
             }
 
+            if (attacker?.PlayerId != null && block.Team != TeamType.Neutral && attacker.Team != block.Team && blockCard.DeviceType == DeviceType.Device)
+                attacker.ReportActionScore("Device destroyed", Math.Max(1, blockCard.BaseCost ?? 0), location.ToVector3());
             var blockKey = blockCard.Key;
             block.Id = 0;
             block.Damage = 0;

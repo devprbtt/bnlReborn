@@ -47,4 +47,7 @@ public record UnitUpdater(
     OnDisarmed OnDisarmed,
     OnChangeId OnChangeId,
     GetPlayerFromPlayerId GetPlayerFromPlayerId,
-    EnqueueAction EnqueueAction);
+    EnqueueAction EnqueueAction)
+{
+    public Action<Unit, string, float, Vector3, uint?>? OnActionScore { get; init; }
+}

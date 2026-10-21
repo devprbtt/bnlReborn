@@ -74,8 +74,11 @@ internal sealed class MatchParticipationTracker
     {
         if (_completed || !_players.TryGetValue(playerId, out var player)) return;
         player.IsWinner = winner;
-        foreach (var (type, value) in stats ?? []) player.Stats[type] = player.Stats.GetValueOrDefault(type) + value;
-        player.TotalScore += total;
+        // ActionScore is a match-wide snapshot that survives leave/rejoin; older stats are session deltas.
+        foreach (var (type, value) in stats ?? [])
+            player.Stats[type] = type == PlayerMatchStatType.ActionScore ? value : player.Stats.GetValueOrDefault(type) + value;
+        if (stats?.ContainsKey(PlayerMatchStatType.ActionScore) == true) player.TotalScore = total;
+        else player.TotalScore += total;
         foreach (var (type, value) in rawStats ?? []) player.RawStats[type] = player.RawStats.GetValueOrDefault(type) + value;
         foreach (var (key, value) in deviceStats ?? [])
         {

@@ -12,5 +12,6 @@ public enum PlayerMatchStatType
     Assist = 8,
     ZonesCaptured = 9,
     ZoneTimeSeconds = 10,
-    Destruction = 11
+    Destruction = 11,
+    ActionScore = 12
 }

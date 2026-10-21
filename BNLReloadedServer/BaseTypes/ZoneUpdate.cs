@@ -4,6 +4,7 @@ namespace BNLReloadedServer.BaseTypes;
 
 public class ZoneUpdate
 {
+    public string? ActionScoresJson { get; set; }
     public long? WeatherStartTime { get; set; }
     public string? ConquestStateJson { get; set; }
     public string? BlockOwnersJson { get; set; }
@@ -30,7 +31,7 @@ public class ZoneUpdate
     {
         new BitField(Phase != null, Statistics != null, SpawnPoints != null, PlayerSpawnPoints != null,
           RespawnInfo != null, PlayerInfo != null, SupplyInfo != null, Objectives != null,
-          ResourceCap.HasValue, ConquestStateJson != null, BlockOwnersJson != null, WeatherStartTime.HasValue).Write(writer);
+          ResourceCap.HasValue, ConquestStateJson != null, BlockOwnersJson != null, WeatherStartTime.HasValue, ActionScoresJson != null).Write(writer);
         if (Phase != null)
             ZonePhase.WriteRecord(writer, Phase);
         if (Statistics != null)
@@ -51,11 +52,12 @@ public class ZoneUpdate
         if (ConquestStateJson != null) writer.Write(ConquestStateJson);
         if (BlockOwnersJson != null) writer.Write(BlockOwnersJson);
         if (WeatherStartTime.HasValue) writer.Write(WeatherStartTime.Value);
+        if (ActionScoresJson != null) writer.Write(ActionScoresJson);
     }
 
     public void Read(BinaryReader reader)
     {
-        var bitField = new BitField(12);
+        var bitField = new BitField(13);
         bitField.Read(reader);
         Phase = bitField[0] ? ZonePhase.ReadRecord(reader) : null;
         Statistics = bitField[1] ? MatchStats.ReadRecord(reader) : null;
@@ -69,6 +71,7 @@ public class ZoneUpdate
         ConquestStateJson = bitField[9] ? reader.ReadString() : null;
         BlockOwnersJson = bitField[10] ? reader.ReadString() : null;
         WeatherStartTime = bitField[11] ? reader.ReadInt64() : null;
+        ActionScoresJson = bitField[12] ? reader.ReadString() : null;
     }
 
     public static void WriteRecord(BinaryWriter writer, ZoneUpdate value) => value.Write(writer);

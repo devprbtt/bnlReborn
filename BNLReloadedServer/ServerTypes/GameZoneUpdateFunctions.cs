@@ -566,6 +566,7 @@ public partial class GameZone
                         if (unitSource.PlayerId is not null)
                         {
                             unitSource.BuiltBlock(blockCard.Key, blockCard.DeviceType, instEffectBuildDevice.TotalCost);
+                            if (blockCard.DeviceType == DeviceType.Device) unitSource.ReportActionScore("Device built", 1, blockLoc.ToVector3());
                             _serviceZone.SendDeviceBuilt(unitSource.PlayerId.Value, devCard.Key, blockLoc.ToVector3() + new Vector3(0.5f));
                         }
                         return true;
@@ -776,6 +777,7 @@ public partial class GameZone
                         if (unitSource.PlayerId is not null)
                         {
                             unitSource.BuiltBlock(unitCard.Key, unitCard.DeviceType, instEffectBuildDevice.TotalCost);
+                            if (unitCard.DeviceType == DeviceType.Device) unitSource.ReportActionScore("Device built", 1, placePos);
                             _serviceZone.SendDeviceBuilt(unitSource.PlayerId.Value, devCard.Key, placePos);
                         }
 
@@ -1542,6 +1544,7 @@ public partial class GameZone
 
         var targetTeam = target.Team;
 
+        ScoreDamage(target, damage, impact, attackerPlayer, attacker);
         target.DamageStatsUpdate(targetTeam, damage, impact.Crit,
             impact.SourceKey == CatalogueHelper.FallImpact, attacker, attackerPlayer, impact.DamageCredit);
 
@@ -1622,6 +1625,7 @@ public partial class GameZone
             ? null
             : _playerUnits.GetValueOrDefault(_playerIdToUnitId.GetValueOrDefault(impact.CasterPlayerId.Value));
         var killerIsOpponent = killerPlayer is not null && AreOpponents(target, killerPlayer);
+        ScoreKill(target, killerPlayer, killerIsOpponent, impact.Crit, assists);
 
         var targetTeam = target.Team;
 
@@ -1699,6 +1703,10 @@ public partial class GameZone
                 AssignPickupToRecipient(_gameInitiator is WaitingArenaInitiator, target, killer);
                 var tImpact5 = target.CreateImpactData();
                 killerPlayer?.StatsFromPickup(target);
+                if (target.UnitCard?.Labels?.Contains(UnitLabel.SupplyBlockbuster) == true)
+                    killerPlayer?.ReportActionScore("Blockbuster pickup", 1, target.GetMidpoint(), target.Id);
+                else if (target.UnitCard?.Labels?.Contains(UnitLabel.SupplyResource) == true)
+                    killerPlayer?.ReportActionScore("Supply pickup", 1, target.GetMidpoint(), target.Id);
                 ApplyInstEffect(target.GetSelfSource(tImpact5), [killer], unitDataPickup.TakeEffect, tImpact5);
                 break;
 

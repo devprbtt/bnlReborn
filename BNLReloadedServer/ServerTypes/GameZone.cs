@@ -179,7 +179,7 @@ public partial class GameZone : Updater
             OnDisarmed,
             ChangeId,
             GetPlayerFromPlayerId,
-            EnqueueAction);
+            EnqueueAction) { OnActionScore = AwardAction };
 
         var spawns = new Dictionary<uint, SpawnPoint>();
 
@@ -787,6 +787,7 @@ public partial class GameZone : Updater
         new()
         {
             ConquestStateJson = ConquestSnapshot(),
+            ActionScoresJson = ScoreSnapshot(),
             WeatherStartTime = ParadiseWeatherRegistration.StartTime(_zoneData.MapKey, _attackStartTime),
             BlockOwnersJson = BlockOwnerSnapshot(),
             Phase = _zoneData.Phase,
@@ -1105,6 +1106,7 @@ public partial class GameZone : Updater
                 },
                 PlayerSpawnPoints = _zoneData.PlayerSpawnPoints,
                 ConquestStateJson = ConquestSnapshot(),
+            ActionScoresJson = ScoreSnapshot(),
                 WeatherStartTime = ParadiseWeatherRegistration.StartTime(_zoneData.MapKey, _attackStartTime),
                 BlockOwnersJson = BlockOwnerSnapshot(),
                 Phase = _zoneData.Phase,
@@ -1164,6 +1166,7 @@ public partial class GameZone : Updater
         zoneService.SendUpdateZone(new ZoneUpdate
         {
             ConquestStateJson = ConquestSnapshot(),
+            ActionScoresJson = ScoreSnapshot(),
             WeatherStartTime = ParadiseWeatherRegistration.StartTime(_zoneData.MapKey, _attackStartTime),
             BlockOwnersJson = BlockOwnerSnapshot(),
             Phase = _zoneData.Phase,
@@ -1362,9 +1365,8 @@ public partial class GameZone : Updater
                 v => (int)v.Value.Sum(score => player.Stats.GetValueOrDefault(score.Key) * score.Value));
             archivedStatInfo = AddConquestResultStats(playerId, archivedStatInfo);
             archivedStatInfo = DeathmatchFollowup.AddDestruction(archivedStatInfo, player.Stats);
-            var archivedTotalInfo = _zoneData.MatchCard.Stats?.Total;
-            archivedTotal = (int)(archivedTotalInfo?.Sum(
-                score => archivedStatInfo?[score.Key] * score.Value) ?? 0);
+            archivedStatInfo = ScoreResult(playerId, archivedStatInfo);
+            archivedTotal = ActionScores.Total(playerId);
             _matchParticipation.SetResult(playerId, false, archivedStatInfo, archivedTotal,
                 new Dictionary<ScoreType, float>(player.Stats), CloneDeviceStats(player.DeviceStats),
                 CloneAccolades(player.Accolades), player.BestStreak);
@@ -1778,6 +1780,8 @@ public partial class GameZone : Updater
         // A repeated callback must never award rewards, append history, or add stats again.
         if (Interlocked.CompareExchange(ref _matchResultsFinalized, 1, 0) != 0) return;
 
+        _unbufferedZone.SendUpdateZone(new ZoneUpdate { ActionScoresJson = ActionScores.Snapshot(false) });
+        _actionScores!.Published();
         _unbufferedZone.SendEndMatch(winner);
         var matchStats = new List<EndMatchPlayerData>();
         var gameEnd = DateTimeOffset.Now;
@@ -1812,9 +1816,9 @@ public partial class GameZone : Updater
                 v => (int)v.Value.Sum(score => player.Stats.GetValueOrDefault(score.Key) * score.Value));
             statInfo = AddConquestResultStats(player.PlayerId.Value, statInfo);
             statInfo = DeathmatchFollowup.AddDestruction(statInfo, player.Stats);
-            var totalInfo = zoneDataMatchCard.Stats?.Total;
+            statInfo = ScoreResult(player.PlayerId.Value, statInfo);
             _matchParticipation.SetResult(player.PlayerId.Value, player.Team == winner, statInfo,
-                (int)(totalInfo?.Sum(score => statInfo?[score.Key] * score.Value) ?? 0),
+                ActionScores.Total(player.PlayerId.Value),
                 new Dictionary<ScoreType, float>(player.Stats), CloneDeviceStats(player.DeviceStats),
                 CloneAccolades(player.Accolades), player.BestStreak);
 
@@ -1828,7 +1832,7 @@ public partial class GameZone : Updater
                 Stats = new EndMatchPlayerStats
                 {
                     Stats = statInfo,
-                    Total = (int)(totalInfo?.Sum(score => statInfo?[score.Key] * score.Value) ?? 0)
+                    Total = ActionScores.Total(player.PlayerId.Value)
                 },
                 MedalPositive = positiveMedal?.Key ?? Key.None,
                 MedalNegative = negativeMedal?.Key ?? Key.None
@@ -2303,6 +2307,7 @@ public partial class GameZone : Updater
             {
                 _winningTeam = GetWinningTeam();
                 RefreshAssistLeads();
+                PublishActionScores();
             }
 
             foreach (var unit in _units.Values.ToList())
