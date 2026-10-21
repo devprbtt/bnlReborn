@@ -6,9 +6,13 @@ adds only the experimental custom-list entry when both its payload and the
 original catalogue card exist. No ranked/friendly pool changes.
 
 Three 12x12 squares centered on the original BB drop markers use an eight-block
-depth/four-block height and 10-second majority capture by default. Ties/empty
-zones pause capture and retain ownership. Changing capturing teams resets capture
-progress. Two owned zones earn one scoring second per second; all three earn two.
+depth/four-block height and 10-second majority capture by default. Occupied ties pause capture. Empty zones retain partial progress for two seconds,
+then lose one capture-second of progress per elapsed second (10 percentage points
+per second with the default capture duration). Returning resumes remaining progress
+and renews the grace period. An opposing majority first removes existing progress
+at the same rate before starting its own capture; current owners only remove hostile
+progress. Completed ownership never decays. Round transitions clear progress and
+the absence timer. Two owned zones earn one scoring second per second; all three earn two.
 
 At the default 420/300/180-second thresholds, Light → Classic → Uber BB attacks
 last 90 seconds. Only defender
