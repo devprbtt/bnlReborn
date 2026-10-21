@@ -53,6 +53,7 @@ public class ServerCatalogue : Catalogue
             foreach (var card in cards)
             {
                 if (card is CardPerk perk) ClassPerkCatalogue.Validate(perk);
+                if (card is CardGlobalLogic global) global.ActionScores?.Validate();
                 if (card.Id == null) continue;
                 card.Key = Key(card.Id);
                 tempDict.Add(card.Key, card);
@@ -65,6 +66,7 @@ public class ServerCatalogue : Catalogue
 
     public void UpdateCard(Card card)
     {
+        if (card is CardGlobalLogic global) global.ActionScores?.Validate();
         if (card is CardPerk perk) ClassPerkCatalogue.Validate(perk);
         RankedDraftRegistration.Register([card]);
         GenieHealingVisualRegistration.RegisterAura(card);

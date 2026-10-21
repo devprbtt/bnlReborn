@@ -8,6 +8,9 @@ public class CardGlobalLogic : Card
     [JsonPropertyOrder(-3)]
     public override CardCategory Category => CardCategory.GlobalLogic;
 
+    // CDB/server only: leave the legacy client binary layout unchanged.
+    public ActionScoreRules? ActionScores { get; set; }
+
     public List<Key>? AvailableAchievements { get; set; }
 
     public List<Key>? AvailableBadges { get; set; }

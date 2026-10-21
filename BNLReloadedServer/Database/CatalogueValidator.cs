@@ -45,6 +45,11 @@ public static class CatalogueValidator
 
         foreach (var card in cards)
         {
+            if (card is CardGlobalLogic global)
+            {
+                try { global.ActionScores?.Validate(); }
+                catch (InvalidDataException error) { problems.Add($"{card.Id}.action_scores: {error.Message}"); }
+            }
             if (card is CardPerk perk)
             {
                 try { ClassPerkCatalogue.Validate(perk); }

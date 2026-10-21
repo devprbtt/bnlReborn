@@ -92,7 +92,7 @@ public partial class GameZone
             }
             if (_cubeContributors.Remove(target.Id, out var contributors))
                 foreach (var pair in contributors)
-                    if (!rewarded.Contains(pair.Key) && _scoreClock.Elapsed.TotalSeconds - pair.Value <= 30 &&
+                    if (!rewarded.Contains(pair.Key) && _scoreClock.Elapsed.TotalSeconds - pair.Value <= _actionScoreRules.CubeAssistWindow &&
                         GetPlayerFromPlayerId(pair.Key) is { } helper && AreOpponents(target, helper))
                         AwardAction(helper, "Cube assist", 1, position, target.Id);
         }

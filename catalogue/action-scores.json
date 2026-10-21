@@ -1,0 +1,31 @@
+{
+  "action_scores": {
+    "kill": 50,
+    "first_kill": 60,
+    "double_kill": 75,
+    "multi_kill": 100,
+    "ultra_kill": 125,
+    "fantastic": 150,
+    "unbelievable": 175,
+    "assist": 25,
+    "headshot": 10,
+    "supply": 25,
+    "blockbuster": 100,
+    "cube": 250,
+    "cube_assist": 75,
+    "build": 10,
+    "radar": 5,
+    "ability_spot": 10,
+    "heal_per_point": 10,
+    "device_damage_per_point": 20,
+    "continuous_chunk": 5,
+    "device_cost_per_point": 20,
+    "device_min": 5,
+    "device_max": 50,
+    "objective_radius": 12,
+    "objective_bonus": 0.25,
+    "spot_cooldown": 15,
+    "build_cooldown": 30,
+    "cube_assist_window": 30
+  }
+}

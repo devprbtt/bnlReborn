@@ -6,6 +6,7 @@ using System.Runtime.CompilerServices;
 using System.Text.Json;
 using BNLReloadedServer.BaseTypes;
 using BNLReloadedServer.Database;
+using BNLReloadedServer.ProtocolHelpers;
 using BNLReloadedServer.ServerTypes;
 
 int checks=0;
@@ -122,6 +123,34 @@ Check(actual.Total(20)==250 && actual.Total(21)==250,"nearby teammates including
 Check(actual.Total(22)==0,"outside radius receives no shared cube reward");
 Check(actual.Total(23)==0 && actual.Total(24)==0 && actual.Total(25)==0,"dead inactive and defending players excluded from shared reward");
 Check(actual.Total(26)==93,"remote recent contributor retains 75 assist plus existing objective bonus");
+// CDB snake_case round-trip, catalogue changes, validation and legacy binary compatibility.
+var configured=new ActionScoreRules();
+foreach(var property in typeof(ActionScoreRules).GetProperties())
+{
+ double changed=Convert.ToDouble(property.GetValue(configured))+1;
+ property.SetValue(configured,Convert.ChangeType(changed,property.PropertyType));
+}
+var global=new CardGlobalLogic { Id="global_logic", ActionScores=configured };
+var globalJson=JsonSerializer.Serialize(global,JsonHelper.DefaultSerializerSettings);
+var parsed=(CardGlobalLogic)JsonSerializer.Deserialize<Card>(globalJson,JsonHelper.DefaultSerializerSettings)!;
+Check(globalJson.Contains("action_scores") && globalJson.Contains("cube_assist_window") && typeof(ActionScoreRules).GetProperties().All(p=>Equals(p.GetValue(configured),p.GetValue(parsed.ActionScores))),"all CDB score settings round-trip using catalogue snake_case JSON");
+db.Replicate([parsed]);var frozen=ActionScoreRules.Load();
+Check(frozen.Cube==251 && frozen.ObjectiveRadius==13 && frozen.Kill==51,"new match loads edited CDB values");
+parsed.ActionScores!.Cube=300;
+Check(frozen.Cube==251 && ActionScoreRules.Load().Cube==300,"running match keeps independent score snapshot after catalogue edit");
+var invalid=new CardGlobalLogic { Id="global_logic",ActionScores=new ActionScoreRules { HealPerPoint=0 } };
+bool rejected=false;try{db.Replicate([invalid]);}catch(InvalidDataException){rejected=true;}
+Check(rejected && ActionScoreRules.Load().Cube==300,"invalid full CDB replication leaves previous settings active");
+rejected=false;try{db.UpdateCard(invalid);}catch(InvalidDataException){rejected=true;}
+Check(rejected && ActionScoreRules.Load().Cube==300,"invalid incremental CDB update leaves previous settings active");
+var validationCards=Enumerable.Range(0,999).Select(i=>(Card)new CardEffect{Id="score_validate_"+i}).Append(invalid).ToList();
+Check(CatalogueValidator.Validate(validationCards).Any(p=>p.Contains("global_logic.action_scores")),"CDB fetch validation reports invalid score field");
+byte[] Binary(CardGlobalLogic card){using var mem=new MemoryStream();card.Write(new BinaryWriter(mem));return mem.ToArray();}
+var withScores=Binary(parsed);parsed.ActionScores=null;
+Check(withScores.SequenceEqual(Binary(parsed)),"server-only score settings do not change legacy client binary cards");
+db.Replicate([parsed]);Check(ActionScoreRules.Load().Cube==250,"older CDB without action_scores keeps defaults");
+var partial=JsonSerializer.Deserialize<CardGlobalLogic>("{\"_id\":\"global_logic\",\"action_scores\":{\"cube\":400}}",JsonHelper.DefaultSerializerSettings)!;
+db.Replicate([partial]);Check(ActionScoreRules.Load().Cube==400 && ActionScoreRules.Load().Assist==25,"partial CDB settings preserve unspecified defaults");
 Console.WriteLine($"PASS action scoring: {checks} checks");
 public class EmptyInitiator : DispatchProxy
 {
