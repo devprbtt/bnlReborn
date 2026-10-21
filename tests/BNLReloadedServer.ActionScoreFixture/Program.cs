@@ -78,7 +78,7 @@ Call("AwardAction",a,"Radar spot",1f,Vector3.Zero,enemy.Id);Call("AwardAction",a
 Check(actual.Total(1)==230,"radar and ability share repeat-target cooldown");
 Call("AwardAction",a,"Ability spot",1f,Vector3.Zero,99u);Check(actual.Total(1)==240,"ability spotting has its own starting value");
 var cube=Make(5,cubeCard,TeamType.Team2);Call("ScoreDamage",cube,10f,new ImpactData(),ally,ally);
-Call("ScoreKill",cube,a,true,false,Array.Empty<uint>());Check(actual.Total(1)==490 && actual.Total(2)==118,"cube destroy and contributor assist each get one proximity bonus");
+Call("ScoreKill",cube,a,true,false,Array.Empty<uint>());Check(actual.Total(1)==490 && actual.Total(2)==275,"cube destroy grants exactly 250 to destroyer and nearby contributor without duplicate assist");
 var result=(Dictionary<PlayerMatchStatType,int>)Call("ScoreResult",1u,null)!;Check(result[PlayerMatchStatType.ActionScore]==490,"results persist authoritative total");
 data.MatchEnded=true;Call("AwardAction",a,"Kill",1f,Vector3.Zero,null);Check(actual.Total(1)==490,"ended match cannot score");
 data.MatchEnded=false;data.Phase.PhaseType=ZonePhaseType.Waiting;Call("AwardAction",a,"Kill",1f,Vector3.Zero,null);Check(actual.Total(1)==490,"waiting phase cannot score");
@@ -106,6 +106,22 @@ foreach(var expected in new[]{("First kill",60),("Double kill",75),("Multi kill"
 }
 actual.Published();int prior=actual.Total(1);Call("ScoreKill",enemy,a,true,true,Array.Empty<uint>(),KillAccolade.DoubleKill);
 Check(actual.Total(1)-prior==85,"double kill and headshot stack once (75 + 10)");
+// Shared cube rewards: actual player positions, radius edge, team and life eligibility.
+units[cube.Id]=cube;a.Transform.Position=new Vector3(50,0,0);
+var nearby=Make(20,playerCard,TeamType.Team1,20);
+var edge=Make(21,playerCard,TeamType.Team1,21);edge.Transform.Position=new Vector3(12,0,0);
+var outside=Make(22,playerCard,TeamType.Team1,22);outside.Transform.Position=new Vector3(12.01f,0,0);
+var dead=Make(23,playerCard,TeamType.Team1,23);dead.IsDead=true;
+var inactive=Make(24,playerCard,TeamType.Team1,24);inactive.IsActive=false;
+var defender=Make(25,playerCard,TeamType.Team2,25);
+var remoteContributor=Make(26,playerCard,TeamType.Team1,26);remoteContributor.Transform.Position=new Vector3(20,0,0);
+Call("ScoreDamage",cube,10f,new ImpactData(),remoteContributor,remoteContributor);
+int killerBefore=actual.Total(1);Call("ScoreKill",cube,a,true,false,Array.Empty<uint>());
+Check(actual.Total(1)-killerBefore==250,"remote destroyer retains full cube reward");
+Check(actual.Total(20)==250 && actual.Total(21)==250,"nearby teammates including exact radius boundary receive full reward without damage");
+Check(actual.Total(22)==0,"outside radius receives no shared cube reward");
+Check(actual.Total(23)==0 && actual.Total(24)==0 && actual.Total(25)==0,"dead inactive and defending players excluded from shared reward");
+Check(actual.Total(26)==93,"remote recent contributor retains 75 assist plus existing objective bonus");
 Console.WriteLine($"PASS action scoring: {checks} checks");
 public class EmptyInitiator : DispatchProxy
 {

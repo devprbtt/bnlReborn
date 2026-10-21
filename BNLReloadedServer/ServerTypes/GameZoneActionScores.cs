@@ -20,7 +20,8 @@ public partial class GameZone
     private void AwardAction(Unit player, string reason, float amount, Vector3 position, uint? target)
     {
         if (!CanScore || player.PlayerId is not { } id || !float.IsFinite(amount) || amount <= 0) return;
-        bool near = NearScoreObjective(position);
+        // Cube destruction is already the full shared objective reward.
+        bool near = reason != "Cube destroyed" && NearScoreObjective(position);
         var rules = _actionScoreRules; var ledger = ActionScores;
         switch (reason)
         {
@@ -77,10 +78,21 @@ public partial class GameZone
         }
         else if (target.UnitCard?.IsObjective == true)
         {
-            if (killer != null && opponent) AwardAction(killer, "Cube destroyed", 1, position, target.Id);
+            var rewarded = new HashSet<uint>();
+            if (killer?.PlayerId is { } killerId && opponent && target.Team != TeamType.Neutral)
+            {
+                rewarded.Add(killerId);
+                AwardAction(killer, "Cube destroyed", 1, position, target.Id);
+                float radiusSquared = _actionScoreRules.ObjectiveRadius * _actionScoreRules.ObjectiveRadius;
+                foreach (var teammate in _playerUnits.Values)
+                    if (teammate.PlayerId is { } teammateId && teammate.Team == killer.Team &&
+                        teammate.IsActive && !teammate.IsDead &&
+                        Vector3.DistanceSquared(position, teammate.GetMidpoint()) <= radiusSquared && rewarded.Add(teammateId))
+                        AwardAction(teammate, "Cube destroyed", 1, position, target.Id);
+            }
             if (_cubeContributors.Remove(target.Id, out var contributors))
                 foreach (var pair in contributors)
-                    if (pair.Key != killer?.PlayerId && _scoreClock.Elapsed.TotalSeconds - pair.Value <= 30 &&
+                    if (!rewarded.Contains(pair.Key) && _scoreClock.Elapsed.TotalSeconds - pair.Value <= 30 &&
                         GetPlayerFromPlayerId(pair.Key) is { } helper && AreOpponents(target, helper))
                         AwardAction(helper, "Cube assist", 1, position, target.Id);
         }

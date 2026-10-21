@@ -16,7 +16,7 @@ public sealed class ActionScoreRules
     public int Headshot { get; set; } = 10;
     public int Supply { get; set; } = 25;
     public int Blockbuster { get; set; } = 100;
-    public int Cube { get; set; } = 200;
+    public int Cube { get; set; } = 250;
     public int CubeAssist { get; set; } = 75;
     public int Build { get; set; } = 10;
     public int Radar { get; set; } = 5;
