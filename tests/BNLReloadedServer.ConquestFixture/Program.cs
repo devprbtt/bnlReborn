@@ -8,6 +8,9 @@ using BNLReloadedServer.Database;
 using BNLReloadedServer.ProtocolHelpers;
 using BNLReloadedServer.ServerTypes;
 
+CaptureDecayChecks.Run();
+if (args.Contains("--capture-decay-only")) return;
+
 int checks = 0;
 void Check(bool ok, string name) { if (!ok) throw new Exception(name); Console.WriteLine("PASS " + name); checks++; }
 Vector3[] centers = [new(0,10,0),new(0,10,30),new(0,10,60)];

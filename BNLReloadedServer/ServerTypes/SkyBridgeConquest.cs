@@ -6,6 +6,7 @@ namespace BNLReloadedServer.ServerTypes;
 // Pure match rules: elapsed time and authoritative living player positions are inputs.
 public sealed class SkyBridgeConquest
 {
+    public const float CaptureDecayDelaySeconds = 2;
     public const string MapId = "map_sr2_sky_bridge_don_edit_conquest";
     public const string OriginalMapId = "map_sr2_sky_bridge_don_edit";
     public ConquestLogic Rules { get; }
@@ -16,6 +17,7 @@ public sealed class SkyBridgeConquest
         public TeamType Owner { get; internal set; }
         public TeamType Capturing { get; internal set; }
         public float Progress { get; internal set; }
+        internal float EmptySeconds { get; set; }
         public bool Contested { get; internal set; }
         public int Team1Count { get; internal set; }
         public int Team2Count { get; internal set; }
@@ -85,11 +87,32 @@ public sealed class SkyBridgeConquest
         {
             var one = zone.Team1Count;
             var two = zone.Team2Count;
-            if (one == two) continue; // Empty/tied zones retain ownership and pause capture.
+            if (one == 0 && two == 0)
+            {
+                // Only time beyond the grace period decays progress, including a tick
+                // that crosses the boundary. Ownership itself never decays.
+                var graceRemaining = Math.Max(0, CaptureDecayDelaySeconds - zone.EmptySeconds);
+                zone.EmptySeconds = Math.Min(CaptureDecayDelaySeconds, zone.EmptySeconds + elapsed);
+                zone.Progress = Math.Max(0, zone.Progress - Math.Max(0, elapsed - graceRemaining));
+                if (zone.Progress == 0) zone.Capturing = TeamType.Neutral;
+                continue;
+            }
+            zone.EmptySeconds = 0;
+            if (one == two) continue; // Occupied ties pause capture, without erasing progress.
             var majority = one > two ? TeamType.Team1 : TeamType.Team2;
-            if (zone.Owner == majority) { zone.Progress = 0; zone.Capturing = TeamType.Neutral; continue; }
-            if (zone.Capturing != majority) { zone.Capturing = majority; zone.Progress = 0; }
-            zone.Progress = Math.Min(Rules.CaptureSeconds, zone.Progress + elapsed);
+            var captureElapsed = elapsed;
+            if (zone.Capturing != TeamType.Neutral && zone.Capturing != majority)
+            {
+                // Opponents must undo the previous team's work before starting theirs.
+                var removed = Math.Min(zone.Progress, captureElapsed);
+                zone.Progress -= removed;
+                captureElapsed -= removed;
+                if (zone.Progress > 0) continue;
+                zone.Capturing = TeamType.Neutral;
+            }
+            if (zone.Owner == majority || captureElapsed == 0) continue;
+            zone.Capturing = majority;
+            zone.Progress = Math.Min(Rules.CaptureSeconds, zone.Progress + captureElapsed);
             if (zone.Progress >= Rules.CaptureSeconds)
             {
                 zone.Owner = majority; zone.Capturing = TeamType.Neutral; zone.Progress = 0;
@@ -104,7 +127,7 @@ public sealed class SkyBridgeConquest
         Array.Clear(Scores);
         foreach (var zone in Zones)
         {
-            zone.Owner = zone.Capturing = TeamType.Neutral; zone.Progress = 0; zone.Contested = false;
+            zone.Owner = zone.Capturing = TeamType.Neutral; zone.Progress = 0; zone.EmptySeconds = 0; zone.Contested = false;
         }
     }
 }
