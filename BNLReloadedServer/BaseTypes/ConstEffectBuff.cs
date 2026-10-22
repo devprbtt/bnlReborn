@@ -8,6 +8,11 @@ public class ConstEffectBuff : ConstEffect
 
     public Dictionary<BuffType, float>? Buffs { get; set; }
 
+    // This modifier is authoritative on the server; older clients need no new enum value.
+    public override ConstEffect ClientView() => Buffs?.ContainsKey(BuffType.SplashBlockDamageBonus) == true
+        ? new ConstEffectBuff { Targeting = Targeting, Buffs = Buffs.Where(pair => pair.Key != BuffType.SplashBlockDamageBonus).ToDictionary() }
+        : this;
+
     public override void Write(BinaryWriter writer)
     {
         new BitField(Targeting != null, Buffs != null).Write(writer);

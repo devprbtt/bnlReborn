@@ -62,5 +62,7 @@ public enum BuffType
     LifeSteal = 57,
     // Retired: Heal Bane is now an on_hit effect on its perk card. Kept only so a catalogue that still
     // carries "heal_bane" parses (an unknown buff name fails the whole load); it does nothing.
-    HealBane = 58
+    HealBane = 58,
+    // Fractional bonus to explosion damage against terrain blocks, e.g. 0.5 = +50%.
+    SplashBlockDamageBonus = 59
 }
