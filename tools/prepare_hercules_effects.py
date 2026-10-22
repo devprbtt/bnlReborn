@@ -20,11 +20,14 @@ def update_schema(source):
     if "on_hit" not in kinds:
         kinds.insert(kinds.index("on_kill") + 1, "on_hit")
     children = types["ConstEffect"]["children"]
-    if "on_hit" in children and children["on_hit"] != "ConstEffectOnHit":
-        raise ValueError("Conflicting on_hit schema mapping")
-    children["on_hit"] = "ConstEffectOnHit"
-    if "ConstEffectOnHit" not in types:
-        types["ConstEffectOnHit"] = copy.deepcopy(types["ConstEffectOnKill"])
+    # Existing Hercules schemas use ConstEffectOnHIt (capital I). Preserve
+    # valid existing authoring types instead of renaming or discarding fields.
+    hit_type = children.get("on_hit", "ConstEffectOnHit")
+    if "on_hit" in children and hit_type not in types:
+        raise ValueError("Missing existing on_hit schema type: " + hit_type)
+    children["on_hit"] = hit_type
+    if hit_type not in types:
+        types[hit_type] = copy.deepcopy(types["ConstEffectOnKill"])
     # The old ad-hoc field is not an authoring field once cards are migrated.
     types["CardEffect"]["fields"].pop(BUFF, None)
     return result

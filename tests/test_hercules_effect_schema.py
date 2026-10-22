@@ -24,6 +24,16 @@ class HerculesSchemaTests(unittest.TestCase):
         self.assertNotIn(m.BUFF,types["CardEffect"]["fields"])
         self.assertEqual(m.update_schema(out),out)
         self.assertEqual(out["_rev"],"keep")
+    def test_existing_hit_variant_is_preserved(self):
+        source=self.schema(); types=source["custom_types"]
+        types["ConstEffect"]["children"]["on_hit"]="ConstEffectOnHIt"
+        types["ConstEffectOnHIt"]={"kind":"record","fields":{"custom":{}}}
+        out=m.update_schema(source)["custom_types"]
+        self.assertEqual(out["ConstEffect"]["children"]["on_hit"],"ConstEffectOnHIt")
+        self.assertEqual(out["ConstEffectOnHIt"],types["ConstEffectOnHIt"])
+        self.assertNotIn("ConstEffectOnHit",out)
+        del types["ConstEffectOnHIt"]
+        with self.assertRaises(ValueError):m.update_schema(source)
     def test_move_preserves_card(self):
         source={"_id":"effect_x","_rev":"keep","category":"effect",m.BUFF:.5,"effect":{"type":"buff","buffs":{"world_damage":.2},"targeting":{"ignore_caster":True}}}
         out=m.migrate_card(source)
