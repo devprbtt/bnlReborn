@@ -132,7 +132,8 @@ public partial class ServiceZone(ISender sender, Func<System.Net.IPAddress?>? pe
     // 5: scoreboard metadata carries each player's clan tag and tag colour.
     // 6: high-rate look stream with aim state, relayed to spectators.
     // 7: Skill II (Accomplice) players are told which enemy heroes they currently lead on damage.
-    private const int TeamPingProtocolVersion = 11;
+    // 12 is the client's in-place replay rewind (server branch fix/replay-snappy-seek); 13 adds clan emblems.
+    private const int TeamPingProtocolVersion = 13;
     private bool _supportsReplayControls;
     private bool _supportsReplaySeekAck;
     private bool _supportsReplayPresentationReady;
@@ -182,6 +183,7 @@ public partial class ServiceZone(ISender sender, Func<System.Net.IPAddress?>? pe
                 SupportsBuildPreview = version >= 3;
                 SupportsScoreboardMetadata = version >= 4;
                 SupportsClanTags = version >= 5;
+                SupportsClanEmblems = version >= 13;
                 SupportsAimLook = version >= 6;
                 SupportsAssistLead = version >= 7;
                 _supportsReplayControls = version >= 8;

@@ -982,7 +982,8 @@ public partial class GameInstance : IGameInstance
                 ping?.RoundTripMilliseconds ?? -1,
                 zone?.CountryCode ?? string.Empty,
                 clan?.Tag ?? string.Empty,
-                clan?.Color ?? 0));
+                clan?.Color ?? 0,
+                clan?.Emblem ?? 0));
         }
         requester.SendScoreboardMetadata(snapshot);
     }

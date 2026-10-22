@@ -91,7 +91,7 @@ public static class ClanHub
             var myRank = clan.Members.First(m => m.PlayerId == playerId).Rank;
             clanState = new ClanStateClan(clan.Id, clan.Name, clan.Tag, clan.LeaderId, myRank, clan.RenamedAt, members,
                 outgoing.Select(i => new ClanStateOutgoing(i.PlayerId, names.GetValueOrDefault(i.PlayerId, "Player"), i.CreatedAt)).ToArray(),
-                clan.TagColor);
+                clan.TagColor, clan.Emblem);
         }
         var inviteStates = invites.Select(i =>
         {
@@ -107,7 +107,7 @@ public static class ClanHub
         var names = await Names(clans.SelectMany(c => c.Members).Select(m => m.PlayerId).Distinct());
         return clans.Select(c => new ClanStateMessage(new ClanStateClan(c.Id, c.Name, c.Tag, c.LeaderId,
             ClanRank.Member, c.RenamedAt, c.Members.Select(m => new ClanStateMember(m.PlayerId,
-                names.GetValueOrDefault(m.PlayerId, "Player"), m.Rank, null, m.JoinedAt)).ToArray(), [], c.TagColor), [])).ToArray();
+                names.GetValueOrDefault(m.PlayerId, "Player"), m.Rank, null, m.JoinedAt)).ToArray(), [], c.TagColor, c.Emblem), [])).ToArray();
     }
 
     private static async Task<Dictionary<uint, string>> Names(IEnumerable<uint> ids)
@@ -140,7 +140,7 @@ public static class ClanHub
 public record ClanStateMember(uint PlayerId, string Name, ClanRank Rank, string? Activity, DateTimeOffset JoinedAt);
 public record ClanStateOutgoing(uint PlayerId, string Name, DateTimeOffset CreatedAt);
 public record ClanStateClan(int Id, string Name, string Tag, uint LeaderId, ClanRank MyRank, DateTimeOffset? RenamedAt,
-    ClanStateMember[] Members, ClanStateOutgoing[] Outgoing, uint TagColor = 0);
+    ClanStateMember[] Members, ClanStateOutgoing[] Outgoing, uint TagColor = 0, ushort Emblem = 0);
 public record ClanStateInvite(int ClanId, string ClanName, string Tag, string InviterName, DateTimeOffset CreatedAt);
 public record ClanStateApplication(int ClanId, string ClanName, uint PlayerId, string PlayerName);
 public record ClanStateMessage(ClanStateClan? Clan, ClanStateInvite[] Invites, ClanStateApplication[]? Applications = null);

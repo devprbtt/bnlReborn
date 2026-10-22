@@ -37,6 +37,11 @@ public class ClanRecord
     // Added after release 1's schema; sqlite-net adds the column to an existing table with default 0.
     [Column("tag_color")]
     public uint TagColor { get; set; }
+
+    // 0 = no emblem; otherwise an id from the client's emblem library (1..ClanRules.MaxEmblem).
+    // Added after the tag colour; sqlite-net adds the column to an existing table with default 0.
+    [Column("emblem")]
+    public ushort Emblem { get; set; }
 }
 
 [Table("ClanMembers")]

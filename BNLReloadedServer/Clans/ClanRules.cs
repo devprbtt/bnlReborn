@@ -106,6 +106,15 @@ public static partial class ClanRules
     /// <summary>Any 24-bit colour, or 0 to clear back to the default.</summary>
     public static bool ValidTagColor(uint color) => color == 0 || (color & ~0xFFFFFFu) == ColorSet;
 
+    public static bool CanSetEmblem(ClanRank actor) => actor == ClanRank.Leader;
+
+    /// <summary>Highest emblem id the server stores. The art lives in the client, so the library can grow up to
+    /// this without a server change; clients draw no emblem for an id they do not know.</summary>
+    public const ushort MaxEmblem = 255;
+
+    /// <summary>An emblem id from the library, or 0 for none.</summary>
+    public static bool ValidEmblem(ushort emblem) => emblem <= MaxEmblem;
+
     /// <summary>Leaders can remove anyone but themselves; officers can remove members only.</summary>
     public static bool CanKick(ClanRank actor, ClanRank target) =>
         actor == ClanRank.Leader ? target != ClanRank.Leader : actor == ClanRank.Officer && target == ClanRank.Member;

@@ -105,6 +105,25 @@ using (var reader = new BinaryReader(stream))
     Check(stream.Position == stream.Length, "the capability 5 snapshot ends after the last player");
 }
 
+// Zone capability 13: the clan emblem follows the tag colour.
+typeof(ServiceZone).GetProperty(nameof(ServiceZone.SupportsClanEmblems),
+        BindingFlags.Instance | BindingFlags.Public)!.SetValue(zone, true);
+zone.SendScoreboardMetadata([
+    new ScoreboardPlayerNetworkInfo(10, 42, "US", "YETI", 0x14FB7E8, 17),
+    new ScoreboardPlayerNetworkInfo(11, -1, "")
+]);
+using (var stream = new MemoryStream(sender.Packets.Last()))
+using (var reader = new BinaryReader(stream))
+{
+    reader.ReadByte(); reader.ReadByte(); reader.ReadUInt16();
+    Check(reader.ReadUInt32() == 10 && reader.ReadUInt16() == 42 && reader.ReadString() == "US" &&
+          reader.ReadString() == "YETI" && reader.ReadUInt32() == 0x14FB7E8 && reader.ReadUInt16() == 17,
+        "capability 13 adds the clan emblem after the colour");
+    Check(reader.ReadUInt32() == 11 && reader.ReadUInt16() == ushort.MaxValue && reader.ReadString() == "" &&
+          reader.ReadString() == "" && reader.ReadUInt32() == 0 && reader.ReadUInt16() == 0, "players without a clan send emblem 0");
+    Check(stream.Position == stream.Length, "the capability 13 snapshot ends after the last player");
+}
+
 Console.WriteLine($"Scoreboard metadata fixture passed: {checks} checks.");
 
 sealed class FixtureSender : ISender

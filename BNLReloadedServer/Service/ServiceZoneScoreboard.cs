@@ -7,6 +7,7 @@ public partial class ServiceZone
 {
     public bool SupportsScoreboardMetadata { get; private set; }
     public bool SupportsClanTags { get; private set; }
+    public bool SupportsClanEmblems { get; private set; }
 
     // Only the coarse ISO country code crosses the game protocol. The address remains on the server.
     public string CountryCode => IpCountryLookup.Resolve(peerAddress?.Invoke()) ?? string.Empty;
@@ -43,6 +44,7 @@ public partial class ServiceZone
             {
                 writer.Write(player.ClanTag);
                 writer.Write(player.ClanTagColor);
+                if (SupportsClanEmblems) writer.Write(player.ClanEmblem);
             }
         }
         sender.Send(writer);

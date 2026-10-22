@@ -28,7 +28,9 @@ public class ServiceClan(ISender sender) : IServiceClan
         Hello = 0, Create = 1, Invite = 2, Accept = 3, Decline = 4, Leave = 5,
         Kick = 6, SetRank = 7, Transfer = 8, Rename = 9, Disband = 10, SetTagColor = 11, Browse = 12, InvitePlayer = 13, PlayerTags = 14, Apply = 18, CancelApplication = 19, ApproveApplication = 20, DeclineApplication = 21,
         // Capability 4: replace the player's trophy showcase (byte count, then trophy ids).
-        SetTrophyShowcase = 22, AcknowledgeTrophies = 23
+        SetTrophyShowcase = 22, AcknowledgeTrophies = 23,
+        // Capability 6: set the clan emblem (ushort id, 0 = none). Leader only.
+        SetEmblem = 24
     }
 
     private enum ServerMessage : byte { State = 0, Result = 1 }
@@ -37,6 +39,9 @@ public class ServiceClan(ISender sender) : IServiceClan
     public bool SupportsCompetition { get; private set; }
     public bool SupportsApplications { get; private set; }
     public bool SupportsTrophies { get; private set; }
+    public bool SupportsEmblems { get; private set; }
+    // Sent after every state to capability-6 clients: the player's clan emblem, kept out of the versioned state layout.
+    public const byte EmblemMessage = 11;
     // Sent once after a capability-4 Hello: this server stores trophy showcases, so the client may offer pinning.
     private const byte TrophiesSupportedMessage = 9;
     // The showcase write; a fixture points it at its own database.
@@ -70,6 +75,7 @@ public class ServiceClan(ISender sender) : IServiceClan
             SupportsApplications = version >= 3 && SupportsClans;
             SupportsTrophies = version >= 4 && SupportsClans;
             SupportsTrophyNotices = version >= 5 && SupportsClans;
+            SupportsEmblems = version >= 6 && SupportsClans;
             if (!SupportsClans || sender.AssociatedPlayerId is not { } id) return true;
             if (SupportsTrophies)
             {
@@ -144,6 +150,7 @@ public class ServiceClan(ISender sender) : IServiceClan
             });
             return true;
         }
+        if (message == ClientMessage.SetEmblem && !SupportsEmblems) { SendResult(requestId, ClanResult.NotAllowed); return true; }
         if ((byte)message == 16)
         {
             SendExtension(5, ClanRatings.Leaderboard()); SendResult(requestId, ClanResult.Ok); return true;
@@ -205,6 +212,7 @@ public class ServiceClan(ISender sender) : IServiceClan
             ClientMessage.Rename => store.Rename(playerId, reader.ReadString(), reader.ReadString()),
             ClientMessage.Disband => store.Disband(playerId),
             ClientMessage.SetTagColor => store.SetTagColor(playerId, reader.ReadUInt32()),
+            ClientMessage.SetEmblem => store.SetEmblem(playerId, reader.ReadUInt16()),
             _ => Task.FromResult(ClanResult.NotAllowed)
         };
         work.ContinueWith(t =>
@@ -276,6 +284,19 @@ public class ServiceClan(ISender sender) : IServiceClan
             WriteApplications(extension, state.Applications ?? []);
             sender.Send(extension);
         }
+        if (SupportsEmblems)
+        {
+            using var emblem = CreateWriter();
+            WriteEmblem(emblem, state);
+            sender.Send(emblem);
+        }
+    }
+
+    // Shared with the fixture: message id, then the emblem of the player's clan (0 when none or clanless).
+    public static void WriteEmblem(BinaryWriter writer, ClanStateMessage state)
+    {
+        writer.Write(EmblemMessage);
+        writer.Write(state.Clan?.Emblem ?? (ushort)0);
     }
 
     public static void WriteApplications(BinaryWriter writer, ClanStateApplication[] applications)
