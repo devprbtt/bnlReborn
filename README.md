@@ -69,3 +69,5 @@ Effect rewards use hero_effect_cooldown (15 seconds per owner/reason/target); gr
 Repair XP only counts outstanding enemy health damage, including player-owned devices and hero blocks. Every heal consumes this budget; self, friendly, environmental damage, shield absorption and overhealing grant no credit.
 
 Build scoring uses `build_cost_per_point` (20), `build_min` (1), and `build_max` (50) in `global_logic.action_scores`. Both confirmed placement routes pass the charged TotalCost, including cost modifiers. The retired flat `build` field is ignored. Build time is not a separate multiplier; expensive devices earn more by resource investment. Objective bonuses apply afterward, and per-cell rebuild cooldown remains.
+
+Build-point exclusions (all variants): speed pads, bounce pads, thorn bushes, glue, caltrops, bear traps and force gates. Other action rewards are unchanged.

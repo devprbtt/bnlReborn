@@ -17,3 +17,7 @@ Track enemy health damage per repairable device, rather than excluding owned dev
 ## 2026-10-21 - Build reward follows resources spent
 
 Use the same confirmed TotalCost charged by construction for device build XP, rather than base catalogue price or flat points. Keep build scaling independent of destruction scaling through dedicated CDB fields. Build time has no additional multiplier. Both placement routes feed one score function; preserve rebuild cooldown and objective bonuses.
+
+## 2026-10-21 - Build score exclusions by catalogue family
+
+Use built card family IDs for requested build-point exclusions, covering hero/cosmetic variants without matching unrelated effects. Keep exclusions local to direct build rewards; preserve independent support and destruction rewards.

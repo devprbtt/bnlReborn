@@ -157,12 +157,12 @@ var heroBlockCard=new CardUnit {Id="score_hero_block",DeviceType=DeviceType.Hero
 db.Replicate([playerCard,heroBlockCard,deviceCard]);
 var buildMethod=typeof(GameZone).GetMethod("ScoreDeviceBuilt",BindingFlags.Static|BindingFlags.NonPublic)!;
 int beforeHero=actual.Total(1);
-buildMethod.Invoke(null,new object[]{a,heroBlockCard.DeviceType,new Vector3(90,0,0),400f});
+buildMethod.Invoke(null,new object[]{a,heroBlockCard.DeviceType,new Vector3(90,0,0),400f,"score_fixture_device"});
 Check(actual.Total(1)==beforeHero+ledger.BuildValue(400),"hero block placement earns configured build points");
-buildMethod.Invoke(null,new object[]{a,heroBlockCard.DeviceType,new Vector3(90,0,0),400f});
+buildMethod.Invoke(null,new object[]{a,heroBlockCard.DeviceType,new Vector3(90,0,0),400f,"score_fixture_device"});
 Check(actual.Total(1)==beforeHero+ledger.BuildValue(400),"hero block repeated placement retains rebuild cooldown");
 foreach(var type in new[]{DeviceType.None,DeviceType.World,DeviceType.Block})
- buildMethod.Invoke(null,new object[]{a,type,new Vector3(95,0,0),400f});
+ buildMethod.Invoke(null,new object[]{a,type,new Vector3(95,0,0),400f,"score_fixture_device"});
 Check(actual.Total(1)==beforeHero+ledger.BuildValue(400),"ordinary terrain blocks remain excluded");
 var heroBlock=Make(90,heroBlockCard,TeamType.Team2);
 Call("ScoreKill",heroBlock,a,true,false,Array.Empty<uint>());
@@ -207,7 +207,7 @@ Check(actual.Total(1)==beforeSelf,"self ability benefits do not award support po
 var boosted=Make(240,playerCard,TeamType.Team1,240);
 boosted.AddEffects([new ConstEffectInfo(buildBoost.Key),new ConstEffectInfo(demolishBoost.Key)],a.Team,a.GetSelfSource(a.CreateImpactData()));
 int beforeSupport=actual.Total(1);
-buildMethod.Invoke(null,new object[]{boosted,DeviceType.Block,new Vector3(110,0,0),40f});
+buildMethod.Invoke(null,new object[]{boosted,DeviceType.Block,new Vector3(110,0,0),40f,"score_fixture_device"});
 Check(actual.Total(1)==beforeSupport+rules.TonyBuildAssist,"Tony is credited when another player completes a boosted build");
 var destroyed=Make(241,deviceCard,TeamType.Team2);
 Call("ScoreHeroDeviceDestroyed",destroyed,boosted,boosted,boosted.CreateImpactData());
@@ -343,10 +343,10 @@ foreach(var invalidBuild in new[]{new ActionScoreRules{BuildCostPerPoint=0},new 
  Check(buildRejected,"invalid build score denominator or range rejected");
 }
 int beforeBuilds=actual.Total(1);
-buildMethod.Invoke(null,new object[]{a,DeviceType.Device,new Vector3(150,0,0),40f});
-buildMethod.Invoke(null,new object[]{a,DeviceType.Hero,new Vector3(151,0,0),600f});
+buildMethod.Invoke(null,new object[]{a,DeviceType.Device,new Vector3(150,0,0),40f,"score_fixture_device"});
+buildMethod.Invoke(null,new object[]{a,DeviceType.Hero,new Vector3(151,0,0),600f,"score_fixture_device"});
 Check(actual.Total(1)==beforeBuilds+32,"confirmed device and hero builds pass actual cost to score ledger");
-buildMethod.Invoke(null,new object[]{a,DeviceType.Device,new Vector3(152,0,0),0f});
+buildMethod.Invoke(null,new object[]{a,DeviceType.Device,new Vector3(152,0,0),0f,"score_fixture_device"});
 Check(actual.Total(1)==beforeBuilds+32,"free placement cannot earn build points");
 int beforeObjectiveBuild=actual.Total(1);
 Call("AwardAction",a,"Device built",200f,Vector3.Zero,null);
@@ -354,6 +354,17 @@ Call("AwardAction",a,"Device built",200f,Vector3.Zero,null);
 Check(actual.Total(1)==beforeObjectiveBuild,"cost changes cannot bypass same-cell rebuild cooldown");
 var bonusBuild=new ActionScoreLedger(rules);bonusBuild.Grant(1,"Device built",bonusBuild.BuildValue(200),true);
 Check(bonusBuild.Total(1)==12,"objective bonus applies after proportional build score");
+int beforeExcludedBuilds=actual.Total(1);
+string[] excludedBuilds=["block_fast_movement","block_fast_movement_ninja","block_bounce","block_bounce_hunter","block_bounce_kira","block_bounce_plastic","block_thorn_bush","block_thorn_bush_pale","block_glue","block_glue_alien","block_caltrops","block_caltrops_astro","block_caltrops_kreepy","block_bear_trap","block_bear_trap_astro","block_force_gate","block_force_gate_disco","block_force_gate_eliza"];
+for(int i=0;i<excludedBuilds.Length;i++)
+{
+ buildMethod.Invoke(null,new object[]{a,DeviceType.Device,new Vector3(200+i,0,0),600f,excludedBuilds[i]});
+ Check(actual.Total(1)==beforeExcludedBuilds,"excluded build gives no score: "+excludedBuilds[i]);
+}
+buildMethod.Invoke(null,new object[]{a,DeviceType.Hero,new Vector3(230,0,0),600f,"block_bounce_future_variant"});
+Check(actual.Total(1)==beforeExcludedBuilds,"excluded family covers hero and future variants");
+buildMethod.Invoke(null,new object[]{a,DeviceType.Device,new Vector3(231,0,0),600f,"unit_device_turret"});
+Check(actual.Total(1)==beforeExcludedBuilds+30,"non-excluded turret retains proportional build score");
 Console.WriteLine($"PASS action scoring: {checks} checks");
 public class EmptyInitiator : DispatchProxy
 {

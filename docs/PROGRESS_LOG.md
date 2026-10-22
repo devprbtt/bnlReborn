@@ -41,3 +41,8 @@
 
 - Replace flat build points with ceil(actual charged cost / build_cost_per_point), bounded by build_min/build_max (defaults 20, 1, 50). Device units and hero/device voxels use confirmed TotalCost. Free/invalid builds give zero; objective bonuses and rebuild cooldown remain. Update CDB example and README; legacy build field ignored.
 - ActionScore fixture 127 checks passed, including cost tiers, rounding/caps, free builds, CDB roundtrip/legacy field, both eligible device types, objective bonus and cooldown. Linux x64 publish passed with warnings as errors.
+
+## 2026-10-21 - Exclude cheap trap/pad build rewards
+
+- Exclude block_fast_movement, block_bounce, block_thorn_bush, block_glue, block_caltrops, block_bear_trap and block_force_gate families from direct build XP. Match exact IDs and underscore variants; both confirmed placement routes pass the built card ID. Other rewards remain unchanged.
+- ActionScore fixture 147 checks passed, including all 18 current catalogue variants, future variant/hero typing and a positive turret control.

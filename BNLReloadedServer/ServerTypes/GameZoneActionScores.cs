@@ -7,10 +7,17 @@ namespace BNLReloadedServer.ServerTypes;
 public partial class GameZone
 {
     private static bool IsScoreDevice(CardUnit? card) => card?.DeviceType is DeviceType.Device or DeviceType.Hero;
-    private static void ScoreDeviceBuilt(Unit builder, DeviceType type, Vector3 position, float cost)
+    private static void ScoreDeviceBuilt(Unit builder, DeviceType type, Vector3 position, float cost, string cardId)
     {
         builder.ReportHeroBoostAction("effect_hero_engineer_bfs_build", "Build boost assist", position);
-        if (type is DeviceType.Device or DeviceType.Hero) builder.ReportActionScore("Device built", cost, position);
+        if (type is DeviceType.Device or DeviceType.Hero && !ExcludedBuildScore(cardId))
+            builder.ReportActionScore("Device built", cost, position);
+    }
+    private static bool ExcludedBuildScore(string cardId)
+    {
+        string[] families = ["block_fast_movement", "block_bounce", "block_thorn_bush",
+            "block_glue", "block_caltrops", "block_bear_trap", "block_force_gate"];
+        return families.Any(family => cardId == family || cardId.StartsWith(family + "_", StringComparison.Ordinal));
     }
     private readonly ActionScoreRules _actionScoreRules = ActionScoreRules.Load();
     private ActionScoreLedger? _actionScores;
