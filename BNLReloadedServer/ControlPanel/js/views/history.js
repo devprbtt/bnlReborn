@@ -497,9 +497,14 @@ function renderHistoryDetail(detail) {
     '<div class="history-teams">' +
     (detail.teams || [])
       .map((team) => {
-        const players = (detail.players || []).filter(
-          (player) => latestPresence(player)?.team === team.team,
-        );
+        // Highest score first, matching the in-game match history scoreboard.
+        const players = (detail.players || [])
+          .filter((player) => latestPresence(player)?.team === team.team)
+          .sort(
+            (a, b) =>
+              Number(b.total_score || 0) - Number(a.total_score || 0) ||
+              String(a.nickname || "").localeCompare(String(b.nickname || "")),
+          );
         const objective = historyObjective(detail, team);
         return (
           '<section class="history-team"><header class="history-team-head"><span class="history-team-name' +
