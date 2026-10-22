@@ -151,6 +151,25 @@ Check(withScores.SequenceEqual(Binary(parsed)),"server-only score settings do no
 db.Replicate([parsed]);Check(ActionScoreRules.Load().Cube==250,"older CDB without action_scores keeps defaults");
 var partial=JsonSerializer.Deserialize<CardGlobalLogic>("{\"_id\":\"global_logic\",\"action_scores\":{\"cube\":400}}",JsonHelper.DefaultSerializerSettings)!;
 db.Replicate([partial]);Check(ActionScoreRules.Load().Cube==400 && ActionScoreRules.Load().Assist==25,"partial CDB settings preserve unspecified defaults");
+// Hero blocks use the same production placement gate and destruction path as devices.
+data.MatchEnded=false;data.Phase.PhaseType=ZonePhaseType.Assault;units.Clear();units[a.Id]=a;
+var heroBlockCard=new CardUnit {Id="score_hero_block",DeviceType=DeviceType.Hero,BaseCost=400,Data=new UnitDataCommon(),Health=new UnitHealth{Health=new Health{MaxHealth=100,HealthType=HealthType.World}}};
+db.Replicate([playerCard,heroBlockCard,deviceCard]);
+var buildMethod=typeof(GameZone).GetMethod("ScoreDeviceBuilt",BindingFlags.Static|BindingFlags.NonPublic)!;
+int beforeHero=actual.Total(1);
+buildMethod.Invoke(null,new object[]{a,heroBlockCard.DeviceType,new Vector3(90,0,0)});
+Check(actual.Total(1)==beforeHero+rules.Build,"hero block placement earns configured build points");
+buildMethod.Invoke(null,new object[]{a,heroBlockCard.DeviceType,new Vector3(90,0,0)});
+Check(actual.Total(1)==beforeHero+rules.Build,"hero block repeated placement retains rebuild cooldown");
+foreach(var type in new[]{DeviceType.None,DeviceType.World,DeviceType.Block})
+ buildMethod.Invoke(null,new object[]{a,type,new Vector3(95,0,0)});
+Check(actual.Total(1)==beforeHero+rules.Build,"ordinary terrain blocks remain excluded");
+var heroBlock=Make(90,heroBlockCard,TeamType.Team2);
+Call("ScoreKill",heroBlock,a,true,false,Array.Empty<uint>());
+Check(actual.Total(1)==beforeHero+rules.Build+20,"enemy hero block destruction scores by cost");
+heroBlock.Team=TeamType.Team1;Call("ScoreKill",heroBlock,a,false,false,Array.Empty<uint>());
+heroBlock.Team=TeamType.Neutral;Call("ScoreKill",heroBlock,a,true,false,Array.Empty<uint>());
+Check(actual.Total(1)==beforeHero+rules.Build+20,"friendly and neutral hero blocks give no destruction score");
 Console.WriteLine($"PASS action scoring: {checks} checks");
 public class EmptyInitiator : DispatchProxy
 {

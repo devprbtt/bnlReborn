@@ -6,6 +6,11 @@ namespace BNLReloadedServer.ServerTypes;
 
 public partial class GameZone
 {
+    private static bool IsScoreDevice(CardUnit? card) => card?.DeviceType is DeviceType.Device or DeviceType.Hero;
+    private static void ScoreDeviceBuilt(Unit builder, DeviceType type, Vector3 position)
+    {
+        if (type is DeviceType.Device or DeviceType.Hero) builder.ReportActionScore("Device built", 1, position);
+    }
     private readonly ActionScoreRules _actionScoreRules = ActionScoreRules.Load();
     private ActionScoreLedger? _actionScores;
     private readonly Stopwatch _scoreClock = Stopwatch.StartNew();
@@ -96,8 +101,8 @@ public partial class GameZone
                         GetPlayerFromPlayerId(pair.Key) is { } helper && AreOpponents(target, helper))
                         AwardAction(helper, "Cube assist", 1, position, target.Id);
         }
-        else if (killer != null && opponent && target.Team != TeamType.Neutral && target.UnitCard?.DeviceType == DeviceType.Device)
-            AwardAction(killer, "Device destroyed", Math.Max(1, target.UnitCard.BaseCost ?? 0), position, target.Id);
+        else if (killer != null && opponent && target.Team != TeamType.Neutral && IsScoreDevice(target.UnitCard))
+            AwardAction(killer, "Device destroyed", Math.Max(1, target.UnitCard?.BaseCost ?? 0), position, target.Id);
     }
     private string ScoreSnapshot()
     {

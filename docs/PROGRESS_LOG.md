@@ -19,3 +19,8 @@
 - Linux x64 Release publish passed with warnings as errors. ActionScore 55, ReplayControls 41, KillAccolade 49, HealAttribution 17, Reconnect 10 and Auth 4 checks passed; HealAttribution retains an existing nullable fixture warning.
 - Published dependency and runtime JSON match live 381a2c5 semantically (line-ending differences only). Existing live configuration and data are retained by the code-hotfix deployer, with rollback on startup health failure.
 - Scoring uses built-in defaults when global_logic.action_scores is absent; catalogue values remain optional and editable. Deployment outcome is recorded in the client workspace progress log.
+
+## 2026-10-21 - Hero blocks earn build and destruction action scores
+
+- Include DeviceType.Hero alongside Device in both confirmed placement paths and enemy unit destruction. Reuse CDB build points, cost-based destruction values, objective bonuses and rebuild cooldown. Ordinary terrain, friendly and neutral destruction remain excluded.
+- ActionScoreFixture passes 60 checks including hero build/destruction and exclusions; Linux x64 Release publish passes warnings-as-errors. Applying as follow-up to the authorized action-scoring deployment.
