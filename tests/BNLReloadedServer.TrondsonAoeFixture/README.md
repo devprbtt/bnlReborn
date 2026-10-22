@@ -6,7 +6,7 @@ Fixtures derive from read-only live CDB cards captured 2026-10-18, transformed u
 `tools/add_trondson_aoe_block_buff.py`; revisions and editor metadata removed.
 Original capture SHA256: c77f15360ed31b105458cbaa37d2390881e8d887e50227d598576ced4b34eb11.
 
-The new server-only `splash_block_damage_bonus` CardEffect property multiplies
+The legacy server-only `splash_block_damage_bonus` CardEffect property multiplies
 outgoing non-mining splash BlockDamage after existing world buffs. Other damage
 channels and radius are unchanged. The existing allied buff icon carries 0.5;
 both 12-second auras retain their 10m/16m radii and exclude the caster. Existing
@@ -19,3 +19,5 @@ with `--apply` to apply. Applying to an old server has no gameplay effect.
 Migration backs up current cards, checks dependencies, uses revision-guarded PUTs,
 verifies readback and rolls back only its own revisions on failure. No live change
 has been made during preparation. No live multiplayer validation performed.
+
+The fixture also verifies the registered `effect.buffs.splash_block_damage_bonus` entry, JSON parsing, legacy client filtering, new-field precedence, explicit zero, and removal of unused card-level JSON fields.

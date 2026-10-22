@@ -76,8 +76,14 @@ public static class BuffHelper
         public float SplashBlockDamageAmount(float worldDamage) =>
           worldDamage * (1f + unit.ActiveEffects.Where(effect => !effect.IsExpired)
               .DistinctBy(effect => effect.Key)
-              .Sum(effect => float.IsFinite(effect.Card.SplashBlockDamageBonus)
-                  ? Math.Max(0f, effect.Card.SplashBlockDamageBonus) : 0f));
+              .Sum(effect => {
+                  // The normal buff entry wins, including an explicit zero. The old field is
+                  // read only for cards not yet migrated; never add both representations.
+                  float value = effect.Card.Effect is ConstEffectBuff { Buffs: { } buffs } &&
+                      buffs.TryGetValue(BuffType.SplashBlockDamageBonus, out var configured)
+                      ? configured : effect.Card.SplashBlockDamageBonus;
+                  return float.IsFinite(value) ? Math.Max(0f, value) : 0f;
+              }));
 
         public float ObjectiveDamageAmount(float initialDamage) =>
           initialDamage * Math.Max(0.0f, 1f + unit.GetBuff(BuffType.ObjectiveDamage));

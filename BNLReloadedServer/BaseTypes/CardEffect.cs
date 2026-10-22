@@ -31,8 +31,9 @@ public class CardEffect : Card, IUnlockable
 
     public ConstEffect? Effect { get; set; }
 
-    // CDB/server only. Deliberately absent from the legacy binary card layout.
-    // Fractional bonus to outgoing splash block damage (0.5 = +50%).
+    // Legacy read compatibility. New cards use effect.buffs.splash_block_damage_bonus.
+    // Deliberately absent from the binary card layout; omit when not used.
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
     public float SplashBlockDamageBonus { get; set; }
 
     public override void Write(BinaryWriter writer)

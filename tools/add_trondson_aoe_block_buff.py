@@ -28,7 +28,7 @@ def validate_dependencies(cards):
         assert ICON in aura['constant_effects']
     assert ICON not in cards[SELF]['effect']['constant_effects']
     effect = cards[ICON]['effect']
-    assert effect['type'] == 'buff' and effect['buffs'] == {}
+    assert effect['type'] == 'buff' and set(effect['buffs']).issubset({'splash_block_damage_bonus'})
     assert effect['targeting']['affected_units'] == ['player']
     assert effect['targeting']['affected_team'] == 'friendly'
 
@@ -36,7 +36,8 @@ def validate_dependencies(cards):
 def plan(card):
     result = copy.deepcopy(card)
     if card['_id'] == ICON:
-        result['splash_block_damage_bonus'] = 0.5
+        result.pop('splash_block_damage_bonus', None)
+        result['effect']['buffs']['splash_block_damage_bonus'] = 0.5
         result['gui_info']['name'] = {'text': 'Heigh-Ho!', 'data': {}}
         result['gui_info']['description'] = {'text': 'While near Trondson, deal 50% more explosion damage to blocks.', 'data': {}}
     return result

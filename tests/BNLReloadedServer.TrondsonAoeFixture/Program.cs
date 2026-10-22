@@ -54,6 +54,22 @@ unit.ActiveEffects=unit.ActiveEffects.Add(new ConstEffectInfo(icon.Key));
 Check(Math.Abs(Hit(true).BlockDamage-180)<.001f,"duplicate aura card does not stack bonus");
 unit.ActiveEffects=unit.ActiveEffects.Clear();
 Check(Hit(true).BlockDamage==100,"leaving aura removes bonus");
+// Hercules-authored dropdown values are real BuffType keys, including on the wire.
+var buff=(ConstEffectBuff)icon.Effect!;buff.Buffs![BuffType.SplashBlockDamageBonus]=.75f;
+unit.ActiveEffects=unit.ActiveEffects.Add(new ConstEffectInfo(icon.Key));
+Check(Hit(true).BlockDamage==175,"dropdown buff value overrides legacy card field without double counting");
+var json=JsonSerializer.Serialize<Card>(icon,JsonHelper.DefaultSerializerSettings);
+var parsed=(CardEffect)JsonSerializer.Deserialize<Card>(json,JsonHelper.DefaultSerializerSettings)!;
+Check(((ConstEffectBuff)parsed.Effect!).Buffs![BuffType.SplashBlockDamageBonus]==.75f,"Hercules snake_case buff key parses and round-trips");
+using(var stream=new MemoryStream()){
+    parsed.Write(new BinaryWriter(stream));stream.Position=0;var read=CardEffect.ReadRecord(new BinaryReader(stream));
+    Check(stream.Position==stream.Length && !((ConstEffectBuff)read.Effect!).Buffs!.ContainsKey(BuffType.SplashBlockDamageBonus),"legacy client catalogue filters the server-only buff safely");
+}
+buff.Buffs[BuffType.SplashBlockDamageBonus]=0;
+Check(Hit(true).BlockDamage==100,"explicit zero overrides stale legacy field");
+buff.Buffs[BuffType.SplashBlockDamageBonus]=.5f;icon.SplashBlockDamageBonus=0;
+Check(Hit(true).BlockDamage==150 && Hit(false).BlockDamage==100 && Hit(true,true).BlockDamage==100,"migrated buff retains splash-only block effect");
+Check(!JsonSerializer.Serialize<Card>(icon,JsonHelper.DefaultSerializerSettings).Contains("\n  \"splash_block_damage_bonus\""),"unused legacy field is no longer appended to card JSON");
 Console.WriteLine($"Trondson AOE: {checks} checks passed.");
 
 
