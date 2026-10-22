@@ -31,3 +31,8 @@
 - Lamp loot carries score-only builder provenance without changing gameplay ownership; collected pickup credits another friendly once. Hero block destruction also covers the voxel path.
 - ActionScoreFixture: 92 checks. HealAttribution:17, live-catalogue JinxSurge:9, Permafrost:31 and IgnoreCaster:12 checks pass. The older AvalancheSlow fixture expects the obsolete immediate-slow ability and is incompatible with the current area-spawn catalogue; current Permafrost fixture validates the deployed area behavior instead. Initial missing fixture arguments were corrected.
 - Companion client adds persistent Interface > Action score HUD, disabling both popup/audio without suppressing totals; Unity 18 popup/state +12 audio checks pass. Deployment is the authorized continuation of action scoring; details recorded in client progress log.
+
+## 2026-10-21 - Prevent Tony repair XP farming
+
+- Server tracks outstanding enemy health damage on device units and hero/device voxels. All actual healing consumes it before scoring, including passive/other-player repairs. Direct/periodic unit damage and both voxel splash routes covered; shield absorption excluded and removed/replaced blocks cleared. CDB rates unchanged.
+- ActionScore 114 checks and HealAttribution 17 passed. Linux x64 Release publish passed with warnings as errors.

@@ -48,7 +48,7 @@ These are additional support rewards, except Miracle Cure which replaces the gen
 | Hero | Confirmed action | Starting points |
 | --- | --- | --- |
 | Tony | Ally completes build with F build-speed buff | 5 |
-| Tony | Actual device health repaired | 5 per 50 HP |
+| Tony | Enemy-caused device health damage repaired | 5 per 50 HP |
 | Trondson | Boosted ally destroys an enemy device (including boosted drills) | 10 |
 | Genie | Another friendly collects a pickup from his lamp | 10 |
 | Genie | Jinx applied to enemy player/device | 10 |
@@ -65,3 +65,5 @@ These are additional support rewards, except Miracle Cure which replaces the gen
 | Nigel / Ninja | No additional hero action | — |
 
 Effect rewards use hero_effect_cooldown (15 seconds per owner/reason/target); grenade hits and distinct collected pickups do not share that throttle. Build support uses the existing per-cell build cooldown. Existing objective proximity bonuses apply. No self-support awards; rejected/immune/dead-target applications do not score.
+
+Repair XP only counts outstanding enemy health damage, including player-owned devices and hero blocks. Every heal consumes this budget; self, friendly, environmental damage, shield absorption and overhealing grant no credit.
