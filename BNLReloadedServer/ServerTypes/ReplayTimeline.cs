@@ -7,6 +7,8 @@ namespace BNLReloadedServer.ServerTypes;
 public sealed class ReplayTimeline
 {
     public uint DurationMs { get; private set; }
+    public long FirstPlayableOffset => Phases.FirstOrDefault(p =>
+        p.Phase is not (ZonePhaseType.Waiting or ZonePhaseType.TutorialInit)).At;
     public List<(uint At, ZonePhaseType Phase)> Phases { get; } = [];
 
     public ReplayTimeline(string path)
