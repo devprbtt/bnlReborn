@@ -7,10 +7,10 @@ namespace BNLReloadedServer.ServerTypes;
 public partial class GameZone
 {
     private static bool IsScoreDevice(CardUnit? card) => card?.DeviceType is DeviceType.Device or DeviceType.Hero;
-    private static void ScoreDeviceBuilt(Unit builder, DeviceType type, Vector3 position)
+    private static void ScoreDeviceBuilt(Unit builder, DeviceType type, Vector3 position, float cost)
     {
         builder.ReportHeroBoostAction("effect_hero_engineer_bfs_build", "Build boost assist", position);
-        if (type is DeviceType.Device or DeviceType.Hero) builder.ReportActionScore("Device built", 1, position);
+        if (type is DeviceType.Device or DeviceType.Hero) builder.ReportActionScore("Device built", cost, position);
     }
     private readonly ActionScoreRules _actionScoreRules = ActionScoreRules.Load();
     private ActionScoreLedger? _actionScores;
@@ -59,7 +59,7 @@ public partial class GameZone
             "Kill" => rules.Kill, "Assist" => rules.Assist, "Headshot" => rules.Headshot,
             "Supply pickup" => rules.Supply, "Blockbuster pickup" => rules.Blockbuster,
             "Cube destroyed" => rules.Cube, "Cube assist" => rules.CubeAssist,
-            "Device built" => rules.Build, "Device destroyed" => ledger.DeviceValue(amount),
+            "Device built" => ledger.BuildValue(amount), "Device destroyed" => ledger.DeviceValue(amount),
             "Radar spot" => rules.Radar, "Ability spot" => rules.AbilitySpot, _ => 0 };
         ledger.Grant(id, reason, points, near);
     }

@@ -36,3 +36,8 @@
 
 - Server tracks outstanding enemy health damage on device units and hero/device voxels. All actual healing consumes it before scoring, including passive/other-player repairs. Direct/periodic unit damage and both voxel splash routes covered; shield absorption excluded and removed/replaced blocks cleared. CDB rates unchanged.
 - ActionScore 114 checks and HealAttribution 17 passed. Linux x64 Release publish passed with warnings as errors.
+
+## 2026-10-21 - Cost-proportional build scores
+
+- Replace flat build points with ceil(actual charged cost / build_cost_per_point), bounded by build_min/build_max (defaults 20, 1, 50). Device units and hero/device voxels use confirmed TotalCost. Free/invalid builds give zero; objective bonuses and rebuild cooldown remain. Update CDB example and README; legacy build field ignored.
+- ActionScore fixture 127 checks passed, including cost tiers, rounding/caps, free builds, CDB roundtrip/legacy field, both eligible device types, objective bonus and cooldown. Linux x64 publish passed with warnings as errors.

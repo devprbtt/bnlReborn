@@ -13,3 +13,7 @@ Use capability-gated ordered barriers and viewer acknowledgements so slow client
 ## 2026-10-21 - Repair score eligibility
 
 Track enemy health damage per repairable device, rather than excluding owned devices or checking only the last attacker. Every actual heal consumes this budget; Tony scores only the consumed portion. Voxel budgets use damage bytes converted to HP at repair. Preserve defensive repair rewards without reusable friendly-damage credit.
+
+## 2026-10-21 - Build reward follows resources spent
+
+Use the same confirmed TotalCost charged by construction for device build XP, rather than base catalogue price or flat points. Keep build scaling independent of destruction scaling through dedicated CDB fields. Build time has no additional multiplier. Both placement routes feed one score function; preserve rebuild cooldown and objective bonuses.

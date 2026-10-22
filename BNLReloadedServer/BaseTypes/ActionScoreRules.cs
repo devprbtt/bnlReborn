@@ -34,7 +34,9 @@ public sealed class ActionScoreRules
     public int Blockbuster { get; set; } = 100;
     public int Cube { get; set; } = 250;
     public int CubeAssist { get; set; } = 75;
-    public int Build { get; set; } = 10;
+    public float BuildCostPerPoint { get; set; } = 20;
+    public int BuildMin { get; set; } = 1;
+    public int BuildMax { get; set; } = 50;
     public int Radar { get; set; } = 5;
     public int AbilitySpot { get; set; } = 10;
     public float HealPerPoint { get; set; } = 10;
@@ -63,7 +65,7 @@ public sealed class ActionScoreRules
         }
         if (FirstKill <= Kill || DoubleKill <= FirstKill || MultiKill <= DoubleKill || UltraKill <= MultiKill || Fantastic <= UltraKill || Unbelievable <= Fantastic)
             throw new InvalidDataException("Kill accolade scores must increase above the regular kill value");
-        if (TonyRepairPerPoint == 0 || DocAbilityHealPerPoint == 0 || HealPerPoint == 0 || DeviceDamagePerPoint == 0 || DeviceCostPerPoint == 0 || ContinuousChunk == 0 || DeviceMax < DeviceMin)
+        if (BuildCostPerPoint == 0 || BuildMax < BuildMin || TonyRepairPerPoint == 0 || DocAbilityHealPerPoint == 0 || HealPerPoint == 0 || DeviceDamagePerPoint == 0 || DeviceCostPerPoint == 0 || ContinuousChunk == 0 || DeviceMax < DeviceMin)
             throw new InvalidDataException("Invalid action score denominator or device range");
     }
 }

@@ -68,7 +68,7 @@ enemy.IsActive=false;Call("ScoreKill",enemy,a,true,true,new uint[]{2});Check(act
 Call("ScoreKill",ally,a,false,true,Array.Empty<uint>());Check(actual.Total(1)==60,"team kill has no kill or headshot award");
 Call("AwardAction",a,"Supply pickup",1f,Vector3.Zero,4u);Call("AwardAction",a,"Blockbuster pickup",1f,Vector3.Zero,5u);
 Check(actual.Total(1)==185,"supply and blockbuster values");
-Call("AwardAction",a,"Device built",1f,Vector3.Zero,null);Call("AwardAction",a,"Device built",1f,Vector3.Zero,null);
+Call("AwardAction",a,"Device built",200f,Vector3.Zero,null);Call("AwardAction",a,"Device built",200f,Vector3.Zero,null);
 Check(actual.Total(1)==195,"immediate rebuild at same cell does not farm score");
 ally.SendHealAttribution(a,50,null);Check(actual.Total(1)==200,"real ally heal attribution awards score");
 a.SendHealAttribution(a,50,null);enemy.SendHealAttribution(a,50,null);Check(actual.Total(1)==200,"self and enemy healing excluded");
@@ -157,19 +157,19 @@ var heroBlockCard=new CardUnit {Id="score_hero_block",DeviceType=DeviceType.Hero
 db.Replicate([playerCard,heroBlockCard,deviceCard]);
 var buildMethod=typeof(GameZone).GetMethod("ScoreDeviceBuilt",BindingFlags.Static|BindingFlags.NonPublic)!;
 int beforeHero=actual.Total(1);
-buildMethod.Invoke(null,new object[]{a,heroBlockCard.DeviceType,new Vector3(90,0,0)});
-Check(actual.Total(1)==beforeHero+rules.Build,"hero block placement earns configured build points");
-buildMethod.Invoke(null,new object[]{a,heroBlockCard.DeviceType,new Vector3(90,0,0)});
-Check(actual.Total(1)==beforeHero+rules.Build,"hero block repeated placement retains rebuild cooldown");
+buildMethod.Invoke(null,new object[]{a,heroBlockCard.DeviceType,new Vector3(90,0,0),400f});
+Check(actual.Total(1)==beforeHero+ledger.BuildValue(400),"hero block placement earns configured build points");
+buildMethod.Invoke(null,new object[]{a,heroBlockCard.DeviceType,new Vector3(90,0,0),400f});
+Check(actual.Total(1)==beforeHero+ledger.BuildValue(400),"hero block repeated placement retains rebuild cooldown");
 foreach(var type in new[]{DeviceType.None,DeviceType.World,DeviceType.Block})
- buildMethod.Invoke(null,new object[]{a,type,new Vector3(95,0,0)});
-Check(actual.Total(1)==beforeHero+rules.Build,"ordinary terrain blocks remain excluded");
+ buildMethod.Invoke(null,new object[]{a,type,new Vector3(95,0,0),400f});
+Check(actual.Total(1)==beforeHero+ledger.BuildValue(400),"ordinary terrain blocks remain excluded");
 var heroBlock=Make(90,heroBlockCard,TeamType.Team2);
 Call("ScoreKill",heroBlock,a,true,false,Array.Empty<uint>());
-Check(actual.Total(1)==beforeHero+rules.Build+20,"enemy hero block destruction scores by cost");
+Check(actual.Total(1)==beforeHero+ledger.BuildValue(400)+20,"enemy hero block destruction scores by cost");
 heroBlock.Team=TeamType.Team1;Call("ScoreKill",heroBlock,a,false,false,Array.Empty<uint>());
 heroBlock.Team=TeamType.Neutral;Call("ScoreKill",heroBlock,a,true,false,Array.Empty<uint>());
-Check(actual.Total(1)==beforeHero+rules.Build+20,"friendly and neutral hero blocks give no destruction score");
+Check(actual.Total(1)==beforeHero+ledger.BuildValue(400)+20,"friendly and neutral hero blocks give no destruction score");
 
 // Exercise admitted real effect applications and the zone ledger, not only reason-to-value mappings.
 CardAbility Ability(string id)=>new(){Id=id,Icon="",KillscoreIcon="",Prefab="",Charges=new AbilityCharges(),Behavior=new AbilityBehaviorCast{Application=new AbilityApplicationSelf()}};
@@ -207,7 +207,7 @@ Check(actual.Total(1)==beforeSelf,"self ability benefits do not award support po
 var boosted=Make(240,playerCard,TeamType.Team1,240);
 boosted.AddEffects([new ConstEffectInfo(buildBoost.Key),new ConstEffectInfo(demolishBoost.Key)],a.Team,a.GetSelfSource(a.CreateImpactData()));
 int beforeSupport=actual.Total(1);
-buildMethod.Invoke(null,new object[]{boosted,DeviceType.Block,new Vector3(110,0,0)});
+buildMethod.Invoke(null,new object[]{boosted,DeviceType.Block,new Vector3(110,0,0),40f});
 Check(actual.Total(1)==beforeSupport+rules.TonyBuildAssist,"Tony is credited when another player completes a boosted build");
 var destroyed=Make(241,deviceCard,TeamType.Team2);
 Call("ScoreHeroDeviceDestroyed",destroyed,boosted,boosted,boosted.CreateImpactData());
@@ -325,6 +325,35 @@ var roundtripRules=JsonSerializer.Deserialize<ActionScoreRules>(JsonSerializer.S
 Check(roundtripRules.GenieLampPickup==37 && roundtripRules.KiraReloadBoost==19 && roundtripRules.HeroEffectCooldown==2 && roundtripRules.TonyRepairPerPoint==4,"hero score values and thresholds round-trip through CDB JSON");
 bool badRepair=false;try{new ActionScoreRules{TonyRepairPerPoint=0}.Validate();}catch(InvalidDataException){badRepair=true;}
 Check(badRepair,"zero repair denominator is rejected");
+Check(ledger.BuildValue(40)==2 && ledger.BuildValue(200)==10 && ledger.BuildValue(600)==30,"build score scales with actual cost");
+Check(ledger.BuildValue(1)==1 && ledger.BuildValue(21)==2 && ledger.BuildValue(10000)==50,"build score rounds up and caps");
+Check(ledger.BuildValue(0)==0 && ledger.BuildValue(-1)==0 && ledger.BuildValue(float.NaN)==0 && ledger.BuildValue(float.PositiveInfinity)==0,"free and invalid builds grant no points");
+Check(ledger.BuildValue(float.MaxValue)==50,"extreme finite cost safely caps without integer overflow");
+var tunedBuild=new ActionScoreRules{BuildCostPerPoint=10,BuildMin=2,BuildMax=25};tunedBuild.Validate();
+var tunedLedger=new ActionScoreLedger(tunedBuild);
+Check(tunedLedger.BuildValue(1)==2 && tunedLedger.BuildValue(100)==10 && tunedLedger.BuildValue(1000)==25,"build cost scale and bounds are CDB tunable");
+var buildJson=JsonSerializer.Serialize(tunedBuild,JsonHelper.DefaultSerializerSettings);
+var loadedBuild=JsonSerializer.Deserialize<ActionScoreRules>(buildJson,JsonHelper.DefaultSerializerSettings)!;
+Check(loadedBuild.BuildCostPerPoint==10 && loadedBuild.BuildMin==2 && loadedBuild.BuildMax==25,"build settings round-trip in CDB");
+var legacyBuild=JsonSerializer.Deserialize<ActionScoreRules>("{\"build\":10}",JsonHelper.DefaultSerializerSettings)!;
+Check(new ActionScoreLedger(legacyBuild).BuildValue(40)==2,"legacy flat-build CDB field does not override proportional defaults");
+foreach(var invalidBuild in new[]{new ActionScoreRules{BuildCostPerPoint=0},new ActionScoreRules{BuildMin=10,BuildMax=5}})
+{
+ bool buildRejected=false;try{invalidBuild.Validate();}catch(InvalidDataException){buildRejected=true;}
+ Check(buildRejected,"invalid build score denominator or range rejected");
+}
+int beforeBuilds=actual.Total(1);
+buildMethod.Invoke(null,new object[]{a,DeviceType.Device,new Vector3(150,0,0),40f});
+buildMethod.Invoke(null,new object[]{a,DeviceType.Hero,new Vector3(151,0,0),600f});
+Check(actual.Total(1)==beforeBuilds+32,"confirmed device and hero builds pass actual cost to score ledger");
+buildMethod.Invoke(null,new object[]{a,DeviceType.Device,new Vector3(152,0,0),0f});
+Check(actual.Total(1)==beforeBuilds+32,"free placement cannot earn build points");
+int beforeObjectiveBuild=actual.Total(1);
+Call("AwardAction",a,"Device built",200f,Vector3.Zero,null);
+// The original cell is still in rebuild cooldown; changing cost must not bypass it.
+Check(actual.Total(1)==beforeObjectiveBuild,"cost changes cannot bypass same-cell rebuild cooldown");
+var bonusBuild=new ActionScoreLedger(rules);bonusBuild.Grant(1,"Device built",bonusBuild.BuildValue(200),true);
+Check(bonusBuild.Total(1)==12,"objective bonus applies after proportional build score");
 Console.WriteLine($"PASS action scoring: {checks} checks");
 public class EmptyInitiator : DispatchProxy
 {

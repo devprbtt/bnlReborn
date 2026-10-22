@@ -21,6 +21,8 @@ public sealed class ActionScoreLedger(ActionScoreRules rules)
         if (cooldowns.TryGetValue(id, out var previous) && now - previous < interval) return false;
         cooldowns[id] = now; return true;
     }
+    public int BuildValue(float cost) => !float.IsFinite(cost) || cost <= 0 ? 0 :
+        (int)Math.Clamp(Math.Ceiling((double)cost / rules.BuildCostPerPoint), rules.BuildMin, rules.BuildMax);
     public int DeviceValue(float cost) => !float.IsFinite(cost) ? 0 :
         Math.Clamp((int)Math.Ceiling(Math.Max(0, cost) / rules.DeviceCostPerPoint), rules.DeviceMin, rules.DeviceMax);
     public void Accumulate(uint player, string reason, float amount, float perPoint, bool nearObjective)

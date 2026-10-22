@@ -26,7 +26,7 @@ The server's existing CDB watcher validates catalogue edits. Invalid scores are 
 | Fantastic / unbelievable | 150 / 175 |
 | Supply / blockbuster pickup | 25 / 100 |
 | Cube destroyed / assist | 250 / 75 |
-| Device built | 10 |
+| Device / hero block built | ceil(actual resource cost / 20), clamped 1-50; free builds give 0 |
 | Enemy device destroyed | ceil(base resource cost / 20), clamped 5–50 |
 | Actual teammate healing | 5 per 50 HP |
 | Device damage to enemy players | 5 per 100 damage |
@@ -67,3 +67,5 @@ These are additional support rewards, except Miracle Cure which replaces the gen
 Effect rewards use hero_effect_cooldown (15 seconds per owner/reason/target); grenade hits and distinct collected pickups do not share that throttle. Build support uses the existing per-cell build cooldown. Existing objective proximity bonuses apply. No self-support awards; rejected/immune/dead-target applications do not score.
 
 Repair XP only counts outstanding enemy health damage, including player-owned devices and hero blocks. Every heal consumes this budget; self, friendly, environmental damage, shield absorption and overhealing grant no credit.
+
+Build scoring uses `build_cost_per_point` (20), `build_min` (1), and `build_max` (50) in `global_logic.action_scores`. Both confirmed placement routes pass the charged TotalCost, including cost modifiers. The retired flat `build` field is ignored. Build time is not a separate multiplier; expensive devices earn more by resource investment. Objective bonuses apply afterward, and per-cell rebuild cooldown remains.
