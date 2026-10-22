@@ -542,7 +542,7 @@ public partial class GameZone : Updater
         pickup.AssignFreeForAllTeam(recipient.FreeForAllTeamId);
     }
 
-    private void CreateLootUnit(LootItemUnit loot, ZoneTransform transform, Unit? killer = null)
+    private void CreateLootUnit(LootItemUnit loot, ZoneTransform transform, Unit? killer = null, Unit? origin = null)
     {
         var lootCard = Databases.Catalogue.GetCard<CardUnit>(loot.LootUnitKey);
         if (lootCard == null) return;
@@ -554,7 +554,9 @@ public partial class GameZone : Updater
             RelativeTeamType.Opponent when killer?.Team == TeamType.Team2 => TeamType.Team1,
             _ => TeamType.Neutral
         };
-        CatalogueFactory.CreateUnit(NewUnitId(), loot.LootUnitKey, transform, team, null, _defaultUnitUpdater);
+        var pickup = CatalogueFactory.CreateUnit(NewUnitId(), loot.LootUnitKey, transform, team, null, _defaultUnitUpdater);
+        if (pickup != null && origin?.Key == new Key("unit_device_djinn_lamp") && lootCard.Data is UnitDataPickup)
+            pickup.ScoreLampOwner = origin.OwnerPlayerId;
     }
 
     private void CreateProjectileUnit(Key projectileKey, float speed, ShotData shot, Vector3 shotPos,

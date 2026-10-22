@@ -9,6 +9,7 @@ public partial class GameZone
     private static bool IsScoreDevice(CardUnit? card) => card?.DeviceType is DeviceType.Device or DeviceType.Hero;
     private static void ScoreDeviceBuilt(Unit builder, DeviceType type, Vector3 position)
     {
+        builder.ReportHeroBoostAction("effect_hero_engineer_bfs_build", "Build boost assist", position);
         if (type is DeviceType.Device or DeviceType.Hero) builder.ReportActionScore("Device built", 1, position);
     }
     private readonly ActionScoreRules _actionScoreRules = ActionScoreRules.Load();
@@ -30,17 +31,29 @@ public partial class GameZone
         var rules = _actionScoreRules; var ledger = ActionScores;
         switch (reason)
         {
+            case "Repairs": ledger.Accumulate(id, reason, amount, rules.TonyRepairPerPoint, near); return;
+            case "Miracle cure": ledger.Accumulate(id, reason, amount, rules.DocAbilityHealPerPoint, near); return;
             case "Healing": ledger.Accumulate(id, reason, amount, rules.HealPerPoint, near); return;
             case "Device damage": ledger.Accumulate(id, reason, amount, rules.DeviceDamagePerPoint, near); return;
             case "Radar spot": case "Ability spot":
                 if (target == null || !ledger.Ready(id, "spot:" + target, _scoreClock.Elapsed.TotalSeconds, rules.SpotCooldown)) return;
                 break;
+            case "Build boost assist":
             case "Device built":
-                var cell = $"build:{MathF.Floor(position.X)}:{MathF.Floor(position.Y)}:{MathF.Floor(position.Z)}";
+                var cell = $"{reason}:{MathF.Floor(position.X)}:{MathF.Floor(position.Y)}:{MathF.Floor(position.Z)}";
                 if (!ledger.Ready(id, cell, _scoreClock.Elapsed.TotalSeconds, rules.BuildCooldown)) return;
                 break;
         }
+        if (reason == "Demolition boost assist" && target == null &&
+            !ledger.Ready(id, $"demolish:{MathF.Floor(position.X)}:{MathF.Floor(position.Y)}:{MathF.Floor(position.Z)}", _scoreClock.Elapsed.TotalSeconds, rules.HeroEffectCooldown)) return;
+        if ((reason == "Demolition boost assist" && target != null) || reason is "Jinx" or "Cage affected" or "EMP affected" or "Avalanche affected" or "Goo affected" or "Ally boosted" or "Reload boost" or "Enemy frightened")
+            if (target == null || !ledger.Ready(id, reason + ":" + target, _scoreClock.Elapsed.TotalSeconds, rules.HeroEffectCooldown)) return;
         int points = reason switch {
+            "Build boost assist" => rules.TonyBuildAssist, "Demolition boost assist" => rules.TrondsonDemolitionAssist,
+            "Lamp pickup" => rules.GenieLampPickup, "Jinx" => rules.GenieJinx, "Cage affected" => rules.VanderCage,
+            "EMP affected" => rules.SweetScienceEmp, "Avalanche affected" => rules.YetiAvalanche,
+            "Grenade hit" => rules.SargeGrenadeHit, "Goo affected" => rules.RolyGoo, "Mortar destruction" => rules.CogMortarDestroy,
+            "Ally boosted" => rules.AstarellaBoost, "Reload boost" => rules.KiraReloadBoost, "Enemy frightened" => rules.KreepyFear,
             "First kill" => rules.FirstKill, "Double kill" => rules.DoubleKill, "Multi kill" => rules.MultiKill,
             "Ultra kill" => rules.UltraKill, "Fantastic" => rules.Fantastic, "Unbelievable" => rules.Unbelievable,
             "Kill" => rules.Kill, "Assist" => rules.Assist, "Headshot" => rules.Headshot,
@@ -53,6 +66,10 @@ public partial class GameZone
     private void ScoreDamage(Unit target, float damage, ImpactData impact, Unit? player, Unit? attacker)
     {
         if (!CanScore || damage <= 0 || player?.PlayerId is not { } id || !AreOpponents(target, player)) return;
+        if (target.PlayerId != null && Unit.ScoreSourceId(impact.SourceKey).StartsWith("ability_sarge_frag_grenade", StringComparison.Ordinal))
+            AwardAction(player, "Grenade hit", 1, target.GetMidpoint(), target.Id);
+        if (target.PlayerId != null && (attacker?.Key == new Key("unit_device_roly_toxic_waste") || Unit.ScoreSourceId(impact.SourceKey).Contains("toxic_waste", StringComparison.Ordinal)))
+            AwardAction(player, "Goo affected", 1, target.GetMidpoint(), target.Id);
         if (target.UnitCard?.IsObjective == true)
         {
             if (!_cubeContributors.TryGetValue(target.Id, out var contributors)) _cubeContributors[target.Id] = contributors = [];

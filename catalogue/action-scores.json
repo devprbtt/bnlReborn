@@ -26,6 +26,22 @@
     "objective_bonus": 0.25,
     "spot_cooldown": 15,
     "build_cooldown": 30,
-    "cube_assist_window": 30
+    "cube_assist_window": 30,
+    "tony_build_assist": 5,
+    "trondson_demolition_assist": 10,
+    "genie_lamp_pickup": 10,
+    "genie_jinx": 10,
+    "vander_cage": 10,
+    "sweet_science_emp": 10,
+    "yeti_avalanche": 10,
+    "sarge_grenade_hit": 10,
+    "roly_goo": 10,
+    "cog_mortar_destroy": 10,
+    "astarella_boost": 10,
+    "kira_reload_boost": 5,
+    "kreepy_fear": 10,
+    "tony_repair_per_point": 10,
+    "doc_ability_heal_per_point": 10,
+    "hero_effect_cooldown": 15
   }
 }

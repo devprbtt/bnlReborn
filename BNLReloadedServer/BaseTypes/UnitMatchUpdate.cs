@@ -1,4 +1,4 @@
-﻿using System.Diagnostics;
+using System.Diagnostics;
 using System.Numerics;
 using BNLReloadedServer.Database;
 using BNLReloadedServer.ProtocolHelpers;
@@ -125,6 +125,10 @@ public partial class Unit
 
     public void Healed(float amount, EffectSource? healSource, Unit? healerPlayer)
     {
+        if (amount > 0 && UnitCard?.DeviceType is DeviceType.Device or DeviceType.Hero &&
+            healerPlayer?.Key == new Key("unit_hero_engineer") && Team == healerPlayer.Team && Team != TeamType.Neutral)
+            healerPlayer.ReportActionScore("Repairs", amount, GetMidpoint(), Id);
+
         switch (UnitCard?.Health?.Health?.HealthType)
         {
             case HealthType.Player when PlayerId is not null:

@@ -1,4 +1,4 @@
-﻿using System.Numerics;
+using System.Numerics;
 using BNLReloadedServer.Database;
 using BNLReloadedServer.Octree_Extensions;
 using BNLReloadedServer.ProtocolHelpers;
@@ -1019,8 +1019,11 @@ public class MapBinary
                 }
             }
 
-            if (attacker?.PlayerId != null && block.Team != TeamType.Neutral && attacker.Team != block.Team && blockCard.DeviceType == DeviceType.Device)
+            if (attacker?.PlayerId != null && block.Team != TeamType.Neutral && attacker.Team != block.Team && blockCard.DeviceType is DeviceType.Device or DeviceType.Hero)
+            {
                 attacker.ReportActionScore("Device destroyed", Math.Max(1, blockCard.BaseCost ?? 0), location.ToVector3());
+                attacker.ReportHeroBoostAction("effect_hero_trondson_heigh_ho_buff", "Demolition boost assist", location.ToVector3());
+            }
             var blockKey = blockCard.Key;
             block.Id = 0;
             block.Damage = 0;

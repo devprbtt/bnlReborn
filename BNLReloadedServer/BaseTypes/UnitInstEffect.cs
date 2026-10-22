@@ -70,7 +70,7 @@ public partial class Unit
         if (amount <= 0) return;
         if (credit.PlayerId != null && PlayerId != null && credit.PlayerId != PlayerId &&
             credit.Team == Team && Team != TeamType.Neutral)
-            credit.ReportActionScore("Healing", amount, GetMidpoint(), Id);
+            credit.ReportActionScore(ScoreSourceId(sourceKey).StartsWith("ability_eliza_miracle_cure", StringComparison.Ordinal) ? "Miracle cure" : "Healing", amount, GetMidpoint(), Id);
         _updater.OnImpactOccur(GetMidpoint(), new Vector3(amount, 0, 0), false, credit, sourceKey, null, [Id]);
     }
 

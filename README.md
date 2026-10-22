@@ -40,3 +40,28 @@ Objective proximity checks the action location, applies once even if zones overl
 `ZoneUpdate` appends optional `ActionScoresJson` at bit 12 (the bitfield remains two bytes). Baselines transmit totals without historical notifications; incremental updates carry sequenced awards for deduplication. End results use `Total` and statistic 12 (`ActionScore`). Archives replace this cumulative score on rejoin while continuing to accumulate legacy session statistics. Balance changes apply only to new matches.
 
 Validation: `dotnet run --project tests/BNLReloadedServer.ActionScoreFixture -c Release`.
+
+## Hero-specific action scores
+
+These are additional support rewards, except Miracle Cure which replaces the generic healing award for that same restored health. All defaults are editable under global_logic.action_scores; a match snapshots settings at creation.
+
+| Hero | Confirmed action | Starting points |
+| --- | --- | --- |
+| Tony | Ally completes build with F build-speed buff | 5 |
+| Tony | Actual device health repaired | 5 per 50 HP |
+| Trondson | Boosted ally destroys an enemy device (including boosted drills) | 10 |
+| Genie | Another friendly collects a pickup from his lamp | 10 |
+| Genie | Jinx applied to enemy player/device | 10 |
+| Doc | Ally health restored by F | 5 per 50 HP, replaces generic heal credit |
+| Vander | Cage affects an enemy | 10 |
+| Sweet Science | EMP affects enemy device | 10 |
+| Yeti | Avalanche slow affects enemy | 10 |
+| Sarge | Grenade damages enemy player | 10 per hit |
+| Roly | Barrel/goo affects enemy player | 10 |
+| Cog | Mortar destroys enemy device | 10 additional |
+| Astarella | F boost applied to another ally | 10 |
+| Kira | F reload buff applied to another ally | 5 |
+| Kreepy | F debuff applied to enemy | 10 |
+| Nigel / Ninja | No additional hero action | — |
+
+Effect rewards use hero_effect_cooldown (15 seconds per owner/reason/target); grenade hits and distinct collected pickups do not share that throttle. Build support uses the existing per-cell build cooldown. Existing objective proximity bonuses apply. No self-support awards; rejected/immune/dead-target applications do not score.

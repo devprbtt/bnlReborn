@@ -24,3 +24,10 @@
 
 - Include DeviceType.Hero alongside Device in both confirmed placement paths and enemy unit destruction. Reuse CDB build points, cost-based destruction values, objective bonuses and rebuild cooldown. Ordinary terrain, friendly and neutral destruction remain excluded.
 - ActionScoreFixture passes 60 checks including hero build/destruction and exclusions; Linux x64 Release publish passes warnings-as-errors. Applying as follow-up to the authorized action-scoring deployment.
+
+## 2026-10-21 - Hero-specific action scoring
+
+- Added CDB-tunable support/action rewards for Tony, Trondson, Genie, Doc, Vander, Sweet Science, Yeti, Sarge, Roly, Cog, Astarella, Kira and Kreepy. Nigel/Ninja unchanged. Confirmed-build and destruction hooks resolve active aura sources; applied effects resolve owning players and throttle repeated applications; actual repair/heal amounts bank into chunks. Doc F healing replaces generic healing for the same amount.
+- Lamp loot carries score-only builder provenance without changing gameplay ownership; collected pickup credits another friendly once. Hero block destruction also covers the voxel path.
+- ActionScoreFixture: 92 checks. HealAttribution:17, live-catalogue JinxSurge:9, Permafrost:31 and IgnoreCaster:8 checks pass. The older AvalancheSlow fixture expects the obsolete immediate-slow ability and is incompatible with the current area-spawn catalogue; current Permafrost fixture validates the deployed area behavior instead. Initial missing fixture arguments were corrected.
+- Companion client adds persistent Interface > Action score HUD, disabling both popup/audio without suppressing totals; Unity 18 popup/state +12 audio checks pass. Deployment is the authorized continuation of action scoring; details recorded in client progress log.

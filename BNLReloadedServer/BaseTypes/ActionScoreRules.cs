@@ -5,6 +5,22 @@ namespace BNLReloadedServer.BaseTypes;
 // Server-only CDB settings on global_logic.action_scores; omitted fields keep defaults.
 public sealed class ActionScoreRules
 {
+    public int TonyBuildAssist { get; set; } = 5;
+    public int TrondsonDemolitionAssist { get; set; } = 10;
+    public int GenieLampPickup { get; set; } = 10;
+    public int GenieJinx { get; set; } = 10;
+    public int VanderCage { get; set; } = 10;
+    public int SweetScienceEmp { get; set; } = 10;
+    public int YetiAvalanche { get; set; } = 10;
+    public int SargeGrenadeHit { get; set; } = 10;
+    public int RolyGoo { get; set; } = 10;
+    public int CogMortarDestroy { get; set; } = 10;
+    public int AstarellaBoost { get; set; } = 10;
+    public int KiraReloadBoost { get; set; } = 5;
+    public int KreepyFear { get; set; } = 10;
+    public float TonyRepairPerPoint { get; set; } = 10;
+    public float DocAbilityHealPerPoint { get; set; } = 10;
+    public float HeroEffectCooldown { get; set; } = 15;
     public int Kill { get; set; } = 50;
     public int FirstKill { get; set; } = 60;
     public int DoubleKill { get; set; } = 75;
@@ -47,7 +63,7 @@ public sealed class ActionScoreRules
         }
         if (FirstKill <= Kill || DoubleKill <= FirstKill || MultiKill <= DoubleKill || UltraKill <= MultiKill || Fantastic <= UltraKill || Unbelievable <= Fantastic)
             throw new InvalidDataException("Kill accolade scores must increase above the regular kill value");
-        if (HealPerPoint == 0 || DeviceDamagePerPoint == 0 || DeviceCostPerPoint == 0 || ContinuousChunk == 0 || DeviceMax < DeviceMin)
+        if (TonyRepairPerPoint == 0 || DocAbilityHealPerPoint == 0 || HealPerPoint == 0 || DeviceDamagePerPoint == 0 || DeviceCostPerPoint == 0 || ContinuousChunk == 0 || DeviceMax < DeviceMin)
             throw new InvalidDataException("Invalid action score denominator or device range");
     }
 }

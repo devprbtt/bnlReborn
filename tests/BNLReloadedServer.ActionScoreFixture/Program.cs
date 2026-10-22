@@ -170,6 +170,83 @@ Check(actual.Total(1)==beforeHero+rules.Build+20,"enemy hero block destruction s
 heroBlock.Team=TeamType.Team1;Call("ScoreKill",heroBlock,a,false,false,Array.Empty<uint>());
 heroBlock.Team=TeamType.Neutral;Call("ScoreKill",heroBlock,a,true,false,Array.Empty<uint>());
 Check(actual.Total(1)==beforeHero+rules.Build+20,"friendly and neutral hero blocks give no destruction score");
+
+// Exercise admitted real effect applications and the zone ledger, not only reason-to-value mappings.
+CardAbility Ability(string id)=>new(){Id=id,Icon="",KillscoreIcon="",Prefab="",Charges=new AbilityCharges(),Behavior=new AbilityBehaviorCast{Application=new AbilityApplicationSelf()}};
+var abilityAstro=Ability("ability_astro_boost");
+var abilityDoc=Ability("ability_eliza_miracle_cure");
+var abilitySarge=Ability("ability_sarge_frag_grenade");
+var engineerCard=new CardUnit{Id="unit_hero_engineer",Data=new UnitDataCommon(),Health=playerCard.Health};
+var effectCases=new[]{
+ ("effect_hero_djinn_jinx_dizzy", "Jinx",rules.GenieJinx,false,false),
+ ("effect_hero_djinn_jinx_confused", "Jinx",rules.GenieJinx,true,false),
+ ("effect_hero_boxer_power_surge", "EMP affected",rules.SweetScienceEmp,true,false),
+ ("effect_hero_magnus_lightning_cage_hitting", "Cage affected",rules.VanderCage,false,false),
+ ("effect_abe_avalanche_area_slow", "Avalanche affected",rules.YetiAvalanche,false,false),
+ ("effect_status_slow_glue_toxic_waste", "Goo affected",rules.RolyGoo,false,false),
+ ("effect_hero_kreepy_killer_klown_debuff", "Enemy frightened",rules.KreepyFear,false,false),
+ ("effect_hero_kira_jpop_star_reload_buff", "Reload boost",rules.KiraReloadBoost,false,true),
+ ("effect_status_boost_10", "Ally boosted",rules.AstarellaBoost,false,true)};
+var heroEffects=effectCases.Select(c=>new CardEffect{Id=c.Item1,Effect=new ConstEffectBuff{Buffs=[]}}).ToList();
+var buildBoost=new CardEffect{Id="effect_hero_engineer_bfs_build",Effect=new ConstEffectBuff{Buffs=new(){{BuffType.BuildSpeed,1}}}};
+var demolishBoost=new CardEffect{Id="effect_hero_trondson_heigh_ho_buff",Effect=new ConstEffectBuff{Buffs=new(){{BuffType.ToolWorldDamage,2}}}};
+List<Card> heroCatalogue=[playerCard,deviceCard,heroBlockCard,engineerCard,abilityAstro,abilityDoc,abilitySarge,buildBoost,demolishBoost];heroCatalogue.AddRange(heroEffects);db.Replicate(heroCatalogue);
+uint heroTarget=200;
+foreach(var (effectId,reason,points,isDevice,friendly) in effectCases)
+{
+ var target=Make(heroTarget++,isDevice?deviceCard:playerCard,friendly?TeamType.Team1:TeamType.Team2,isDevice?null:heroTarget);
+ var source=a.GetSelfSource(a.CreateImpactData(sourceKey:abilityAstro.Key));
+ int before=actual.Total(1);target.AddEffects([new ConstEffectInfo(new Key(effectId))],a.Team,source);
+ Check(actual.Total(1)==before+points,reason+" credits its real effect source");
+ target.AddEffects([new ConstEffectInfo(new Key(effectId))],a.Team,source);
+ Check(actual.Total(1)==before+points,reason+" repeated effect application is throttled");
+}
+int beforeSelf=actual.Total(1);
+a.AddEffects([new ConstEffectInfo(new Key("effect_hero_kira_jpop_star_reload_buff"))],a.Team,a.GetSelfSource());
+Check(actual.Total(1)==beforeSelf,"self ability benefits do not award support points");
+var boosted=Make(240,playerCard,TeamType.Team1,240);
+boosted.AddEffects([new ConstEffectInfo(buildBoost.Key),new ConstEffectInfo(demolishBoost.Key)],a.Team,a.GetSelfSource(a.CreateImpactData()));
+int beforeSupport=actual.Total(1);
+buildMethod.Invoke(null,new object[]{boosted,DeviceType.Block,new Vector3(110,0,0)});
+Check(actual.Total(1)==beforeSupport+rules.TonyBuildAssist,"Tony is credited when another player completes a boosted build");
+var destroyed=Make(241,deviceCard,TeamType.Team2);
+Call("ScoreHeroDeviceDestroyed",destroyed,boosted,boosted,boosted.CreateImpactData());
+Check(actual.Total(1)==beforeSupport+rules.TonyBuildAssist+rules.TrondsonDemolitionAssist,"Trondson is credited when boosted ally destroys an enemy device");
+var repairer=Make(242,engineerCard,TeamType.Team1,242);var friendlyDevice=Make(243,deviceCard,TeamType.Team1);
+friendlyDevice.Healed(49,repairer.GetSelfSource(),repairer);Check(actual.Total(242)==0,"repair reward banks small actual repair amounts");
+friendlyDevice.Healed(1,repairer.GetSelfSource(),repairer);Check(actual.Total(242)==rules.ContinuousChunk,"Tony repairs score on restored-health threshold");
+var docTarget=Make(244,playerCard,TeamType.Team1,244);int beforeDoc=actual.Total(1);
+docTarget.SendHealAttribution(a,50,abilityDoc.Key);
+Check(actual.Total(1)==beforeDoc+rules.ContinuousChunk,"Doc F healing scores once, without a duplicate generic heal reward");
+using(var doc=JsonDocument.Parse(actual.Snapshot(false)))Check(doc.RootElement.GetProperty("awards").EnumerateArray().Last().GetProperty("reason").GetString()=="Miracle cure","Doc F has distinct award text");
+var grenadeVictim=Make(245,playerCard,TeamType.Team2,245);int beforeGrenade=actual.Total(1);
+Call("ScoreDamage",grenadeVictim,10f,a.CreateImpactData(sourceKey:abilitySarge.Key),a,a);
+Call("ScoreDamage",grenadeVictim,10f,a.CreateImpactData(sourceKey:abilitySarge.Key),a,a);
+Check(actual.Total(1)==beforeGrenade+2*rules.SargeGrenadeHit,"separate Sarge grenade hits both score");
+var mortarCard=new CardUnit{Id="unit_device_cogwheel_mortar",DeviceType=DeviceType.Hero,Data=new UnitDataCommon()};heroCatalogue.Add(mortarCard);db.Replicate(heroCatalogue);
+var mortar=Make(246,mortarCard,TeamType.Team1);int beforeMortar=actual.Total(1);
+Call("ScoreHeroDeviceDestroyed",destroyed,a,mortar,a.CreateImpactData(sourceKey:mortarCard.Key));
+Check(actual.Total(1)==beforeMortar+rules.CogMortarDestroy,"Cog mortar destruction gives its additional award");
+var lampPickup=Make(247,deviceCard,TeamType.Neutral);lampPickup.ScoreLampOwner=1;int beforeLamp=actual.Total(1);
+Call("ScoreLampPickup",lampPickup,boosted);Call("ScoreLampPickup",lampPickup,boosted);
+Check(actual.Total(1)==beforeLamp+rules.GenieLampPickup,"friendly lamp collection credits builder once");
+lampPickup.ScoreLampOwner=1;Call("ScoreLampPickup",lampPickup,a);Call("ScoreLampPickup",lampPickup,grenadeVictim);
+Check(actual.Total(1)==beforeLamp+rules.GenieLampPickup,"self and enemy lamp collection give no support reward");
+
+// Verify lamp ownership travels through real loot creation, not through the collector's ownership.
+var lampCard=new CardUnit{Id="unit_device_djinn_lamp",Data=new UnitDataCommon(),DeviceType=DeviceType.Hero};
+var pickupCard=new CardUnit{Id="unit_pickup_medikit_djinn_lamp",Data=new UnitDataPickup()};
+heroCatalogue.Add(lampCard);heroCatalogue.Add(pickupCard);db.Replicate(heroCatalogue);
+var originalLamp=Make(280,lampCard,TeamType.Team1);originalLamp.OwnerPlayerId=1;
+Unit? createdPickup=null;
+Set("_defaultUnitUpdater",updater with {OnUnitInit=(u,_)=>createdPickup=u,GetTeamEffects=_=>Array.Empty<ConstEffectInfo>()});
+Call("CreateLootUnit",new LootItemUnit{LootUnitKey=pickupCard.Key,KillerRelativeLootTeam=RelativeTeamType.Both},new ZoneTransform(),boosted,originalLamp);
+Check(createdPickup?.ScoreLampOwner==1 && createdPickup.OwnerPlayerId==null,"actual lamp loot preserves builder credit without assigning gameplay ownership");
+var editedRules=new ActionScoreRules{GenieLampPickup=37,KiraReloadBoost=19,HeroEffectCooldown=2,TonyRepairPerPoint=4};
+var roundtripRules=JsonSerializer.Deserialize<ActionScoreRules>(JsonSerializer.Serialize(editedRules,JsonHelper.DefaultSerializerSettings),JsonHelper.DefaultSerializerSettings)!;
+Check(roundtripRules.GenieLampPickup==37 && roundtripRules.KiraReloadBoost==19 && roundtripRules.HeroEffectCooldown==2 && roundtripRules.TonyRepairPerPoint==4,"hero score values and thresholds round-trip through CDB JSON");
+bool badRepair=false;try{new ActionScoreRules{TonyRepairPerPoint=0}.Validate();}catch(InvalidDataException){badRepair=true;}
+Check(badRepair,"zero repair denominator is rejected");
 Console.WriteLine($"PASS action scoring: {checks} checks");
 public class EmptyInitiator : DispatchProxy
 {

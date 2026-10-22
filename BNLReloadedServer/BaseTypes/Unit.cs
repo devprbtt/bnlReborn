@@ -1,4 +1,4 @@
-﻿using System.Collections.Immutable;
+using System.Collections.Immutable;
 using System.Numerics;
 using BNLReloadedServer.Database;
 using BNLReloadedServer.Octree_Extensions;
@@ -441,6 +441,7 @@ public partial class Unit
             return;
         }
 
+        ReportHeroEffectScores(appliedEffects, source);
         var doUpdate = false;
 
         foreach (var effect in appliedEffects.ToList())

@@ -1014,6 +1014,10 @@ public partial class GameZone
                         if (healAmount > 0)
                         {
                             playerSource?.RepairedBlock(healAmount, source);
+                            var repaired = MapBinary[block];
+                            if (playerSource?.Key == new Key("unit_hero_engineer") && repaired.Team == playerSource.Team && repaired.Team != TeamType.Neutral &&
+                                repaired.Card.DeviceType is DeviceType.Device or DeviceType.Hero && repaired.Card.Health is { MaxHealth: > 0 } health)
+                                playerSource.ReportActionScore("Repairs", Math.Min(repaired.Damage, MathF.Floor(instEffectHealBlocks.HealAmount * 255f / health.MaxHealth)) * health.MaxHealth / 255f, block.ToVector3());
                         }
                     }
                 }
@@ -1629,6 +1633,7 @@ public partial class GameZone
         var killerIsOpponent = killerPlayer is not null && AreOpponents(target, killerPlayer);
         var scoreAccolade = target.IsActive ? RecordKillAccolades(target, killerPlayer, killerIsOpponent, impact.Crit) : null;
         ScoreKill(target, killerPlayer, killerIsOpponent, impact.Crit, assists, scoreAccolade);
+        ScoreHeroDeviceDestroyed(target, killerPlayer, killer, impact);
 
         var targetTeam = target.Team;
 
@@ -1702,6 +1707,7 @@ public partial class GameZone
                 break;
 
             case UnitDataPickup { TakeEffect: not null } unitDataPickup when killer is not null:
+                ScoreLampPickup(target, killerPlayer);
                 AssignPickupToRecipient(_gameInitiator is WaitingArenaInitiator, target, killer);
                 var tImpact5 = target.CreateImpactData();
                 killerPlayer?.StatsFromPickup(target);
@@ -1864,7 +1870,7 @@ public partial class GameZone
 
                 if (lootItem is null) return;
 
-                CreateLootUnit(lootItem, lootPos, lootKiller);
+                CreateLootUnit(lootItem, lootPos, lootKiller, target);
                 break;
 
             case LootItemCondition lootItemCondition:
@@ -1878,32 +1884,32 @@ public partial class GameZone
                 {
                     if (lootItems.TryGetValue(LootConditionType.Always, out var alwaysItem))
                     {
-                        CreateLootUnit(alwaysItem, lootPos, lootKiller);
+                        CreateLootUnit(alwaysItem, lootPos, lootKiller, target);
                     }
                 }
                 else
                 {
                     if (lootItems.TryGetValue(LootConditionType.LowHealth, out var lowHpLoot) && lootKiller.IsLowHealth)
                     {
-                        CreateLootUnit(lowHpLoot, lootPos, lootKiller);
+                        CreateLootUnit(lowHpLoot, lootPos, lootKiller, target);
                     }
                     else if (lootItems.TryGetValue(LootConditionType.LowAmmo, out var lowAmmoLoot) && lootKiller.IsLowAmmo)
                     {
-                        CreateLootUnit(lowAmmoLoot, lootPos, lootKiller);
+                        CreateLootUnit(lowAmmoLoot, lootPos, lootKiller, target);
                     }
                     else if (lootItems.TryGetValue(LootConditionType.FriendlySide, out var friendSideLoot) &&
                              MapBinary.OnFriendlySide(target.Transform.Position, lootKiller.Team))
                     {
-                        CreateLootUnit(friendSideLoot, lootPos, lootKiller);
+                        CreateLootUnit(friendSideLoot, lootPos, lootKiller, target);
                     }
                     else if (lootItems.TryGetValue(LootConditionType.EnemySide, out var enemySideLoot) &&
                              MapBinary.OnEnemySide(target.Transform.Position, lootKiller.Team))
                     {
-                        CreateLootUnit(enemySideLoot, lootPos, lootKiller);
+                        CreateLootUnit(enemySideLoot, lootPos, lootKiller, target);
                     }
                     else if (lootItems.TryGetValue(LootConditionType.Always, out var alwaysLoot))
                     {
-                        CreateLootUnit(alwaysLoot, lootPos, lootKiller);
+                        CreateLootUnit(alwaysLoot, lootPos, lootKiller, target);
                     }
                 }
                 break;
@@ -1924,7 +1930,7 @@ public partial class GameZone
                     accumulatedWeight += weightedLootItem.Weight;
                     if (randVal <= accumulatedWeight && weightedLootItem.Item is not null)
                     {
-                        CreateLootUnit(weightedLootItem.Item, lootPos, lootKiller);
+                        CreateLootUnit(weightedLootItem.Item, lootPos, lootKiller, target);
                         break;
                     }
                 }
