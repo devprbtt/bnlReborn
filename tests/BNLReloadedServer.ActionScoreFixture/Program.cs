@@ -365,6 +365,54 @@ buildMethod.Invoke(null,new object[]{a,DeviceType.Hero,new Vector3(230,0,0),600f
 Check(actual.Total(1)==beforeExcludedBuilds,"excluded family covers hero and future variants");
 buildMethod.Invoke(null,new object[]{a,DeviceType.Device,new Vector3(231,0,0),600f,"unit_device_turret"});
 Check(actual.Total(1)==beforeExcludedBuilds+30,"non-excluded turret retains proportional build score");
+foreach(string excluded in new[]{"block_ice","unit_device_generic_landmine","unit_device_generic_landmine_abe","unit_device_generic_landmine_cogwheel","unit_device_generic_fire_trap","unit_device_generic_fire_trap_djinn"})
+{
+ int before=actual.Total(1);buildMethod.Invoke(null,new object[]{a,DeviceType.Hero,new Vector3(240,0,0),600f,excluded});
+ Check(actual.Total(1)==before,"no build points for "+excluded);
+}
+var trapCards=new[]{"unit_device_generic_landmine","unit_device_generic_fire_trap"}.Select(id=>new CardUnit{Id=id,KillscoreIcon="trap",DeviceType=DeviceType.Device,Data=new UnitDataCommon()}).ToArray();
+var trapEffects=new[]{"effect_status_slow_glue","effect_status_poison_thorn_bush","effect_status_burning_fire_trap"}.Select(id=>new CardEffect{Id=id,Effect=new ConstEffectBuff{Buffs=new(){{BuffType.RunSpeed,-.5f}}}}).ToArray();
+var trapBlocks=new[]{"block_glue","block_thorn_bush","block_fire_from_fire_trap"}.Select((id,i)=>new CardBlock{Id=id,BlockId=(ushort)(90+i),HasTeam=true}).ToArray();
+heroCatalogue.AddRange(trapCards);heroCatalogue.AddRange(trapEffects);heroCatalogue.AddRange(trapBlocks);db.Replicate(heroCatalogue);
+foreach(var trapCard in trapCards)
+{
+ var trap=Make(heroTarget++,trapCard,TeamType.Team1);trap.OwnerPlayerId=1;
+ var victim=Make(heroTarget++,playerCard,TeamType.Team2,heroTarget);
+ int reward=trapCard.Id!.Contains("landmine")?rules.MineAffected:rules.FireTrapAffected;
+ int before=actual.Total(1);var impact=trap.CreateImpactData();
+ Call("ScoreDamage",victim,0f,impact,a,trap);Call("ScoreDamage",ally,10f,impact,a,trap);
+ Check(actual.Total(1)==before,"zero and friendly trap damage do not score");
+ Call("ScoreDamage",victim,1f,impact,a,trap);
+ Check(actual.Total(1)==before+reward,"actual trap damage credits owner: "+trapCard.Id);
+ Call("ScoreDamage",victim,1f,impact,a,trap);
+ Check(actual.Total(1)==before+reward,"repeated trap damage is throttled");
+ var secondVictim=Make(heroTarget++,playerCard,TeamType.Team2,heroTarget);
+ Call("ScoreDamage",secondVictim,1f,impact,a,trap);
+ Check(actual.Total(1)==before+2*reward,"another enemy can earn independent trap points");
+}
+for(int i=0;i<trapBlocks.Length;i++)
+{
+ var pos=new Vector3s(2,1,1);var block=repairMap[pos];block.Id=trapBlocks[i].BlockId;block.Team=TeamType.Team1;
+ repairMap.OwnedBlocks[pos]=a;
+ var source=new BlockSource(pos,block.ToBlock(),repairMap.CreateImpactForBlock(pos,Vector3.Zero));
+ var victim=Make(heroTarget++,playerCard,TeamType.Team2,heroTarget);
+ int reward=i==0?rules.GlueAffected:i==1?rules.BushAffected:rules.FireTrapAffected;
+ int before=actual.Total(1);
+ victim.AddEffects([new ConstEffectInfo(trapEffects[i].Key)],source.Team,source);
+ Check(actual.Total(1)==before+reward,"admitted block effect credits actual builder: "+trapBlocks[i].Id);
+ victim.AddEffects([new ConstEffectInfo(trapEffects[i].Key)],source.Team,source);
+ if(i>0) Call("ScoreDamage",victim,1f,source.Impact,a,a);
+ Check(actual.Total(1)==before+reward,"effect refresh and damage share trap cooldown");
+ ally.AddEffects([new ConstEffectInfo(trapEffects[i].Key)],source.Team,source);
+ Check(actual.Total(1)==before+reward,"friendly block effect never scores");
+ var noOwner=new BlockSource(pos,block.ToBlock(),new ImpactData{SourceKey=trapBlocks[i].Key});
+ var otherVictim=Make(heroTarget++,playerCard,TeamType.Team2,heroTarget);
+ otherVictim.AddEffects([new ConstEffectInfo(trapEffects[i].Key)],source.Team,noOwner);
+ Check(actual.Total(1)==before+reward,"unowned environmental traps do not score");
+}
+var trapRules=new ActionScoreRules{MineAffected=21,FireTrapAffected=9,GlueAffected=8,BushAffected=7,TrapEffectCooldown=2};
+var trapRoundtrip=JsonSerializer.Deserialize<ActionScoreRules>(JsonSerializer.Serialize(trapRules,JsonHelper.DefaultSerializerSettings),JsonHelper.DefaultSerializerSettings)!;
+Check(trapRoundtrip.MineAffected==21 && trapRoundtrip.FireTrapAffected==9 && trapRoundtrip.GlueAffected==8 && trapRoundtrip.BushAffected==7 && trapRoundtrip.TrapEffectCooldown==2,"trap points and cooldown round-trip through CDB");
 Console.WriteLine($"PASS action scoring: {checks} checks");
 public class EmptyInitiator : DispatchProxy
 {

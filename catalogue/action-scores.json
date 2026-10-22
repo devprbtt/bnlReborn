@@ -1,5 +1,10 @@
 {
   "action_scores": {
+    "mine_affected": 10,
+    "fire_trap_affected": 5,
+    "glue_affected": 5,
+    "bush_affected": 5,
+    "trap_effect_cooldown": 15,
     "kill": 50,
     "first_kill": 60,
     "double_kill": 75,

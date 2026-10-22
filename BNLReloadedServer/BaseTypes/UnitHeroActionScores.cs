@@ -15,6 +15,8 @@ public partial class Unit
     // Score-only provenance: collecting loot must not change its gameplay ownership.
     public uint? ScoreLampOwner { get; set; }
     public static string ScoreSourceId(Key? key) => key?.GetCard<Card>()?.Id ?? "";
+    public static bool ScoreCardFamily(string id, string family) =>
+        id == family || id.StartsWith(family + "_", StringComparison.Ordinal);
     private Unit? ScoreSourcePlayer(EffectSource? source)
     {
         var owner = source?.Impact?.CasterPlayerId ?? (source is UnitSource u ? u.Unit.OwnerPlayerId : null);
@@ -37,7 +39,7 @@ public partial class Unit
     private void ReportHeroEffectScores(IEnumerable<ConstEffectInfo> effects, EffectSource? source)
     {
         if (ScoreSourcePlayer(source) is not { PlayerId: { } owner } player || owner == PlayerId || Team == TeamType.Neutral) return;
-        bool enemy = DamageAccounting.IsEnemyPlayerDamage(Team, player.Team);
+        bool enemy = player.Team != TeamType.Neutral && DamageAccounting.IsEnemyPlayerDamage(Team, player.Team);
         bool device = UnitCard?.DeviceType is DeviceType.Device or DeviceType.Hero;
         string origin = ScoreSourceId(source?.Impact?.SourceKey);
         var reasons = new HashSet<string>();
@@ -51,7 +53,10 @@ public partial class Unit
                 else if (device && id.StartsWith("effect_hero_boxer_power_surge", StringComparison.Ordinal) && !id.Contains("immunity")) reason = "EMP affected";
                 else if (PlayerId != null)
                 {
-                    if (id == "effect_hero_magnus_lightning_cage_hitting") reason = "Cage affected";
+                    if (id == "effect_status_slow_glue" && ScoreCardFamily(origin, "block_glue")) reason = "Glue affected";
+                    else if (id == "effect_status_poison_thorn_bush" && ScoreCardFamily(origin, "block_thorn_bush")) reason = "Bush affected";
+                    else if (id == "effect_status_burning_fire_trap" && (ScoreCardFamily(origin, "unit_device_generic_fire_trap") || origin == "block_fire_from_fire_trap")) reason = "Fire trap affected";
+                    else if (id == "effect_hero_magnus_lightning_cage_hitting") reason = "Cage affected";
                     else if (id is "effect_abe_avalanche_area_slow" or "effect_hero_abe_avalanche_slow") reason = "Avalanche affected";
                     else if (id.Contains("toxic_waste", StringComparison.Ordinal) || id == "effect_status_poison_device_toxicwaste") reason = "Goo affected";
                     else if (id.StartsWith("effect_hero_kreepy_killer_klown_debuff", StringComparison.Ordinal)) reason = "Enemy frightened";

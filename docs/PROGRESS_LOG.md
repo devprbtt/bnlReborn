@@ -46,3 +46,8 @@
 
 - Exclude block_fast_movement, block_bounce, block_thorn_bush, block_glue, block_caltrops, block_bear_trap and block_force_gate families from direct build XP. Match exact IDs and underscore variants; both confirmed placement routes pass the built card ID. Other rewards remain unchanged.
 - ActionScore fixture 147 checks passed, including all 18 current catalogue variants, future variant/hero typing and a positive turret control.
+
+## 2026-10-21 - Reward enemy trap effects instead of placement
+
+- Exclude block_ice, unit_device_generic_landmine and unit_device_generic_fire_trap families from build points. Add owner-attributed mine/fire/glue/bush rewards (10/5/5/5), with independent trap_effect_cooldown default 15 seconds per owner/reason/enemy; all CDB-tunable. Mines use confirmed damage, glue admitted slow, bush/fire damage or admitted status with shared deduplication.
+- ActionScore 174 checks passed, including actual BlockSource ownership from MapBinary, repeated status/damage, multiple enemies, friendly and environmental rejection, new build exclusions and CDB roundtrip.

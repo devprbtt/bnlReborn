@@ -17,7 +17,8 @@ public partial class GameZone
     {
         if (string.IsNullOrEmpty(cardId)) return true;
         string[] families = ["block_fast_movement", "block_bounce", "block_thorn_bush",
-            "block_glue", "block_caltrops", "block_bear_trap", "block_force_gate"];
+            "block_glue", "block_caltrops", "block_bear_trap", "block_force_gate",
+            "block_ice", "unit_device_generic_landmine", "unit_device_generic_fire_trap"];
         return families.Any(family => cardId == family || cardId.StartsWith(family + "_", StringComparison.Ordinal));
     }
     private readonly ActionScoreRules _actionScoreRules = ActionScoreRules.Load();
@@ -39,6 +40,9 @@ public partial class GameZone
         var rules = _actionScoreRules; var ledger = ActionScores;
         switch (reason)
         {
+            case "Mine affected": case "Fire trap affected": case "Glue affected": case "Bush affected":
+                if (target == null || !ledger.Ready(id, reason + ":" + target, _scoreClock.Elapsed.TotalSeconds, rules.TrapEffectCooldown)) return;
+                break;
             case "Repairs": ledger.Accumulate(id, reason, amount, rules.TonyRepairPerPoint, near); return;
             case "Miracle cure": ledger.Accumulate(id, reason, amount, rules.DocAbilityHealPerPoint, near); return;
             case "Healing": ledger.Accumulate(id, reason, amount, rules.HealPerPoint, near); return;
@@ -57,6 +61,8 @@ public partial class GameZone
         if ((reason == "Demolition boost assist" && target != null) || reason is "Jinx" or "Cage affected" or "EMP affected" or "Avalanche affected" or "Goo affected" or "Ally boosted" or "Reload boost" or "Enemy frightened")
             if (target == null || !ledger.Ready(id, reason + ":" + target, _scoreClock.Elapsed.TotalSeconds, rules.HeroEffectCooldown)) return;
         int points = reason switch {
+            "Mine affected" => rules.MineAffected, "Fire trap affected" => rules.FireTrapAffected,
+            "Glue affected" => rules.GlueAffected, "Bush affected" => rules.BushAffected,
             "Build boost assist" => rules.TonyBuildAssist, "Demolition boost assist" => rules.TrondsonDemolitionAssist,
             "Lamp pickup" => rules.GenieLampPickup, "Jinx" => rules.GenieJinx, "Cage affected" => rules.VanderCage,
             "EMP affected" => rules.SweetScienceEmp, "Avalanche affected" => rules.YetiAvalanche,
@@ -74,6 +80,15 @@ public partial class GameZone
     private void ScoreDamage(Unit target, float damage, ImpactData impact, Unit? player, Unit? attacker)
     {
         if (!CanScore || damage <= 0 || player?.PlayerId is not { } id || !AreOpponents(target, player)) return;
+        if (target.PlayerId != null && target.Team != TeamType.Neutral && player.Team != TeamType.Neutral)
+        {
+            string origin = Unit.ScoreSourceId(impact.SourceKey);
+            if (origin.Length == 0) origin = Unit.ScoreSourceId(attacker?.Key);
+            string? trapReason = Unit.ScoreCardFamily(origin, "unit_device_generic_landmine") ? "Mine affected" :
+                Unit.ScoreCardFamily(origin, "unit_device_generic_fire_trap") || origin == "block_fire_from_fire_trap" ? "Fire trap affected" :
+                Unit.ScoreCardFamily(origin, "block_thorn_bush") ? "Bush affected" : null;
+            if (trapReason != null) AwardAction(player, trapReason, 1, target.GetMidpoint(), target.Id);
+        }
         if (target.PlayerId != null && Unit.ScoreSourceId(impact.SourceKey).StartsWith("ability_sarge_frag_grenade", StringComparison.Ordinal))
             AwardAction(player, "Grenade hit", 1, target.GetMidpoint(), target.Id);
         if (target.PlayerId != null && (attacker?.Key == new Key("unit_device_roly_toxic_waste") || Unit.ScoreSourceId(impact.SourceKey).Contains("toxic_waste", StringComparison.Ordinal)))

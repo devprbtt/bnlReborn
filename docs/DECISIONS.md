@@ -21,3 +21,7 @@ Use the same confirmed TotalCost charged by construction for device build XP, ra
 ## 2026-10-21 - Build score exclusions by catalogue family
 
 Use built card family IDs for requested build-point exclusions, covering hero/cosmetic variants without matching unrelated effects. Keep exclusions local to direct build rewards; preserve independent support and destruction rewards.
+
+## 2026-10-21 - Trap engagement scores
+
+Award confirmed enemy impact rather than placement for requested traps. Use admitted status application for slowing and damaging status, and actual damage for mine/fire/bush hits. Share per-owner/reason/enemy cooldown between damage and status so a single effect cannot pay twice. Retain source ownership on spawned fire and periodic effects; no reward for unowned map hazards. Yeti ice only loses build rewards; no new ice effect award requested.
