@@ -123,11 +123,11 @@ public partial class Unit
         return gained;
     }
 
-    public void Healed(float amount, EffectSource? healSource, Unit? healerPlayer)
+    public void Healed(float amount, EffectSource? healSource, Unit? healerPlayer, float repairCredit = 0)
     {
         if (amount > 0 && UnitCard?.DeviceType is DeviceType.Device or DeviceType.Hero &&
             healerPlayer?.Key == new Key("unit_hero_engineer") && Team == healerPlayer.Team && Team != TeamType.Neutral)
-            healerPlayer.ReportActionScore("Repairs", amount, GetMidpoint(), Id);
+            healerPlayer.ReportActionScore("Repairs", Math.Min(amount, repairCredit), GetMidpoint(), Id);
 
         switch (UnitCard?.Health?.Health?.HealthType)
         {

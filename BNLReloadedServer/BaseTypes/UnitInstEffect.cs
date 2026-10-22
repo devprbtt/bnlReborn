@@ -148,7 +148,7 @@ public partial class Unit
                     break;
 
                 case (BuffType.HealthRegen, _):
-                    var healAmount = AddHealth(value * multiplier, unitUpdate);
+                    var healAmount = AddHealth(value * multiplier, unitUpdate, out var repairCredit);
                     if (PlayerId is not null && value > 0)
                     {
                         SupplyLineFromRegen(buffKey);
@@ -172,7 +172,7 @@ public partial class Unit
                                 Healed(healAmount, hSource,
                                     hSource.Impact?.CasterPlayerId is not null
                                         ? _updater.GetPlayerFromPlayerId(hSource.Impact.CasterPlayerId.Value)
-                                        : null);
+                                        : null, repairCredit);
                             }
                         }
 
@@ -405,20 +405,26 @@ public partial class Unit
         }
     }
 
-    private float AddHealth(float amount, UnitUpdate update)
+    private float AddHealth(float amount, UnitUpdate update) => AddHealth(amount, update, out _);
+
+    private float AddHealth(float amount, UnitUpdate update, out float repairCredit)
     {
+        repairCredit = 0;
         var currHealth = update.Health ?? _health;
         if (amount <= 0 || UnitCard?.Health?.Health is not { } health || currHealth >= this.UnitMaxHealth(health.MaxHealth)) return 0;
 
         var newHealth = MathF.Min(currHealth + this.HealthGainAmount(amount), this.UnitMaxHealth(health.MaxHealth));
         update.Health = newHealth;
+        repairCredit = repairDamageCredit.Consume(newHealth - currHealth, Team);
         return newHealth - currHealth;
     }
 
-    public float AddHealth(float amount)
+    public float AddHealth(float amount) => AddHealth(amount, out _);
+
+    public float AddHealth(float amount, out float repairCredit)
     {
         var update = new UnitUpdate();
-        var healAmount = AddHealth(amount, update);
+        var healAmount = AddHealth(amount, update, out repairCredit);
         if (update.Health != null)
         {
             UpdateData(update);
@@ -485,6 +491,7 @@ public partial class Unit
         var newHealth = Math.Max(0.0f, currHealth - amount);
         update.Health = newHealth;
         var actualDamage = DamageAccounting.Removed(currHealth, newHealth);
+        RecordRepairDamage(actualDamage, ScoreSourcePlayer(source)?.Team ?? (source as UnitSource)?.Unit.Team);
         // Buff damage (bleed, burn, poison, decay) keeps the inflicting hit's attribution, but a tick is not a new hit.
         var impact = source?.Impact?.AsPeriodicEffect() ?? new ImpactData
         {
@@ -678,6 +685,7 @@ public partial class Unit
                     var new2Health = Math.Max(0.0f, curr2Health - (dmg - (currShield - newShield)));
                     update.Health = new2Health;
                     actualHealthDamage = DamageAccounting.Removed(curr2Health, new2Health);
+                    RecordRepairDamage(actualHealthDamage, attackingTeam ?? attacker?.Team);
                 }
                 var actualShieldAndHealthDamage = actualShieldDamage + actualHealthDamage;
                 if (actualShieldAndHealthDamage > 0)
@@ -696,6 +704,7 @@ public partial class Unit
                 var newHealth = Math.Max(0.0f, currHealth - dmg);
                 update.Health = newHealth;
                 var actualHealthOnlyDamage = DamageAccounting.Removed(currHealth, newHealth);
+                RecordRepairDamage(actualHealthOnlyDamage, attackingTeam ?? attacker?.Team);
                 if (actualHealthOnlyDamage > 0)
                 {
                     _updater.OnUnitDamaged(this, actualHealthOnlyDamage, impact);

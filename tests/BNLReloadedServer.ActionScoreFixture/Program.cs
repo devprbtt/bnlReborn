@@ -190,7 +190,7 @@ var effectCases=new[]{
 var heroEffects=effectCases.Select(c=>new CardEffect{Id=c.Item1,Effect=new ConstEffectBuff{Buffs=[]}}).ToList();
 var buildBoost=new CardEffect{Id="effect_hero_engineer_bfs_build",Effect=new ConstEffectBuff{Buffs=new(){{BuffType.BuildSpeed,1}}}};
 var demolishBoost=new CardEffect{Id="effect_hero_trondson_heigh_ho_buff",Effect=new ConstEffectBuff{Buffs=new(){{BuffType.ToolWorldDamage,2}}}};
-List<Card> heroCatalogue=[playerCard,deviceCard,heroBlockCard,engineerCard,abilityAstro,abilityDoc,abilitySarge,buildBoost,demolishBoost];heroCatalogue.AddRange(heroEffects);db.Replicate(heroCatalogue);
+List<Card> heroCatalogue=[new CardGlobalLogic{Id="global_logic"},playerCard,deviceCard,heroBlockCard,engineerCard,abilityAstro,abilityDoc,abilitySarge,buildBoost,demolishBoost];heroCatalogue.AddRange(heroEffects);db.Replicate(heroCatalogue);
 uint heroTarget=200;
 foreach(var (effectId,reason,points,isDevice,friendly) in effectCases)
 {
@@ -213,8 +213,86 @@ var destroyed=Make(241,deviceCard,TeamType.Team2);
 Call("ScoreHeroDeviceDestroyed",destroyed,boosted,boosted,boosted.CreateImpactData());
 Check(actual.Total(1)==beforeSupport+rules.TonyBuildAssist+rules.TrondsonDemolitionAssist,"Trondson is credited when boosted ally destroys an enemy device");
 var repairer=Make(242,engineerCard,TeamType.Team1,242);var friendlyDevice=Make(243,deviceCard,TeamType.Team1);
-friendlyDevice.Healed(49,repairer.GetSelfSource(),repairer);Check(actual.Total(242)==0,"repair reward banks small actual repair amounts");
-friendlyDevice.Healed(1,repairer.GetSelfSource(),repairer);Check(actual.Total(242)==rules.ContinuousChunk,"Tony repairs score on restored-health threshold");
+friendlyDevice.UpdateData(new UnitUpdate{Health=100});
+friendlyDevice.OwnerPlayerId=242;
+float Repair(Unit target,float amount,Unit? healer)
+{
+ float restored=target.AddHealth(amount,out var credit);
+ target.Healed(restored,healer?.GetSelfSource(),healer,credit);
+ return credit;
+}
+friendlyDevice.TakeDamage(50,repairer.GetSelfSource());
+Check(Repair(friendlyDevice,50,repairer)==0 && actual.Total(242)==0,"Tony self-damage and repair grants no XP");
+friendlyDevice.TakeDamage(50,ally.GetSelfSource());
+Check(Repair(friendlyDevice,50,repairer)==0 && actual.Total(242)==0,"teammate damage and repair grants no XP");
+friendlyDevice.TakeDamage(50,null);
+Check(Repair(friendlyDevice,50,repairer)==0 && actual.Total(242)==0,"environmental damage and repair grants no XP");
+friendlyDevice.TakeDamage(50,enemy.GetSelfSource());
+Check(Repair(friendlyDevice,49,repairer)==49 && actual.Total(242)==0,"repair reward banks actual enemy damage below threshold");
+Check(Repair(friendlyDevice,100,repairer)==1 && actual.Total(242)==rules.ContinuousChunk,"Tony repairing his own enemy-damaged device earns XP with overheal clamped");
+friendlyDevice.TakeDamage(40,enemy.GetSelfSource());
+friendlyDevice.TakeDamage(40,repairer.GetSelfSource());
+Check(Repair(friendlyDevice,80,repairer)==40,"mixed damage only credits the enemy portion");
+friendlyDevice.TakeDamage(50,repairer.GetSelfSource());
+Check(Repair(friendlyDevice,50,repairer)==0,"repair credit cannot be recycled by damaging the device again");
+friendlyDevice.TakeDamage(50,enemy.GetSelfSource());
+friendlyDevice.AddHealth(50); // Passive or unattributed healing must also consume enemy damage.
+friendlyDevice.TakeDamage(50,repairer.GetSelfSource());
+Check(Repair(friendlyDevice,50,repairer)==0,"passive healing consumes enemy repair credit");
+friendlyDevice.TakeDamage(50,enemy.GetSelfSource());
+Repair(friendlyDevice,50,ally);
+friendlyDevice.TakeDamage(50,repairer.GetSelfSource());
+Check(Repair(friendlyDevice,50,repairer)==0,"another healer consumes enemy repair credit");
+var repairHero=Make(290,heroBlockCard,TeamType.Team1);repairHero.UpdateData(new UnitUpdate{Health=100});
+repairHero.TakeDamage(50,enemy.GetSelfSource());
+Check(Repair(repairHero,50,repairer)==50,"hero device units retain legitimate enemy repair credit");
+var shieldedCard=new CardUnit{Id="repair_shield",DeviceType=DeviceType.Device,Data=new UnitDataCommon(),Health=deviceCard.Health};
+heroCatalogue.Add(shieldedCard);db.Replicate(heroCatalogue);
+var shielded=Make(291,shieldedCard,TeamType.Team1);shielded.UpdateData(new UnitUpdate{Health=100,Shield=30});
+shielded.TakeDamage(new DamageData(0,0,0,0,0,0,0,0,false,false,false,false){EnemyDeviceDamage=50},enemy.CreateImpactData(),false,enemy,enemy.Team);
+Check(Repair(shielded,100,repairer)==20,"shield absorption never grants health repair credit");
+var switched=new RepairDamageCredit();switched.Record(50,TeamType.Team1,TeamType.Team2);
+Check(switched.Consume(50,TeamType.Team2)==0,"team change discards previous repair credit");
+switched.Record(50,TeamType.Team1,TeamType.Neutral);
+Check(switched.Consume(50,TeamType.Team1)==0,"neutral source never grants repair credit");
+
+// Exercise the quantized voxel path, including legacy/passive heals and replacement.
+var repairBlock=new CardBlock{Id="repair_voxel",BlockId=80,DeviceType=DeviceType.Hero,HasTeam=true,Destructible=true,CanStayInAir=true,Health=new Health{MaxHealth=255}};
+heroCatalogue.Add(new CardBlock{Id="block_air",BlockId=0,Replaceable=true});heroCatalogue.Add(repairBlock);db.Replicate(heroCatalogue);
+var repairMap=new MapBinary(3,new byte[4*4*4*6].Zip(0).ToArray(),new Vector3s(4,4,4),-1,new MapUpdater((_,_)=>{},(_,_)=>{},_=>{},_=>true));
+var repairPos=new Vector3s(1,1,1);
+void PlaceRepairBlock(){var block=repairMap[repairPos];block.Id=80;block.Team=TeamType.Team1;block.Damage=0;}
+float RepairVoxel(float amount){repairMap.HealBlock(repairPos,amount,out _,out var credit);return credit;}
+PlaceRepairBlock();
+repairMap.DamageBlock(repairPos,new DamageData(0,0,0,0,0,0,0,0,false,false,false,false){BlockDamage=50},repairer);
+Check(RepairVoxel(100)==0,"voxel self-damage grants no repair credit");
+repairMap.DamageBlock(repairPos,new DamageData(0,0,0,0,0,0,0,0,false,false,false,false){BlockDamage=50},ally);
+Check(RepairVoxel(100)==0,"voxel teammate damage grants no repair credit");
+repairMap.DamageBlock(repairPos,new DamageData(0,0,0,0,0,0,0,0,false,false,false,false){BlockDamage=50},null);
+Check(RepairVoxel(100)==0,"voxel environmental damage grants no repair credit");
+repairMap.DamageBlock(repairPos,new DamageData(0,0,0,0,0,0,0,0,false,false,false,false){BlockDamage=50},enemy);
+repairMap.DamageBlock(repairPos,new DamageData(0,0,0,0,0,0,0,0,false,false,false,false){BlockDamage=50},repairer);
+Check(RepairVoxel(20)==20 && RepairVoxel(200)==30,"voxel mixed damage and full repair credit only remaining enemy damage");
+repairMap.DamageBlock(repairPos,new DamageData(0,0,0,0,0,0,0,0,false,false,false,false){BlockDamage=50},enemy);
+repairMap.HealBlock(repairPos,50,out _);
+repairMap.DamageBlock(repairPos,new DamageData(0,0,0,0,0,0,0,0,false,false,false,false){BlockDamage=50},repairer);
+Check(RepairVoxel(50)==0,"legacy voxel heal consumes enemy credit even without scoring");
+repairMap.DamageBlock(repairPos,new DamageData(0,0,0,0,0,0,0,0,false,false,false,false){BlockDamage=50},enemy);
+repairMap.RemoveBlock(repairPos);PlaceRepairBlock();
+repairMap.DamageBlock(repairPos,new DamageData(0,0,0,0,0,0,0,0,false,false,false,false){BlockDamage=50},repairer);
+Check(RepairVoxel(100)==0,"replacing a voxel cannot inherit old enemy damage");
+repairMap.DamageBlock(repairPos,new DamageData(0,0,0,0,0,0,0,0,false,false,false,false){BlockDamage=.5f},enemy);
+Check(RepairVoxel(100)==0,"sub-byte voxel damage cannot create XP");
+foreach(string route in new[]{"SplashDamageBlocksRaycast","SplashDamageBlocksFlood"})
+{
+ foreach(var source in new[]{enemy,repairer})
+ {
+  PlaceRepairBlock();
+  typeof(MapBinary).GetMethod(route,flags)!.Invoke(repairMap,new object?[]{new[]{new Vector3(1.5f,1.5f,1.5f)},new DamageData(0,0,0,0,0,40,0,0,false,false,false,false),source.CreateImpactData(),1f,new List<Unit>(),source,source.Team});
+  int removed=repairMap[repairPos].Damage;
+  Check(removed>0 && RepairVoxel(255)==(source==enemy?removed:0),route+" only enemy splash contributes repair credit");
+ }
+}
 var docTarget=Make(244,playerCard,TeamType.Team1,244);int beforeDoc=actual.Total(1);
 docTarget.SendHealAttribution(a,50,abilityDoc.Key);
 Check(actual.Total(1)==beforeDoc+rules.ContinuousChunk,"Doc F healing scores once, without a duplicate generic heal reward");

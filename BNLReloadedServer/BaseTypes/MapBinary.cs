@@ -42,6 +42,16 @@ public record MapUpdater(Action<uint, float> OnCut, Action<uint, Key> OnMined, A
 
 public class MapBinary
 {
+    private readonly Dictionary<Vector3s, RepairDamageCredit> repairDamageCredits = new();
+    private void RecordRepairDamage(Vector3s position, float damage, TeamType? source)
+    {
+        var block = this[position];
+        if (block.Card.DeviceType is not (DeviceType.Device or DeviceType.Hero)) return;
+        if (!repairDamageCredits.TryGetValue(position, out var credit))
+            repairDamageCredits[position] = credit = new RepairDamageCredit();
+        credit.Record(damage, block.Team, source);
+    }
+
     private readonly MapUpdater _mapUpdater;
 
     private readonly byte[] _data;
@@ -298,6 +308,7 @@ public class MapBinary
 
     private void OnBlockRemoved(Vector3s blockPos)
     {
+        repairDamageCredits.Remove(blockPos);
         OwnedBlocks.Remove(blockPos);
         if (UnitsInsideBlock.TryGetValue(blockPos, out var unitsInside))
         {
@@ -859,6 +870,7 @@ public class MapBinary
                 }
             }
 
+            repairDamageCredits.Remove(block.Position);
             block.Id = blockCard.BlockId;
             block.Damage = 0;
             block.VData = 0;
@@ -896,6 +908,7 @@ public class MapBinary
 
         var block = this[location];
         var attachedBlock = this[attachTo];
+        repairDamageCredits.Remove(block.Position);
         block.Id = blockCard.BlockId;
         block.Damage = 0;
         if (ContainsBlock(attachTo))
@@ -966,6 +979,7 @@ public class MapBinary
         foreach (var pos in EnumerateBlocks(bounds, CanReplaceBlock()))
         {
             var block = this[pos];
+            repairDamageCredits.Remove(block.Position);
             block.Id = blockCard.BlockId;
             if (!blockCard.IsVisualSlope)
             {
@@ -1052,6 +1066,7 @@ public class MapBinary
         }
         else
         {
+            RecordRepairDamage(location, MathF.Truncate(dmgAmount), attacker?.Team);
             block.Damage += (byte)float.Truncate(dmgAmount);
             dict[location] = block.ToUpdate();
         }
@@ -1191,6 +1206,7 @@ public class MapBinary
             }
             else
             {
+                RecordRepairDamage(position, MathF.Truncate(actDamage), attackingTeam ?? attacker?.Team);
                 blk.Damage += (byte)float.Truncate(actDamage);
                 dict[position] = blk.ToUpdate();
             }
@@ -1500,6 +1516,7 @@ public class MapBinary
                 }
                 else
                 {
+                    RecordRepairDamage(propInfo.prop.Position, MathF.Truncate(actDamage), attackingTeam ?? attacker?.Team);
                     blk.Damage += (byte)float.Truncate(actDamage);
                     dict[propInfo.prop.Position] = blk.ToUpdate();
 
@@ -1568,8 +1585,12 @@ public class MapBinary
         return (dict, hitUnits);
     }
 
-    public Dictionary<Vector3s, BlockUpdate> HealBlock(Vector3s location, float amount, out float heals)
+    public Dictionary<Vector3s, BlockUpdate> HealBlock(Vector3s location, float amount, out float heals) =>
+        HealBlock(location, amount, out heals, out _);
+
+    public Dictionary<Vector3s, BlockUpdate> HealBlock(Vector3s location, float amount, out float heals, out float repairHealth)
     {
+        repairHealth = 0;
         var block = this[location];
         var blockCard = block.Card;
         heals = 0;
@@ -1577,6 +1598,7 @@ public class MapBinary
         if (block.Damage == 0 || block.IsAir || block.IsLocked || !blockCard.Destructible ||
             !(blockCard.Health?.MaxHealth > 0)) return dict;
 
+        var previousDamage = block.Damage;
         var healAmount = amount * (byte.MaxValue / blockCard.Health.MaxHealth);
         if (float.Truncate(healAmount) > block.Damage)
         {
@@ -1589,6 +1611,9 @@ public class MapBinary
             heals = healAmount;
         }
 
+        if (repairDamageCredits.TryGetValue(location, out var credit))
+            repairHealth = credit.Consume(previousDamage - block.Damage, block.Team) * blockCard.Health.MaxHealth / 255f;
+        if (block.Damage == 0) repairDamageCredits.Remove(location);
         dict[location] = block.ToUpdate();
         return dict;
     }

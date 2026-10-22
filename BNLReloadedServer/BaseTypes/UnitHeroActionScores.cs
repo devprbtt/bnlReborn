@@ -5,6 +5,13 @@ namespace BNLReloadedServer.BaseTypes;
 
 public partial class Unit
 {
+    private readonly RepairDamageCredit repairDamageCredit = new();
+    private void RecordRepairDamage(float damage, TeamType? sourceTeam)
+    {
+        if (UnitCard?.DeviceType is DeviceType.Device or DeviceType.Hero)
+            repairDamageCredit.Record(damage, Team, sourceTeam);
+    }
+
     // Score-only provenance: collecting loot must not change its gameplay ownership.
     public uint? ScoreLampOwner { get; set; }
     public static string ScoreSourceId(Key? key) => key?.GetCard<Card>()?.Id ?? "";

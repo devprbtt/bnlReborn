@@ -959,20 +959,20 @@ public partial class GameZone
             case InstEffectHeal instEffectHeal:
                 foreach (var unit in actualUnitList)
                 {
-                    float hpGain = 0;
+                    float hpGain = 0, repairCredit = 0;
                     if (unit.PlayerId != null)
                     {
-                        hpGain = unit.AddHealth(instEffectHeal.PlayerHeal);
+                        hpGain = unit.AddHealth(instEffectHeal.PlayerHeal, out repairCredit);
                         unit.AddForcefield(instEffectHeal.ForcefieldAmount);
                     }
                     else if (unit.UnitCard?.IsObjective ?? false)
                     {
-                        hpGain = unit.AddHealth(instEffectHeal.ObjectiveHeal);
+                        hpGain = unit.AddHealth(instEffectHeal.ObjectiveHeal, out repairCredit);
                         unit.AddForcefield(instEffectHeal.ForcefieldAmount);
                     }
                     else if (unit.IsHealth)
                     {
-                        hpGain = unit.AddHealth(instEffectHeal.WorldHeal);
+                        hpGain = unit.AddHealth(instEffectHeal.WorldHeal, out repairCredit);
                         unit.AddForcefield(instEffectHeal.ForcefieldAmount);
                     }
 
@@ -987,7 +987,7 @@ public partial class GameZone
 
                     if (hpGain > 0)
                     {
-                        unit.Healed(hpGain, source, healerPlayer);
+                        unit.Healed(hpGain, source, healerPlayer, repairCredit);
                         unit.ApplyBrainsRecovery(hpGain, source, healerPlayer);
                         if (Unit.HealCredit(source, healerPlayer, unit) is { } credit)
                         {
@@ -1007,7 +1007,7 @@ public partial class GameZone
                         : null;
 
                     foreach (var update in MapBinary.HealBlock(block, instEffectHealBlocks.HealAmount,
-                                 out var healAmount))
+                                 out var healAmount, out var repairHealth))
                     {
                         boUpdates[update.Key] = update.Value;
 
@@ -1016,8 +1016,8 @@ public partial class GameZone
                             playerSource?.RepairedBlock(healAmount, source);
                             var repaired = MapBinary[block];
                             if (playerSource?.Key == new Key("unit_hero_engineer") && repaired.Team == playerSource.Team && repaired.Team != TeamType.Neutral &&
-                                repaired.Card.DeviceType is DeviceType.Device or DeviceType.Hero && repaired.Card.Health is { MaxHealth: > 0 } health)
-                                playerSource.ReportActionScore("Repairs", Math.Min(repaired.Damage, MathF.Floor(instEffectHealBlocks.HealAmount * 255f / health.MaxHealth)) * health.MaxHealth / 255f, block.ToVector3());
+                                repaired.Card.DeviceType is DeviceType.Device or DeviceType.Hero && repaired.Card.Health is { MaxHealth: > 0 })
+                                playerSource.ReportActionScore("Repairs", repairHealth, block.ToVector3());
                         }
                     }
                 }
