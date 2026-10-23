@@ -274,22 +274,15 @@ public static class CatalogueHelper
         return skinsInShop;
     }
 
+    // Every account and hero starts at level 1; nothing is gated on level any more.
     public static PlayerProgression GetDefaultProgression() =>
         new()
         {
-            PlayerProgress = new XpInfo
-            {
-                Level = 6,
-                LevelXp = 0f,
-                XpForNextLevel = PlayerXpForLevel(7)
-            },
-            HeroesProgress = GetHeroes().ToDictionary(k => k, _ => new XpInfo
-            {
-                Level = 15,
-                LevelXp = 0f,
-                XpForNextLevel = HeroXpForLevel(16)
-            })
+            PlayerProgress = new XpInfo { Level = 1, LevelXp = 0f, XpForNextLevel = PlayerXpForLevel(1) },
+            HeroesProgress = GetHeroes().ToDictionary(k => k, _ => DefaultHeroProgress())
         };
+
+    public static XpInfo DefaultHeroProgress() => new() { Level = 1, LevelXp = 0f, XpForNextLevel = HeroXpForLevel(1) };
 
     public static League GetDefaultLeague() =>
         new()
@@ -302,66 +295,43 @@ public static class CatalogueHelper
             Status = null
         };
 
-    public static float PlayerXpForLevel(int level)
-    {
-        if (level <= 1)
-            return 0.0f;
-        var playerXp = GlobalLogic.XpLogic?.PlayerXp
-            ?? throw new InvalidOperationException("The catalogue is missing player XP progression logic");
-        return (float)(playerXp.FlatCoeff + playerXp.MultCoeff * Math.Pow((float)(level - 1), playerXp.PowerCoeff));
-    }
+    /// <summary>XP needed to go from <paramref name="level"/> to the next one: flat + mult * (level - 1)^power, so
+    /// level 1 costs the flat amount. XpInfo.XpForNextLevel holds this step and LevelXp the progress within it.</summary>
+    public static float PlayerXpForLevel(int level) => XpStep(GlobalLogic.XpLogic?.PlayerXp
+        ?? throw new InvalidOperationException("The catalogue is missing player XP progression logic"), level);
 
-    public static float HeroXpForLevel(int level)
-    {
-        if (level <= 1)
-            return 0.0f;
-        var heroXp = GlobalLogic.XpLogic?.HeroXp
-            ?? throw new InvalidOperationException("The catalogue is missing hero XP progression logic");
-        return (float)(heroXp.FlatCoeff + heroXp.MultCoeff * Math.Pow((float)(level - 1), heroXp.PowerCoeff));
-    }
+    public static float HeroXpForLevel(int level) => XpStep(GlobalLogic.XpLogic?.HeroXp
+        ?? throw new InvalidOperationException("The catalogue is missing hero XP progression logic"), level);
 
-    public static XpInfo LeveLUp(XpInfo xpInfo, float xpAmount)
+    public static float XpStep(ExpLogic logic, int level) =>
+        (float)(logic.FlatCoeff + logic.MultCoeff * Math.Pow(Math.Max(0, level - 1), logic.PowerCoeff));
+
+    public static XpInfo LeveLUp(XpInfo xpInfo, float xpAmount) =>
+        AddXp(xpInfo, xpAmount, GlobalLogic.XpLogic?.PlayerXp
+            ?? throw new InvalidOperationException("The catalogue is missing player XP progression logic"));
+
+    public static XpInfo LeveLUpHero(XpInfo xpInfo, float xpAmount) =>
+        AddXp(xpInfo, xpAmount, GlobalLogic.XpLogic?.HeroXp
+            ?? throw new InvalidOperationException("The catalogue is missing hero XP progression logic"));
+
+    /// <summary>Adds XP, levelling up as many times as it pays for. The step is recomputed from the current curve, so a
+    /// curve change applies from the next level. At MaxLevel the bar stays full and further XP is discarded.</summary>
+    public static XpInfo AddXp(XpInfo xpInfo, float xpAmount, ExpLogic logic)
     {
-        var xp = xpAmount;
-        var newXp = new XpInfo
+        var level = Math.Max(1, xpInfo.Level);
+        var levelXp = Math.Max(0f, xpInfo.LevelXp);
+        var xp = float.IsFinite(xpAmount) ? Math.Max(0f, xpAmount) : 0f;
+        while (true)
         {
-            Level = xpInfo.Level,
-            LevelXp = xpInfo.LevelXp,
-            XpForNextLevel = xpInfo.XpForNextLevel
-        };
-
-        while (newXp.LevelXp + xp >= newXp.XpForNextLevel)
-        {
-            xp -= newXp.XpForNextLevel - newXp.LevelXp;
-            newXp.Level += 1;
-            newXp.LevelXp = 0;
-            newXp.XpForNextLevel = PlayerXpForLevel(newXp.Level);
+            var step = XpStep(logic, level);
+            if (logic.MaxLevel is { } max && level >= max)
+                return new XpInfo { Level = max, LevelXp = step, XpForNextLevel = step };
+            if (step <= 0 || levelXp + xp < step)
+                return new XpInfo { Level = level, LevelXp = levelXp + xp, XpForNextLevel = step };
+            xp -= step - levelXp;
+            level += 1;
+            levelXp = 0;
         }
-
-        newXp.LevelXp += xp;
-        return newXp;
-    }
-
-    public static XpInfo LeveLUpHero(XpInfo xpInfo, float xpAmount)
-    {
-        var xp = xpAmount;
-        var newXp = new XpInfo
-        {
-            Level = xpInfo.Level,
-            LevelXp = xpInfo.LevelXp,
-            XpForNextLevel = xpInfo.XpForNextLevel
-        };
-
-        while (newXp.LevelXp + xp >= newXp.XpForNextLevel)
-        {
-            xp -= newXp.XpForNextLevel - newXp.LevelXp;
-            newXp.Level += 1;
-            newXp.LevelXp = 0;
-            newXp.XpForNextLevel = HeroXpForLevel(newXp.Level);
-        }
-
-        newXp.LevelXp += xp;
-        return newXp;
     }
 
     extension(CardShopItem card)

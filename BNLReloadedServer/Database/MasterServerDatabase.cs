@@ -51,6 +51,7 @@ public class MasterServerDatabase : IMasterServerDatabase
         _playerDb.CreateTableAsync<AppliedMigrationRecord>().Wait();
         BackfillRankEligibility().Wait();
         ImportLegacyPrivateSkinGrants().Wait();
+        ResetProgressionForScoreXp().Wait();
         var grants = _playerDb.Table<InventoryGrantRecord>().ToListAsync().Result;
         PlayerInventory.Load(grants);
         ReportGrantsWithoutPrivateCards(grants);
@@ -145,6 +146,31 @@ public class MasterServerDatabase : IMasterServerDatabase
     }
 
     private const string LegacySkinGrantMigration = "private_skin_grants_file_v1";
+    internal const string ScoreProgressionResetMigration = "score_progression_reset_v1";
+
+    /// <summary>
+    /// Once: every account and every hero back to level 1 with no XP. Levels were faked (accounts started at 6,
+    /// heroes at 15, to pass level requirements) and earned by minutes played; from here XP is action score.
+    /// </summary>
+    private async Task ResetProgressionForScoreXp()
+    {
+        var count = await ResetProgression(_playerDb, PlayerProgression.WriteByteRecord(CatalogueHelper.GetDefaultProgression()));
+        if (count is { } reset) Log.Info(LogCat.Player, $"Reset progression of {reset} players to level 1 for score-based XP");
+    }
+
+    /// <summary>Writes <paramref name="reset"/> as every account's progression, once; null when already applied.</summary>
+    internal static async Task<int?> ResetProgression(SQLiteAsyncConnection playerDb, byte[] reset)
+    {
+        if (await playerDb.FindAsync<AppliedMigrationRecord>(ScoreProgressionResetMigration) != null) return null;
+        var now = DateTimeOffset.UtcNow;
+        var count = 0;
+        await playerDb.RunInTransactionAsync(db =>
+        {
+            count = db.Execute("UPDATE Users SET progression = ?", reset);
+            db.Insert(new AppliedMigrationRecord { Name = ScoreProgressionResetMigration, AppliedAt = now });
+        });
+        return count;
+    }
 
     // The skins the old grant file could name, and the account the old code always treated as their owner.
     private static readonly string[] LegacyPrivateSkins = ["skin_hunter_arctic_wolf_private", "skin_boxer_demon_private"];
@@ -901,9 +927,17 @@ public class MasterServerDatabase : IMasterServerDatabase
                     CatalogueHelper.LeveLUp(endMatchData.OldPlayerXp, endMatchData.RewardXp);
             }
 
+            currPlayer.Progression.HeroesProgress ??= [];
             if (endMatchData.NewHeroXp is not null)
             {
-                currPlayer.Progression.HeroesProgress?[hero] = endMatchData.NewHeroXp;
+                currPlayer.Progression.HeroesProgress[hero] = endMatchData.NewHeroXp;
+            }
+
+            foreach (var (otherHero, otherXp) in endMatchResults.OtherHeroXp)
+            {
+                if (otherHero == hero || otherXp <= 0) continue;
+                currPlayer.Progression.HeroesProgress[otherHero] = CatalogueHelper.LeveLUpHero(
+                    currPlayer.Progression.HeroesProgress.GetValueOrDefault(otherHero) ?? CatalogueHelper.DefaultHeroProgress(), otherXp);
             }
 
             // Create match history

@@ -27,7 +27,7 @@ public class DummyPlayerDatabase : IPlayerDatabase
         {
             Level = 100,
             LevelXp = 0f,
-            XpForNextLevel = CatalogueHelper.PlayerXpForLevel(101)
+            XpForNextLevel = CatalogueHelper.PlayerXpForLevel(100)
         },
         HeroesProgress = new Dictionary<Key, XpInfo>
         {
@@ -36,7 +36,7 @@ public class DummyPlayerDatabase : IPlayerDatabase
                 {
                     Level = 100,
                     LevelXp = 0f,
-                    XpForNextLevel = CatalogueHelper.HeroXpForLevel(101)
+                    XpForNextLevel = CatalogueHelper.HeroXpForLevel(100)
                 }
             },
             {
@@ -44,7 +44,7 @@ public class DummyPlayerDatabase : IPlayerDatabase
                 {
                     Level = 100,
                     LevelXp = 0f,
-                    XpForNextLevel = CatalogueHelper.HeroXpForLevel(101)
+                    XpForNextLevel = CatalogueHelper.HeroXpForLevel(100)
                 }
             },
             {
@@ -52,7 +52,7 @@ public class DummyPlayerDatabase : IPlayerDatabase
                 {
                     Level = 100,
                     LevelXp = 0f,
-                    XpForNextLevel = CatalogueHelper.HeroXpForLevel(101)
+                    XpForNextLevel = CatalogueHelper.HeroXpForLevel(100)
                 }
             },
             {
@@ -60,7 +60,7 @@ public class DummyPlayerDatabase : IPlayerDatabase
                 {
                     Level = 100,
                     LevelXp = 0f,
-                    XpForNextLevel = CatalogueHelper.HeroXpForLevel(101)
+                    XpForNextLevel = CatalogueHelper.HeroXpForLevel(100)
                 }
             },
             {
@@ -68,7 +68,7 @@ public class DummyPlayerDatabase : IPlayerDatabase
                 {
                     Level = 100,
                     LevelXp = 0f,
-                    XpForNextLevel = CatalogueHelper.HeroXpForLevel(101)
+                    XpForNextLevel = CatalogueHelper.HeroXpForLevel(100)
                 }
             },
             {
@@ -76,7 +76,7 @@ public class DummyPlayerDatabase : IPlayerDatabase
                 {
                     Level = 100,
                     LevelXp = 0f,
-                    XpForNextLevel = CatalogueHelper.HeroXpForLevel(101)
+                    XpForNextLevel = CatalogueHelper.HeroXpForLevel(100)
                 }
             },
             {
@@ -84,7 +84,7 @@ public class DummyPlayerDatabase : IPlayerDatabase
                 {
                     Level = 100,
                     LevelXp = 0f,
-                    XpForNextLevel = CatalogueHelper.HeroXpForLevel(101)
+                    XpForNextLevel = CatalogueHelper.HeroXpForLevel(100)
                 }
             },
             {
@@ -92,7 +92,7 @@ public class DummyPlayerDatabase : IPlayerDatabase
                 {
                     Level = 100,
                     LevelXp = 100f,
-                    XpForNextLevel = CatalogueHelper.HeroXpForLevel(101)
+                    XpForNextLevel = CatalogueHelper.HeroXpForLevel(100)
                 }
             },
             {
@@ -100,7 +100,7 @@ public class DummyPlayerDatabase : IPlayerDatabase
                 {
                     Level = 100,
                     LevelXp = 100f,
-                    XpForNextLevel = CatalogueHelper.HeroXpForLevel(101)
+                    XpForNextLevel = CatalogueHelper.HeroXpForLevel(100)
                 }
             },
             {
@@ -108,7 +108,7 @@ public class DummyPlayerDatabase : IPlayerDatabase
                 {
                     Level = 100,
                     LevelXp = 100f,
-                    XpForNextLevel = CatalogueHelper.HeroXpForLevel(101)
+                    XpForNextLevel = CatalogueHelper.HeroXpForLevel(100)
                 }
             },
             {
@@ -116,7 +116,7 @@ public class DummyPlayerDatabase : IPlayerDatabase
                 {
                     Level = 100,
                     LevelXp = 100f,
-                    XpForNextLevel = CatalogueHelper.HeroXpForLevel(101)
+                    XpForNextLevel = CatalogueHelper.HeroXpForLevel(100)
                 }
             },
             {
@@ -124,7 +124,7 @@ public class DummyPlayerDatabase : IPlayerDatabase
                 {
                     Level = 100,
                     LevelXp = 100f,
-                    XpForNextLevel = CatalogueHelper.HeroXpForLevel(101)
+                    XpForNextLevel = CatalogueHelper.HeroXpForLevel(100)
                 }
             },
             {
@@ -132,7 +132,7 @@ public class DummyPlayerDatabase : IPlayerDatabase
                 {
                     Level = 100,
                     LevelXp = 100f,
-                    XpForNextLevel = CatalogueHelper.HeroXpForLevel(101)
+                    XpForNextLevel = CatalogueHelper.HeroXpForLevel(100)
                 }
             },
             {
@@ -140,7 +140,7 @@ public class DummyPlayerDatabase : IPlayerDatabase
                 {
                     Level = 100,
                     LevelXp = 0f,
-                    XpForNextLevel = CatalogueHelper.HeroXpForLevel(101)
+                    XpForNextLevel = CatalogueHelper.HeroXpForLevel(100)
                 }
             },
             {
@@ -148,7 +148,7 @@ public class DummyPlayerDatabase : IPlayerDatabase
                 {
                     Level = 100,
                     LevelXp = 0f,
-                    XpForNextLevel = CatalogueHelper.HeroXpForLevel(101)
+                    XpForNextLevel = CatalogueHelper.HeroXpForLevel(100)
                 }
             }
         }

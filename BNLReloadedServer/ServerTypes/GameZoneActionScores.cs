@@ -25,7 +25,10 @@ public partial class GameZone
     private ActionScoreLedger? _actionScores;
     private readonly Stopwatch _scoreClock = Stopwatch.StartNew();
     private readonly Dictionary<uint, Dictionary<uint, double>> _cubeContributors = [];
-    private ActionScoreLedger ActionScores => _actionScores ??= new(_actionScoreRules);
+    private ActionScoreLedger ActionScores => _actionScores ??= new(_actionScoreRules)
+    {
+        HeroOf = id => _playerIdToUnitId.TryGetValue(id, out var unitId) && _playerUnits.TryGetValue(unitId, out var unit) ? unit.Key : null
+    };
     private bool CanScore => _matchResultsFinalized == 0 && !_zoneData.MatchEnded && !_gameInitiator.IsMapEditor() &&
         _gameInitiator is not WaitingArenaInitiator && _zoneData.Phase.PhaseType is
             ZonePhaseType.Build or ZonePhaseType.Build2 or ZonePhaseType.Assault or ZonePhaseType.Assault2 or ZonePhaseType.SuddenDeath;

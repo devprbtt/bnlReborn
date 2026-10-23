@@ -11,21 +11,26 @@ public class EndMatchResults
     public Key MapKey { get; set; }
     public Key GameModeKey { get; set; }
     public EndMatchData MatchData { get; set; } = new();
+    /// <summary>XP for heroes the player switched away from during the match (the final hero's is in MatchData).
+    /// Server-internal: region to master only.</summary>
+    public Dictionary<Key, float> OtherHeroXp { get; set; } = [];
 
     public void Write(BinaryWriter writer)
     {
-        new BitField(true, true, true, true, true, true).Write(writer);
+        new BitField(true, true, true, true, true, true, true).Write(writer);
         writer.Write(PlayerId);
         writer.Write(GameInstanceId);
         writer.Write(MatchEndTime);
         Key.WriteRecord(writer, MapKey);
         Key.WriteRecord(writer, GameModeKey);
         EndMatchData.WriteRecord(writer, MatchData);
+        writer.Write(OtherHeroXp.Count);
+        foreach (var (hero, xp) in OtherHeroXp) { Key.WriteRecord(writer, hero); writer.Write(xp); }
     }
 
     public void Read(BinaryReader reader)
     {
-        var bitField = new BitField(6);
+        var bitField = new BitField(7);
         bitField.Read(reader);
         if (bitField[0])
         {
@@ -55,6 +60,14 @@ public class EndMatchResults
         if (bitField[5])
         {
             MatchData = EndMatchData.ReadRecord(reader);
+        }
+
+        if (bitField[6])
+        {
+            var count = reader.ReadInt32();
+            if (count is < 0 or > 256) throw new InvalidDataException("Bad hero XP count");
+            OtherHeroXp = new Dictionary<Key, float>(count);
+            for (var i = 0; i < count; i++) OtherHeroXp[Key.ReadRecord(reader)] = reader.ReadSingle();
         }
     }
 

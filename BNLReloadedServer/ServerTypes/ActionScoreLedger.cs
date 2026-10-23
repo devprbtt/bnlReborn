@@ -7,6 +7,10 @@ public sealed class ActionScoreLedger(ActionScoreRules rules)
 {
     public sealed record Award(long seq, uint player, string reason, int points);
     private readonly Dictionary<uint, int> totals = [];
+    // Points by the hero the player was on when each was granted: hero XP follows the hero that earned it.
+    private readonly Dictionary<uint, Dictionary<Key, int>> heroTotals = [];
+    /// <summary>The player's hero at award time; null when unknown.</summary>
+    public Func<uint, Key?>? HeroOf { get; init; }
     private readonly Dictionary<(uint, string, bool), double> fractions = [];
     private readonly Dictionary<(uint, string), double> cooldowns = [];
     private readonly Queue<Award> events = new();
@@ -14,6 +18,8 @@ public sealed class ActionScoreLedger(ActionScoreRules rules)
     public string MatchId { get; } = Guid.NewGuid().ToString("N");
     public bool Dirty { get; private set; }
     public int Total(uint player) => totals.GetValueOrDefault(player);
+    public IReadOnlyDictionary<Key, int> HeroTotals(uint player) =>
+        heroTotals.TryGetValue(player, out var byHero) ? byHero : new Dictionary<Key, int>();
     public void Ensure(uint player) { if (totals.TryAdd(player, 0)) Dirty = true; }
     public bool Ready(uint player, string key, double now, double interval)
     {
@@ -46,6 +52,11 @@ public sealed class ActionScoreLedger(ActionScoreRules rules)
         int granted = Math.Min(points, int.MaxValue - Total(player));
         if (granted <= 0) return;
         totals[player] = Total(player) + granted;
+        if (HeroOf?.Invoke(player) is { } hero && hero != Key.None)
+        {
+            if (!heroTotals.TryGetValue(player, out var byHero)) heroTotals[player] = byHero = [];
+            byHero[hero] = byHero.GetValueOrDefault(hero) + granted;
+        }
         events.Enqueue(new Award(++sequence, player, reason, granted));
         while (events.Count > 256) events.Dequeue();
         Dirty = true;

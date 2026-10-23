@@ -1900,11 +1900,16 @@ public partial class GameZone : Updater
                     (float)gameLength.TotalSeconds);
             }
 
+            // XP is the action score earned: the player gets all of it, each hero the part earned while playing it.
+            // A mode grants XP when its xp_logic exists and is not zeroed out (custom games and MAD have none).
             // A time trial has no xp_logic; its xp is what the goals it just cleared are worth.
-            var xpAmount = endMatchData.TimeTrialData?.XpReward ?? (zoneDataGameModeCard.XpLogic is not null
-                ? float.Clamp(zoneDataGameModeCard.XpLogic.XpPerMinute * (float)gameLength.TotalMinutes,
-                    zoneDataGameModeCard.XpLogic.MinXpCap, zoneDataGameModeCard.XpLogic.MaxXpCap)
-                : 0);
+            var playerId = player.PlayerId.Value;
+            var grantsXp = zoneDataGameModeCard.XpLogic is { MaxXpCap: > 0 } && !_gameInitiator.IsMapEditor();
+            var xpAmount = endMatchData.TimeTrialData?.XpReward ?? (grantsXp ? ActionScores.Total(playerId) : 0f);
+            var heroScores = endMatchData.TimeTrialData != null
+                ? new Dictionary<Key, float> { [player.Key] = xpAmount }
+                : grantsXp ? ActionScores.HeroTotals(playerId).Where(h => h.Value > 0).ToDictionary(h => h.Key, h => (float)h.Value) : [];
+            var xpMultiplier = 1f;
 
             var applicableBonuses = new Dictionary<MatchRewardBonusType, float>();
             if (zoneDataGameModeCard.RewardLogic?.Bonuses is not null)
@@ -1915,27 +1920,30 @@ public partial class GameZone : Updater
                     {
                         case MatchRewardBonusType.Victory when endMatchData.IsWinner:
                             applicableBonuses[MatchRewardBonusType.Victory] = amount;
-                            xpAmount *= 1 + amount;
+                            xpMultiplier *= 1 + amount;
                             break;
                         case MatchRewardBonusType.Backfilling when endMatchData.IsBackfiller:
                             applicableBonuses[MatchRewardBonusType.Backfilling] = amount;
-                            xpAmount *= 1 + amount;
+                            xpMultiplier *= 1 + amount;
                             break;
                         case MatchRewardBonusType.Shorthand when _playerUnits.Values.Count(p => p.Team == player.Team) <
                                                                  _playerUnits.Values.Count(p => p.Team != player.Team):
                             applicableBonuses[MatchRewardBonusType.Shorthand] = amount;
-                            xpAmount *= 1 + amount;
+                            xpMultiplier *= 1 + amount;
                             break;
                     }
                 }
             }
 
+            xpAmount *= xpMultiplier;
+            var heroXp = heroScores.ToDictionary(h => h.Key, h => h.Value * xpMultiplier);
             endMatchData.RewardXp = _gameInitiator.IsMapEditor() ? 0 : xpAmount;
-            endMatchData.NewHeroXp = endMatchData.OldHeroXp;
-            if (endMatchData.OldHeroXp is not null && xpAmount > 0)
-            {
-                endMatchData.NewHeroXp = CatalogueHelper.LeveLUpHero(endMatchData.OldHeroXp, xpAmount);
-            }
+            endMatchData.OldHeroXp ??= CatalogueHelper.DefaultHeroProgress();
+            endMatchData.NewHeroXp = heroXp.TryGetValue(player.Key, out var finalHeroXp) && finalHeroXp > 0
+                ? CatalogueHelper.LeveLUpHero(endMatchData.OldHeroXp, finalHeroXp)
+                : endMatchData.OldHeroXp;
+            // Heroes played earlier in the match level up on the master; the reward screen shows the final hero.
+            var otherHeroXp = heroXp.Where(h => h.Key != player.Key && h.Value > 0).ToDictionary(h => h.Key, h => h.Value);
 
             var currencyAmountVirtual = 0f;
             var currencyAmountReal = 0f;
@@ -1996,7 +2004,8 @@ public partial class GameZone : Updater
                     MatchEndTime = (ulong)gameEnd.ToUnixTimeMilliseconds(),
                     MapKey = _zoneData.MapKey ?? Key.None,
                     GameModeKey = _zoneData.GameModeKey,
-                    MatchData = endMatchData
+                    MatchData = endMatchData,
+                    OtherHeroXp = otherHeroXp
                 });
             }
 
