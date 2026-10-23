@@ -82,4 +82,4 @@ public interface IServiceZone : IService
 }
 
 public readonly record struct ScoreboardPlayerNetworkInfo(uint PlayerId, int PingMilliseconds, string CountryCode,
-    string ClanTag = "", uint ClanTagColor = 0, ushort ClanEmblem = 0);
+    string ClanTag = "", uint ClanTagColor = 0, ushort ClanEmblem = 0, byte ClanEmblemFrame = 0, uint ClanEmblemFrameColor = 0);

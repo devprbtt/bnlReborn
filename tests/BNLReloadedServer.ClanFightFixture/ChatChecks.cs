@@ -29,9 +29,9 @@ static class ChatChecks
         store.SetTagColor(1,0x100FF88).GetAwaiter().GetResult();
         using(var colored=JsonDocument.Parse(ClanRatings.Leaderboard()))
             check(colored.RootElement.GetProperty("rows").EnumerateArray().First(r=>r.GetProperty("id").GetInt32()==clan.ClanId).GetProperty("tagColor").GetUInt32()==0x100FF88,"leaderboard carries saved clan color");
-        store.SetEmblem(1,12).GetAwaiter().GetResult();
+        store.SetEmblem(1,12,4,0x1E0453A).GetAwaiter().GetResult();
         using(var emblem=JsonDocument.Parse(ClanRatings.Leaderboard()))
-            check(emblem.RootElement.GetProperty("rows").EnumerateArray().First(r=>r.GetProperty("id").GetInt32()==clan.ClanId).GetProperty("emblem").GetInt32()==12,"leaderboard carries the clan emblem");
+            check(emblem.RootElement.GetProperty("rows").EnumerateArray().First(r=>r.GetProperty("id").GetInt32()==clan.ClanId).GetProperty("emblem").GetInt32()==12 && emblem.RootElement.GetProperty("rows").EnumerateArray().First(r=>r.GetProperty("id").GetInt32()==clan.ClanId).GetProperty("emblemFrame").GetInt32()==4 && emblem.RootElement.GetProperty("rows").EnumerateArray().First(r=>r.GetProperty("id").GetInt32()==clan.ClanId).GetProperty("emblemFrameColor").GetUInt32()==0x1E0453A,"leaderboard carries the clan badge");
         int opponent=store.ClanOf(3)!.Id;
         ClanRatings.Record("leaderboard-1",clan.ClanId,opponent,TeamType.Team1);
         ClanRatings.Record("leaderboard-2",clan.ClanId,opponent,TeamType.Team1);

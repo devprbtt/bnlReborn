@@ -29,7 +29,7 @@ public class ServiceClan(ISender sender) : IServiceClan
         Kick = 6, SetRank = 7, Transfer = 8, Rename = 9, Disband = 10, SetTagColor = 11, Browse = 12, InvitePlayer = 13, PlayerTags = 14, Apply = 18, CancelApplication = 19, ApproveApplication = 20, DeclineApplication = 21,
         // Capability 4: replace the player's trophy showcase (byte count, then trophy ids).
         SetTrophyShowcase = 22, AcknowledgeTrophies = 23,
-        // Capability 6: set the clan emblem (ushort id, 0 = none). Leader only.
+        // Capability 6: set the clan badge (ushort emblem, byte frame, uint frame colour; 0s = none). Leader only.
         SetEmblem = 24
     }
 
@@ -220,7 +220,7 @@ public class ServiceClan(ISender sender) : IServiceClan
             ClientMessage.Rename => store.Rename(playerId, reader.ReadString(), reader.ReadString()),
             ClientMessage.Disband => store.Disband(playerId),
             ClientMessage.SetTagColor => store.SetTagColor(playerId, reader.ReadUInt32()),
-            ClientMessage.SetEmblem => store.SetEmblem(playerId, reader.ReadUInt16()),
+            ClientMessage.SetEmblem => store.SetEmblem(playerId, reader.ReadUInt16(), reader.ReadByte(), reader.ReadUInt32()),
             _ => Task.FromResult(ClanResult.NotAllowed)
         };
         work.ContinueWith(t =>
@@ -307,14 +307,20 @@ public class ServiceClan(ISender sender) : IServiceClan
         writer.Write(BrowseEmblemsMessage);
         writer.Write(requestId);
         writer.Write((ushort)clans.Length);
-        foreach (var clan in clans) { writer.Write(clan.Id); writer.Write(clan.Emblem); }
+        foreach (var clan in clans) { writer.Write(clan.Id); WriteBadge(writer, clan.Emblem, clan.EmblemFrame, clan.EmblemFrameColor); }
     }
 
-    // Shared with the fixture: message id, then the emblem of the player's clan (0 when none or clanless).
+    // Shared with the fixture: message id, then the badge of the player's clan (all 0 when none or clanless).
     public static void WriteEmblem(BinaryWriter writer, ClanStateMessage state)
     {
         writer.Write(EmblemMessage);
-        writer.Write(state.Clan?.Emblem ?? (ushort)0);
+        WriteBadge(writer, state.Clan?.Emblem ?? 0, state.Clan?.EmblemFrame ?? 0, state.Clan?.EmblemFrameColor ?? 0);
+    }
+
+    /// <summary>A clan badge on the wire: emblem id, frame id, frame colour.</summary>
+    public static void WriteBadge(BinaryWriter writer, ushort emblem, byte frame, uint frameColor)
+    {
+        writer.Write(emblem); writer.Write(frame); writer.Write(frameColor);
     }
 
     public static void WriteApplications(BinaryWriter writer, ClanStateApplication[] applications)

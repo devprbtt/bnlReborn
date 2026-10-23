@@ -42,6 +42,14 @@ public class ClanRecord
     // Added after the tag colour; sqlite-net adds the column to an existing table with default 0.
     [Column("emblem")]
     public ushort Emblem { get; set; }
+
+    // Background behind the emblem: 0 = none, otherwise a frame id from the client's library, drawn in
+    // EmblemFrameColor (0 = the client's default steel, otherwise ClanRules.ColorSet | 0xRRGGBB).
+    [Column("emblem_frame")]
+    public byte EmblemFrame { get; set; }
+
+    [Column("emblem_frame_color")]
+    public uint EmblemFrameColor { get; set; }
 }
 
 [Table("ClanMembers")]

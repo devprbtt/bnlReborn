@@ -44,7 +44,7 @@ public partial class ServiceZone
             {
                 writer.Write(player.ClanTag);
                 writer.Write(player.ClanTagColor);
-                if (SupportsClanEmblems) writer.Write(player.ClanEmblem);
+                if (SupportsClanEmblems) ServiceClan.WriteBadge(writer, player.ClanEmblem, player.ClanEmblemFrame, player.ClanEmblemFrameColor);
             }
         }
         sender.Send(writer);

@@ -170,10 +170,19 @@ Check(await store.SetEmblem(colourLeader, ClanRules.MaxEmblem) == ClanResult.Ok 
 Check(await store.SetEmblem(colourLeader, 7) == ClanResult.Ok && store.TagAndColorOf(colourOfficer) is { Emblem: 7 },
     "the leader sets the emblem and members' scoreboard data carries it");
 Check(store.ClanOf(1) == null && await store.SetEmblem(1, 3) == ClanResult.NotInClan, "players outside a clan cannot set an emblem");
+Check(await store.SetEmblem(colourLeader, 7, (byte)(ClanRules.MaxEmblemFrame + 1)) == ClanResult.NotAllowed, "frame ids beyond the library limit are rejected");
+Check(await store.SetEmblem(colourLeader, 7, 2, 0x4FB7E8) == ClanResult.NotAllowed, "a frame colour without the set flag is rejected");
+Check(await store.SetEmblem(colourLeader, 7, 2, ClanRules.ColorSet | 0x24324A) == ClanResult.Ok
+      && store.TagAndColorOf(colourOfficer) is { Emblem: 7, Frame: 2, FrameColor: ClanRules.ColorSet | 0x24324A },
+    "the leader sets a frame and its colour with the emblem, and members' scoreboard data carries all three");
+Check(await store.SetEmblem(colourLeader, 0, 2, 0) == ClanResult.Ok && store.ClanOf(100) is { Emblem: 0, EmblemFrame: 2, EmblemFrameColor: 0 },
+    "a frame may stand alone, in the default colour");
+Check(await store.SetEmblem(colourLeader, 7, 2, ClanRules.ColorSet | 0x24324A) == ClanResult.Ok, "badge restored for the rename check");
 var emblemClan = store.ClanOf(100)!;
 now = now.AddDays(8);
-Check(await store.Rename(colourLeader, emblemClan.Name + " X", emblemClan.Tag + "X") == ClanResult.Ok && store.ClanOf(100)!.Emblem == 7,
-    "renaming keeps the emblem");
+Check(await store.Rename(colourLeader, emblemClan.Name + " X", emblemClan.Tag + "X") == ClanResult.Ok
+      && store.ClanOf(100) is { Emblem: 7, EmblemFrame: 2, EmblemFrameColor: ClanRules.ColorSet | 0x24324A },
+    "renaming keeps the emblem, frame and frame colour");
 Check(await store.Rename(colourLeader, emblemClan.Name, emblemClan.Tag) == ClanResult.RenameCooldown, "rename for emblem test used the weekly rename");
 now = now.AddDays(8);
 Check(await store.Rename(colourLeader, emblemClan.Name, emblemClan.Tag) == ClanResult.Ok, "clan name restored after emblem rename check");
@@ -186,7 +195,7 @@ var after = reopened.ClanOf(100)!;
 Check(after.Tag == before.Tag && after.LeaderId == before.LeaderId && after.Members.Length == before.Members.Length,
     "clans, ranks and leadership survive a restart");
 Check(after.TagColor == (ClanRules.ColorSet | 0x4FB7E8), "the tag colour survives a restart");
-Check(after.Emblem == 7, "the emblem survives a restart");
+Check(after is { Emblem: 7, EmblemFrame: 2, EmblemFrameColor: ClanRules.ColorSet | 0x24324A }, "the badge survives a restart");
 Check(reopened.InvitesFor(300).Length == 0 && reopened.TagOf(50) == "YETI", "invites and other clans reload exactly");
 
 // ---- Disband ----
@@ -226,28 +235,33 @@ BNLReloadedServer.Service.ServiceClan.WriteState(new BinaryWriter(buffer), new C
 buffer.Position = 0;
 var empty = BNL.Clans.ClanProtocol.ReadState(new BinaryReader(buffer));
 Check(empty.Clan == null && empty.Invites.Count == 0 && buffer.Position == buffer.Length, "a clanless state round-trips");
-foreach (var (state, expected, label) in new[] { (sent with { Clan = sent.Clan! with { Emblem = 42 } }, (ushort)42, "a clan's emblem"),
-             (new ClanStateMessage(null, []), (ushort)0, "no emblem for a clanless player") })
+foreach (var (state, expected, label) in new[] {
+             (sent with { Clan = sent.Clan! with { Emblem = 42, EmblemFrame = 5, EmblemFrameColor = ClanRules.ColorSet | 0x5A1E24 } },
+              new BNL.Clans.ClanBadge(42, 5, ClanRules.ColorSet | 0x5A1E24), "a clan's badge"),
+             (new ClanStateMessage(null, []), default(BNL.Clans.ClanBadge), "no badge for a clanless player") })
 {
     buffer = new MemoryStream();
     BNLReloadedServer.Service.ServiceClan.WriteEmblem(new BinaryWriter(buffer), state);
     buffer.Position = 0;
     var emblemReader = new BinaryReader(buffer);
-    Check(emblemReader.ReadByte() == BNL.Clans.ClanProtocol.MessageEmblem && emblemReader.ReadUInt16() == expected
+    Check(emblemReader.ReadByte() == BNL.Clans.ClanProtocol.MessageEmblem && BNL.Clans.ClanProtocol.ReadBadge(emblemReader).Equals(expected)
           && buffer.Position == buffer.Length, "emblem message carries " + label + " in the client's layout");
 }
 buffer = new MemoryStream();
 BNLReloadedServer.Service.ServiceClan.WriteBrowseEmblems(new BinaryWriter(buffer), 77,
-    [sent with { Clan = sent.Clan! with { Id = 3, Emblem = 15 } }, new ClanStateMessage(null, []), sent with { Clan = sent.Clan! with { Id = 4, Emblem = 0 } }]);
+    [sent with { Clan = sent.Clan! with { Id = 3, Emblem = 15, EmblemFrame = 1, EmblemFrameColor = ClanRules.ColorSet | 0x16181A } },
+     new ClanStateMessage(null, []), sent with { Clan = sent.Clan! with { Id = 4, Emblem = 0 } }]);
 buffer.Position = 0;
 var browseReader = new BinaryReader(buffer);
 Check(browseReader.ReadByte() == BNL.Clans.ClanProtocol.MessageBrowseEmblems && browseReader.ReadUInt16() == 77, "browse emblems name their browse request");
 var browseEmblems = BNL.Clans.ClanProtocol.ReadBrowseEmblems(browseReader);
-Check(browseEmblems.Count == 2 && browseEmblems[3] == 15 && browseEmblems[4] == 0 && buffer.Position == buffer.Length,
-    "browse emblems round-trip through the client decoder, one per listed clan");
+Check(browseEmblems.Count == 2 && browseEmblems[3].Equals(new BNL.Clans.ClanBadge(15, 1, ClanRules.ColorSet | 0x16181A))
+      && browseEmblems[4].Equals(default(BNL.Clans.ClanBadge)) && buffer.Position == buffer.Length,
+    "browse badges round-trip through the client decoder, one per listed clan");
 Check(BNLReloadedServer.Service.ServiceClan.BrowseEmblemsMessage == BNL.Clans.ClanProtocol.MessageBrowseEmblems, "browse emblem message ids match");
 Check(BNLReloadedServer.Service.ServiceClan.EmblemMessage == BNL.Clans.ClanProtocol.MessageEmblem
-      && BNL.Clans.ClanProtocol.MaxEmblem == ClanRules.MaxEmblem && BNL.Clans.ClanProtocol.CapabilityVersion >= 6,
+      && BNL.Clans.ClanProtocol.MaxEmblem == ClanRules.MaxEmblem && BNL.Clans.ClanProtocol.MaxEmblemFrame == ClanRules.MaxEmblemFrame
+      && BNL.Clans.ClanProtocol.CapabilityVersion >= 6,
     "emblem message id, library limit and capability match on both sides");
 
 static bool SameEnum(Type a, Type b) =>

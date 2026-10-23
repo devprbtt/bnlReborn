@@ -115,6 +115,13 @@ public static partial class ClanRules
     /// <summary>An emblem id from the library, or 0 for none.</summary>
     public static bool ValidEmblem(ushort emblem) => emblem <= MaxEmblem;
 
+    /// <summary>Highest background (frame) id the server stores; the art is in the client, like emblems.</summary>
+    public const byte MaxEmblemFrame = 63;
+
+    /// <summary>A whole badge: emblem, its background, and the background's colour (same encoding as tag colours).</summary>
+    public static bool ValidBadge(ushort emblem, byte frame, uint frameColor) =>
+        ValidEmblem(emblem) && frame <= MaxEmblemFrame && ValidTagColor(frameColor);
+
     /// <summary>Leaders can remove anyone but themselves; officers can remove members only.</summary>
     public static bool CanKick(ClanRank actor, ClanRank target) =>
         actor == ClanRank.Leader ? target != ClanRank.Leader : actor == ClanRank.Officer && target == ClanRank.Member;

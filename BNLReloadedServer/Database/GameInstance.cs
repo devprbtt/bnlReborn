@@ -983,7 +983,9 @@ public partial class GameInstance : IGameInstance
                 zone?.CountryCode ?? string.Empty,
                 clan?.Tag ?? string.Empty,
                 clan?.Color ?? 0,
-                clan?.Emblem ?? 0));
+                clan?.Emblem ?? 0,
+                clan?.Frame ?? 0,
+                clan?.FrameColor ?? 0));
         }
         requester.SendScoreboardMetadata(snapshot);
     }
