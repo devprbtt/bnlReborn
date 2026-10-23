@@ -236,6 +236,16 @@ foreach (var (state, expected, label) in new[] { (sent with { Clan = sent.Clan! 
     Check(emblemReader.ReadByte() == BNL.Clans.ClanProtocol.MessageEmblem && emblemReader.ReadUInt16() == expected
           && buffer.Position == buffer.Length, "emblem message carries " + label + " in the client's layout");
 }
+buffer = new MemoryStream();
+BNLReloadedServer.Service.ServiceClan.WriteBrowseEmblems(new BinaryWriter(buffer), 77,
+    [sent with { Clan = sent.Clan! with { Id = 3, Emblem = 15 } }, new ClanStateMessage(null, []), sent with { Clan = sent.Clan! with { Id = 4, Emblem = 0 } }]);
+buffer.Position = 0;
+var browseReader = new BinaryReader(buffer);
+Check(browseReader.ReadByte() == BNL.Clans.ClanProtocol.MessageBrowseEmblems && browseReader.ReadUInt16() == 77, "browse emblems name their browse request");
+var browseEmblems = BNL.Clans.ClanProtocol.ReadBrowseEmblems(browseReader);
+Check(browseEmblems.Count == 2 && browseEmblems[3] == 15 && browseEmblems[4] == 0 && buffer.Position == buffer.Length,
+    "browse emblems round-trip through the client decoder, one per listed clan");
+Check(BNLReloadedServer.Service.ServiceClan.BrowseEmblemsMessage == BNL.Clans.ClanProtocol.MessageBrowseEmblems, "browse emblem message ids match");
 Check(BNLReloadedServer.Service.ServiceClan.EmblemMessage == BNL.Clans.ClanProtocol.MessageEmblem
       && BNL.Clans.ClanProtocol.MaxEmblem == ClanRules.MaxEmblem && BNL.Clans.ClanProtocol.CapabilityVersion >= 6,
     "emblem message id, library limit and capability match on both sides");

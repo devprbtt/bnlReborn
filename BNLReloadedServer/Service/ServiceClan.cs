@@ -42,6 +42,8 @@ public class ServiceClan(ISender sender) : IServiceClan
     public bool SupportsEmblems { get; private set; }
     // Sent after every state to capability-6 clients: the player's clan emblem, kept out of the versioned state layout.
     public const byte EmblemMessage = 11;
+    // Sent after each browse reply to capability-6 clients: the listed clans' emblems, keyed by clan id.
+    public const byte BrowseEmblemsMessage = 12;
     // Sent once after a capability-4 Hello: this server stores trophy showcases, so the client may offer pinning.
     private const byte TrophiesSupportedMessage = 9;
     // The showcase write; a fixture points it at its own database.
@@ -190,6 +192,12 @@ public class ServiceClan(ISender sender) : IServiceClan
                 writer.Write((ushort)t.Result.Length);
                 foreach (var state in t.Result) WriteState(writer, state);
                 sender.Send(writer);
+                if (SupportsEmblems)
+                {
+                    using var emblems = CreateWriter();
+                    WriteBrowseEmblems(emblems, requestId, t.Result);
+                    sender.Send(emblems);
+                }
                 SendResult(requestId, ClanResult.Ok);
             });
             return true;
@@ -290,6 +298,16 @@ public class ServiceClan(ISender sender) : IServiceClan
             WriteEmblem(emblem, state);
             sender.Send(emblem);
         }
+    }
+
+    // Shared with the fixture: message id, request id, count, then (clan id, emblem) for each listed clan.
+    public static void WriteBrowseEmblems(BinaryWriter writer, ushort requestId, ClanStateMessage[] results)
+    {
+        var clans = results.Select(r => r.Clan).OfType<ClanStateClan>().ToArray();
+        writer.Write(BrowseEmblemsMessage);
+        writer.Write(requestId);
+        writer.Write((ushort)clans.Length);
+        foreach (var clan in clans) { writer.Write(clan.Id); writer.Write(clan.Emblem); }
     }
 
     // Shared with the fixture: message id, then the emblem of the player's clan (0 when none or clanless).
