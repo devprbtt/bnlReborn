@@ -1,0 +1,22 @@
+[
+  {
+    "source": "C:\\Users\\Paulo\\.codex-storage\\workspace-data\\blocknload-unity-upgrade\\extracted\\work\\discordbot-fix-20260908\\src\\main.rs",
+    "destination": "src/main.rs",
+    "sha256": "30cad22a906c2f050e351e73701ad25984c3824135d52479adfee455f0878b9b"
+  },
+  {
+    "source": "C:\\Users\\Paulo\\.codex-storage\\workspace-data\\blocknload-unity-upgrade\\extracted\\work\\discordbot-fix-20260908\\Cargo.toml",
+    "destination": "Cargo.toml",
+    "sha256": "382883bfeba568e88d7f8a850fc075839fe97683f051028564ace075af784d69"
+  },
+  {
+    "source": "C:\\Users\\Paulo\\.codex-storage\\workspace-data\\blocknload-unity-upgrade\\extracted\\work\\discordbot-fix-20260908\\Cargo.lock",
+    "destination": "Cargo.lock",
+    "sha256": "990daeb05fae7a0e8ad95187ae3aeda3c34e0cd7c4ff0380e84b8819b6d5e84e"
+  },
+  {
+    "source": "C:\\Users\\Paulo\\.codex-storage\\workspace-data\\blocknload-unity-upgrade\\extracted\\work\\discordbot-fix-20260908\\SOURCE_MANIFEST.md",
+    "destination": "SOURCE_MANIFEST.md",
+    "sha256": "a18b0524093e90623b5145e263ae3f0a3ff334929b9eb36a7afef7761db4df2a"
+  }
+]

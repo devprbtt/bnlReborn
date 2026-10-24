@@ -25,3 +25,7 @@ Use built card family IDs for requested build-point exclusions, covering hero/co
 ## 2026-10-21 - Trap engagement scores
 
 Award confirmed enemy impact rather than placement for requested traps. Use admitted status application for slowing and damaging status, and actual damage for mine/fire/bush hits. Share per-owner/reason/enemy cooldown between damage and status so a single effect cannot pay twice. Retain source ownership on spawned fire and periodic effects; no reward for unowned map hazards. Yeti ice only loses build rewards; no new ice effect award requested.
+
+## 2026-10-23 — One Discord presence bot owned by server repository
+
+Retire the China service and credential; poll only the local Reborn player-count endpoint. Track the recovered Rust reconnect implementation and lockfile with provenance in infrastructure/discord-presence. Preserve the application shared with game Rich Presence. Validate bot identity/membership on startup; permanent credential/configuration failures exit 78 without restart, transient failures retry after 30 seconds. Retain the verified Rust executable and add a Python standard-library preflight, avoiding an unnecessary live-server rebuild. Credentials stay outside Git in root:bnldiscord 0640 runtime configuration.

@@ -1,0 +1,42 @@
+[Unit]
+Description=BNL Reborn Discord online player count
+After=network-online.target bnlreloaded.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=bnldiscord
+Group=bnldiscord
+WorkingDirectory=/opt/bnl-discordbot/current
+EnvironmentFile=/etc/bnl/discordbot/main.env
+Environment=PYTHONDONTWRITEBYTECODE=1
+ExecStart=/usr/bin/python3 /opt/bnl-discordbot/current/run-bot.py
+Restart=on-failure
+RestartPreventExitStatus=78
+RestartSec=30
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectSystem=strict
+ProtectHome=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectKernelLogs=true
+ProtectControlGroups=true
+ProtectClock=true
+RestrictRealtime=true
+RestrictSUIDSGID=true
+LockPersonality=true
+MemoryDenyWriteExecute=true
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+CapabilityBoundingSet=
+AmbientCapabilities=
+SystemCallArchitectures=native
+TasksMax=128
+MemoryMax=256M
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

@@ -51,3 +51,7 @@
 
 - Exclude block_ice, unit_device_generic_landmine and unit_device_generic_fire_trap families from build points. Add owner-attributed mine/fire/glue/bush rewards (10/5/5/5), with independent trap_effect_cooldown default 15 seconds per owner/reason/enemy; all CDB-tunable. Mines use confirmed damage, glue admitted slow, bush/fire damage or admitted status with shared deduplication.
 - ActionScore 174 checks passed, including actual BlockSource ownership from MapBinary, repeated status/damage, multiple enemies, friendly and environmental rejection, new build exclusions and CDB roundtrip.
+
+## 2026-10-23 — Restore Discord player count; retire China integration
+
+Old bot credential rejected by Discord; main service had over 32,000 restarts. New application 1555383788865982544 authenticated and joined Block N Load Community (283986382660173824). Prepared single-service deployment with exact previously verified Rust binary, tracked recovered source/provenance, and identity/membership preflight. Six Python regression tests pass. Deployment verification will be recorded after rollout. Game service is not part of this deployment.
