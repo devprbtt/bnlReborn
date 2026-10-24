@@ -55,3 +55,13 @@
 ## 2026-10-23 — Restore Discord player count; retire China integration
 
 Old bot credential rejected by Discord; main service had over 32,000 restarts. New application 1555383788865982544 authenticated and joined Block N Load Community (283986382660173824). Prepared single-service deployment with exact previously verified Rust binary, tracked recovered source/provenance, and identity/membership preflight. Six Python regression tests pass. Deployment verification will be recorded after rollout. Game service is not part of this deployment.
+
+## 2026-10-23 — Discord player-count bot restored; Chinese integration retired
+
+- Discord rejected the old credentials; the main service had exceeded 32,000 restarts. Stopped the failed loops. User completed Discord MFA; replacement token transferred over SSH stdin into root-only runtime storage, then installed as root:bnldiscord 0640 main.env. No credentials added to source or logs.
+- Application/bot 1555383788865982544 joined Block N Load Community (283986382660173824). Existing application name, icon and game Rich Presence assets preserved. Verified bot identity and guild membership through Discord API.
+- Server implementation committed/pushed to devprbtt/bnlReborn branch fix/discord-presence-single-server (initial implementation 2923881). Tracks exact recovered Rust reconnect source/lockfile/provenance, deployment, unit, preflight and tests. Six regression tests pass on Windows and production Linux. Permanent invalid-token/missing-membership errors exit 78 without automatic restart; transient network failures retry after 30 seconds.
+- Deployed /opt/bnl-discordbot/releases/single-server-20261023 at 22:35 Sao Paulo (2026-10-24 01:35 UTC), retaining verified Rust binary SHA256 3c3e37d96b43ea2123ea8c0ca2800e3f5bd32880e2b8b3d0b21b2a33252b2e09. Added Python preflight; no Rust rebuild. Protected prior main configuration at /root/config-backups/discord-single-server-20261024T013511Z.
+- Deleted retired Chinese unit and /etc/bnl/discordbot/china.env; unit is not-found/inactive. Deployment/reconnect tooling now targets only the Reborn bot. Temporary token staging file removed. Historical source archives and log entries retained as provenance.
+- READY and local status count verified; Discord member list visibly displays BlockNLoad Reborn online with “0 players online”, matching the local endpoint. Targeted bot-only socket interruption produced RESUMED and immediate presence refresh, unchanged PID 1588486, NRestarts=0. Game service remained PID 1467174, NRestarts=0 throughout; no game restart or client release.
+- Final check: minute refresh observed at 01:36:37 UTC (poll 7); bot enabled at boot, RestartPreventExitStatus=78, zero restarts.

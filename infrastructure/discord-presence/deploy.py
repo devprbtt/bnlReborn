@@ -75,7 +75,7 @@ def main():
     for retired in ("/etc/systemd/system/bnl-discordbot-cn.service", "/etc/bnl/discordbot/china.env"):
         Path(retired).unlink(missing_ok=True)
     run("systemctl", "daemon-reload")
-    subprocess.run(["systemctl", "reset-failed", "bnl-discordbot.service", "bnl-discordbot-cn.service"], check=False)
+    run("systemctl", "reset-failed", "bnl-discordbot.service")
     run("systemctl", "enable", "--now", "bnl-discordbot.service")
     TOKEN.unlink()
     print("Deployed single Reborn bot; previous main config retained at " + str(backup), flush=True)
