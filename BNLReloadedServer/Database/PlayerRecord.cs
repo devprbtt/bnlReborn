@@ -23,7 +23,7 @@ public class PlayerRecord
     public string? Region { get; set; }
 
     [Column("rating_mean")]
-    public double RatingMean { get; set; } = 25;
+    public double RatingMean { get; set; } = Databases.DefaultMean;
 
     [Column("rating_dev")]
     public double RatingDeviation { get; set; } = 25.0 / 3.0;

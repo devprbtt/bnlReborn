@@ -4,7 +4,7 @@ namespace BNLReloadedServer.Database;
 
 public static class Databases
 {
-    public const double DefaultMean = 25.0;
+    public const double DefaultMean = 15.0;
     public const double DefaultSd = 25.0 / 3.0;
     public const double DefaultBeta = 25.0 / 6.0;
     public const double DefaultDynamicFactor = 1.0 / 12.0;

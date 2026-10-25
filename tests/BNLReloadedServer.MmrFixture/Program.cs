@@ -16,6 +16,9 @@ if(args.Length==4&&args[0]=="--calibrate")
 }
 int checks=0;
 void Check(bool ok,string message) { if(!ok)throw new Exception(message);checks++; }
+Check(new PlayerRecord().RatingMean==15 && new PlayerData().Rating.Mean==15,"new accounts start at 1500 Casual MMR in storage and runtime");
+Check(new PlayerRecord().RatingDeviation==Databases.DefaultSd && new PlayerData().Rating.StandardDeviation==Databases.DefaultSd,"new-account uncertainty stays unchanged");
+Check(!LeagueRanker.IsOnLadder(new PlayerRecord()) && !LeagueRanker.IsOnLadder(new PlayerRecord{RatingMean=25}),"new and legacy untouched accounts remain outside legacy ladder");
 CompletedMatchRecord Match()=>new(){MatchId=Guid.NewGuid().ToString(),RatingVersion=2,StartedAt=1000000,
     ActiveStartedAt=1000000,EndedAt=2200000,MatchType=MatchType.ShieldRush2,
     GameModeKey=new("game_mode_friendly"),MapKey=new("map_test"),Winner=TeamType.Team1,EndReason=MatchEndReason.ObjectivesDestroyed,

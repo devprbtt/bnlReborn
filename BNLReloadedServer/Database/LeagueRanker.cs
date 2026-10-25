@@ -70,7 +70,7 @@ public static class LeagueRanker
     // Who the percentages are cut from: a rating only moves off its default once a match has been
     // played, so accounts that have never played sit outside the ladder entirely.
     public static bool IsOnLadder(PlayerRecord record) =>
-        record.RatingMean != Databases.DefaultMean || record.RatingDeviation != Databases.DefaultSd;
+        (record.RatingMean != Databases.DefaultMean && record.RatingMean != 25.0) || record.RatingDeviation != Databases.DefaultSd;
 
     public static bool IsEligible(DateTimeOffset? rankEligibleUntil) =>
         rankEligibleUntil.HasValue && rankEligibleUntil.Value > DateTimeOffset.UtcNow;

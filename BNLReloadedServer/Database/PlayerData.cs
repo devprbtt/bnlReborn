@@ -11,7 +11,7 @@ public class PlayerData
     public string Nickname { get; set; } = string.Empty;
     public PlayerRole Role { get; set; } = PlayerRole.User;
     public string? Region { get; set; }
-    public Rating Rating { get; set; } = new(25, 25.0 / 3.0);
+    public Rating Rating { get; set; } = new(Databases.DefaultMean, Databases.DefaultSd);
     public League? League { get; set; }
     public PlayerProgression Progression { get; set; } = new();
     public List<uint> Friends { get; set; } = [];
