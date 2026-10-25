@@ -204,7 +204,7 @@ var pickup = new Unit(999, new UnitInit { Key=pickupCard.Key, OwnerId=healer.Pla
 var beforePickup = healer.Stats!.GetValueOrDefault(ScoreType.HealPlayerByBlock);
 Check(Heal(new UnitSource(pickup), healer, 14).Count == 0, "dropped health sends no collector portrait attribution");
 Check(Near(healer.HealthPercentage * 100,54), "pickup still restores 14 health");
-Check(Near(healer.Stats.GetValueOrDefault(ScoreType.HealPlayerByBlock),beforePickup), "pickup does not inflate collector healing given stats");
+Check(healer.Stats is { } afterPickup && Near(afterPickup.GetValueOrDefault(ScoreType.HealPlayerByBlock),beforePickup), "pickup does not inflate collector healing given stats");
 
 // MMR utility only credits actual ally healing of outstanding enemy health damage.
 OnZone(() =>
@@ -215,16 +215,16 @@ OnZone(() =>
     float before=healer.Stats!.GetValueOrDefault(ScoreType.EffectiveAllyHealing);
     float gain=teammate.AddHealth(20,out var credit);
     teammate.Healed(gain,healer.GetSelfSource(),healer,credit);
-    Check(Near(healer.Stats.GetValueOrDefault(ScoreType.EffectiveAllyHealing)-before,20),"MMR healing credits actual ally enemy-damage recovery");
+    Check(Near(healer.Stats!.GetValueOrDefault(ScoreType.EffectiveAllyHealing)-before,20),"MMR healing credits actual ally enemy-damage recovery");
     gain=teammate.AddHealth(30,out credit); // only ten enemy-damage HP remain
     teammate.Healed(gain,healer.GetSelfSource(),healer,credit);
-    Check(Near(healer.Stats.GetValueOrDefault(ScoreType.EffectiveAllyHealing)-before,30),"MMR healing cannot exceed remaining enemy damage");
+    Check(Near(healer.Stats!.GetValueOrDefault(ScoreType.EffectiveAllyHealing)-before,30),"MMR healing cannot exceed remaining enemy damage");
     gain=teammate.AddHealth(100,out credit);
     teammate.Healed(gain,healer.GetSelfSource(),healer,credit);
-    Check(Near(healer.Stats.GetValueOrDefault(ScoreType.EffectiveAllyHealing)-before,30),"MMR healing gives no farming credit for unaudited damage or overheal");
+    Check(Near(healer.Stats!.GetValueOrDefault(ScoreType.EffectiveAllyHealing)-before,30),"MMR healing gives no farming credit for unaudited damage or overheal");
     healer.UpdateData(new UnitUpdate{Health=20});debt.Invoke(healer,[30f,TeamType.Team2]);
     gain=healer.AddHealth(20,out credit);healer.Healed(gain,healer.GetSelfSource(),healer,credit);
-    Check(Near(healer.Stats.GetValueOrDefault(ScoreType.EffectiveAllyHealing)-before,30),"MMR self healing grants no utility");
+    Check(Near(healer.Stats!.GetValueOrDefault(ScoreType.EffectiveAllyHealing)-before,30),"MMR self healing grants no utility");
     return true;
 });
 

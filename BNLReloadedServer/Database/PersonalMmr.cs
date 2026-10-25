@@ -14,7 +14,8 @@ public sealed record MmrAward(uint PlayerId, double Base, double Performance, do
 // their weight is never transferred to combat. Values are per active participation minute.
 public sealed record MmrReference(uint Hero, uint Mode, uint Map, long Before, string Version,
     int Players, double[] Kills, double[] Assists, double[] Damage,
-    double[]? EffectiveAllyHealing = null, double[]? Objective = null, MatchType? GameType = null, string Loadout = "/");
+    double[]? EffectiveAllyHealing = null, double[]? Objective = null, MatchType? GameType = null, string Loadout = "/",
+    string Scope = "exact");
 
 public static class MmrReferenceFile
 {
@@ -25,6 +26,16 @@ public static class MmrReferenceFile
         // An invalid calibration file must not prevent outcome/abandonment settlement.
         try { return JsonSerializer.Deserialize<List<MmrReference>>(File.ReadAllText(path))??[]; }
         catch(Exception ex) when(ex is IOException or JsonException or UnauthorizedAccessException) { return []; }
+    }
+
+    public static IReadOnlyList<MmrReference> ForMatch(SQLiteConnection db, CompletedMatchRecord match)
+    {
+        var result=Load().ToList();
+        // Bounded immutable history; never include the current/future match.
+        var history=db.Query<MmrMatchSettlement>("SELECT * FROM MmrMatches ORDER BY rowid DESC LIMIT 500")
+            .Select(r=>MmrLedger.Decode(r.Payload)).ToArray();
+        result.AddRange(MmrReferenceTrainer.BuildBeta(history,checked((long)match.StartedAt-1)));
+        return result;
     }
 }
 
@@ -99,19 +110,29 @@ public static class PersonalMmr
         var heroes=p.Presences.Select(s=>s.HeroKey.Hash).Distinct().ToArray();
         var loadouts=p.Presences.Select(Loadout).Distinct().ToArray();
         if (loadouts.Length!=1 || heroes.Length!=1 || seconds<180 || seconds<.8*duration || p.RawStats.Count==0) return 0;
-        var r=references.Where(r=>r.Hero==heroes[0] && r.Mode==m.GameModeKey.Hash && r.Map==m.MapKey.Hash && r.GameType==m.MatchType && r.Loadout==loadouts[0] &&
-            r.Before<(long)m.StartedAt && r.Players>=20 && r.Kills is {Length:>=100}).OrderByDescending(r=>r.Before).FirstOrDefault();
-        if(r is null || new[]{r.Kills,r.Assists,r.Damage}.Any(a=>a is null || a.Length<100 || a.Any(x=>!double.IsFinite(x)||x<0))) return 0;
+        bool Valid(double[]? values,int minimum)=>values is not null && values.Length>=minimum && values.All(x=>double.IsFinite(x)&&x>=0);
+        bool Eligible(MmrReference candidate)
+        {
+            if(candidate.Hero!=heroes[0] || candidate.Mode!=m.GameModeKey.Hash || candidate.Before>=(long)m.StartedAt)return false;
+            bool exact=candidate.Scope=="exact";
+            if(exact ? candidate.Map!=m.MapKey.Hash || candidate.GameType!=m.MatchType || candidate.Loadout!=loadouts[0] :
+                candidate.Scope!="beta-v2" || candidate.GameType!=m.MatchType)return false;
+            int minimum=exact?100:10;
+            return candidate.Players>=(exact?20:5) && Valid(candidate.Kills,minimum) && Valid(candidate.Assists,minimum) && Valid(candidate.Damage,minimum);
+        }
+        var r=references.Where(Eligible).OrderBy(r=>r.Scope=="exact"?0:1).ThenByDescending(r=>r.Before).FirstOrDefault();
+        if(r is null)return 0;
+        int minimum=r.Scope=="exact"?100:10;
         double Rate(double v)=>v*60/seconds;
         var combat=(Percentile(Rate(p.Stats.GetValueOrDefault(PlayerMatchStatType.Kill)),r.Kills)+
             Percentile(Rate(p.Stats.GetValueOrDefault(PlayerMatchStatType.Assist)),r.Assists)+
             Percentile(Rate(p.RawStats.GetValueOrDefault(ScoreType.DamagePlayerByHero)+p.RawStats.GetValueOrDefault(ScoreType.DamagePlayerByBlock)),r.Damage))/3;
         // Legacy healing can include self-healing; only separately audited counters may earn utility.
-        var utility = p.EffectiveAllyHealing is { } healing && double.IsFinite(healing) && healing>=0 && r.EffectiveAllyHealing is {Length: >=100} heals && heals.All(x=>double.IsFinite(x)&&x>=0)
-            ? 2*Percentile(Rate(healing),heals)-1 : 0;
+        var utility = p.EffectiveAllyHealing is { } healing && double.IsFinite(healing) && healing>=0 && Valid(r.EffectiveAllyHealing,minimum)
+            ? 2*Percentile(Rate(healing),r.EffectiveAllyHealing!)-1 : 0;
         // Zero objective damage is neutral without opportunity/defense telemetry, not a failure.
         var objective = p.Stats.GetValueOrDefault(PlayerMatchStatType.Objective);
-        var objectiveScore=objective>0 && r.Objective is {Length: >=100} objectives && objectives.All(x=>double.IsFinite(x)&&x>=0) ? Math.Max(0,2*Percentile(Rate(objective),objectives)-1):0;
+        var objectiveScore=objective>0 && Valid(r.Objective,minimum) ? Math.Max(0,2*Percentile(Rate(objective),r.Objective!)-1):0;
         return Math.Clamp(.4*(2*combat-1)+.3*utility+.3*objectiveScore,-1,1);
     }
 

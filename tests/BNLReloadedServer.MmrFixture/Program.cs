@@ -77,6 +77,39 @@ scored.Players[0].Stats[PlayerMatchStatType.Destroyed]=int.MaxValue;
 Check(PersonalMmr.Performance(scored,scored.Players[0],[reference])==-.4,"legacy Destroyed never awards performance");
 Check(PersonalMmr.Performance(scored,scored.Players[0],[reference with{Before=(long)scored.StartedAt}])==0,"no future/current match reference leakage");
 Check(PersonalMmr.Performance(scored,scored.Players[0],[reference with{Players=19}])==0,"sparse cohort fallback");
+var betaReference=reference with{Scope="beta-v2",Map=0,Loadout="*",Players=5,Kills=Enumerable.Repeat(1d,10).ToArray(),Assists=Enumerable.Repeat(1d,10).ToArray(),Damage=Enumerable.Repeat(1d,10).ToArray()};
+Check(PersonalMmr.Performance(scored,scored.Players[0],[betaReference])==-.4,"beta pooled cohort activates at ten samples/five players");
+Check(PersonalMmr.Performance(scored,scored.Players[0],[betaReference with{Players=4}])==0,"beta requires five distinct players");
+Check(PersonalMmr.Performance(scored,scored.Players[0],[betaReference with{Damage=new double[9]}])==0,"beta requires ten samples in each combat component");
+Check(PersonalMmr.Performance(scored,scored.Players[0],[betaReference with{Scope="typo"}])==0,"unknown cohort scope cannot bypass exact gates");
+Check(PersonalMmr.Performance(scored,scored.Players[0],[betaReference with{Mode=new Key("game_mode_ranked").Hash}])==0,"beta never crosses queues");
+Check(PersonalMmr.Performance(scored,scored.Players[0],[betaReference with{GameType=null}])==0,"fresh beta never crosses match types");
+Check(PersonalMmr.Performance(scored,scored.Players[0],[betaReference with{Before=(long)scored.StartedAt}])==0,"beta excludes current/future cohorts");
+var betaHealing=Match();betaHealing.Players[0].RawStats[ScoreType.DamagePlayerByHero]=1;betaHealing.Players[0].EffectiveAllyHealing=1000;
+var healerReference=betaReference with{EffectiveAllyHealing=Enumerable.Repeat(1d,10).ToArray()};
+Check(Math.Abs(PersonalMmr.Performance(betaHealing,betaHealing.Players[0],[healerReference])+.1)<1e-9,"audited beta ally healing activates full utility component");
+Check(PersonalMmr.Performance(betaHealing,betaHealing.Players[0],[healerReference with{Scope="beta-legacy",GameType=null}])==0,"historical cohorts cannot award performance");
+var preferred=betaReference with{Kills=new double[10],Assists=new double[10],Damage=new double[10]};
+Check(PersonalMmr.Performance(scored,scored.Players[0],[reference,preferred])==-.4,"exact calibration takes precedence over pooled beta");
+Check(PersonalMmr.Performance(scored,scored.Players[0],[betaReference with{Damage=[double.NaN]},preferred])>0,"invalid cohort does not hide valid fallback");
+var training=Enumerable.Range(0,2).Select(_=>Match()).ToArray();
+foreach(var m in training)foreach(var p in m.Players){p.Stats[PlayerMatchStatType.Kill]=1;p.Stats[PlayerMatchStatType.Assist]=1;p.Stats[PlayerMatchStatType.Objective]=0;p.RawStats[ScoreType.DamagePlayerByHero]=10;p.EffectiveAllyHealing=0;}
+var freshProfiles=MmrReferenceTrainer.BuildBeta(training,3000000);
+Check(freshProfiles.Count==1&&freshProfiles[0].Scope=="beta-v2"&&freshProfiles[0].Kills.Length==16&&freshProfiles[0].EffectiveAllyHealing?.Length==16,"beta trainer emits audited full component cohort");
+Check(MmrReferenceTrainer.Build(training,3000000).Count==0,"strict offline trainer retains strict requirements");
+Check(MmrReferenceTrainer.BuildBeta([training[0],training[0]],3000000).Count==0,"duplicate match cannot create beta training coverage");
+Check(MmrReferenceTrainer.BuildBeta(training,2200000).Count==0,"trainer excludes current and future outcomes");
+Check(MmrReferenceTrainer.BuildBeta(training,3000000+31L*86400000).Count==0,"beta training expires samples beyond thirty days");
+var smallTraining=Enumerable.Range(0,3).Select(i=>{var m=MmrLedger.Decode(MmrLedger.Encode(training[0]));m.MatchId=Guid.NewGuid().ToString();m.Players=m.Players.Where(p=>p.PlayerId is 1 or 2 or 5 or 6).ToList();foreach(var p in m.Players)p.PlayerId+=(uint)i*10;return m;}).ToArray();
+Check(MmrReferenceTrainer.BuildBeta(smallTraining,3000000).Count==0,"unrated small matches cannot train beta cohorts even with enough distinct players");
+using(var betaDb=new SQLiteConnection(":memory:"))
+{
+    MmrLedger.CreateTables(betaDb);
+    foreach(var m in training)betaDb.Insert(new MmrMatchSettlement{MatchId=m.MatchId,Version=2,Payload=MmrLedger.Encode(m)});
+    var next=Match();next.StartedAt=3000000;
+    Check(MmrReferenceFile.ForMatch(betaDb,next).Any(r=>r.Scope=="beta-v2"&&r.EffectiveAllyHealing?.Length==16),"settlement automatically loads full audited beta cohorts from durable history");
+    Check(!MmrReferenceFile.ForMatch(betaDb,training[0]).Any(r=>r.Scope=="beta-v2"),"automatic history cannot train on concurrent/current results");
+}
 var random=new Random(31);
 for(int i=0;i<500;i++)
 {

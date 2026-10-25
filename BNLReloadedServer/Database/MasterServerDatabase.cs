@@ -364,7 +364,7 @@ public class MasterServerDatabase : IMasterServerDatabase
 
             await _playerDb.RunInTransactionAsync(db =>
             {
-                MmrLedger.Apply(db, match, DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(), MmrReferenceFile.Load());
+                MmrLedger.Apply(db, match, DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(), MmrReferenceFile.ForMatch(db,match));
                 // A region can retransmit after losing its master connection. Replacing the complete
                 // aggregate makes the operation idempotent without leaving stale child rows behind.
                 var oldPresenceIds = db.Table<ArchivedMatchPresenceRecord>()

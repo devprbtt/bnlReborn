@@ -10,7 +10,7 @@ Partial-play weights describe lineup participation; a fixture verifies the insta
 
 Contribution is 40% averaged kill/assist/enemy-damage percentiles, 30% effective ally healing, 30% positive-only objective percentile. Zero/below-reference objectives stay neutral without defense/opportunity telemetry. Raw destruction, legacy Destroyed, building, bricks, low deaths and action-score totals never award points. Missing components stay neutral, never redistributed.
 
-Require matching hero, queue, map, match type and perk/device loadout; at least 180 seconds and 80% active participation, single hero/loadout, no disconnect, and 100 reference appearances from 20 players. Sparse cohorts deliberately disable performance. Win factor 1+.50P; loss factor 1-.75P for P>=0, otherwise 1-.25P. Reference/weight choices are provisional, not fitted optimums.
+The open-beta default automatically pools maps/loadouts within the same hero, queue and match type, requiring 10 eligible appearances from five players. Use only v2 records in the last 30 days among the latest 500 settlements, completed before the new match; small unrated matches cannot train beta cohorts. At least 180 seconds and 80% active participation, single hero/loadout and no disconnect are still required. Exact manually supplied map/loadout cohorts require 100 appearances/20 players and take precedence. Sparse cohorts keep performance neutral while outcome, shortage and abandonment apply. Win factor 1+.50P; loss factor 1-.75P for P>=0, otherwise 1-.25P. Reference/weight choices are provisional, not fitted optimums.
 
 Missing-slot exposure uses first assault through authoritative end; missing active boundaries disable shortage. Short-team win/loss factors 1+.50h / 1-.75h; favored-team win 1-.75h, loss 1. Final combined factors are [.25,1.50] wins and [.25,1.25] losses. Discounts scale variance movement; boosts never accelerate certainty. The active interval includes later build/intermission phases; a future per-phase timeline could refine this heuristic.
 
@@ -36,7 +36,7 @@ Effective ally healing reuses RepairDamageCredit on players: actual enemy health
 
 ## Calibration and replay
 
-No calibration file is shipped. Missing/invalid Configs/mmr-references-v2.json means neutral performance; outcome/shortage/abandonment rules still function. Generate candidate references from new v2 telemetry, review offline on held-out later matches, then install a validated calibration separately:
+No historical calibration file is shipped. Missing/invalid Configs/mmr-references-v2.json falls back to automatic beta-v2 cohorts from immutable settled matches. Fresh effective ally-healing counters enable the utility component without an operator step once sufficient samples exist. Exact offline calibration remains available as an override:
 
 ```powershell
 dotnet run --project tests/BNLReloadedServer.MmrFixture -c Release
@@ -44,7 +44,7 @@ dotnet run --project tests/BNLReloadedServer.MmrFixture -c Release -- --replay s
 dotnet run --project tests/BNLReloadedServer.MmrFixture -c Release -- --calibrate playerData-copy.db references.json CUTOFF_UNIX_MS
 ```
 
-Calibration opens SQLite read-only, deduplicates matches and excludes abandoned/short/switched/disconnected appearances. Reference timestamps strictly precede evaluated matches. Historical build-inclusive duration and generic healing cannot silently become v2 training samples. Generating a calibration file does not activate it.
+Calibration opens SQLite read-only, deduplicates matches and excludes abandoned/short/switched/disconnected appearances. Reference timestamps strictly precede evaluated matches. Historical build-inclusive duration and generic healing cannot silently become v2 training samples. Generating an exact calibration file does not install it. The automatic beta path is active at runtime and reconstructs cohorts after restart; it is not shadow mode. Unsupported heroes remain outcome/shortage-only during their warm-up. No class coefficients or the 75%/25% loss sensitivities were changed. Historical bootstrap was rejected because the recent usable sample covered only one hero at beta thresholds.
 
 October 25's 30-day snapshot: 124 matches / 1,073 appearances / 68 players (110 casual, 14 ranked), all parseable with no missing rating seeds. Replay flags 65 possible abandonments and 20 genuine backfills. Comparator: original-roster outcome-only TrueSkill, not exact legacy quit-bug behavior. Historical performance adjustments are zero because required telemetry/reference coverage is missing. A separate sensitivity run uses archive/build start for shortage. Older completion anomalies mean flags are not grounds for retrospective punishment.
 
@@ -53,3 +53,9 @@ Reevaluation did not demonstrate better prediction; abandonment penalties remove
 ## Delivery
 
 Commit/push all server changes to devprbtt/bnlReborn. Deployment is separate. Before release prepare matching versioned changelog, launcher PatchNotes.cs, in-game RebornHomeNotes.json and website notes. Launcher/in-game notes are not live until the later signed client release. This branch reserves no release identity and publishes nothing.
+
+## Beta audit and rollout
+
+Run `python tools/mmr_beta_audit.py /path/to/playerData.db --days 7` on a read-only-accessible database or consistent backup. Reports actual net changes, abandonment counts, ordinary adjustments and standardized performance uplift by hero/class; no credentials or account sessions are read. Zero performance is not synonymous with missing calibration. Check class/hero coverage and actual losses as well as aggregate drift.
+
+Deploy only after draining active matches, preserving a consistent SQLite backup, and verifying health on the new server revision. Do not mix v2 result producers with old settlement consumers. No historical reset, recalculation or retrospective penalty. The client wire remains compatible. Code and automated fixtures do not substitute for a live multiplayer acceptance check. Prepared player notes are under MMR v2 beta (pending); publishing and deployment remain separate from implementation.
