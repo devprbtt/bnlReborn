@@ -1,6 +1,6 @@
 # Personal MMR v2 and abandonment settlement
 
-Implemented on feature/mmr-v2-abandonment from production dbceafb. Not deployed. Public friendly/ranked MatchmakerInitiator matches only; clan/custom/training stay separate. No historical penalties or reset.
+Implemented on feature/mmr-v2-abandonment from production dbceafb. Code revision f81d8db305cb8f159f7a5be8c1ff13c0e1360c38 deployed on October 25, 2026 at 15:22 UTC after owner authorization to restart immediately. Public friendly/ranked MatchmakerInitiator matches only; clan/custom/training stay separate. No historical penalties or reset.
 
 ## Rating policy
 
@@ -52,10 +52,12 @@ Reevaluation did not demonstrate better prediction; abandonment penalties remove
 
 ## Delivery
 
-Commit/push all server changes to devprbtt/bnlReborn. Deployment is separate. Before release prepare matching versioned changelog, launcher PatchNotes.cs, in-game RebornHomeNotes.json and website notes. Launcher/in-game notes are not live until the later signed client release. This branch reserves no release identity and publishes nothing.
+Commit/push all server changes to devprbtt/bnlReborn. Deployment is separate. Before release prepare matching versioned changelog, launcher PatchNotes.cs, in-game RebornHomeNotes.json and website notes. Launcher/in-game notes are not live until the later signed client release. Server release identity is MMR v2 beta; no client version bump. Website and launcher feed are published, while compiled launcher and in-game notes remain prepared for a later signed client release.
 
 ## Beta audit and rollout
 
 Run `python tools/mmr_beta_audit.py /path/to/playerData.db --days 7` on a read-only-accessible database or consistent backup. Reports actual net changes, abandonment counts, ordinary adjustments and standardized performance uplift by hero/class; no credentials or account sessions are read. Zero performance is not synonymous with missing calibration. Check class/hero coverage and actual losses as well as aggregate drift.
 
-Deploy only after draining active matches, preserving a consistent SQLite backup, and verifying health on the new server revision. Do not mix v2 result producers with old settlement consumers. No historical reset, recalculation or retrospective penalty. The client wire remains compatible. Code and automated fixtures do not substitute for a live multiplayer acceptance check. Prepared player notes are under MMR v2 beta (pending); publishing and deployment remain separate from implementation.
+Deploy only after draining active matches, preserving a consistent SQLite backup, and verifying health on the new server revision. Do not mix v2 result producers with old settlement consumers. No historical reset, recalculation or retrospective penalty. The client wire remains compatible. Code and automated fixtures do not substitute for a live multiplayer acceptance check. Player notes are under MMR v2 beta. The owner separately authorized deployment and online-player notifications; no offline notification campaign was requested in the final rollout instruction.
+
+Deployment verification: active release `/opt/bnlreloaded/releases/f81d8db305cb`; DLL SHA256 `858cdae31d0b617694714663a7b36b6de6fd6f65efeef5dd86d491d2ec202260`; dependency/runtime JSON matched the previous release semantically. Database backup `/root/config-backups/mmr-v2-before-20261025T152240Z/playerData.db` passed quick_check (217 accounts). Rollback pointer snapshot `/root/config-backups/bnl-server-hotfix-20261025T152248Z`. Service active, NRestarts=0, no error-priority journal entries; new MMR tables empty at verification, so no live settled-match acceptance claim. Notifications broadcast to seven online players before restart and five online players after startup. Website/feed plus rules page published and public hashes verified.
