@@ -109,7 +109,8 @@ public class MasterServerDatabase : IMasterServerDatabase
     {
         long now = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
         long[] modes = [CatalogueHelper.ModeRanked.Key.Hash, CatalogueHelper.ModeFriendly.Key.Hash];
-        var boards = PlayerStatLeaderboards.ReadAll(db, false, now, modes, includeAllLeaders: true);
+        var boards = PlayerStatLeaderboards.ReadAll(db, false, now, modes, includeAllLeaders: true,
+            casualModeKey: CatalogueHelper.ModeFriendly.Key.Hash);
         var winners = PlayerStatLeaderboards.StatNames.ToDictionary(p => p.Key,
             p => boards[p.Value].Rows.Where(r => r.Rank == 1).Select(r => r.PlayerId).ToHashSet());
         winners["league"] = LeagueSeasons.Snapshot.Values.Where(s => s.Rank == 1).Select(s => s.PlayerId).ToHashSet();
@@ -459,7 +460,8 @@ public class MasterServerDatabase : IMasterServerDatabase
         long[] modes = [CatalogueHelper.ModeRanked.Key.Hash, CatalogueHelper.ModeFriendly.Key.Hash];
         PlayerLeaderboard result = null!;
         await _playerDb.RunInTransactionAsync(db =>
-            result = PlayerStatLeaderboards.Read(db, stat, recentOnly, DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(), modes));
+            result = PlayerStatLeaderboards.Read(db, stat, recentOnly, DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(), modes,
+                CatalogueHelper.ModeFriendly.Key.Hash));
         lock (_leaderboardCache) _leaderboardCache[(stat, recentOnly)] = (DateTimeOffset.UtcNow, result);
         return result;
     }

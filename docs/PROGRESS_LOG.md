@@ -65,3 +65,10 @@ Old bot credential rejected by Discord; main service had over 32,000 restarts. N
 - Deleted retired Chinese unit and /etc/bnl/discordbot/china.env; unit is not-found/inactive. Deployment/reconnect tooling now targets only the Reborn bot. Temporary token staging file removed. Historical source archives and log entries retained as provenance.
 - READY and local status count verified; Discord member list visibly displays BlockNLoad Reborn online with “0 players online”, matching the local endpoint. Targeted bot-only socket interruption produced RESUMED and immediate presence refresh, unchanged PID 1588486, NRestarts=0. Game service remained PID 1467174, NRestarts=0 throughout; no game restart or client release.
 - Final check: minute refresh observed at 01:36:37 UTC (poll 7); bot enabled at boot, RestartPreventExitStatus=78, zero restarts.
+
+## 2026-10-24 - Per-match leaderboards, casual MMR board, weather from map load (not deployed)
+
+- Count boards (kills, headshots, assists, objective damage, kill-chain accolades) rank the average per counted match; average DPS, win rate and KDR stay rates; hours, matches and best streak stay totals/the record. Every board needs 20 counted Ranked/Casual rounds (`MinMatchesPlayed`); accolade averages divide by, and need 20 of, the rounds tracked since accolades began.
+- New `casual_mmr` board: account casual rating (LeagueRules.Points) for ladder accounts with 20 counted casual rounds; no trophy (LeaderboardTrophies.Names unchanged). Trophy descriptions reworded for averages and checked against the 240-character limit (the first draft overflowed for Unbelievable and would have failed trophy install at startup).
+- `WeatherStartTime` is now the zone creation time instead of the first assault, so clients can start the day/night cycle at a seeded random point from map load (client beta.81). Current clients run their existing schedule from map load.
+- PlayerLeaderboardFixture 36 checks, TrophyFixture 64, ClanFightFixture pass; Release build -warnaserror clean.

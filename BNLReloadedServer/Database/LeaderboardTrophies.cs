@@ -21,16 +21,16 @@ public static class LeaderboardTrophies
         if (stat == "league") return "Current season #1: highest placed League rank. Based on Ranked results. Held only while leading this season; transfers when the lead changes.";
         string meaning = stat switch
         {
-            "kills" => "most credited player kills",
-            "headshots" => "most kills finished with a headshot, not total headshot hits",
-            "average_dps" => "highest player damage from heroes and devices per second played. Minimum 10 qualifying matches",
-            "assists" => "most credited assists in player kills",
-            "objective_damage" => "most damage dealt to enemy objectives",
+            "kills" => "highest average credited player kills per match",
+            "headshots" => "highest average kills finished with a headshot per match, not headshot hits",
+            "average_dps" => "highest player damage from heroes and devices per second played",
+            "assists" => "highest average credited assists per match",
+            "objective_damage" => "highest average damage dealt to enemy objectives per match",
             "hours" => "most time played in qualifying matches, excluding disconnected time",
             "matches" => "most qualifying matches played, won or lost",
-            "win_rate" => "highest percentage of qualifying matches won. Minimum 10 matches",
-            "kdr" => "highest kills divided by deaths (at least 1 death used as divisor). Minimum 10 qualifying matches",
-            "first_kills" => "most First Kill awards for scoring a match's first counted kill",
+            "win_rate" => "highest percentage of qualifying matches won",
+            "kdr" => "highest kills divided by deaths (at least 1 death used as divisor)",
+            "first_kills" => "highest average First Kill awards per match, for scoring a match's first counted kill",
             "double_kills" => Chain("Double Kill", "2nd"),
             "multi_kills" => Chain("Multi Kill", "3rd"),
             "ultra_kills" => Chain("Ultra Kill", "4th"),
@@ -43,7 +43,7 @@ public static class LeaderboardTrophies
     }
 
     private static string Chain(string name, string ordinal) =>
-        "most " + name + " awards: " + ordinal + " kill in a chain, at most 8s between kills; death ends the chain";
+        "highest average " + name + " awards per match: " + ordinal + " kill in a chain, at most 8s between kills; death ends the chain";
 
     // Assets ship with the server; import before granting anything, fail closed if the package is incomplete.
     public static void InstallArt(SQLiteConnection db, string assets, string images, long now)

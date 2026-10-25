@@ -89,6 +89,9 @@ public partial class GameZone : Updater
     private readonly List<Unit> _unitsToDrop = [];
 
     private DateTimeOffset? _attackStartTime;
+    // Dynamic weather runs from map load, not the first assault: clients derive the starting time of day and the rain
+    // schedule from this epoch, so a match no longer always opens at the same time of day.
+    private readonly DateTimeOffset _weatherEpoch = DateTimeOffset.Now;
 
     private Task? _gameLoop;
     private Task? _endMatchTask;
@@ -790,7 +793,7 @@ public partial class GameZone : Updater
         {
             ConquestStateJson = ConquestSnapshot(),
             ActionScoresJson = ScoreSnapshot(),
-            WeatherStartTime = ParadiseWeatherRegistration.StartTime(_zoneData.MapKey, _attackStartTime),
+            WeatherStartTime = ParadiseWeatherRegistration.StartTime(_zoneData.MapKey, _weatherEpoch),
             BlockOwnersJson = BlockOwnerSnapshot(),
             Phase = _zoneData.Phase,
             PlayerInfo = _zoneData.PlayerInfo,
@@ -937,7 +940,7 @@ public partial class GameZone : Updater
 
         var phaseUpdate = new ZoneUpdate
         {
-            WeatherStartTime = ParadiseWeatherRegistration.StartTime(_zoneData.MapKey, _attackStartTime),
+            WeatherStartTime = ParadiseWeatherRegistration.StartTime(_zoneData.MapKey, _weatherEpoch),
             Phase = new ZonePhase
             {
                 PhaseType = nextPhase,
@@ -1109,7 +1112,7 @@ public partial class GameZone : Updater
                 PlayerSpawnPoints = _zoneData.PlayerSpawnPoints,
                 ConquestStateJson = ConquestSnapshot(),
             ActionScoresJson = ScoreSnapshot(),
-                WeatherStartTime = ParadiseWeatherRegistration.StartTime(_zoneData.MapKey, _attackStartTime),
+                WeatherStartTime = ParadiseWeatherRegistration.StartTime(_zoneData.MapKey, _weatherEpoch),
                 BlockOwnersJson = BlockOwnerSnapshot(),
                 Phase = _zoneData.Phase,
                 PlayerInfo = _zoneData.PlayerInfo,
@@ -1169,7 +1172,7 @@ public partial class GameZone : Updater
         {
             ConquestStateJson = ConquestSnapshot(),
             ActionScoresJson = ScoreSnapshot(),
-            WeatherStartTime = ParadiseWeatherRegistration.StartTime(_zoneData.MapKey, _attackStartTime),
+            WeatherStartTime = ParadiseWeatherRegistration.StartTime(_zoneData.MapKey, _weatherEpoch),
             BlockOwnersJson = BlockOwnerSnapshot(),
             Phase = _zoneData.Phase,
             SpawnPoints = _zoneData.SpawnPoints.Values.ToList()
