@@ -34,6 +34,8 @@ public sealed class ActionScoreRules
     public int Fantastic { get; set; } = 150;
     public int Unbelievable { get; set; } = 175;
     public int Assist { get; set; } = 25;
+    // Replaces the assist for the assister who dealt the victim the most damage (ties share it).
+    public int KeyAssist { get; set; } = 35;
     public int Headshot { get; set; } = 10;
     public int Supply { get; set; } = 25;
     public int Blockbuster { get; set; } = 100;
@@ -52,6 +54,8 @@ public sealed class ActionScoreRules
     public int DeviceMax { get; set; } = 50;
     public float ObjectiveRadius { get; set; } = 12;
     public float ObjectiveBonus { get; set; } = .25f;
+    // Kills near an objective get at least this objective bonus (the percentage bonus when that is larger).
+    public int KillObjectiveBonus { get; set; } = 20;
     public float SpotCooldown { get; set; } = 15;
     public float BuildCooldown { get; set; } = 30;
     public float CubeAssistWindow { get; set; } = 30;
@@ -70,6 +74,7 @@ public sealed class ActionScoreRules
         }
         if (FirstKill <= Kill || DoubleKill <= FirstKill || MultiKill <= DoubleKill || UltraKill <= MultiKill || Fantastic <= UltraKill || Unbelievable <= Fantastic)
             throw new InvalidDataException("Kill accolade scores must increase above the regular kill value");
+        if (KeyAssist < Assist) throw new InvalidDataException("Key assist must not be worth less than an assist");
         if (BuildCostPerPoint == 0 || BuildMax < BuildMin || TonyRepairPerPoint == 0 || DocAbilityHealPerPoint == 0 || HealPerPoint == 0 || DeviceDamagePerPoint == 0 || DeviceCostPerPoint == 0 || ContinuousChunk == 0 || DeviceMax < DeviceMin)
             throw new InvalidDataException("Invalid action score denominator or device range");
     }

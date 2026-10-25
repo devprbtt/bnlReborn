@@ -73,7 +73,7 @@ public partial class GameZone
             "Ally boosted" => rules.AstarellaBoost, "Reload boost" => rules.KiraReloadBoost, "Enemy frightened" => rules.KreepyFear,
             "First kill" => rules.FirstKill, "Double kill" => rules.DoubleKill, "Multi kill" => rules.MultiKill,
             "Ultra kill" => rules.UltraKill, "Fantastic" => rules.Fantastic, "Unbelievable" => rules.Unbelievable,
-            "Kill" => rules.Kill, "Assist" => rules.Assist, "Headshot" => rules.Headshot,
+            "Kill" => rules.Kill, "Assist" => rules.Assist, "Key assist" => rules.KeyAssist, "Headshot" => rules.Headshot,
             "Supply pickup" => rules.Supply, "Blockbuster pickup" => rules.Blockbuster,
             "Cube destroyed" => rules.Cube, "Cube assist" => rules.CubeAssist,
             "Device built" => ledger.BuildValue(amount), "Device destroyed" => ledger.DeviceValue(amount),
@@ -105,7 +105,10 @@ public partial class GameZone
             attacker == player, attacker?.UnitCard?.DeviceType) == DamageCreditType.Block)
             AwardAction(player, "Device damage", damage, target.GetMidpoint(), target.Id);
     }
-    private void ScoreKill(Unit target, Unit? killer, bool opponent, bool headshot, IEnumerable<uint> assists, KillAccolade? accolade = null)
+    // Ice (Yeti/Abe block_ice and variants) gives no destruction score: it is cheap, temporary and mass-spawned.
+    public static bool ExcludedDestroyScore(string? cardId) => cardId != null && Unit.ScoreCardFamily(cardId, "block_ice");
+    private void ScoreKill(Unit target, Unit? killer, bool opponent, bool headshot, IEnumerable<uint> assists, KillAccolade? accolade = null,
+        IReadOnlySet<uint>? topDamagers = null)
     {
         if (!CanScore || !target.IsActive) return;
         var position = target.GetMidpoint();
@@ -120,9 +123,10 @@ public partial class GameZone
                 AwardAction(killer, reason, 1, position, target.Id);
                 if (headshot) AwardAction(killer, "Headshot", 1, position, target.Id);
             }
+            // The assister who dealt the most damage (TopDamagers, the Accomplice rule; ties share) earns a key assist instead.
             foreach (var id in assists.Distinct())
                 if (GetPlayerFromPlayerId(id) is { } helper && AreOpponents(target, helper))
-                    AwardAction(helper, "Assist", 1, position, target.Id);
+                    AwardAction(helper, topDamagers?.Contains(id) == true ? "Key assist" : "Assist", 1, position, target.Id);
         }
         else if (target.UnitCard?.IsObjective == true)
         {
@@ -144,7 +148,7 @@ public partial class GameZone
                         GetPlayerFromPlayerId(pair.Key) is { } helper && AreOpponents(target, helper))
                         AwardAction(helper, "Cube assist", 1, position, target.Id);
         }
-        else if (killer != null && opponent && target.Team != TeamType.Neutral && IsScoreDevice(target.UnitCard))
+        else if (killer != null && opponent && target.Team != TeamType.Neutral && IsScoreDevice(target.UnitCard) && !ExcludedDestroyScore(target.UnitCard?.Id))
             AwardAction(killer, "Device destroyed", Math.Max(1, target.UnitCard?.BaseCost ?? 0), position, target.Id);
     }
     private string ScoreSnapshot()

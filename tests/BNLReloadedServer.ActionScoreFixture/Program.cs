@@ -42,7 +42,7 @@ Check(participant.TotalScore==75 && participant.Stats[PlayerMatchStatType.Action
 var flags=BindingFlags.Instance|BindingFlags.NonPublic;
 var zone=(GameZone)RuntimeHelpers.GetUninitializedObject(typeof(GameZone));
 void Set(string name,object value)=>typeof(GameZone).GetField(name,flags)!.SetValue(zone,value);
-object? Call(string name,params object?[] values)=>typeof(GameZone).GetMethod(name,flags)!.Invoke(zone,name=="ScoreKill" && values.Length==5?values.Concat(new object?[]{null}).ToArray():values);
+object? Call(string name,params object?[] values)=>typeof(GameZone).GetMethod(name,flags)!.Invoke(zone,name=="ScoreKill" && values.Length<7?values.Concat(Enumerable.Repeat<object?>(null,7-values.Length)).ToArray():values);
 var data=(ZoneData)RuntimeHelpers.GetUninitializedObject(typeof(ZoneData));data.Phase=new ZonePhase{PhaseType=ZonePhaseType.Assault};
 Set("_zoneData",data);Set("_gameInitiator",DispatchProxy.Create<IGameInitiator,EmptyInitiator>());Set("_actionScoreRules",rules);Set("_scoreClock",Stopwatch.StartNew());
 var actual=new ActionScoreLedger(rules);Set("_actionScores",actual);Set("_cubeContributors",new Dictionary<uint,Dictionary<uint,double>>());
@@ -413,6 +413,53 @@ for(int i=0;i<trapBlocks.Length;i++)
 var trapRules=new ActionScoreRules{MineAffected=21,FireTrapAffected=9,GlueAffected=8,BushAffected=7,TrapEffectCooldown=2};
 var trapRoundtrip=JsonSerializer.Deserialize<ActionScoreRules>(JsonSerializer.Serialize(trapRules,JsonHelper.DefaultSerializerSettings),JsonHelper.DefaultSerializerSettings)!;
 Check(trapRoundtrip.MineAffected==21 && trapRoundtrip.FireTrapAffected==9 && trapRoundtrip.GlueAffected==8 && trapRoundtrip.BushAffected==7 && trapRoundtrip.TrapEffectCooldown==2,"trap points and cooldown round-trip through CDB");
+// Key assist: the top-damage assister earns it instead of a regular assist.
+Check(new ActionScoreRules().KeyAssist==35 && new ActionScoreRules().KillObjectiveBonus==20,"key assist 35 and kill objective bonus 20 by default");
+bool keyRejected=false;try{new ActionScoreRules{KeyAssist=10}.Validate();}catch(InvalidDataException){keyRejected=true;}
+Check(keyRejected,"a key assist worth less than an assist is rejected");
+var keyLedger=new ActionScoreLedger(rules);Set("_actionScores",keyLedger);
+var helper2=Make(901,playerCard,TeamType.Team1,901);var keyVictim=Make(902,playerCard,TeamType.Team2,902);
+Call("ScoreKill",keyVictim,a,true,false,new uint[]{2,901},null,new HashSet<uint>{2});
+Check(keyLedger.Total(2)==rules.KeyAssist && keyLedger.Total(901)==rules.Assist && keyLedger.Total(1)==rules.Kill,"top damager gets a key assist; other assisters a regular assist; the killer only the kill");
+Call("ScoreKill",keyVictim,a,true,false,new uint[]{2,901},null,new HashSet<uint>{2,901});
+Check(keyLedger.Total(2)==2*rules.KeyAssist && keyLedger.Total(901)==rules.Assist+rules.KeyAssist,"tied top damagers each get a key assist");
+Call("ScoreKill",keyVictim,a,true,false,new uint[]{2},null,new HashSet<uint>{1});
+Check(keyLedger.Total(2)==2*rules.KeyAssist+rules.Assist,"the killer leading on damage leaves assisters with a regular assist");
+// Kills near an objective earn at least +20; other actions keep the percentage.
+var near=new ActionScoreLedger(rules);
+near.Grant(1,"Kill",rules.Kill,true);Check(near.Total(1)==rules.Kill+20,"a kill near an objective earns +20");
+near.Grant(2,"First kill",rules.FirstKill,true);Check(near.Total(2)==rules.FirstKill+20,"accolade kills near an objective earn at least +20");
+near.Grant(3,"Unbelievable",rules.Unbelievable,true);Check(near.Total(3)==rules.Unbelievable+(int)Math.Floor(rules.Unbelievable*rules.ObjectiveBonus),"large accolades keep the larger percentage bonus");
+near.Grant(4,"Key assist",rules.KeyAssist,true);Check(near.Total(4)==rules.KeyAssist+(int)Math.Floor(rules.KeyAssist*rules.ObjectiveBonus),"assists keep the percentage objective bonus");
+near.Grant(5,"Kill",rules.Kill,false);Check(near.Total(5)==rules.Kill,"kills away from objectives get no bonus");
+// Ice gives no destruction score.
+var iceCard=new CardUnit {Id="block_ice",DeviceType=DeviceType.Hero,BaseCost=400,Data=new UnitDataCommon(),Health=new UnitHealth{Health=new Health{MaxHealth=100,HealthType=HealthType.World}}};
+var iceVariant=new CardUnit {Id="block_ice_abe",DeviceType=DeviceType.Hero,BaseCost=400,Data=new UnitDataCommon(),Health=new UnitHealth{Health=new Health{MaxHealth=100,HealthType=HealthType.World}}};
+heroCatalogue.AddRange([cubeCard,iceCard,iceVariant]);db.Replicate(heroCatalogue);
+var iceLedger=new ActionScoreLedger(rules);Set("_actionScores",iceLedger);
+var ice=Make(903,iceCard,TeamType.Team2);var ice2=Make(904,iceVariant,TeamType.Team2);
+Check(ice.UnitCard?.Id=="block_ice" && ice2.UnitCard?.Id=="block_ice_abe" && ice.UnitCard?.DeviceType==DeviceType.Hero,"ice fixture units resolve their cards");
+Call("ScoreKill",ice,a,true,false,Array.Empty<uint>());
+Call("ScoreKill",ice2,a,true,false,Array.Empty<uint>());
+Check(iceLedger.Total(1)==0,"destroying enemy ice (and its variants) gives no device score");
+Call("ScoreKill",Make(905,deviceCard,TeamType.Team2),a,true,false,Array.Empty<uint>());
+Check(iceLedger.Total(1)==iceLedger.DeviceValue(400),"other enemy devices still score");
+// Ice in play is a voxel block: the real destruction path is MapBinary.DamageBlock.
+var iceBlock=new CardBlock{Id="block_ice",BlockId=81,DeviceType=DeviceType.Hero,HasTeam=true,Destructible=true,CanStayInAir=true,BaseCost=400,Health=new Health{MaxHealth=10}};
+var deviceBlock=new CardBlock{Id="score_voxel_device",BlockId=82,DeviceType=DeviceType.Hero,HasTeam=true,Destructible=true,CanStayInAir=true,BaseCost=400,Health=new Health{MaxHealth=10}};
+heroCatalogue.RemoveAll(c=>c.Id=="block_ice");heroCatalogue.AddRange([iceBlock,deviceBlock]);db.Replicate(heroCatalogue);
+var voxels=new MapBinary(3,new byte[4*4*4*6].Zip(0).ToArray(),new Vector3s(4,4,4),-1,new MapUpdater((_,_)=>{},(_,_)=>{},_=>{},_=>true));
+long VoxelDestroyed(ushort blockId,Vector3s at)
+{
+ var ledgerBefore=iceLedger.Total(1);var cell=voxels[at];cell.Id=blockId;cell.Team=TeamType.Team2;cell.Damage=0;
+ voxels.DamageBlock(at,new DamageData(0,0,0,0,0,0,0,0,false,false,false,false){BlockDamage=255},a);
+ Check(voxels[at].Id!=blockId,"fixture voxel "+blockId+" was destroyed");
+ return iceLedger.Total(1)-ledgerBefore;
+}
+Check(VoxelDestroyed(81,new Vector3s(1,1,1))==0,"destroying an enemy ice block gives no device score");
+Check(VoxelDestroyed(82,new Vector3s(2,2,2))==iceLedger.DeviceValue(400),"destroying another enemy hero block still gives device score");
+Check(GameZone.ExcludedDestroyScore("block_ice") && GameZone.ExcludedDestroyScore("block_ice_yeti") && !GameZone.ExcludedDestroyScore("block_icecream") && !GameZone.ExcludedDestroyScore(null),
+    "ice exclusion matches the block_ice family only");
 Console.WriteLine($"PASS action scoring: {checks} checks");
 public class EmptyInitiator : DispatchProxy
 {

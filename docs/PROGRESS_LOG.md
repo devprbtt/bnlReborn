@@ -72,3 +72,10 @@ Old bot credential rejected by Discord; main service had over 32,000 restarts. N
 - New `casual_mmr` board: account casual rating (LeagueRules.Points) for ladder accounts with 20 counted casual rounds; no trophy (LeaderboardTrophies.Names unchanged). Trophy descriptions reworded for averages and checked against the 240-character limit (the first draft overflowed for Unbelievable and would have failed trophy install at startup).
 - `WeatherStartTime` is now the zone creation time instead of the first assault, so clients can start the day/night cycle at a seeded random point from map load (client beta.81). Current clients run their existing schedule from map load.
 - PlayerLeaderboardFixture 36 checks, TrophyFixture 64, ClanFightFixture pass; Release build -warnaserror clean.
+
+## 2026-10-24 - Key assist, kill objective bonus, no ice destruction score (not deployed)
+
+- `Key assist` (KeyAssist 35, CDB-tunable; must be >= Assist) replaces the assist for assisters in TopDamagers (the Accomplice rule: most enemy damage within the assist window, ties share). The killer leading on damage keeps only the kill. Client shows the reason text verbatim, so no client change is needed.
+- Kills (regular and accolades) near an objective get max(+25%, KillObjectiveBonus 20) as the objective bonus; other actions keep +25%.
+- `block_ice` family gives no "Device destroyed" and no Trondson demolition assist, in the voxel path (MapBinary.DamageBlock, the real ice path) and the unit paths. Fixture drives a real MapBinary voxel destruction with a hero-block positive control; disabling the guard makes the ice check fail.
+- Live CDB global_logic.action_scores is null, so code defaults are live. ActionScoreFixture 193, ProgressionFixture 19, ScoreboardMetadataFixture 20, PlayerLeaderboardFixture 36 pass; Release -warnaserror clean.

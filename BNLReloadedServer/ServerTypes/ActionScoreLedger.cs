@@ -44,9 +44,13 @@ public sealed class ActionScoreLedger(ActionScoreRules rules)
     {
         if (points <= 0) return;
         Add(player, reason, points);
-        if (nearObjective && rules.ObjectiveBonus > 0)
-            Add(player, "Objective bonus", Math.Max(1, (int)Math.Floor(points * rules.ObjectiveBonus)));
+        if (!nearObjective) return;
+        int bonus = rules.ObjectiveBonus > 0 ? Math.Max(1, (int)Math.Floor(points * rules.ObjectiveBonus)) : 0;
+        if (IsKill(reason)) bonus = Math.Max(bonus, rules.KillObjectiveBonus);
+        if (bonus > 0) Add(player, "Objective bonus", bonus);
     }
+    public static bool IsKill(string reason) => reason is "Kill" or "First kill" or "Double kill" or "Multi kill" or
+        "Ultra kill" or "Fantastic" or "Unbelievable";
     private void Add(uint player, string reason, int points)
     {
         int granted = Math.Min(points, int.MaxValue - Total(player));

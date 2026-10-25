@@ -1632,7 +1632,7 @@ public partial class GameZone
             : _playerUnits.GetValueOrDefault(_playerIdToUnitId.GetValueOrDefault(impact.CasterPlayerId.Value));
         var killerIsOpponent = killerPlayer is not null && AreOpponents(target, killerPlayer);
         var scoreAccolade = target.IsActive ? RecordKillAccolades(target, killerPlayer, killerIsOpponent, impact.Crit) : null;
-        ScoreKill(target, killerPlayer, killerIsOpponent, impact.Crit, assists, scoreAccolade);
+        ScoreKill(target, killerPlayer, killerIsOpponent, impact.Crit, assists, scoreAccolade, topDamagers);
         ScoreHeroDeviceDestroyed(target, killerPlayer, killer, impact);
 
         var targetTeam = target.Team;

@@ -1033,7 +1033,9 @@ public class MapBinary
                 }
             }
 
-            if (attacker?.PlayerId != null && block.Team != TeamType.Neutral && attacker.Team != block.Team && blockCard.DeviceType is DeviceType.Device or DeviceType.Hero)
+            // Destroying ice earns no device score and no demolition assist (GameZone.ExcludedDestroyScore).
+            if (attacker?.PlayerId != null && block.Team != TeamType.Neutral && attacker.Team != block.Team && blockCard.DeviceType is DeviceType.Device or DeviceType.Hero &&
+                !ServerTypes.GameZone.ExcludedDestroyScore(blockCard.Id))
             {
                 attacker.ReportActionScore("Device destroyed", Math.Max(1, blockCard.BaseCost ?? 0), location.ToVector3());
                 attacker.ReportHeroBoostAction("effect_hero_trondson_heigh_ho_buff", "Demolition boost assist", location.ToVector3());
