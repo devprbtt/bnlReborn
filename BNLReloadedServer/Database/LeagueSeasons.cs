@@ -240,6 +240,42 @@ public static class LeagueSeasons
         return changed;
     }
 
+    // Same policy as casual, but on independent seasonal ratings; placement semantics remain intact.
+    public static void RecordPersonalMatch(SQLiteConnection db, LeagueSeasonRecord season, CompletedMatchRecord match,
+        IReadOnlyDictionary<uint, Rating> hidden, IReadOnlyList<MmrReference> references)
+    {
+        var rows = new Dictionary<uint, LeagueStandingRecord>();
+        foreach(var p in match.Players)
+        {
+            long id=p.PlayerId; string seasonId=season.Id;
+            var row=db.Table<LeagueStandingRecord>().Where(s=>s.PlayerId==id&&s.SeasonId==seasonId).FirstOrDefault();
+            if(row is null)
+            {
+                var start=StartingRating(db,p.PlayerId,hidden[p.PlayerId]);
+                row=new LeagueStandingRecord {SeasonId=seasonId,PlayerId=id,Mean=start.Mean,Deviation=start.StandardDeviation};
+            }
+            rows[p.PlayerId]=row;
+        }
+        var awards=PersonalMmr.Calculate(match,rows.ToDictionary(p=>p.Key,p=>new Rating(p.Value.Mean,p.Value.Deviation)),references);
+        foreach(var a in awards.Where(a=>a.Reason is "outcome" or "abandonment"))
+        {
+            var row=rows[a.PlayerId];
+            var league=db.Find<LeaguePlayerRecord>((long)a.PlayerId)??new LeaguePlayerRecord {PlayerId=a.PlayerId};
+            var boost=league.PlacedAt is null?LeagueRules.PlacementBoost:1;
+            row.Mean+=a.Delta*boost; row.Deviation=a.Deviation; row.Games++;
+            if(match.Winner==PersonalMmr.Team(match.Players.Single(p=>p.PlayerId==a.PlayerId)))row.Wins++;
+            row.UpdatedAt=(long)match.EndedAt;
+            if(league.PlacedAt is null)
+            {
+                league.PlacementGames++;
+                if(league.PlacementGames>=LeagueRules.PlacementGames)
+                {league.PlacedAt=(long)match.EndedAt;row.Mean=Math.Min(row.Mean,LeagueRules.PlacementCap);}
+                db.InsertOrReplace(league);
+            }
+            if(row.RowId==0)db.Insert(row);else db.Update(row);
+        }
+    }
+
     /// <summary>Final standings and rewards for a season: podium trophies for the top three, a tier trophy for every ranked finisher.</summary>
     public static LeagueClose Close(SQLiteConnection db, LeagueSeasonRecord season, DateTimeOffset now)
     {

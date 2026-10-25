@@ -40,7 +40,7 @@ internal sealed class MatchParticipationTracker
         }
         else
         {
-            player.WasBackfiller |= backfiller;
+            // Origin is immutable. An original returning through a replacement slot is still original.
             if (player.Presences.LastOrDefault()?.LeftAt is null) return;
         }
 
@@ -63,7 +63,14 @@ internal sealed class MatchParticipationTracker
     {
         if (_completed) return;
         var presence = _players.GetValueOrDefault(playerId)?.Presences.LastOrDefault();
-        if (presence is null || presence.LeftAt.HasValue) return;
+        if (presence is null) return;
+        if (presence.LeftAt.HasValue)
+        {
+            // Timer expiry / explicit quit after socket loss must survive the earlier Disconnect.
+            if (presence.LeaveKind == MatchLeaveKind.Disconnect && reason is MatchLeaveKind.Quit or MatchLeaveKind.Inactivity)
+                presence.LeaveKind = reason;
+            return;
+        }
         presence.LeftAt = (ulong)at.ToUnixTimeMilliseconds();
         presence.LeaveKind = reason;
     }
@@ -80,6 +87,8 @@ internal sealed class MatchParticipationTracker
         if (stats?.ContainsKey(PlayerMatchStatType.ActionScore) == true) player.TotalScore = total;
         else player.TotalScore += total;
         foreach (var (type, value) in rawStats ?? []) player.RawStats[type] = player.RawStats.GetValueOrDefault(type) + value;
+        if (rawStats is not null)
+            player.EffectiveAllyHealing = player.RawStats.GetValueOrDefault(ScoreType.EffectiveAllyHealing);
         foreach (var (key, value) in deviceStats ?? [])
         {
             if (!player.DeviceStats.TryGetValue(key, out var existing)) player.DeviceStats[key] = existing = new CompletedMatchDeviceStats();

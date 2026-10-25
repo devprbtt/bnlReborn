@@ -721,7 +721,7 @@ public class PlayerDatabase : IPlayerDatabase
         PersistAndReload(Databases.MasterServerDatabase.SetNewMatchDataForPlayer(endMatchResults), endMatchResults.PlayerId);
 
     public void StoreCompletedMatch(CompletedMatchRecord match) =>
-        PersistAndReload(Databases.MasterServerDatabase.StoreCompletedMatch(match));
+        PersistAndReload(Databases.MasterServerDatabase.StoreCompletedMatch(match), match.Players.Select(p => p.PlayerId).ToArray());
 
     public void UpdateFriends(uint receiverId, uint senderId, bool accepted) =>
         PersistAndReload(Databases.MasterServerDatabase.SetFriends(receiverId, senderId, accepted), receiverId, senderId);

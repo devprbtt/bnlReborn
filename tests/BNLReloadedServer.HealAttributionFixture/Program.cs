@@ -130,9 +130,12 @@ Unit Owned(Unit owner) => OnZone(() =>
 });
 var station = Owned(healer);
 var staff = Owned(thirdHealer);
+var effectiveBefore = healer.Stats!.GetValueOrDefault(ScoreType.EffectiveAllyHealing);
+var thirdBefore = thirdHealer.Stats!.GetValueOrDefault(ScoreType.EffectiveAllyHealing);
 var (regenImpacts, gained) = OnZone(() =>
 {
     teammate.UpdateData(new UnitUpdate { Health = 40f });
+    typeof(Unit).GetMethod("RecordRepairDamage",Any)!.Invoke(teammate,[15f,TeamType.Team2]);
     teammate.AddEffects([new ConstEffectInfo(stationRegen.Key)], TeamType.Team1, new UnitSource(station, station.CreateImpactData()));
     teammate.AddEffects([new ConstEffectInfo(staffRegen.Key)], TeamType.Team1, new UnitSource(staff, staff.CreateImpactData()));
     var before = teammate.HealthPercentage;
@@ -146,6 +149,9 @@ var fromStaff = regenImpacts.Where(i => IsAttribution(i, thirdHealer)).Sum(i => 
 Check(gained > 0 && regenImpacts.Count == 2, $"one regen tick healed {gained:0.##} and sent one attribution per healer");
 Check(Near(fromStation + fromStaff, gained), "the regen attributions add up to the health gained");
 Check(Near(fromStation, 2f * fromStaff), "the split follows each healer's regen rate (10 vs 5)");
+Check(Near(healer.Stats!.GetValueOrDefault(ScoreType.EffectiveAllyHealing)-effectiveBefore,fromStation) &&
+    Near(thirdHealer.Stats!.GetValueOrDefault(ScoreType.EffectiveAllyHealing)-thirdBefore,fromStaff),
+    "MMR effective regeneration is split between healers, not all given to the first aura");
 
 // A heal station nobody owns (placed with the map): the attribution names the station unit, with no player.
 var mapStation = OnZone(() =>
@@ -199,6 +205,28 @@ var beforePickup = healer.Stats!.GetValueOrDefault(ScoreType.HealPlayerByBlock);
 Check(Heal(new UnitSource(pickup), healer, 14).Count == 0, "dropped health sends no collector portrait attribution");
 Check(Near(healer.HealthPercentage * 100,54), "pickup still restores 14 health");
 Check(Near(healer.Stats.GetValueOrDefault(ScoreType.HealPlayerByBlock),beforePickup), "pickup does not inflate collector healing given stats");
+
+// MMR utility only credits actual ally healing of outstanding enemy health damage.
+OnZone(() =>
+{
+    var debt=typeof(Unit).GetMethod("RecordRepairDamage",Any)!;
+    teammate.UpdateData(new UnitUpdate {Health=20});
+    debt.Invoke(teammate,[30f,TeamType.Team2]);
+    float before=healer.Stats!.GetValueOrDefault(ScoreType.EffectiveAllyHealing);
+    float gain=teammate.AddHealth(20,out var credit);
+    teammate.Healed(gain,healer.GetSelfSource(),healer,credit);
+    Check(Near(healer.Stats.GetValueOrDefault(ScoreType.EffectiveAllyHealing)-before,20),"MMR healing credits actual ally enemy-damage recovery");
+    gain=teammate.AddHealth(30,out credit); // only ten enemy-damage HP remain
+    teammate.Healed(gain,healer.GetSelfSource(),healer,credit);
+    Check(Near(healer.Stats.GetValueOrDefault(ScoreType.EffectiveAllyHealing)-before,30),"MMR healing cannot exceed remaining enemy damage");
+    gain=teammate.AddHealth(100,out credit);
+    teammate.Healed(gain,healer.GetSelfSource(),healer,credit);
+    Check(Near(healer.Stats.GetValueOrDefault(ScoreType.EffectiveAllyHealing)-before,30),"MMR healing gives no farming credit for unaudited damage or overheal");
+    healer.UpdateData(new UnitUpdate{Health=20});debt.Invoke(healer,[30f,TeamType.Team2]);
+    gain=healer.AddHealth(20,out credit);healer.Healed(gain,healer.GetSelfSource(),healer,credit);
+    Check(Near(healer.Stats.GetValueOrDefault(ScoreType.EffectiveAllyHealing)-before,30),"MMR self healing grants no utility");
+    return true;
+});
 
 zone.Stop();
 Console.WriteLine($"BNL_HEAL_ATTRIBUTION_FIXTURE_OK checks={checks}");

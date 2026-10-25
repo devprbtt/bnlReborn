@@ -38,6 +38,9 @@ public class MasterServerDatabase : IMasterServerDatabase
         _playerDb.CreateTableAsync<ArchivedMatchDeviceRecord>().Wait();
         _playerDb.CreateTableAsync<ArchivedMatchPerkRecord>().Wait();
         EnsureMatchArchiveColumns().Wait();
+        _playerDb.RunInTransactionAsync(MmrLedger.CreateTables).Wait();
+        foreach(var ban in _playerDb.Table<MmrQueuePenalty>().ToListAsync().Result)
+            MmrQueueGuard.Ban(ban.PlayerId,ban.Until);
         _playerDb.ExecuteAsync("CREATE INDEX IF NOT EXISTS IX_MatchPlayers_Player ON MatchPlayers(player_id)").Wait();
         _playerDb.ExecuteAsync("CREATE INDEX IF NOT EXISTS IX_MatchPresences_Player ON MatchPresences(player_id)").Wait();
         _playerDb.CreateTableAsync<InventoryGrantRecord>().Wait();
@@ -58,15 +61,34 @@ public class MasterServerDatabase : IMasterServerDatabase
         _playerDb.RunInTransactionAsync(db => LeaderboardTrophies.InstallArt(db,
             Path.Combine(AppContext.BaseDirectory, "LeaderboardTrophies"), Databases.TrophyImagesFolderPath,
             DateTimeOffset.UtcNow.ToUnixTimeMilliseconds())).Wait();
+        var pendingMmr = _playerDb.Table<MmrInbox>().ToListAsync().Result;
+        foreach(var pending in pendingMmr)
+            foreach(var player in MmrLedger.Decode(pending.Payload).Players) MmrQueueGuard.Reserve(player.PlayerId,pending.MatchId);
         AdvanceLeague().Wait();
         // Seasons end at midnight UTC on the first of the month; check every minute.
         _leagueTimer = new Timer(_ => AdvanceLeague().ContinueWith(t =>
         {
             if (t.IsFaulted) Log.Error(LogCat.Player, "League season update failed", t.Exception!);
         }), null, TimeSpan.FromMinutes(1), TimeSpan.FromMinutes(1));
+        _mmrRecoveryTimer = new Timer(_ => RecoverMmr().ContinueWith(t =>
+        { if(t.IsFaulted)Log.Error(LogCat.Player,"MMR recovery failed",t.Exception!); }),null,TimeSpan.FromSeconds(1),TimeSpan.FromSeconds(30));
     }
 
     private readonly Timer _leagueTimer;
+    private readonly Timer _mmrRecoveryTimer;
+    private int _recoveringMmr;
+    private async Task RecoverMmr()
+    {
+        if(Interlocked.Exchange(ref _recoveringMmr,1)!=0)return;
+        try
+        {
+            var pending=await _playerDb.Table<MmrInbox>().ToListAsync();
+            foreach(var item in pending.Select(p=>MmrLedger.Decode(p.Payload)).OrderBy(p=>p.EndedAt))
+                try {await StoreCompletedMatch(item);}
+                catch(Exception ex){Log.Error(LogCat.Player,"Pending MMR settlement needs operator review",ex);}
+        }
+        finally{Interlocked.Exchange(ref _recoveringMmr,0);}
+    }
 
     /// <summary>Opens the first season or closes an ended one (rewards and soft reset), then refreshes every badge.</summary>
     private async Task AdvanceLeague()
@@ -296,9 +318,24 @@ public class MasterServerDatabase : IMasterServerDatabase
 
     public async Task StoreCompletedMatch(CompletedMatchRecord match)
     {
+        if(match.RatingVersion == PersonalMmr.Version && PersonalMmr.Public(match.GameModeKey))
+        {
+            // INSERT OR IGNORE freezes the first payload; retries cannot rewrite a settlement.
+            await _playerDb.ExecuteAsync("INSERT OR IGNORE INTO MmrInbox (MatchId,Payload) VALUES (?,?)",match.MatchId,MmrLedger.Encode(match));
+        }
         await _asyncLock.WaitAsync();
         try
         {
+            if(match.RatingVersion == PersonalMmr.Version && PersonalMmr.Public(match.GameModeKey))
+            {
+                if(await _playerDb.FindAsync<MmrMatchSettlement>(match.MatchId) is {} committed)
+                {
+                    await PublishMmrMatch(MmrLedger.Decode(committed.Payload));
+                    return;
+                }
+                var inbox=await _playerDb.FindAsync<MmrInbox>(match.MatchId);
+                match=MmrLedger.Decode(inbox.Payload);
+            }
             // Rating updates are received just before the completed-match message on the same
             // region connection. Sharing their lock makes these values the post-update rating,
             // rather than a timing-dependent later profile read.
@@ -327,6 +364,7 @@ public class MasterServerDatabase : IMasterServerDatabase
 
             await _playerDb.RunInTransactionAsync(db =>
             {
+                MmrLedger.Apply(db, match, DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(), MmrReferenceFile.Load());
                 // A region can retransmit after losing its master connection. Replacing the complete
                 // aggregate makes the operation idempotent without leaving stale child rows behind.
                 var oldPresenceIds = db.Table<ArchivedMatchPresenceRecord>()
@@ -424,6 +462,7 @@ public class MasterServerDatabase : IMasterServerDatabase
                     }
                 }
             });
+            if(match.RatingVersion == PersonalMmr.Version) await PublishMmrMatch(match);
             await _playerDb.RunInTransactionAsync(ReconcileLeaderboardTrophies);
             lock (_leaderboardCache) _leaderboardCache.Clear();
         }
@@ -431,6 +470,18 @@ public class MasterServerDatabase : IMasterServerDatabase
         {
             _asyncLock.Release();
         }
+    }
+
+    private async Task PublishMmrMatch(CompletedMatchRecord match)
+    {
+        var ids=match.Players.Select(p=>p.PlayerId).ToList();
+        await RefreshLadder();
+        var refreshed=await _playerDb.Table<PlayerRecord>().Where(p=>ids.Contains(p.PlayerId)).ToListAsync();
+        Databases.PlayerDatabase.SetRatings(refreshed.ToDictionary(p=>p.PlayerId,p=>new Rating(p.RatingMean,p.RatingDeviation)));
+        var penalties=await _playerDb.Table<MmrQueuePenalty>().Where(p=>ids.Contains(p.PlayerId)).ToListAsync();
+        await _playerDb.RunInTransactionAsync(db=> { LeagueSeasons.Refresh(db); db.Delete<MmrInbox>(match.MatchId); });
+        foreach(var ban in penalties) MmrQueueGuard.Ban(ban.PlayerId,ban.Until);
+        foreach(var id in ids) MmrQueueGuard.Release(id,match.MatchId);
     }
 
     public async Task<LifetimeProfileStats> GetLifetimeProfileStats(uint playerId)

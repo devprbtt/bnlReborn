@@ -14,3 +14,5 @@ using System.Runtime.CompilerServices;
 [assembly: InternalsVisibleTo("BNLReloadedServer.ScoreboardMetadataFixture")]
 [assembly: InternalsVisibleTo("BNLReloadedServer.KillAccoladeFixture")]
 [assembly: InternalsVisibleTo("BNLReloadedServer.TrophyFixture")]
+
+[assembly: InternalsVisibleTo("BNLReloadedServer.MmrFixture")]

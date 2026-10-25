@@ -8,7 +8,7 @@ public partial class Unit
     private readonly RepairDamageCredit repairDamageCredit = new();
     private void RecordRepairDamage(float damage, TeamType? sourceTeam)
     {
-        if (UnitCard?.DeviceType is DeviceType.Device or DeviceType.Hero)
+        if (PlayerId is not null || UnitCard?.DeviceType is DeviceType.Device or DeviceType.Hero)
             repairDamageCredit.Record(damage, Team, sourceTeam);
     }
 

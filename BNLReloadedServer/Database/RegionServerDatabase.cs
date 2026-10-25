@@ -1406,6 +1406,12 @@ public partial class RegionServerDatabase(AsyncTaskTcpServer server, AsyncTaskTc
         {
             if (BNLReloadedServer.Clans.ClanCompetition.IsReserved(playerId)) return;
             if (!MatchmakingEnabled) return;
+            if (MmrQueueGuard.Blocked(playerId, DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()))
+            {
+                serviceMatchmaker.SendQueueLeft(playerId);
+                GetPlayerService(playerId)?.SendNotification(new NotificationZeus {Text=MmrQueueGuard.Message(playerId,DateTimeOffset.UtcNow.ToUnixTimeMilliseconds())});
+                return;
+            }
 
             if (!UserConnected(playerId, out var playerInfo) || _playerDatabase.GetPlayerDataNoWait(playerId) is not { } playerData ||
                 _playerDatabase.IsBanned(playerId)) return;
@@ -1428,7 +1434,13 @@ public partial class RegionServerDatabase(AsyncTaskTcpServer server, AsyncTaskTc
                     return;
                 }
 
-                if (squad.GetPlayers().Any(BNLReloadedServer.Clans.ClanCompetition.IsReserved)) return;
+                if (squad.GetPlayers().Any(BNLReloadedServer.Clans.ClanCompetition.IsReserved) ||
+                    squad.GetPlayers().Any(id => MmrQueueGuard.Blocked(id, DateTimeOffset.UtcNow.ToUnixTimeMilliseconds())))
+                {
+                    serviceMatchmaker.SendQueueLeft(playerId);
+                    GetPlayerService(playerId)?.SendNotification(new NotificationZeus {Text="A squad member has an unfinished match or an abandonment cooldown."});
+                    return;
+                }
                 foreach (var pId in squad.GetPlayers())
                 {
                     if (!UserConnected(pId, out var pInfo) || _playerDatabase.GetPlayerDataNoWait(pId) is not { } pData ||

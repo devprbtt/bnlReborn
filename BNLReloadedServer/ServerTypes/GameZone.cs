@@ -89,6 +89,9 @@ public partial class GameZone : Updater
     private readonly List<Unit> _unitsToDrop = [];
 
     private DateTimeOffset? _attackStartTime;
+    private DateTimeOffset? _ratingEndedAt;
+    private bool UsesPersonalMmr => _gameInitiator is MatchmakerInitiator && PersonalMmr.Public(_zoneData.GameModeKey);
+    private string RatingMatchId => $"{_instanceId ?? "unknown"}:{_matchParticipation.StartedAt?.ToUnixTimeMilliseconds()}";
     // Dynamic weather runs from map load, not the first assault: clients derive the starting time of day and the rain
     // schedule from this epoch, so a match no longer always opens at the same time of day.
     private readonly DateTimeOffset _weatherEpoch = DateTimeOffset.Now;
@@ -365,9 +368,10 @@ public partial class GameZone : Updater
 
     public void SendLoadZone(IServiceZone zoneService, IServiceZone savedService, uint playerId)
     {
-        if (_matchParticipation.StartedAt.HasValue && !_gameInitiator.IsPlayerSpectator(playerId) &&
+        if (!HasEnded && _matchParticipation.StartedAt.HasValue && !_gameInitiator.IsPlayerSpectator(playerId) &&
             _playerLobbyInfo.TryGetValue(playerId, out var joiningPlayer))
         {
+            if (UsesPersonalMmr) MmrQueueGuard.Reserve(playerId, RatingMatchId);
             var kind = _matchParticipation.HasParticipant(playerId) ? MatchJoinKind.Reconnect : MatchJoinKind.Backfill;
             _matchParticipation.Join(joiningPlayer, DateTimeOffset.Now, kind,
                 _gameInitiator.IsPlayerBackfill(playerId),
@@ -821,6 +825,8 @@ public partial class GameZone : Updater
                 startingRatings[player.PlayerId] = rating;
         }
         _matchParticipation.Start(startedAt, initialPlayers, startingRatings);
+        if (UsesPersonalMmr)
+            foreach (var p in initialPlayers) MmrQueueGuard.Reserve(p.PlayerId, RatingMatchId);
         try
         {
             StartReplayRecording(startedAt);
@@ -1277,7 +1283,7 @@ public partial class GameZone : Updater
 
     public void PlayerDisconnected(uint playerId)
     {
-        _matchParticipation.Leave(playerId, DateTimeOffset.Now, MatchLeaveKind.Disconnect);
+        if (!HasEnded) _matchParticipation.Leave(playerId, DateTimeOffset.Now, MatchLeaveKind.Disconnect);
         _activeHeroEmotes.Remove(playerId);
         _lastHeroEmote.Remove(playerId);
         _lastTeamPing.Remove(playerId);
@@ -1306,7 +1312,7 @@ public partial class GameZone : Updater
         _activeHeroEmotes.Remove(playerId);
         _lastHeroEmote.Remove(playerId);
         _lastTeamPing.Remove(playerId);
-        _matchParticipation.Leave(playerId, DateTimeOffset.Now, reason switch
+        if (!HasEnded) _matchParticipation.Leave(playerId, DateTimeOffset.Now, reason switch
         {
             KickReason.MatchInactivity => MatchLeaveKind.Inactivity,
             KickReason.MatchQuit => MatchLeaveKind.Quit,
@@ -1385,7 +1391,7 @@ public partial class GameZone : Updater
                 .ToList();
             var exclude = _playerUnits.Values.Where(p => p.PlayerId != playerId).Select(p => p.PlayerId).OfType<uint>()
                 .ToHashSet();
-            if (_gameInitiator is not BNLReloadedServer.Clans.ClanFightInitiator)
+            if (!UsesPersonalMmr && _gameInitiator is not BNLReloadedServer.Clans.ClanFightInitiator)
                 Databases.PlayerDatabase.UpdateRatings(winners, losers, exclude, _zoneData.GameModeCard.Ranking == GameRankingType.Ranked);
 
             if (archivedStatInfo != null)
@@ -1694,6 +1700,7 @@ public partial class GameZone : Updater
         EnqueueAction(() =>
         {
             _gameInitiator.SetBackfillReady(false);
+            _ratingEndedAt = DateTimeOffset.UtcNow;
             _zoneData.EndMatch(winner);
             BNLReloadedServer.ControlPanel.ControlPanelEvents.Publish(BNLReloadedServer.ControlPanel.ControlPanelEvent.Activity);
         });
@@ -2019,7 +2026,7 @@ public partial class GameZone : Updater
         {
             if (_gameInitiator is BNLReloadedServer.Clans.ClanFightInitiator clanFight)
                 BNLReloadedServer.Clans.ClanRatings.Record(_instanceId ?? clanFight.GameInstanceId!, clanFight.Team1Clan, clanFight.Team2Clan, winner);
-            else Databases.PlayerDatabase.UpdateRatings(winners, losers, exclude, zoneDataGameModeCard.Ranking == GameRankingType.Ranked);
+            else if (!UsesPersonalMmr) Databases.PlayerDatabase.UpdateRatings(winners, losers, exclude, zoneDataGameModeCard.Ranking == GameRankingType.Ranked);
             var startedAt = _matchParticipation.StartedAt ?? gameEnd;
             var matchId = $"{_instanceId ?? "unknown"}:{startedAt.ToUnixTimeMilliseconds()}";
             var teams = new[] { TeamType.Team1, TeamType.Team2 }.Select(team =>
@@ -2093,12 +2100,23 @@ public partial class GameZone : Updater
             MapKey = _zoneData.MapKey ?? Key.None,
             GameModeKey = _zoneData.GameModeKey,
             StartedAt = (ulong)startedAt.ToUnixTimeMilliseconds(),
-            EndedAt = (ulong)endedAt.ToUnixTimeMilliseconds(),
+            EndedAt = (ulong)(_ratingEndedAt ?? endedAt).ToUnixTimeMilliseconds(),
+            MatchType = _zoneData.MatchCard.Data?.Type,
+            RatingVersion = UsesPersonalMmr ? PersonalMmr.Version : 0,
+            ActiveStartedAt = _attackStartTime is {} active ? (ulong)active.ToUnixTimeMilliseconds() : null,
             Winner = winner,
             EndReason = reason,
             Teams = teams,
-            Players = _matchParticipation.Complete(endedAt)
+            Players = CompleteRatingParticipants(_ratingEndedAt ?? endedAt, winner)
         });
+
+    private List<CompletedMatchPlayer> CompleteRatingParticipants(DateTimeOffset endedAt, TeamType winner)
+    {
+        var players = _matchParticipation.Complete(endedAt);
+        if(UsesPersonalMmr)
+            foreach(var p in players) p.IsWinner = winner != TeamType.Neutral && p.Presences.LastOrDefault()?.Team == winner;
+        return players;
+    }
 
     private static Dictionary<KillAccolade, int>? CloneAccolades(Dictionary<KillAccolade, int>? accolades) =>
         accolades is null ? null : new Dictionary<KillAccolade, int>(accolades);

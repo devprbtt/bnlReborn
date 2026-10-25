@@ -77,7 +77,7 @@ public partial class Unit
     // Splits one regeneration tick across every active regeneration effect by its rate, and each effect's
     // share evenly across the players whose auras or abilities applied it (two heal stations, or a station
     // and Trondson's regen, each get their part).
-    private void AttributeRegen(BuffType buffKey, float healAmount)
+    private void AttributeRegen(BuffType buffKey, float healAmount, float enemyDamageCredit)
     {
         var shares = RegenShares(buffKey);
         var total = shares.Sum(s => s.Weight);
@@ -88,6 +88,7 @@ public partial class Unit
             var healer = source.Impact?.CasterPlayerId is { } playerId ? _updater.GetPlayerFromPlayerId(playerId) : null;
             if (HealCredit(source, healer, this) is { } credit)
             {
+                CreditEffectiveAllyHealing(healAmount * weight / total, credit, enemyDamageCredit * weight / total);
                 SendHealAttribution(credit, healAmount * weight / total, source.Impact?.SourceKey);
                 ApplyBrainsRecovery(healAmount * weight / total, source, healer ?? credit);
             }
@@ -172,13 +173,13 @@ public partial class Unit
                                 Healed(healAmount, hSource,
                                     hSource.Impact?.CasterPlayerId is not null
                                         ? _updater.GetPlayerFromPlayerId(hSource.Impact.CasterPlayerId.Value)
-                                        : null, repairCredit);
+                                        : null, PlayerId is not null ? 0 : repairCredit);
                             }
                         }
 
                         if (PlayerId is not null)
                         {
-                            AttributeRegen(buffKey, healAmount);
+                            AttributeRegen(buffKey, healAmount, repairCredit);
                         }
                     }
                     hasUpdate = hasUpdate || unitUpdate.Health != null;

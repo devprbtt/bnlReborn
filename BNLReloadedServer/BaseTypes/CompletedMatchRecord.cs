@@ -48,6 +48,7 @@ public sealed class CompletedMatchPlayer
     // region that does not record it, which the profile shows as unknown rather than zero.
     public Dictionary<KillAccolade, int>? Accolades { get; set; }
     public int BestStreak { get; set; }
+    public double? EffectiveAllyHealing { get; set; }
     public int TotalScore { get; set; }
     public List<CompletedMatchPresence> Presences { get; set; } = [];
 }
@@ -75,6 +76,9 @@ public sealed class CompletedMatchRecord
     // A separate block after the version 3 extension: readers that predate it stop at the end of that extension,
     // so regions and the master can be upgraded in either order.
     private const byte AccoladeBlockVersion = 1;
+    public MatchType? MatchType { get; set; }
+    public int RatingVersion { get; set; }
+    public ulong? ActiveStartedAt { get; set; }
     public string MatchId { get; set; } = string.Empty;
     public Key MapKey { get; set; }
     public Key GameModeKey { get; set; }
@@ -148,6 +152,16 @@ public sealed class CompletedMatchRecord
             w.Write(player.BestStreak);
             w.WriteMap(player.Accolades!, w.WriteByteEnum, w.Write);
         });
+        if (RatingVersion > 0)
+        {
+            writer.Write((byte)2); // personal MMR trailer, separate from accolades
+            writer.Write(RatingVersion);
+            writer.Write(ActiveStartedAt.HasValue);
+            if (ActiveStartedAt.HasValue) writer.Write(ActiveStartedAt.Value);
+            writer.Write(MatchType.HasValue);
+            if (MatchType.HasValue) writer.Write((byte)MatchType.Value);
+            writer.WriteList(Players, (w,p) => { w.Write(p.PlayerId); w.Write(p.EffectiveAllyHealing.HasValue); if(p.EffectiveAllyHealing.HasValue) w.Write(p.EffectiveAllyHealing.Value); });
+        }
     }
 
     public static CompletedMatchRecord ReadRecord(BinaryReader reader)
@@ -246,6 +260,14 @@ public sealed class CompletedMatchRecord
                     player.BestStreak = accolades.bestStreak;
                 }
             }
+        }
+        if (reader.BaseStream.Position < reader.BaseStream.Length && reader.ReadByte() == 2)
+        {
+            result.RatingVersion = reader.ReadInt32();
+            result.ActiveStartedAt = reader.ReadBoolean() ? reader.ReadUInt64() : null;
+            result.MatchType = reader.ReadBoolean() ? (MatchType)reader.ReadByte() : null;
+            foreach(var entry in reader.ReadList<(uint id,double? heal),List<(uint id,double? heal)>>(() => (reader.ReadUInt32(),reader.ReadBoolean()?reader.ReadDouble():null)))
+                if(result.Players.FirstOrDefault(p=>p.PlayerId==entry.id) is {} p) p.EffectiveAllyHealing=entry.heal;
         }
         return result;
     }

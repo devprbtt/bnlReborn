@@ -158,6 +158,9 @@ public class Matchmaker(AsyncTaskTcpServer server)
     public void AddPlayer(Key gameModeKey, uint playerId, Guid guid, Rating rating, ulong? squadId,
         IServiceMatchmaker matchmakerService, Key? requestedGameModeKey = null)
     {
+        if (MmrQueueGuard.Blocked(playerId, DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()))
+        { matchmakerService.SendQueueLeft(playerId); return; }
+
         requestedGameModeKey ??= gameModeKey;
         gameModeKey = NormalizeQueueKey(gameModeKey);
         if (!_queues.ContainsKey(gameModeKey))

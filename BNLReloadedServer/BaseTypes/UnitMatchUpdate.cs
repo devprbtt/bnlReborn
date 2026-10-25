@@ -123,6 +123,14 @@ public partial class Unit
         return gained;
     }
 
+    public void CreditEffectiveAllyHealing(float amount, Unit? healerPlayer, float enemyDamageCredit)
+    {
+        if (PlayerId is not null && healerPlayer?.PlayerId is {} healerId && healerId != PlayerId &&
+            Team != TeamType.Neutral && healerPlayer.Team == Team &&
+            float.IsFinite(amount) && float.IsFinite(enemyDamageCredit) && amount > 0 && enemyDamageCredit > 0)
+            healerPlayer.UpdateStat(ScoreType.EffectiveAllyHealing, Math.Min(amount, enemyDamageCredit));
+    }
+
     public void Healed(float amount, EffectSource? healSource, Unit? healerPlayer, float repairCredit = 0)
     {
         if (amount > 0 && UnitCard?.DeviceType is DeviceType.Device or DeviceType.Hero &&
@@ -132,6 +140,7 @@ public partial class Unit
         switch (UnitCard?.Health?.Health?.HealthType)
         {
             case HealthType.Player when PlayerId is not null:
+                CreditEffectiveAllyHealing(amount, healerPlayer, repairCredit);
                 if (healSource is UnitSource { Unit.PlayerId: not null })
                 {
                     UpdateStat(ScoreType.HealedByHero, amount);

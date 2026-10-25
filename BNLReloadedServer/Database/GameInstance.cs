@@ -272,7 +272,7 @@ public partial class GameInstance : IGameInstance
     }
 
     internal static int EffectiveReconnectGraceSeconds(int configuredSeconds, bool matchStarted,
-        GameRankingType? ranking) => matchStarted && ranking is GameRankingType.Friendly
+        GameRankingType? ranking) => matchStarted && ranking is GameRankingType.Friendly or GameRankingType.Ranked
         ? Math.Min(configuredSeconds, FriendlyReconnectGraceSeconds)
         : configuredSeconds;
 

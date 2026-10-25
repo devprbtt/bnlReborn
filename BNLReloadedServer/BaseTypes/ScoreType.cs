@@ -84,5 +84,6 @@ public enum ScoreType
     BlockbusterCollected = 80,
     AbilityUsed = 81,
     MiningHealthRestored = 82,
-    MiningAmmoRestored = 83
+    MiningAmmoRestored = 83,
+    EffectiveAllyHealing = 84 // actual ally health restored against outstanding enemy health damage
 }

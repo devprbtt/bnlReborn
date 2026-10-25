@@ -43,8 +43,8 @@ Check(GameInstance.EffectiveReconnectGraceSeconds(180, true, GameRankingType.Fri
     "started friendly match releases a disconnected slot after the short reconnect window");
 Check(GameInstance.EffectiveReconnectGraceSeconds(30, true, GameRankingType.Friendly) == 30,
     "friendly reconnect window never extends a shorter configured grace");
-Check(GameInstance.EffectiveReconnectGraceSeconds(180, true, GameRankingType.Ranked) == 180,
-    "ranked reconnect grace remains unchanged");
+Check(GameInstance.EffectiveReconnectGraceSeconds(180, true, GameRankingType.Ranked) == 45,
+    "ranked uses the same maximum return window as personal MMR");
 Check(GameInstance.EffectiveReconnectGraceSeconds(180, false, GameRankingType.Friendly) == 180,
     "lobby reconnect grace remains unchanged");
 
