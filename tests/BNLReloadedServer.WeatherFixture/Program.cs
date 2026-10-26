@@ -8,7 +8,7 @@ void Check(bool ok,string name) { if(!ok)throw new Exception(name);Console.Write
 var key=new Key(ParadiseWeatherRegistration.MapId);
 var map=Databases.MapDatabase.LoadMapData(key);
 Check(map!=null && map.Size.x==256 && map.Size.y==48 && map.Size.z==96,"cloned Paradise loaded by real map database");
-Check(map!.Properties?.Render=="DaytimeWarm" && map.Units.Count==12 && map.SpawnPoints.Count==2,"original environment, units and spawns preserved");
+Check(map!.Properties?.Render=="DaytimeCold" && map.Units.Count==12 && map.SpawnPoints.Count==2,"cold sunny environment; units and spawns preserved");
 Check(map.BlocksData!.UnZip().Length==256L*48*96*6 || map.BlocksData!.UnZip().Length==256L*48*96*5 || map.BlocksData!.UnZip().Length==256L*48*96*4,"terrain payload decodes");
 var original=new CardMap{Id=ParadiseWeatherRegistration.OriginalId,Key=new Key(ParadiseWeatherRegistration.OriginalId),Scope=ScopeType.Public,Name=new LocalizedString{Text="Paradise",Data=[]}};
 var list=new CardMapList{Id="map_list",Custom=[original.Key],Friendly=[original.Key],Ranked=[original.Key]};
@@ -19,7 +19,7 @@ Check(list.Friendly.SequenceEqual([original.Key]) && list.Ranked.SequenceEqual([
 var start=DateTimeOffset.FromUnixTimeMilliseconds(1800000000000);
 Check(ParadiseWeatherRegistration.StartTime(original.Key,start,false)==null,"no weather timestamp on ordinary map");
 Check(ParadiseWeatherRegistration.StartTime(key,null,false)==null,"daytime before combat");
-Check(ParadiseWeatherRegistration.StartTime(key,start,false)==1800000000000,"combat epoch preserved");
+Check(ParadiseWeatherRegistration.StartTime(key,start,false)==null,"legacy map weather epoch disabled");
 foreach(long? epoch in new long?[]{null,1800000000000})
 {
     using var stream=new MemoryStream();
@@ -38,7 +38,7 @@ foreach(var phase in new[]{ZonePhaseType.Assault,ZonePhaseType.Build2,ZonePhaseT
     using var stream=new MemoryStream();
     new ZoneUpdate{Phase=new ZonePhase{PhaseType=phase,StartTime=1800001200000},WeatherStartTime=ParadiseWeatherRegistration.StartTime(key,start,false)}.Write(new BinaryWriter(stream));
     stream.Position=0;var read=ZoneUpdate.ReadRecord(new BinaryReader(stream));
-    Check(read.WeatherStartTime==1800000000000 && read.Phase?.PhaseType==phase,"epoch independent of phase "+phase);
+    Check(read.WeatherStartTime==null && read.Phase?.PhaseType==phase,"weather remains disabled in phase "+phase);
 }
 Console.WriteLine($"PASS {checks} checks");
 
@@ -56,7 +56,7 @@ foreach(bool enabled in new[]{false,true}) {
     var legacyHeader=(byte)(encoded[0]&0xfe);encoded[0]=legacyHeader;
     using var legacy=new MemoryStream(encoded);
     Check(!CardMap.ReadRecord(new BinaryReader(legacy)).DynamicWeather,"legacy header defaults disabled");
-    Check(ParadiseWeatherRegistration.StartTime(new Key(configured.Id),start,enabled)==(enabled?start.ToUnixTimeMilliseconds():(long?)null),"arbitrary map epoch "+enabled);
+    Check(ParadiseWeatherRegistration.StartTime(new Key(configured.Id),start,enabled)==null,"arbitrary map epoch "+enabled);
     Check(ParadiseWeatherRegistration.StartTime(new Key(configured.Id),null,enabled)==null,"no clock before first assault");
     var json=System.Text.Json.JsonSerializer.Serialize(configured);
     Check(System.Text.Json.JsonSerializer.Deserialize<CardMap>(json)!.DynamicWeather==enabled,"JSON setting roundtrip");

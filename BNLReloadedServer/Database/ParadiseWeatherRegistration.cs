@@ -6,7 +6,7 @@ public static class ParadiseWeatherRegistration
 {
     public const string OriginalId = "map_sr2_paradise";
     public const string MapId = "map_sr2_paradise_weather_test";
-    public static bool IsEnabled(Key? map, bool dynamicWeather = false) => map.HasValue && (dynamicWeather || map == new Key(MapId));
+    public static bool IsEnabled(Key? map, bool dynamicWeather = false) => false;
     public static long? StartTime(Key? map, DateTimeOffset? assaultStart) =>
         StartTime(map, assaultStart, map.HasValue && Databases.Catalogue.GetCard<CardMap>(map.Value)?.DynamicWeather == true);
     public static long? StartTime(Key? map, DateTimeOffset? assaultStart, bool dynamicWeather) =>
@@ -31,8 +31,8 @@ public static class ParadiseWeatherRegistration
         if (!cards.Any(c => c.Id == MapId))
             cards.Add(new CardMap {
                 Id = MapId, Key = key, Scope = original?.Scope ?? ScopeType.Public,
-                Name = new LocalizedString { Text = "Paradise - Dynamic Weather", Data = [] },
-                Description = new LocalizedString { Text = "Day to night in 20 minutes; daylight returns at 25 minutes.", Data = [] },
+                Name = new LocalizedString { Text = "Paradise", Data = [] },
+                Description = new LocalizedString { Text = "Clear, cold daylight throughout the match.", Data = [] },
                 Image = original?.Image ?? "https://i.gyazo.com/5b50a11de845b9faad464a8593eace49.jpg",
                 LargeImage = original?.LargeImage ?? "https://i.gyazo.com/5b50a11de845b9faad464a8593eace49.jpg"
             });

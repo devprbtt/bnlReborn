@@ -52,6 +52,7 @@ public class ServerCatalogue : Catalogue
             var tempDict = new Dictionary<Key, Card>(KeyEqualityComparer.Instance);
             foreach (var card in cards)
             {
+                StaticMapWeather.Apply(card);
                 if (card is CardPerk perk) ClassPerkCatalogue.Validate(perk);
                 if (card is CardGlobalLogic global) global.ActionScores?.Validate();
                 if (card.Id == null) continue;
@@ -66,6 +67,7 @@ public class ServerCatalogue : Catalogue
 
     public void UpdateCard(Card card)
     {
+        StaticMapWeather.Apply(card);
         if (card is CardGlobalLogic global) global.ActionScores?.Validate();
         if (card is CardPerk perk) ClassPerkCatalogue.Validate(perk);
         RankedDraftRegistration.Register([card]);

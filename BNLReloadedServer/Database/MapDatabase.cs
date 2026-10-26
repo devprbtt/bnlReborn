@@ -63,7 +63,7 @@ public class MapDatabase : IMapDatabase
         }
     }
 
-    public MapData? LoadMapData(Key key) => LoadCustomData(key)?.Map;
+    public MapData? LoadMapData(Key key) => StaticMapWeather.Apply(LoadCustomData(key)?.Map);
 
     private static bool IsValidMapKey(string key) =>
         key.Length is > 0 and <= 128 &&
