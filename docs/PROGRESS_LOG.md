@@ -86,3 +86,9 @@ Old bot credential rejected by Discord; main service had over 32,000 restarts. N
 - Removed device ammo/spawn/radar/bomb/mine/trap/Roly/C4/mortar repeat gates. Portals retain 60s per ally/owner; Tiki retains 1s; unrelated hero ability timers unchanged. Radar pays per 200ms scan tick with overlapping-owner deduplication, not also on effect admission. Damaging trap status applications do not double-pay damage; unchanged glue/goo refreshes do not score.
 - Beacon/mortar/C4 destruction uses cost-based award exactly once (ceil base cost/20, min5/max50), without flat mortar/C4 extras. Objective bonuses unchanged. 278 scoring checks cover source resolution, gas ownership, fake triggers, boundaries and costs; six regression suites pass. No live gameplay validation or deployment.
 - Scoring rules, full inventory, Discord guide and all four pending patch-note surfaces updated. Website notes prepared, not deployed; launcher/in-game notes await a later signed release.
+
+## 2026-10-26 — Remove mobile weapon spread except Nigel (pending deployment)
+
+- User requested removing movement and airborne inaccuracy for all heroes except Nigel. Added tools/remove_mobile_weapon_spread.py to the server repository: public hero gear families, including variants and aimed tool cones, get move_mod=jump_mod=0. Nigel's entire gear_hunter family and his hero gear references are protected. Normal angle, bloom, recoil, crouch and non-gear cards stay unchanged.
+- Read-only live catalogue audit plans 37 changed cards / 43 cones. Source-derived fixture records provenance and hashes. Six tests pass: exact allowed-field diffs, protected/unrelated cards, aimed fire/variants, invalid source rejection, repeat-apply no-op, backups/read-back, preflight conflicts and rollback after failed writes.
+- No production writes or restart. Deployment remains separate. All four notes surfaces prepared; website not published, launcher/in-game source awaits a later signed client release.

@@ -33,3 +33,7 @@ Retire the China service and credential; poll only the local Reborn player-count
 ## 2026-10-26 — Device rewards follow confirmed events
 
 Use existing MapBinary.OnEnemySide boundary for the user-confirmed doubled spawn reward (20 vs10). Replace flat mortar/C4 destruction extras with shared cost-based destruction, including Astarella skybeam. Remove requested device timers while retaining portal limits, target ownership checks and objective bonuses. Damaging traps score actual damage; non-damaging slows score newly admitted applications. Preserve lamp builder ownership before gas initial effects run; pickup behavior stays separate. Radar scores at the existing server scan cadence, once per owner/target/tick across overlapping radars, and once per device lifetime. Legacy interval/flat-bonus properties remain parseable but inert. No client protocol change or deployment.
+
+## 2026-10-26 — Mobile accuracy through catalogue modifiers
+
+Set both movement and jump cone modifiers to zero, since the client applies jump instead of movement while airborne. Removing only jump would make jumping more accurate than walking. Keep the client formula and normal spread/bloom/recoil/crouch settings intact. Exempt all Nigel weapons and variants, not just his scoped rifle, per user instruction. Use a dry-run-first, revision-guarded catalogue migration with private backups and rollback; no server binary or client build is needed for the balance settings themselves.

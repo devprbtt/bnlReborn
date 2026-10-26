@@ -1,0 +1,11 @@
+test_apply_readback_backup_and_second_run_noop (test_mobile_weapon_spread.MobileWeaponSpreadTests.test_apply_readback_backup_and_second_run_noop) ... ok
+test_exact_field_changes_and_idempotence (test_mobile_weapon_spread.MobileWeaponSpreadTests.test_exact_field_changes_and_idempotence) ... ok
+test_failed_write_rolls_back_and_concurrent_change_blocks (test_mobile_weapon_spread.MobileWeaponSpreadTests.test_failed_write_rolls_back_and_concurrent_change_blocks) ... ok
+test_incomplete_or_invalid_catalogue_rejected (test_mobile_weapon_spread.MobileWeaponSpreadTests.test_incomplete_or_invalid_catalogue_rejected) ... ok
+test_nigel_and_unrelated_cards_unchanged (test_mobile_weapon_spread.MobileWeaponSpreadTests.test_nigel_and_unrelated_cards_unchanged) ... ok
+test_sarge_hip_and_ads_and_perk_variants (test_mobile_weapon_spread.MobileWeaponSpreadTests.test_sarge_hip_and_ads_and_perk_variants) ... ok
+
+----------------------------------------------------------------------
+Ran 6 tests in 0.127s
+
+OK

@@ -1,0 +1,8 @@
+{
+  "source": "read-only production public CouchDB catalogue",
+  "captured": "2026-10-26",
+  "snapshot_path": "artifacts\\live-accuracy-catalogue.json",
+  "snapshot_sha256": "121e3c56c93e65d301f8bfe380a55b80a3ec0a9b5983f46c96aedeaaa02f1dde",
+  "fixture_sha256": "43be775b5f66660d5e04a845715bf64bd3683b9bdc6a41ff865f3ef282a1de24",
+  "transformation": "Public hero gear references and all gear cards; gear localization/metadata omitted, hero other fields omitted."
+}
