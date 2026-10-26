@@ -1,0 +1,624 @@
+[
+  {
+    "_id": "gear_astro_saucer_launcher",
+    "_rev": "fixture-revision",
+    "scope": "public",
+    "prefab": "saucer_launcher",
+    "icon": "weaponicon_astro_W2",
+    "killscore_icon": "icon_killscore_saucerlauncher",
+    "name": {
+      "text": "Saucer Launcher",
+      "data": {}
+    },
+    "description": {
+      "text": "Launches explosive discs that can hover by walls. <BINDING_CAST2> to manually detonate discs before their fuses trigger them automatically.",
+      "data": {}
+    },
+    "animation_tag": "saucer_launcher",
+    "primary_fire_icon": "astro_icon_W2_saucer",
+    "render_fov": 30,
+    "pickup_time": 0.4,
+    "drop_time": 0.1,
+    "equip_effects": [],
+    "ammo": [
+      {
+        "pool": {
+          "pool_size": 18,
+          "base_regen": 1.17
+        },
+        "mag_size": 3
+      }
+    ],
+    "reload": {
+      "type": "full_clip",
+      "reload_time": 2
+    },
+    "sway": null,
+    "sway_crouch_mod": null,
+    "cone_of_fire": {
+      "angle": 0.4,
+      "max_bloom": 100,
+      "crouch_mod": -0.3,
+      "move_mod": 2,
+      "jump_mod": 10,
+      "reset_delay": 0.2,
+      "reset_speed": 15
+    },
+    "reticles": [
+      {
+        "type": "broken_circle",
+        "application": "opponent_only",
+        "preview_damage_range": 40,
+        "preview_max_range": 40,
+        "show_in_ads": true,
+        "melee_heeling_angle": null,
+        "melee_arc_angle": null
+      }
+    ],
+    "aim_assist": null,
+    "tools": [
+      {
+        "type": "shot",
+        "ammo": {
+          "rate": 1,
+          "ammo_index": 0,
+          "auto_reload_on_empty_gun_switch": true,
+          "auto_reload_on_empty_gun_fire": true,
+          "auto_reload_after_last_shot": false,
+          "low_ammo_bullets_count": 0,
+          "reload_message_bullets_count": 0
+        },
+        "auto_switch": false,
+        "auto_fire": true,
+        "range": 40,
+        "hit_on_out_of_range": true,
+        "bullet": {
+          "type": "unit_projectile",
+          "unit_projectile_key": "unit_projectile_astro_saucer",
+          "min_speed": 1,
+          "max_speed": null,
+          "hold_interval": null
+        },
+        "bloom": null,
+        "recoil": {
+          "angle": 0,
+          "angle_variance": 5,
+          "clearance": 0,
+          "magnitude": 5,
+          "magnitude_variance": 0,
+          "first_modifier": 5,
+          "recovery": 10,
+          "horizontal_tolerance": 1,
+          "vertical_tolerance": 5,
+          "persistent_recovery": true
+        },
+        "bullets": null,
+        "hit_effect": null,
+        "timing": {
+          "pre_attack_time": 0.0001,
+          "attack_time": 0.5
+        }
+      },
+      {
+        "type": "shot",
+        "ammo": null,
+        "auto_switch": true,
+        "auto_fire": false,
+        "range": 1,
+        "hit_on_out_of_range": true,
+        "bullet": {
+          "type": "hitscan"
+        },
+        "bloom": null,
+        "recoil": null,
+        "bullets": null,
+        "hit_effect": {
+          "type": "all_units_bunch",
+          "interrupt": null,
+          "targeting": {
+            "affected_labels": [
+              "astro_disc"
+            ],
+            "affected_units": null,
+            "affected_team": "friendly",
+            "caster_owned_only": true,
+            "ignore_caster": false
+          },
+          "impact": null,
+          "range": null,
+          "break_on_effect_fail": false,
+          "instant": [
+            {
+              "type": "damage",
+              "interrupt": null,
+              "targeting": null,
+              "impact": null,
+              "damage": {
+                "player_damage": 5,
+                "world_damage": 4,
+                "objective_damage": 0,
+                "mining": false,
+                "melee": false,
+                "ignore_invincibility": false,
+                "ignore_defences": false
+              },
+              "crit_modifier": 1,
+              "falloff": null
+            }
+          ],
+          "constant": []
+        },
+        "timing": {
+          "pre_attack_time": null,
+          "attack_time": 0.1
+        }
+      }
+    ],
+    "category": "gear"
+  },
+  {
+    "_id": "gear_astro_saucer_launcher_fly_away_bad_guy",
+    "_rev": "fixture-revision",
+    "scope": "public",
+    "prefab": "saucer_launcher",
+    "icon": "weaponicon_astro_W2",
+    "killscore_icon": "icon_killscore_saucerlauncher",
+    "name": {
+      "text": "Saucer Launcher",
+      "data": {}
+    },
+    "description": {
+      "text": "Launches explosive discs that can hover by walls. <BINDING_CAST2> to manually detonate discs before their fuses trigger them automatically.",
+      "data": {}
+    },
+    "animation_tag": "saucer_launcher",
+    "primary_fire_icon": "astro_icon_W2_saucer",
+    "render_fov": 30,
+    "pickup_time": 0.4,
+    "drop_time": 0.1,
+    "equip_effects": [],
+    "ammo": [
+      {
+        "pool": {
+          "pool_size": 18,
+          "base_regen": 1.17
+        },
+        "mag_size": 3
+      }
+    ],
+    "reload": {
+      "type": "full_clip",
+      "reload_time": 2.3
+    },
+    "sway": null,
+    "sway_crouch_mod": null,
+    "cone_of_fire": {
+      "angle": 0.4,
+      "max_bloom": 100,
+      "crouch_mod": -0.3,
+      "move_mod": 2,
+      "jump_mod": 10,
+      "reset_delay": 0.2,
+      "reset_speed": 15
+    },
+    "reticles": [
+      {
+        "type": "broken_circle",
+        "application": "opponent_only",
+        "preview_damage_range": 40,
+        "preview_max_range": 40,
+        "show_in_ads": true,
+        "melee_heeling_angle": null,
+        "melee_arc_angle": null
+      }
+    ],
+    "aim_assist": null,
+    "tools": [
+      {
+        "type": "shot",
+        "ammo": {
+          "rate": 1,
+          "ammo_index": 0,
+          "auto_reload_on_empty_gun_switch": true,
+          "auto_reload_on_empty_gun_fire": true,
+          "auto_reload_after_last_shot": false,
+          "low_ammo_bullets_count": 0,
+          "reload_message_bullets_count": 0
+        },
+        "auto_switch": false,
+        "auto_fire": true,
+        "range": 40,
+        "hit_on_out_of_range": true,
+        "bullet": {
+          "type": "unit_projectile",
+          "unit_projectile_key": "unit_projectile_astro_saucer_fly_away_bad_guy",
+          "min_speed": 1,
+          "max_speed": null,
+          "hold_interval": null
+        },
+        "bloom": null,
+        "recoil": {
+          "angle": 0,
+          "angle_variance": 5,
+          "clearance": 0,
+          "magnitude": 5,
+          "magnitude_variance": 0,
+          "first_modifier": 5,
+          "recovery": 10,
+          "horizontal_tolerance": 1,
+          "vertical_tolerance": 5,
+          "persistent_recovery": true
+        },
+        "bullets": null,
+        "hit_effect": null,
+        "timing": {
+          "pre_attack_time": 0.0001,
+          "attack_time": 0.5
+        }
+      },
+      {
+        "type": "shot",
+        "ammo": null,
+        "auto_switch": true,
+        "auto_fire": false,
+        "range": 1,
+        "hit_on_out_of_range": true,
+        "bullet": {
+          "type": "hitscan"
+        },
+        "bloom": null,
+        "recoil": null,
+        "bullets": null,
+        "hit_effect": {
+          "type": "all_units_bunch",
+          "interrupt": null,
+          "targeting": {
+            "affected_labels": [
+              "astro_disc"
+            ],
+            "affected_units": null,
+            "affected_team": "friendly",
+            "caster_owned_only": true,
+            "ignore_caster": false
+          },
+          "impact": null,
+          "range": null,
+          "break_on_effect_fail": false,
+          "instant": [
+            {
+              "type": "damage",
+              "interrupt": null,
+              "targeting": null,
+              "impact": null,
+              "damage": {
+                "player_damage": 5,
+                "world_damage": 4,
+                "objective_damage": 0,
+                "mining": false,
+                "melee": false,
+                "ignore_invincibility": false,
+                "ignore_defences": false
+              },
+              "crit_modifier": 1,
+              "falloff": null
+            }
+          ],
+          "constant": []
+        },
+        "timing": {
+          "pre_attack_time": null,
+          "attack_time": 0.1
+        }
+      }
+    ],
+    "category": "gear"
+  },
+  {
+    "_id": "perk_hero_astro_fly_away_bad_guy",
+    "_rev": "fixture-revision",
+    "scope": "public",
+    "icon": "shop_perk_hero_astro_away_bad_guy",
+    "name": {
+      "text": "Fly Away Bad Guy",
+      "data": {}
+    },
+    "description": {
+      "text": "Saucer Launcher knockback is 70% more powerful / Saucer Launcher reload takes 15% longer",
+      "data": {}
+    },
+    "description_2": {
+      "text": "[Draft]",
+      "data": {}
+    },
+    "label": "fly_away_bad_guy",
+    "level": 3,
+    "slot_type": "hero",
+    "hero_dependency": "unit_hero_astro",
+    "perk_mods": [
+      {
+        "type": "gear",
+        "replace_from": "gear_astro_saucer_launcher",
+        "replace_to": "gear_astro_saucer_launcher_fly_away_bad_guy"
+      }
+    ],
+    "category": "perk"
+  },
+  {
+    "_id": "shop_item_perk_hero_astro_fly_away_bad_guy",
+    "_rev": "fixture-revision",
+    "scope": "public",
+    "name": {
+      "text": "Fly Away Bad Guy ",
+      "data": {}
+    },
+    "description": {
+      "text": "Saucer Launcher knockback is 70% more powerful / Saucer Launcher does 35% less player damage",
+      "data": {}
+    },
+    "short_description": {
+      "text": "Hero",
+      "data": {}
+    },
+    "image": "shop_perk_hero_astro_away_bad_guy",
+    "featured_image": "",
+    "available_in_shop": true,
+    "release_date": null,
+    "is_new": false,
+    "free_to_try": false,
+    "items": [
+      "perk_hero_astro_fly_away_bad_guy"
+    ],
+    "dependency": null,
+    "duration_hours": null,
+    "price_real": null,
+    "price_virtual": 11000,
+    "promotion": null,
+    "category": "shop_item"
+  },
+  {
+    "_id": "unit_projectile_astro_saucer",
+    "_rev": "fixture-revision",
+    "scope": "public",
+    "build_time": null,
+    "cooldown": null,
+    "base_cost": null,
+    "cost_inc_per_unit": null,
+    "level": 1,
+    "prefab": "Prefabs/Projectiles/AstroSaucerProjectile",
+    "killscore_icon": "icon_killscore_saucerlauncher",
+    "name": null,
+    "description": null,
+    "minimap_type": null,
+    "indicator": null,
+    "icon_map_editor": null,
+    "size": null,
+    "pivot_type": "center",
+    "ground_only": true,
+    "can_rotate": false,
+    "block_movement": false,
+    "capturing": null,
+    "health": {
+      "health": {
+        "max_health": 1,
+        "toughness": 0,
+        "shield": 0,
+        "health_type": "world",
+        "mining_only": false,
+        "melee_only": false
+      },
+      "forcefield": null,
+      "kill_reward": null
+    },
+    "loot": null,
+    "spawn_point": null,
+    "count_limit": null,
+    "lifetime": 10,
+    "labels": [
+      "astro_disc"
+    ],
+    "fall_hit_modifier": 0,
+    "block_binding": "none",
+    "allow_underwater": true,
+    "movement": {
+      "type": "custom"
+    },
+    "device_type": "none",
+    "init_effects": [],
+    "enabled_effects": [],
+    "material": "material_none",
+    "treat_hits_as_owner_hits": false,
+    "data": {
+      "type": "projectile",
+      "movement_timeout": 0.85,
+      "acceleration": 100,
+      "max_speed": 100,
+      "trigger_radius": 0.1,
+      "collide_with": "both",
+      "die_on_world_collision": false,
+      "die_on_player_collision": true,
+      "world_collision_effect": null,
+      "player_collision_effect": null,
+      "death_effect": {
+        "type": "bunch",
+        "interrupt": null,
+        "targeting": null,
+        "impact": null,
+        "break_on_effect_fail": false,
+        "instant": [
+          {
+            "type": "splash_damage",
+            "interrupt": null,
+            "targeting": null,
+            "impact": "impact_explosion_astro_saucer",
+            "damage": {
+              "player_damage": 24,
+              "world_damage": 26,
+              "objective_damage": 0,
+              "mining": false,
+              "melee": false,
+              "ignore_invincibility": false,
+              "ignore_defences": false
+            },
+            "radius": 2.5,
+            "unit_inst_effects": [],
+            "unit_const_effects": []
+          },
+          {
+            "type": "knockback",
+            "interrupt": null,
+            "targeting": null,
+            "impact": null,
+            "force": 5,
+            "midair_force": 5,
+            "effect_range": 2.5,
+            "linear_falloff": false,
+            "affect_caster": true
+          }
+        ],
+        "constant": []
+      },
+      "player_attachment": {
+        "name": "AttachmentNode_SaucerLauncher",
+        "offset": {
+          "x": 0.2,
+          "y": 0,
+          "z": 0.167
+        },
+        "chase_distance": 1.5
+      },
+      "unit_attachment": {
+        "name": "AttachmentNode_SaucerLauncher",
+        "offset": {
+          "x": -0.97,
+          "y": 0,
+          "z": 0.18
+        },
+        "chase_distance": 5
+      }
+    },
+    "category": "unit"
+  },
+  {
+    "_id": "unit_projectile_astro_saucer_fly_away_bad_guy",
+    "_rev": "fixture-revision",
+    "scope": "public",
+    "build_time": null,
+    "cooldown": null,
+    "base_cost": null,
+    "cost_inc_per_unit": null,
+    "level": 1,
+    "prefab": "Prefabs/Projectiles/AstroSaucerProjectile",
+    "killscore_icon": "icon_killscore_saucerlauncher",
+    "name": null,
+    "description": null,
+    "minimap_type": null,
+    "indicator": null,
+    "icon_map_editor": null,
+    "size": null,
+    "pivot_type": "center",
+    "ground_only": true,
+    "can_rotate": false,
+    "block_movement": false,
+    "capturing": null,
+    "health": {
+      "health": {
+        "max_health": 1,
+        "toughness": 0,
+        "shield": 0,
+        "health_type": "world",
+        "mining_only": false,
+        "melee_only": false
+      },
+      "forcefield": null,
+      "kill_reward": null
+    },
+    "loot": null,
+    "spawn_point": null,
+    "count_limit": null,
+    "lifetime": 10,
+    "labels": [
+      "astro_disc"
+    ],
+    "fall_hit_modifier": 0,
+    "block_binding": "none",
+    "allow_underwater": true,
+    "movement": {
+      "type": "custom"
+    },
+    "device_type": "none",
+    "init_effects": [],
+    "enabled_effects": [],
+    "material": "material_none",
+    "treat_hits_as_owner_hits": false,
+    "data": {
+      "type": "projectile",
+      "movement_timeout": 0.85,
+      "acceleration": 100,
+      "max_speed": 100,
+      "trigger_radius": 0.1,
+      "collide_with": "both",
+      "die_on_world_collision": false,
+      "die_on_player_collision": true,
+      "world_collision_effect": null,
+      "player_collision_effect": null,
+      "death_effect": {
+        "type": "bunch",
+        "interrupt": null,
+        "targeting": null,
+        "impact": null,
+        "break_on_effect_fail": false,
+        "instant": [
+          {
+            "type": "splash_damage",
+            "interrupt": null,
+            "targeting": null,
+            "impact": "impact_explosion_astro_saucer",
+            "damage": {
+              "player_damage": 24,
+              "world_damage": 26,
+              "objective_damage": 0,
+              "mining": false,
+              "melee": false,
+              "ignore_invincibility": false,
+              "ignore_defences": false
+            },
+            "radius": 2.5,
+            "unit_inst_effects": [],
+            "unit_const_effects": []
+          },
+          {
+            "type": "knockback",
+            "interrupt": null,
+            "targeting": null,
+            "impact": null,
+            "force": 8.5,
+            "midair_force": 8.5,
+            "effect_range": 2.5,
+            "linear_falloff": false,
+            "affect_caster": true
+          }
+        ],
+        "constant": []
+      },
+      "player_attachment": {
+        "name": "AttachmentNode_SaucerLauncher",
+        "offset": {
+          "x": 0.2,
+          "y": 0,
+          "z": 0.167
+        },
+        "chase_distance": 1.5
+      },
+      "unit_attachment": {
+        "name": "AttachmentNode_SaucerLauncher",
+        "offset": {
+          "x": -0.97,
+          "y": 0,
+          "z": 0.18
+        },
+        "chase_distance": 5
+      }
+    },
+    "category": "unit"
+  }
+]
