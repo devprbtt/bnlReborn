@@ -1257,6 +1257,7 @@ public sealed class ControlPanelServer : IDisposable
                 .OrderByDescending(m => m.MatchEndTime)
                 .Select(m => new
                 {
+                    match_id = System.Text.Encoding.UTF8.GetString(m.MatchId ?? []),
                     hero = m.HeroKey.GetCard<BaseTypes.CardUnit>()?.Name?.Text ?? m.HeroKey.GetCard<BaseTypes.CardUnit>()?.Id ?? m.HeroKey.ToString(),
                     map = m.MapKey.GetCard<BaseTypes.CardMap>()?.Name?.Text ?? m.MapKey.GetCard<BaseTypes.CardMap>()?.Id ?? m.MapKey.ToString(),
                     game_mode = m.GameModeKey.GetCard<BaseTypes.CardGameMode>()?.Name ?? m.GameModeKey.GetCard<BaseTypes.CardGameMode>()?.Id ?? m.GameModeKey.ToString(),

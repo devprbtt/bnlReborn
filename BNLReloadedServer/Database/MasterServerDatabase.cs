@@ -683,6 +683,7 @@ public class MasterServerDatabase : IMasterServerDatabase
     private async Task<PlayerData> LoadSanitized(PlayerRecord record)
     {
         var player = PlayerData.FromPlayerRecord(record);
+        await MatchHistoryArchiveLinker.ResolveAsync(_playerDb,player.PlayerId,player.MatchHistory);
         if (!player.SanitizeAgainstCatalogue()) return player;
 
         await _asyncLock.WaitAsync();

@@ -1399,7 +1399,7 @@ public partial class GameZone : Updater
                 Databases.PlayerDatabase.UpdateMatchStats(new EndMatchResults
                 {
                     PlayerId = playerId,
-                    GameInstanceId = _instanceId ?? string.Empty,
+                    GameInstanceId = UsesPersonalMmr ? RatingMatchId : _instanceId ?? string.Empty,
                     MatchEndTime = (ulong)DateTimeOffset.Now.ToUnixTimeMilliseconds(),
                     MapKey = _zoneData.MapKey ?? Key.None,
                     GameModeKey = _zoneData.GameModeKey,
@@ -1796,7 +1796,7 @@ public partial class GameZone : Updater
         _actionScores!.Published();
         _unbufferedZone.SendEndMatch(winner);
         var matchStats = new List<EndMatchPlayerData>();
-        var gameEnd = DateTimeOffset.Now;
+        var gameEnd = _ratingEndedAt ?? DateTimeOffset.Now;
         var gameLength = _attackStartTime.HasValue ? gameEnd - _attackStartTime.Value : TimeSpan.Zero;
 
         var cardGlobalLogic = CatalogueHelper.GlobalLogic;
@@ -2010,7 +2010,7 @@ public partial class GameZone : Updater
                 Databases.PlayerDatabase.UpdateMatchStats(new EndMatchResults
                 {
                     PlayerId = player.PlayerId.Value,
-                    GameInstanceId = _instanceId ?? string.Empty,
+                    GameInstanceId = UsesPersonalMmr ? RatingMatchId : _instanceId ?? string.Empty,
                     MatchEndTime = (ulong)gameEnd.ToUnixTimeMilliseconds(),
                     MapKey = _zoneData.MapKey ?? Key.None,
                     GameModeKey = _zoneData.GameModeKey,
