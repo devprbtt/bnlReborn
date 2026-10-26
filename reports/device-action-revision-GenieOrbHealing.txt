@@ -1,0 +1,27 @@
+19:50:57.010 INFO  perf      Zone construction started: GameZone instance=fixture mode=2874013687 map=<embedded>, size=16,16,16, map units=0, players=3
+19:50:57.030 INFO  perf      Zone queued setup started: GameZone instance=fixture mode=2874013687 map=<embedded>
+19:50:57.034 INFO  perf      Zone construction completed: GameZone instance=fixture mode=2874013687 map=<embedded>, elapsed=40ms
+19:50:57.034 INFO  perf      Zone queued setup completed: GameZone instance=fixture mode=2874013687 map=<embedded>, units=0, elapsed=1ms
+19:50:57.068 INFO  perf      Slow action: GameZone instance=fixture mode=2874013687 map=<embedded> queue, Program.<Main took 34ms, allocated 51KB, 0 queued
+PASS single orb heals normally
+PASS same Genie's simultaneous second orb does not stack
+PASS different Genie's staggered orb does not stack
+PASS normal timer jitter does not halve single-orb healing
+PASS overlap cannot add a tick after the active orb tick
+PASS remaining orb takes over after original leaves/expires
+PASS old orb cannot add a tick after handoff
+PASS recipients have independent healing cadence including self
+PASS unrelated healing auras remain additive
+PASS other healing cannot reset Genie cadence
+PASS reentering after a gap heals immediately
+PASS handoff keeps actual healer attribution
+PASS ten seconds of three overlapping orbs heals 50 HP, not 150
+PASS healing aura includes recipient marker
+PASS registration is idempotent
+PASS marker has no gameplay buffs, timer or unknown prefab for older clients
+PASS full-health recipient has visual without healing or damage
+PASS overlapping orbs share a single visual
+PASS leaving one overlapping orb retains visual
+PASS leaving last orb clears visual
+PASS removing aura cleans recipient visual
+BNL_GENIE_ORB_HEALING_FIXTURE_OK checks=21

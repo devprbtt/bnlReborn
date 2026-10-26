@@ -1530,7 +1530,7 @@ public partial class Unit
                 if (IsBuff(BuffType.VisionMark))
                 {
                     TimeSpotted.Start();
-                    ReportScoreSpots();
+                    ReportScoreSpots(false);
                 }
                 else
                 {

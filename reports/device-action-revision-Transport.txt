@@ -1,0 +1,7 @@
+PASS fixture server started
+PASS fixture session connected
+PASS worker pool constrained
+PASS all workers occupied
+PASS reply reaches socket without a ThreadPool continuation
+PASS stopped sender rejects later packets
+Transport fixture passed: 6 checks.

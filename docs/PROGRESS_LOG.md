@@ -79,3 +79,10 @@ Old bot credential rejected by Discord; main service had over 32,000 restarts. N
 - Kills (regular and accolades) near an objective get max(+25%, KillObjectiveBonus 20) as the objective bonus; other actions keep +25%.
 - `block_ice` family gives no "Device destroyed" and no Trondson demolition assist, in the voxel path (MapBinary.DamageBlock, the real ice path) and the unit paths. Fixture drives a real MapBinary voxel destruction with a hero-block positive control; disabling the guard makes the ice check fail.
 - Live CDB global_logic.action_scores is null, so code defaults are live. ActionScoreFixture 193, ProgressionFixture 19, ScoreboardMetadataFixture 20, PlayerLeaderboardFixture 36 pass; Release -warnaserror clean.
+
+## 2026-10-26 — Revised device action scoring (not deployed)
+
+- Enemy-side spawns 20 / friendly-side 10 per use; turret 5/100 HP; beacon, Miasma and Torpedo 5/50 HP; Gravity Well explosion and Kreepy box 5/hit; fake-block enemy trigger 10. Genie lamp gas inherits builder at creation and earns 5/100 HP.
+- Removed device ammo/spawn/radar/bomb/mine/trap/Roly/C4/mortar repeat gates. Portals retain 60s per ally/owner; Tiki retains 1s; unrelated hero ability timers unchanged. Radar pays per 200ms scan tick with overlapping-owner deduplication, not also on effect admission. Damaging trap status applications do not double-pay damage; unchanged glue/goo refreshes do not score.
+- Beacon/mortar/C4 destruction uses cost-based award exactly once (ceil base cost/20, min5/max50), without flat mortar/C4 extras. Objective bonuses unchanged. 278 scoring checks cover source resolution, gas ownership, fake triggers, boundaries and costs; six regression suites pass. No live gameplay validation or deployment.
+- Scoring rules, full inventory, Discord guide and all four pending patch-note surfaces updated. Website notes prepared, not deployed; launcher/in-game notes await a later signed release.

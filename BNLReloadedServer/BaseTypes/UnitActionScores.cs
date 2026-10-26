@@ -19,8 +19,7 @@ public partial class Unit
         if (!destroyed) return;
         player.ReportActionScore("Device destroyed", Math.Max(1, card.BaseCost ?? 0), position.ToVector3());
         player.ReportHeroBoostAction("effect_hero_trondson_heigh_ho_buff", "Demolition boost assist", position.ToVector3());
-        if (reason is "C4 hit" or "Mortar hit")
-            player.ReportActionScore(reason == "C4 hit" ? "C4 destruction" : "Mortar destruction", 1, position.ToVector3());
+
     }
 
     private void ReportAmmoSupply(EffectSource? source, float restored)
@@ -33,10 +32,11 @@ public partial class Unit
         builder.ReportActionScore("Ammo supplied", restored, GetMidpoint(), recipient);
     }
 
-    public void ReportScoreSpots()
+    public void ReportScoreSpots(bool scanTick = true)
     {
         if (IsDead || !IsActive || Team == TeamType.Neutral ||
             PlayerId == null && (UnitCard?.DeviceType is not (DeviceType.Device or DeviceType.Hero) || UnitCard.IsObjective)) return;
+        var radarOwners = new HashSet<uint>();
         foreach (var effect in ActiveEffects)
         {
             if (effect.Card?.Effect is not ConstEffectBuff { Buffs: { } buffs } ||
@@ -49,7 +49,8 @@ public partial class Unit
                     !DamageAccounting.IsEnemyPlayerDamage(Team, player.Team)) continue;
                 bool radar = source is UnitSource unit && unit.Unit.PlayerId == null &&
                     ScoreCardFamily(ScoreSourceId(unit.Unit.Key), "unit_device_generic_radar");
-                if (PlayerId == null && !radar) continue;
+                if (PlayerId == null && !radar || radar && PlayerId != null && !scanTick) continue;
+                if (radar && !radarOwners.Add(id.Value)) continue;
                 player.ReportActionScore(radar ? (PlayerId == null ? "Radar device" : "Radar spot") : "Ability spot", 1, GetMidpoint(), Id);
             }
         }

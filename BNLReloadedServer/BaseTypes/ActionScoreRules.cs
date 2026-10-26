@@ -6,6 +6,7 @@ namespace BNLReloadedServer.BaseTypes;
 public sealed class ActionScoreRules
 {
     public int AmmoSupply { get; set; } = 5;
+    // Legacy intervals remain parseable but no longer gate device actions.
     public float AmmoCooldown { get; set; } = 15;
     public int RadarDevice { get; set; } = 5;
     public int SpawnUse { get; set; } = 10;
@@ -20,7 +21,13 @@ public sealed class ActionScoreRules
     public int BearTrapAffected { get; set; } = 10;
     public int CaltropsAffected { get; set; } = 5;
     public float DeviceHitCooldown { get; set; } = 1;
-    public float TurretDamageChunk { get; set; } = 50;
+    public float TurretDamageChunk { get; set; } = 100;
+    public int EnemySideSpawnUse { get; set; } = 20;
+    public int FakeBlockTriggered { get; set; } = 10;
+    public float HeroDeviceDamageChunk { get; set; } = 50;
+    public int HeroDeviceDamagePoints { get; set; } = 5;
+    public int GravityWellHit { get; set; } = 5;
+    public int KreepyBoxHit { get; set; } = 5;
     public int TurretDamagePoints { get; set; } = 5;
     public int MineAffected { get; set; } = 10;
     public int FireTrapAffected { get; set; } = 5;
@@ -89,7 +96,7 @@ public sealed class ActionScoreRules
             var value = Convert.ToDouble(p.GetValue(this));
             if (!double.IsFinite(value) || value < 0 || value > 100000) throw new InvalidDataException("Invalid action score setting: " + p.Name);
         }
-        if (TurretDamageChunk <= 0 || PortalCooldown < 60 || AmmoCooldown <= 0 || SpawnCooldown <= 0 || DeviceHitCooldown <= 0 || SpotCooldown <= 0 || TrapEffectCooldown <= 0)
+        if (HeroDeviceDamageChunk <= 0 || TurretDamageChunk <= 0 || PortalCooldown < 60 || DeviceHitCooldown <= 0 || SpotCooldown <= 0)
             throw new InvalidDataException("Invalid device action threshold or repeat interval");
         if (FirstKill <= Kill || DoubleKill <= FirstKill || MultiKill <= DoubleKill || UltraKill <= MultiKill || Fantastic <= UltraKill || Unbelievable <= Fantastic)
             throw new InvalidDataException("Kill accolade scores must increase above the regular kill value");

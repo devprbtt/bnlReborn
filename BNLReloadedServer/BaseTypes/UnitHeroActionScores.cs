@@ -53,14 +53,10 @@ public partial class Unit
                 else if (device && id.StartsWith("effect_hero_boxer_power_surge", StringComparison.Ordinal) && !id.Contains("immunity")) reason = "EMP affected";
                 else if (PlayerId != null)
                 {
-                    if (id == "effect_status_rooted_bear_trap" && ScoreCardFamily(origin, "block_bear_trap")) reason = "Bear trap affected";
-                    else if (id == "effect_status_bleed_caltrops" && ScoreCardFamily(origin, "block_caltrops")) reason = "Caltrops affected";
-                    else if (id == "effect_status_slow_glue" && ScoreCardFamily(origin, "block_glue")) reason = "Glue affected";
-                    else if (id == "effect_status_poison_thorn_bush" && ScoreCardFamily(origin, "block_thorn_bush")) reason = "Bush affected";
-                    else if (id == "effect_status_burning_fire_trap" && (ScoreCardFamily(origin, "unit_device_generic_fire_trap") || origin == "block_fire_from_fire_trap")) reason = "Fire trap affected";
+                    if (id == "effect_status_slow_glue" && ScoreCardFamily(origin, "block_glue")) reason = "Glue affected";
                     else if (id == "effect_hero_magnus_lightning_cage_hitting") reason = "Cage affected";
                     else if (id is "effect_abe_avalanche_area_slow" or "effect_hero_abe_avalanche_slow") reason = "Avalanche affected";
-                    else if (id.Contains("toxic_waste", StringComparison.Ordinal) || id == "effect_status_poison_device_toxicwaste") reason = "Goo affected";
+                    else if (id == "effect_status_slow_glue_toxic_waste") reason = "Goo affected";
                     else if (id.StartsWith("effect_hero_kreepy_killer_klown_debuff", StringComparison.Ordinal)) reason = "Enemy frightened";
                 }
             }
@@ -69,6 +65,8 @@ public partial class Unit
                 if (id.StartsWith("effect_hero_kira_jpop_star_reload_buff", StringComparison.Ordinal)) reason = "Reload boost";
                 else if (origin.StartsWith("ability_astro_boost", StringComparison.Ordinal) && id.StartsWith("effect_status_boost", StringComparison.Ordinal)) reason = "Ally boosted";
             }
+            if (reason is "Glue affected" or "Goo affected" && ActiveEffects.Any(e => e.Key == effect.Key) &&
+                _effectSources.TryGetValue(effect.Key, out var existingSources) && existingSources.Contains(source!)) continue;
             if (reason != null && reasons.Add(reason)) player.ReportActionScore(reason, 1, GetMidpoint(), Id);
         }
     }

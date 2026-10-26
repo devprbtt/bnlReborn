@@ -561,7 +561,10 @@ public partial class GameZone : Updater
             RelativeTeamType.Opponent when killer?.Team == TeamType.Team2 => TeamType.Team1,
             _ => TeamType.Neutral
         };
-        var pickup = CatalogueFactory.CreateUnit(NewUnitId(), loot.LootUnitKey, transform, team, null, _defaultUnitUpdater);
+        bool lampGas = origin != null && Unit.ScoreCardFamily(Unit.ScoreSourceId(origin.Key), "unit_device_djinn_lamp") &&
+            Unit.ScoreCardFamily(lootCard.Id ?? "", "unit_dummy_djinn_acid_cloud_lamp");
+        var pickup = CatalogueFactory.CreateUnit(NewUnitId(), loot.LootUnitKey, transform,
+            lampGas ? origin!.Team : team, lampGas ? origin : null, _defaultUnitUpdater);
         if (pickup != null && origin?.Key == new Key("unit_device_djinn_lamp") && lootCard.Data is UnitDataPickup)
             pickup.ScoreLampOwner = origin.OwnerPlayerId;
     }
@@ -2214,6 +2217,11 @@ public partial class GameZone : Updater
             }
 
             if (!value.AddUnit(unit)) continue;
+            if (Unit.ScoreCardFamily(block.Card.Id ?? "", "block_false") && unit.PlayerId != null &&
+                !unit.IsDead && unit.IsActive && blockOwner is { } fakeOwner &&
+                GetPlayerFromPlayerId(fakeOwner.PlayerId ?? fakeOwner.OwnerPlayerId ?? 0) is { } builder &&
+                builder.Team != TeamType.Neutral && unit.Team != TeamType.Neutral && AreOpponents(unit, builder))
+                AwardAction(builder, "Fake block triggered", 1, blk.ToVector3(), unit.Id);
 
             var (max, min) = UnitSizeHelper.GetExactUnitBounds(unit);
             var blockPos = blk.ToVector3();

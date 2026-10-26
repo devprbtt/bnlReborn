@@ -75,8 +75,8 @@ a.SendHealAttribution(a,50,null);enemy.SendHealAttribution(a,50,null);Check(actu
 var device=Make(4,deviceCard,TeamType.Team2);Call("ScoreKill",device,a,true,false,Array.Empty<uint>());Check(actual.Total(1)==210,"enemy device destruction uses device base cost");
 Call("ScoreDamage",enemy,100f,new ImpactData(),a,device);Check(actual.Total(1)==215,"confirmed device damage on opponent scores");
 Call("ScoreDamage",ally,100f,new ImpactData(),a,device);Check(actual.Total(1)==215,"friendly device damage excluded");
-Call("AwardAction",a,"Radar spot",1f,Vector3.Zero,enemy.Id);Call("AwardAction",a,"Ability spot",1f,Vector3.Zero,enemy.Id);
-Check(actual.Total(1)==220,"radar and ability share repeat-target cooldown");
+Call("AwardAction",a,"Radar spot",1f,Vector3.Zero,enemy.Id);
+Check(actual.Total(1)==220,"radar awards confirmed scan");
 Call("AwardAction",a,"Ability spot",1f,Vector3.Zero,99u);Check(actual.Total(1)==230,"ability spotting has its own starting value");
 var cube=Make(5,cubeCard,TeamType.Team2);Call("ScoreDamage",cube,10f,new ImpactData(),ally,ally);
 Call("ScoreKill",cube,a,true,false,Array.Empty<uint>());Check(actual.Total(1)==480 && actual.Total(2)==275,"cube destroy grants exactly 250 to destroyer and nearby contributor without duplicate assist");
@@ -89,7 +89,7 @@ var markCard=new CardEffect {Id="score_vision_mark",Duration=3,Effect=new ConstE
 db.Replicate([playerCard,cubeCard,deviceCard,markCard]);
 device.OwnerPlayerId=a.PlayerId;device.Team=a.Team;
 int beforeSpot=actual.Total(1);
-spotted.AddEffects([new ConstEffectInfo(markCard.Key)],a.Team,device.GetSelfSource(device.CreateImpactData()));
+spotted.AddEffects([new ConstEffectInfo(markCard.Key)],a.Team,device.GetSelfSource(device.CreateImpactData()));spotted.ReportScoreSpots();
 Check(actual.Total(1)==beforeSpot+6,"real radar mark attributes owner and objective bonus");
 var abilityVictim=Make(7,playerCard,TeamType.Team2,7);beforeSpot=actual.Total(1);
 abilityVictim.AddEffects([new ConstEffectInfo(markCard.Key)],a.Team,a.GetSelfSource(a.CreateImpactData()));
@@ -304,7 +304,7 @@ Check(actual.Total(1)==beforeGrenade+2*rules.SargeGrenadeHit,"separate Sarge gre
 var mortarCard=new CardUnit{Id="unit_device_cogwheel_mortar",DeviceType=DeviceType.Hero,Data=new UnitDataCommon()};heroCatalogue.Add(mortarCard);db.Replicate(heroCatalogue);
 var mortar=Make(246,mortarCard,TeamType.Team1);int beforeMortar=actual.Total(1);
 Call("ScoreHeroDeviceDestroyed",destroyed,a,mortar,a.CreateImpactData(sourceKey:mortarCard.Key));
-Check(actual.Total(1)==beforeMortar+rules.CogMortarDestroy,"Cog mortar destruction gives its additional award");
+Check(actual.Total(1)==beforeMortar,"Cog mortar has no duplicate flat destruction award");
 var lampPickup=Make(247,deviceCard,TeamType.Neutral);lampPickup.ScoreLampOwner=1;int beforeLamp=actual.Total(1);
 Call("ScoreLampPickup",lampPickup,boosted);Call("ScoreLampPickup",lampPickup,boosted);
 Check(actual.Total(1)==beforeLamp+rules.GenieLampPickup,"friendly lamp collection credits builder once");
@@ -372,10 +372,10 @@ foreach(var trapCard in trapCards)
  Call("ScoreDamage",victim,1f,impact,a,trap);
  Check(actual.Total(1)==before+reward,"actual trap damage credits owner: "+trapCard.Id);
  Call("ScoreDamage",victim,1f,impact,a,trap);
- Check(actual.Total(1)==before+reward,"repeated trap damage is throttled");
+ Check(actual.Total(1)==before+2*reward,"each repeated trap hit scores without cooldown");
  var secondVictim=Make(heroTarget++,playerCard,TeamType.Team2,heroTarget);
  Call("ScoreDamage",secondVictim,1f,impact,a,trap);
- Check(actual.Total(1)==before+2*reward,"another enemy can earn independent trap points");
+ Check(actual.Total(1)==before+3*reward,"another enemy can earn independent trap points");
 }
 for(int i=0;i<trapBlocks.Length;i++)
 {
@@ -386,10 +386,10 @@ for(int i=0;i<trapBlocks.Length;i++)
  int reward=i==0?rules.GlueAffected:i==1?rules.BushAffected:rules.FireTrapAffected;
  int before=actual.Total(1);
  victim.AddEffects([new ConstEffectInfo(trapEffects[i].Key)],source.Team,source);
- Check(actual.Total(1)==before+reward,"admitted block effect credits actual builder: "+trapBlocks[i].Id);
+ Check(actual.Total(1)==before+(i==0?reward:0),"only non-damaging glue effect credits builder: "+trapBlocks[i].Id);
  victim.AddEffects([new ConstEffectInfo(trapEffects[i].Key)],source.Team,source);
  if(i>0) Call("ScoreDamage",victim,1f,source.Impact,a,a);
- Check(actual.Total(1)==before+reward,"effect refresh and damage share trap cooldown");
+ Check(actual.Total(1)==before+reward,"effect refresh does not duplicate real trap damage");
  ally.AddEffects([new ConstEffectInfo(trapEffects[i].Key)],source.Team,source);
  Check(actual.Total(1)==before+reward,"friendly block effect never scores");
  var noOwner=new BlockSource(pos,block.ToBlock(),new ImpactData{SourceKey=trapBlocks[i].Key});
@@ -463,17 +463,18 @@ Unit Device(uint unitId,string name,uint owner=1)
 }
 var turret=Device(800,"unit_device_engineer_turret_snowman");
 void Hit(Unit source,Unit actionVictim,float hp,Key? sourceKey=null)=>Call("ScoreDamage",actionVictim,hp,new ImpactData{SourceKey=sourceKey??source.Key},a,source);
-Hit(turret,enemy,49);Check(actionLedger.Total(1)==0,"turret waits for 50 actual HP");
-Hit(turret,enemy,1);Check(actionLedger.Total(1)==5,"turret awards one 50-HP chunk without generic double credit");
-Hit(turret,enemy,125);Check(actionLedger.Total(1)==15,"turret carries remainder across hits");
+Hit(turret,enemy,99);Check(actionLedger.Total(1)==0,"turret waits for 100 actual HP");
+Hit(turret,enemy,1);Check(actionLedger.Total(1)==5,"turret awards one 100-HP chunk without generic double credit");
+Hit(turret,enemy,250);Check(actionLedger.Total(1)==15,"turret carries remainder across hits");
 Hit(turret,ally,50);Hit(turret,a,50);Hit(turret,enemy,float.NaN);Check(actionLedger.Total(1)==15,"friendly self and invalid hits cannot fill turret chunks");
-Hit(turret,enemy,25);Check(actionLedger.Total(1)==20,"turret remainder completes exactly");
+Hit(turret,enemy,50);Check(actionLedger.Total(1)==20,"turret remainder completes exactly");
 foreach(var entry in new[]{("unit_device_generic_bomb_roly","Bomb affected",10),("unit_device_hunter_tiki","Tiki hit",5),("unit_device_cogwheel_mortar","Mortar hit",10),("unit_device_sarge_bomb","C4 hit",10),("unit_device_roly_toxic_waste","Goo affected",10),("block_bear_trap_astro","Bear trap affected",10),("block_caltrops_kreepy","Caltrops affected",5)})
 {
  Fresh();var source=Device(801,entry.Item1);Hit(source,enemy,1);Hit(source,enemy,1);
- Check(actionLedger.Total(1)==entry.Item3,entry.Item2+" credits one useful hit and suppresses duplicate pellets/ticks");
+ int expectedHits=entry.Item2=="Tiki hit"?1:2;
+ Check(actionLedger.Total(1)==expectedHits*entry.Item3,entry.Item2+" follows its hit repeat rule");
  Call("ScoreKill",enemy,a,true,false,Array.Empty<uint>());
- Check(actionLedger.Total(1)==entry.Item3+rules.Kill,entry.Item2+" retains normal kill credit exactly once");
+ Check(actionLedger.Total(1)==expectedHits*entry.Item3+rules.Kill,entry.Item2+" retains normal kill credit exactly once");
 }
 Fresh();var bomb=Device(802,"unit_device_generic_large_bomb");var actionVictim=Make(803,deviceCard,TeamType.Team2);
 Hit(bomb,actionVictim,1);Check(actionLedger.Total(1)==rules.BombAffected,"bomb damage to enemy device scores");
@@ -482,10 +483,10 @@ Check(actionLedger.Total(1)==rules.BombAffected,"bomb friendly and neutral devic
 foreach(var name in new[]{"unit_device_cogwheel_mortar","unit_device_sarge_bomb"})
 {
  Fresh();var source=Device(804,name);Call("ScoreKill",actionVictim,a,true,false,Array.Empty<uint>());Call("ScoreHeroDeviceDestroyed",actionVictim,a,source,source.CreateImpactData(sourceKey:source.Key));
- Check(actionLedger.Total(1)==actionLedger.DeviceValue(400)+10,name+" awards destruction and normal device credit");
+ Check(actionLedger.Total(1)==actionLedger.DeviceValue(400),name+" awards destruction and normal device credit");
  var cell=new Vector3s(1,1,1);var block=voxels[cell];block.Id=82;block.Team=TeamType.Team2;block.Damage=0;
  int previous=actionLedger.Total(1);voxels.DamageBlock(cell,new DamageData(0,0,0,0,0,0,0,0,false,false,false,false){BlockDamage=255},source,scoreSource:source.Key);
- Check(actionLedger.Total(1)==previous+actionLedger.DeviceValue(400)+10,name+" destruction of voxel device credits owner");
+ Check(actionLedger.Total(1)==previous+actionLedger.DeviceValue(400),name+" destruction of voxel device credits owner");
 }
 
 foreach(var route in new[]{"SplashDamageBlocksRaycast","SplashDamageBlocksFlood"})
@@ -494,7 +495,7 @@ foreach(var name in new[]{"unit_device_cogwheel_mortar","unit_device_sarge_bomb"
  Fresh();var source=Device(850,name);var blastMap=new MapBinary(3,new byte[4*4*4*6].Zip(0).ToArray(),new Vector3s(4,4,4),-1,new MapUpdater((_,_)=>{},(_,_)=>{},_=>{},_=>true));
  var cell=new Vector3s(1,1,1);var blastBlock=blastMap[cell];blastBlock.Id=82;blastBlock.Team=TeamType.Team2;
  typeof(MapBinary).GetMethod(route,BindingFlags.Instance|BindingFlags.NonPublic)!.Invoke(blastMap,new object?[]{new[]{new Vector3(1.5f,1.5f,1.5f)},new DamageData(0,0,0,0,0,0,0,0,false,false,false,false){BlockDamage=1000},source.CreateImpactData(sourceKey:source.Key),3f,Array.Empty<Unit>(),source,TeamType.Team1});
- Check(blastMap[cell].Id!=82 && actionLedger.Total(1)==actionLedger.DeviceValue(400)+10,route+" credits "+name+" actual voxel destruction");
+ Check(blastMap[cell].Id!=82 && actionLedger.Total(1)==actionLedger.DeviceValue(400)+(name=="unit_device_generic_bomb"?10:0),route+" credits "+name+" actual voxel destruction");
 }
 Fresh();var portal=Device(805,"unit_device_kira_portal");var portal2=Device(806,"unit_device_kira_portal");
 Call("ScoreDeviceUse",portal,ally,"Portal used");Call("ScoreDeviceUse",portal2,ally,"Portal used");Call("ScoreDeviceUse",portal,a,"Portal used");Call("ScoreDeviceUse",portal,enemy,"Portal used");
@@ -503,8 +504,9 @@ var otherAlly=Make(807,playerCard,TeamType.Team1,807);Call("ScoreDeviceUse",port
 Check(actionLedger.Total(1)==20,"another ally earns a separate portal reward");
 var cooldownLedger=new ActionScoreLedger(rules);
 Check(cooldownLedger.Ready(1,"Portal used:2",0,60)&&!cooldownLedger.Ready(1,"Portal used:2",59.99,60)&&cooldownLedger.Ready(1,"Portal used:2",60,60),"portal cooldown expires at exactly 60 seconds");
+data.BlocksData=voxels;
 Call("ScoreDeviceUse",portal,ally,"Ally spawned");Call("ScoreDeviceUse",portal,ally,"Ally spawned");
-Check(actionLedger.Total(1)==30,"successful allied spawn scores and immediate repeat is suppressed");
+Check(actionLedger.Total(1)==40,"every successful allied spawn scores without repeat cooldown");
 Fresh();var radar=Device(808,"unit_device_generic_radar_engineer");
 var scanCard=new CardEffect{Id="score_device_scan",Effect=new ConstEffectBuff{Buffs=new(){{BuffType.VisionMark,1}}}};Publish([scanCard]);
 actionVictim.AddEffects([new ConstEffectInfo(scanCard.Key)],radar.Team,radar.GetSelfSource(radar.CreateImpactData()));
@@ -520,7 +522,7 @@ var ammoGear=new CardGear{Id="score_supply_weapon",Ammo=[new AmmoData{MagSize=10
 ally.Gears.Add(new GearData(ally,ammoGear.Key,0));var reserve=ally.Gears[0].Ammo[0];
 ally.AddAmmo(10,station.GetSelfSource());Check(actionLedger.Total(1)==0,"full ammo earns nothing");
 reserve.Pool=50;ally.AddAmmo(10,station.GetSelfSource());Check(actionLedger.Total(1)==5 && reserve.Pool==60,"actual ally ammo restored credits station owner");
-ally.AddAmmo(10,station.GetSelfSource());Check(actionLedger.Total(1)==5 && reserve.Pool==70,"ammo ticks continue refilling without score spam");
+ally.AddAmmo(10,station.GetSelfSource());Check(actionLedger.Total(1)==10 && reserve.Pool==70,"each real ammo refill scores without cooldown");
 Fresh();station.OwnerPlayerId=ally.PlayerId;ally.AddAmmo(10,station.GetSelfSource());Check(actionLedger.Total(2)==0,"own ammo crate earns no self-supply reward");station.OwnerPlayerId=1;
 Fresh();ally.AddAmmoPercent(.1f,station.GetSelfSource());Check(actionLedger.Total(1)==5,"percentage ammo restoration uses the same attribution gate");
 Fresh();var ammoBuff=new CardEffect{Id="score_supply_regen",Effect=new ConstEffectBuff{Buffs=new(){{BuffType.AmmoRegen,1}}}};Publish([ammoBuff]);reserve.Pool=50;
@@ -532,13 +534,66 @@ var crossing=new ActionScoreLedger(rules);crossing.AccumulateChunks(1,"Turret da
 Check(crossing.Total(1)==6,"moving into an objective area does not reset the turret damage remainder");
 var extremeChunks=new ActionScoreLedger(rules);extremeChunks.AccumulateChunks(1,"Turret damage",float.MaxValue,1,100000,false);
 Check(extremeChunks.Total(1)==int.MaxValue,"configured chunk rewards cannot overflow the score integer");
-Fresh();var objective=Make(810,cubeCard,TeamType.Team2);Hit(turret,enemy,50);
+Fresh();var objective=Make(810,cubeCard,TeamType.Team2);Hit(turret,enemy,100);
 Check(actionLedger.Total(1)==6,"turret action retains cube-area objective bonus");
 units.Remove(objective.Id);var bbCard=new CardUnit{Id="score_bb_spot",Data=new UnitDataCommon(),Labels=[UnitLabel.DropPointBlockbuster]};Publish([bbCard]);Make(811,bbCard,TeamType.Neutral);
 Fresh();Call("ScoreDeviceUse",portal,ally,"Portal used");Check(actionLedger.Total(1)==12,"portal use retains Blockbuster-area objective bonus");
 Fresh();Call("AwardAction",a,"Device built",999f,Vector3.Zero,null);Call("AwardAction",a,"Build boost assist",1f,Vector3.Zero,null);
 Check(actionLedger.Total(1)==0,"no placement or construction boost bonus even inside objective area");
 data.MatchEnded=true;Call("ScoreDeviceUse",portal,ally,"Portal used");Hit(turret,enemy,50);Check(actionLedger.Total(1)==0,"ended matches cannot gain device action score");
+
+// Revised device actions: exercise source resolution, thresholds, ownership and repeat behavior.
+data.MatchEnded=false;units.Remove(811);data.BlocksData=voxels;
+foreach(var name in new[]{"unit_dummy_astro_orbital_skybeam","unit_dummy_eliza_acid_cloud_acid_trap","unit_device_trondson_torpedo"})
+{
+ Fresh();var source=Device(880,name);Hit(source,enemy,49);Check(actionLedger.Total(1)==0,name+" waits for 50 actual HP");
+ Hit(source,enemy,1);Hit(source,enemy,100);Check(actionLedger.Total(1)==15,name+" awards 5 per 50 HP with remainder");
+ Hit(source,ally,50);Hit(source,a,50);Check(actionLedger.Total(1)==15,name+" excludes ally and self damage");
+}
+foreach(var name in new[]{"unit_device_boxer_gravity_well","unit_device_boxer_gravity_well_container","unit_device_kreepy_box"})
+{
+ Fresh();var source=Device(881,name);Hit(source,enemy,1);Hit(source,enemy,1);
+ Check(actionLedger.Total(1)==10,name+" awards 5 per enemy hit without HP threshold or cooldown");
+}
+Fresh();portal.Transform.Position=new Vector3(3,0,0);Call("ScoreDeviceUse",portal,ally,"Ally spawned");Call("ScoreDeviceUse",portal,ally,"Ally spawned");
+Check(actionLedger.Total(1)==40,"enemy-side spawns give 20 for every successful allied use");
+portal.Transform.Position=new Vector3(2,0,0);Call("ScoreDeviceUse",portal,ally,"Ally spawned");
+Check(actionLedger.Total(1)==50,"exact midline counts as friendly side, worth 10");
+portal.Team=TeamType.Team2;a.Team=TeamType.Team2;ally.Team=TeamType.Team2;portal.Transform.Position=Vector3.Zero;
+Call("ScoreDeviceUse",portal,ally,"Ally spawned");Check(actionLedger.Total(1)==70,"team two gets the bonus on the opposite half");
+portal.Team=a.Team=ally.Team=TeamType.Team1;portal.Transform.Position=Vector3.Zero;
+Fresh();enemy.RemoveEffects([new ConstEffectInfo(scanCard.Key)],radar.Team,radar.GetSelfSource());
+enemy.AddEffects([new ConstEffectInfo(scanCard.Key)],radar.Team,radar.GetSelfSource(radar.CreateImpactData()));
+Check(actionLedger.Total(1)==0,"radar effect admission does not add a duplicate scan award");
+enemy.ReportScoreSpots();enemy.ReportScoreSpots();Check(actionLedger.Total(1)==10,"successive radar scan ticks score without 15-second wait");
+var secondRadar=Device(882,"unit_device_generic_radar");
+enemy.AddEffects([new ConstEffectInfo(scanCard.Key)],secondRadar.Team,secondRadar.GetSelfSource(secondRadar.CreateImpactData()));
+enemy.ReportScoreSpots();Check(actionLedger.Total(1)==15,"overlapping radars from one owner score once per target per tick");
+Fresh();var realLamp=Device(883,"unit_device_djinn_lamp");
+var gasCard=new CardUnit{Id="unit_dummy_djinn_acid_cloud_lamp",Data=new UnitDataCommon()};Publish([gasCard]);
+createdPickup=null;
+Call("CreateLootUnit",new LootItemUnit{LootUnitKey=gasCard.Key,KillerRelativeLootTeam=RelativeTeamType.Opponent},new ZoneTransform(),enemy,realLamp);
+var gas=createdPickup!;
+Check(gas.OwnerPlayerId==1 && gas.Team==TeamType.Team1 && gas.CreateImpactData().CasterPlayerId==1,"real lamp gas creation preserves builder and combat team");
+var gasImpact=gas.CreateImpactData();Call("ScoreDamage",enemy,100f,gasImpact,a,gas);
+Check(actionLedger.Total(1)==5,"lamp gas earns 5 per 100 enemy HP even with default impact source key");
+Call("ScoreDamage",ally,100f,gasImpact,a,gas);Check(actionLedger.Total(1)==5,"lamp gas cannot score friendly damage");
+foreach(var name in new[]{"unit_dummy_astro_orbital_skybeam","unit_device_cogwheel_mortar","unit_device_sarge_bomb"})
+{
+ Fresh();var source=Device(884,name);
+ foreach(int cost in new[]{40,400,2000})
+ {
+  deviceCard.BaseCost=cost;int before=actionLedger.Total(1);
+  Call("ScoreKill",actionVictim,a,true,false,Array.Empty<uint>());Call("ScoreHeroDeviceDestroyed",actionVictim,a,source,source.CreateImpactData());
+  Check(actionLedger.Total(1)==before+actionLedger.DeviceValue(cost),name+" destruction scales with cost "+cost+" exactly once");
+ }
+}
+Fresh();var falseCard=new CardBlock{Id="block_false",BlockId=100,HasTeam=true,Passable=BlockPassableType.Enemy,Special=new BlockSpecialInsideEffect{TriggerTeam=RelativeTeamType.Opponent}};
+Publish([falseCard]);var fakePos=new Vector3s(1,1,1);var fakeCell=voxels[fakePos];fakeCell.Id=100;fakeCell.Team=TeamType.Team1;voxels.OwnedBlocks[fakePos]=a;
+enemy.Transform.Position=new Vector3(1.5f,1.5f,1.5f);Call("RunBlockCheckForUnit",enemy);
+Check(actionLedger.Total(1)==10,"enemy entering an owned fake block awards 10 through real block check");
+Call("RunBlockCheckForUnit",enemy);Check(actionLedger.Total(1)==10,"remaining inside the fake block is not another trigger");
+ally.Transform.Position=enemy.Transform.Position;Call("RunBlockCheckForUnit",ally);Check(actionLedger.Total(1)==10,"friendly fake-block entry earns no points");
 
 Console.WriteLine($"PASS action scoring: {checks} checks");
 public class EmptyInitiator : DispatchProxy

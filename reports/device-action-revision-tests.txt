@@ -1,0 +1,279 @@
+PASS kill plus headshot is 60
+PASS one objective bonus is added
+PASS small healing ticks bank below threshold
+PASS actual healing accumulates into chunks
+PASS invalid continuous amount rejected
+PASS device damage chunk includes objective bonus
+PASS device score scales with cost and clamps
+PASS spot cooldown boundary
+PASS spot cooldown is per spotter
+PASS join baseline does not replay old awards
+PASS bounded event history retains complete totals
+PASS score snapshot wire roundtrip absent
+PASS score snapshot wire roundtrip present
+PASS published awards clear without losing totals
+PASS archive reconnect replaces cumulative score while retaining session statistics
+PASS server kill routes headshot and distinct assists
+PASS disconnect cleanup cannot award kills or assists
+PASS team kill has no kill or headshot award
+PASS supply and blockbuster values
+PASS immediate rebuild at same cell does not farm score
+PASS real ally heal attribution awards score
+PASS self and enemy healing excluded
+PASS enemy device destruction uses device base cost
+PASS confirmed device damage on opponent scores
+PASS friendly device damage excluded
+PASS radar awards confirmed scan
+PASS ability spotting has its own starting value
+PASS cube destroy grants exactly 250 to destroyer and nearby contributor without duplicate assist
+PASS results persist authoritative total
+PASS ended match cannot score
+PASS waiting phase cannot score
+PASS real radar mark attributes owner and objective bonus
+PASS real hero ability mark awards spotter
+PASS accolade replaces kill: First kill +60
+PASS accolade replaces kill: Double kill +75
+PASS accolade replaces kill: Multi kill +100
+PASS accolade replaces kill: Ultra kill +125
+PASS accolade replaces kill: Fantastic +150
+PASS accolade replaces kill: Unbelievable +175
+PASS accolade replaces kill: Unbelievable +175
+PASS double kill and headshot stack once (75 + 10)
+PASS remote destroyer retains full cube reward
+PASS nearby teammates including exact radius boundary receive full reward without damage
+PASS outside radius receives no shared cube reward
+PASS dead inactive and defending players excluded from shared reward
+PASS remote recent contributor retains 75 assist plus existing objective bonus
+PASS all CDB score settings round-trip using catalogue snake_case JSON
+PASS new match loads edited CDB values
+PASS running match keeps independent score snapshot after catalogue edit
+PASS invalid full CDB replication leaves previous settings active
+PASS invalid incremental CDB update leaves previous settings active
+PASS CDB fetch validation reports invalid score field
+PASS server-only score settings do not change legacy client binary cards
+PASS older CDB without action_scores keeps defaults
+PASS partial CDB settings preserve unspecified defaults
+PASS hero block placement earns no points
+PASS hero block repeated placement retains rebuild cooldown
+PASS ordinary terrain blocks remain excluded
+PASS enemy hero block destruction scores by cost
+PASS friendly and neutral hero blocks give no destruction score
+PASS Jinx credits its real effect source
+PASS Jinx repeated effect application is throttled
+PASS Jinx credits its real effect source
+PASS Jinx repeated effect application is throttled
+PASS EMP affected credits its real effect source
+PASS EMP affected repeated effect application is throttled
+PASS Cage affected credits its real effect source
+PASS Cage affected repeated effect application is throttled
+PASS Avalanche affected credits its real effect source
+PASS Avalanche affected repeated effect application is throttled
+PASS Goo affected credits its real effect source
+PASS Goo affected repeated effect application is throttled
+PASS Enemy frightened credits its real effect source
+PASS Enemy frightened repeated effect application is throttled
+PASS Reload boost credits its real effect source
+PASS Reload boost repeated effect application is throttled
+PASS Ally boosted credits its real effect source
+PASS Ally boosted repeated effect application is throttled
+PASS self ability benefits do not award support points
+PASS construction boost does not award placement points
+PASS Trondson is credited when boosted ally destroys an enemy device
+PASS Tony self-damage and repair grants no XP
+PASS teammate damage and repair grants no XP
+PASS environmental damage and repair grants no XP
+PASS repair reward banks actual enemy damage below threshold
+PASS Tony repairing his own enemy-damaged device earns XP with overheal clamped
+PASS mixed damage only credits the enemy portion
+PASS repair credit cannot be recycled by damaging the device again
+PASS passive healing consumes enemy repair credit
+PASS another healer consumes enemy repair credit
+PASS hero device units retain legitimate enemy repair credit
+PASS shield absorption never grants health repair credit
+PASS team change discards previous repair credit
+PASS neutral source never grants repair credit
+PASS voxel self-damage grants no repair credit
+PASS voxel teammate damage grants no repair credit
+PASS voxel environmental damage grants no repair credit
+PASS voxel mixed damage and full repair credit only remaining enemy damage
+PASS legacy voxel heal consumes enemy credit even without scoring
+PASS replacing a voxel cannot inherit old enemy damage
+PASS sub-byte voxel damage cannot create XP
+PASS SplashDamageBlocksRaycast only enemy splash contributes repair credit
+PASS SplashDamageBlocksRaycast only enemy splash contributes repair credit
+PASS SplashDamageBlocksFlood only enemy splash contributes repair credit
+PASS SplashDamageBlocksFlood only enemy splash contributes repair credit
+PASS Doc F healing scores once, without a duplicate generic heal reward
+PASS Doc F has distinct award text
+PASS separate Sarge grenade hits both score
+PASS Cog mortar has no duplicate flat destruction award
+PASS friendly lamp collection credits builder once
+PASS self and enemy lamp collection give no support reward
+PASS actual lamp loot preserves builder credit without assigning gameplay ownership
+PASS hero score values and thresholds round-trip through CDB JSON
+PASS zero repair denominator is rejected
+PASS construction has zero score for cost -1
+PASS construction has zero score for cost 0
+PASS construction has zero score for cost 1
+PASS construction has zero score for cost 40
+PASS construction has zero score for cost 200
+PASS construction has zero score for cost 600
+PASS construction has zero score for cost NaN
+PASS construction has zero score for cost ∞
+PASS construction has zero score for cost 3,4028235E+38
+PASS legacy live build settings cannot restore placement rewards
+PASS confirmed device and hero builds earn no placement points
+PASS free placement cannot earn build points
+PASS cost changes cannot bypass same-cell rebuild cooldown
+PASS placement near objectives earns no bonus
+PASS excluded build gives no score: block_fast_movement
+PASS excluded build gives no score: block_fast_movement_ninja
+PASS excluded build gives no score: block_bounce
+PASS excluded build gives no score: block_bounce_hunter
+PASS excluded build gives no score: block_bounce_kira
+PASS excluded build gives no score: block_bounce_plastic
+PASS excluded build gives no score: block_thorn_bush
+PASS excluded build gives no score: block_thorn_bush_pale
+PASS excluded build gives no score: block_glue
+PASS excluded build gives no score: block_glue_alien
+PASS excluded build gives no score: block_caltrops
+PASS excluded build gives no score: block_caltrops_astro
+PASS excluded build gives no score: block_caltrops_kreepy
+PASS excluded build gives no score: block_bear_trap
+PASS excluded build gives no score: block_bear_trap_astro
+PASS excluded build gives no score: block_force_gate
+PASS excluded build gives no score: block_force_gate_disco
+PASS excluded build gives no score: block_force_gate_eliza
+PASS excluded family covers hero and future variants
+PASS turret placement earns no points
+PASS no build points for block_ice
+PASS no build points for unit_device_generic_landmine
+PASS no build points for unit_device_generic_landmine_abe
+PASS no build points for unit_device_generic_landmine_cogwheel
+PASS no build points for unit_device_generic_fire_trap
+PASS no build points for unit_device_generic_fire_trap_djinn
+PASS zero and friendly trap damage do not score
+PASS actual trap damage credits owner: unit_device_generic_landmine
+PASS each repeated trap hit scores without cooldown
+PASS another enemy can earn independent trap points
+PASS zero and friendly trap damage do not score
+PASS actual trap damage credits owner: unit_device_generic_fire_trap
+PASS each repeated trap hit scores without cooldown
+PASS another enemy can earn independent trap points
+PASS only non-damaging glue effect credits builder: block_glue
+PASS effect refresh does not duplicate real trap damage
+PASS friendly block effect never scores
+PASS unowned environmental traps do not score
+PASS only non-damaging glue effect credits builder: block_thorn_bush
+PASS effect refresh does not duplicate real trap damage
+PASS friendly block effect never scores
+PASS unowned environmental traps do not score
+PASS only non-damaging glue effect credits builder: block_fire_from_fire_trap
+PASS effect refresh does not duplicate real trap damage
+PASS friendly block effect never scores
+PASS unowned environmental traps do not score
+PASS trap points and cooldown round-trip through CDB
+PASS key assist 35 and kill objective bonus 20 by default
+PASS a key assist worth less than an assist is rejected
+PASS top damager gets a key assist; other assisters a regular assist; the killer only the kill
+PASS tied top damagers each get a key assist
+PASS the killer leading on damage leaves assisters with a regular assist
+PASS a kill near an objective earns +20
+PASS accolade kills near an objective earn at least +20
+PASS large accolades keep the larger percentage bonus
+PASS assists keep the percentage objective bonus
+PASS kills away from objectives get no bonus
+PASS ice fixture units resolve their cards
+PASS destroying enemy ice (and its variants) gives no device score
+PASS other enemy devices still score
+PASS fixture voxel 81 was destroyed
+PASS destroying an enemy ice block gives no device score
+PASS fixture voxel 82 was destroyed
+PASS destroying another enemy hero block still gives device score
+PASS ice exclusion matches the block_ice family only
+PASS turret waits for 100 actual HP
+PASS turret awards one 100-HP chunk without generic double credit
+PASS turret carries remainder across hits
+PASS friendly self and invalid hits cannot fill turret chunks
+PASS turret remainder completes exactly
+PASS Bomb affected follows its hit repeat rule
+PASS Bomb affected retains normal kill credit exactly once
+PASS Tiki hit follows its hit repeat rule
+PASS Tiki hit retains normal kill credit exactly once
+PASS Mortar hit follows its hit repeat rule
+PASS Mortar hit retains normal kill credit exactly once
+PASS C4 hit follows its hit repeat rule
+PASS C4 hit retains normal kill credit exactly once
+PASS Goo affected follows its hit repeat rule
+PASS Goo affected retains normal kill credit exactly once
+PASS Bear trap affected follows its hit repeat rule
+PASS Bear trap affected retains normal kill credit exactly once
+PASS Caltrops affected follows its hit repeat rule
+PASS Caltrops affected retains normal kill credit exactly once
+PASS bomb damage to enemy device scores
+PASS bomb friendly and neutral device damage does not score
+PASS unit_device_cogwheel_mortar awards destruction and normal device credit
+PASS unit_device_cogwheel_mortar destruction of voxel device credits owner
+PASS unit_device_sarge_bomb awards destruction and normal device credit
+PASS unit_device_sarge_bomb destruction of voxel device credits owner
+PASS SplashDamageBlocksRaycast credits unit_device_cogwheel_mortar actual voxel destruction
+PASS SplashDamageBlocksRaycast credits unit_device_sarge_bomb actual voxel destruction
+PASS SplashDamageBlocksRaycast credits unit_device_generic_bomb actual voxel destruction
+PASS SplashDamageBlocksFlood credits unit_device_cogwheel_mortar actual voxel destruction
+PASS SplashDamageBlocksFlood credits unit_device_sarge_bomb actual voxel destruction
+PASS SplashDamageBlocksFlood credits unit_device_generic_bomb actual voxel destruction
+PASS portal limits same ally across owner's portals; self/enemy use excluded
+PASS another ally earns a separate portal reward
+PASS portal cooldown expires at exactly 60 seconds
+PASS every successful allied spawn scores without repeat cooldown
+PASS radar device discovery gives one fixed award, never tick rewards
+PASS re-entering radar range cannot farm the same device
+PASS radar hero spotting gives one award per scoring tick
+PASS full ammo earns nothing
+PASS actual ally ammo restored credits station owner
+PASS each real ammo refill scores without cooldown
+PASS own ammo crate earns no self-supply reward
+PASS percentage ammo restoration uses the same attribution gate
+PASS station regeneration tick attributes actual supplied ammo
+PASS healing self/friendly/environmental damage cannot farm support score
+PASS effective ally healing earns normal amount-based points
+PASS moving into an objective area does not reset the turret damage remainder
+PASS configured chunk rewards cannot overflow the score integer
+PASS turret action retains cube-area objective bonus
+PASS portal use retains Blockbuster-area objective bonus
+PASS no placement or construction boost bonus even inside objective area
+PASS ended matches cannot gain device action score
+PASS unit_dummy_astro_orbital_skybeam waits for 50 actual HP
+PASS unit_dummy_astro_orbital_skybeam awards 5 per 50 HP with remainder
+PASS unit_dummy_astro_orbital_skybeam excludes ally and self damage
+PASS unit_dummy_eliza_acid_cloud_acid_trap waits for 50 actual HP
+PASS unit_dummy_eliza_acid_cloud_acid_trap awards 5 per 50 HP with remainder
+PASS unit_dummy_eliza_acid_cloud_acid_trap excludes ally and self damage
+PASS unit_device_trondson_torpedo waits for 50 actual HP
+PASS unit_device_trondson_torpedo awards 5 per 50 HP with remainder
+PASS unit_device_trondson_torpedo excludes ally and self damage
+PASS unit_device_boxer_gravity_well awards 5 per enemy hit without HP threshold or cooldown
+PASS unit_device_boxer_gravity_well_container awards 5 per enemy hit without HP threshold or cooldown
+PASS unit_device_kreepy_box awards 5 per enemy hit without HP threshold or cooldown
+PASS enemy-side spawns give 20 for every successful allied use
+PASS exact midline counts as friendly side, worth 10
+PASS team two gets the bonus on the opposite half
+PASS radar effect admission does not add a duplicate scan award
+PASS successive radar scan ticks score without 15-second wait
+PASS overlapping radars from one owner score once per target per tick
+PASS real lamp gas creation preserves builder and combat team
+PASS lamp gas earns 5 per 100 enemy HP even with default impact source key
+PASS lamp gas cannot score friendly damage
+PASS unit_dummy_astro_orbital_skybeam destruction scales with cost 40 exactly once
+PASS unit_dummy_astro_orbital_skybeam destruction scales with cost 400 exactly once
+PASS unit_dummy_astro_orbital_skybeam destruction scales with cost 2000 exactly once
+PASS unit_device_cogwheel_mortar destruction scales with cost 40 exactly once
+PASS unit_device_cogwheel_mortar destruction scales with cost 400 exactly once
+PASS unit_device_cogwheel_mortar destruction scales with cost 2000 exactly once
+PASS unit_device_sarge_bomb destruction scales with cost 40 exactly once
+PASS unit_device_sarge_bomb destruction scales with cost 400 exactly once
+PASS unit_device_sarge_bomb destruction scales with cost 2000 exactly once
+PASS enemy entering an owned fake block awards 10 through real block check
+PASS remaining inside the fake block is not another trigger
+PASS friendly fake-block entry earns no points
+PASS action scoring: 278 checks

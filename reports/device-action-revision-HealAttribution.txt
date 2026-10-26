@@ -1,0 +1,28 @@
+19:50:55.086 INFO  perf      Zone construction started: GameZone instance=fixture mode=2874013687 map=<embedded>, size=16,16,16, map units=0, players=3
+19:50:55.113 INFO  perf      Zone queued setup started: GameZone instance=fixture mode=2874013687 map=<embedded>
+19:50:55.116 INFO  perf      Zone construction completed: GameZone instance=fixture mode=2874013687 map=<embedded>, elapsed=32ms
+19:50:55.116 INFO  perf      Zone queued setup completed: GameZone instance=fixture mode=2874013687 map=<embedded>, units=0, elapsed=1ms
+19:50:55.151 INFO  perf      Slow action: GameZone instance=fixture mode=2874013687 map=<embedded> queue, Program.<Main took 34ms, allocated 27KB, 0 queued
+PASS a hero's own heal on a hurt teammate sends one card-less attribution impact
+PASS the attribution carries the amount healed (10)
+PASS the attribution carries the heal's source gear
+PASS no attribution when the teammate is at full health
+PASS a heal you give yourself is attributed to you with the amount
+PASS a heal from the hero's projectile (orb, globe) is attributed to its owner
+PASS a heal from a block or station a player placed is attributed to that player
+PASS a heal with its own impact card (Caulk Gun spray) keeps it and adds the attribution with the amount
+PASS one regen tick healed 15 and sent one attribution per healer
+PASS the regen attributions add up to the health gained
+PASS the split follows each healer's regen rate (10 vs 5)
+PASS MMR effective regeneration is split between healers, not all given to the first aura
+PASS the map station has no owner
+PASS an unowned station's regen is attributed to the station unit with the amount and no player
+PASS your own passive regen (5) is attributed to you with the amount
+PASS dropped health sends no collector portrait attribution
+PASS pickup still restores 14 health
+PASS pickup does not inflate collector healing given stats
+PASS MMR healing credits actual ally enemy-damage recovery
+PASS MMR healing cannot exceed remaining enemy damage
+PASS MMR healing gives no farming credit for unaudited damage or overheal
+PASS MMR self healing grants no utility
+BNL_HEAL_ATTRIBUTION_FIXTURE_OK checks=22

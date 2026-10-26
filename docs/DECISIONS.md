@@ -29,3 +29,7 @@ Award confirmed enemy impact rather than placement for requested traps. Use admi
 ## 2026-10-23 — One Discord presence bot owned by server repository
 
 Retire the China service and credential; poll only the local Reborn player-count endpoint. Track the recovered Rust reconnect implementation and lockfile with provenance in infrastructure/discord-presence. Preserve the application shared with game Rich Presence. Validate bot identity/membership on startup; permanent credential/configuration failures exit 78 without restart, transient failures retry after 30 seconds. Retain the verified Rust executable and add a Python standard-library preflight, avoiding an unnecessary live-server rebuild. Credentials stay outside Git in root:bnldiscord 0640 runtime configuration.
+
+## 2026-10-26 — Device rewards follow confirmed events
+
+Use existing MapBinary.OnEnemySide boundary for the user-confirmed doubled spawn reward (20 vs10). Replace flat mortar/C4 destruction extras with shared cost-based destruction, including Astarella skybeam. Remove requested device timers while retaining portal limits, target ownership checks and objective bonuses. Damaging traps score actual damage; non-damaging slows score newly admitted applications. Preserve lamp builder ownership before gas initial effects run; pickup behavior stays separate. Radar scores at the existing server scan cadence, once per owner/target/tick across overlapping radars, and once per device lifetime. Legacy interval/flat-bonus properties remain parseable but inert. No client protocol change or deployment.

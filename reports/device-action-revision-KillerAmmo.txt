@@ -1,0 +1,7 @@
+PASS killer reload emits one authoritative ammo update
+PASS killer reload stays ordered on the buffered shot stream
+PASS killer reload includes ammo data
+PASS last-bullet kill refills half of the clip
+PASS clip refill consumes the expected reserve ammo
+PASS server ammo state is updated immediately
+Killer Ammo ordering suite passed.

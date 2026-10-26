@@ -34,40 +34,30 @@ public partial class GameZone
         switch (reason)
         {
             case "Device built": case "Build boost assist": return;
-            case "Bomb device affected":
-                var cell = $"bomb:{MathF.Floor(position.X)}:{MathF.Floor(position.Y)}:{MathF.Floor(position.Z)}";
-                if (!ledger.Ready(id, cell, _scoreClock.Elapsed.TotalSeconds, rules.TrapEffectCooldown)) return;
-                break;
             case "Radar device":
                 if (target == null || !ledger.Once(id, "radar-device:" + target)) return;
                 break;
             case "Portal used":
                 if (target == null || !ledger.Ready(id, reason + ":" + target, _scoreClock.Elapsed.TotalSeconds, rules.PortalCooldown)) return;
                 break;
-            case "Ally spawned": case "Ammo supplied":
-                if (target == null || !ledger.Ready(id, reason + ":" + target, _scoreClock.Elapsed.TotalSeconds,
-                    reason == "Ally spawned" ? rules.SpawnCooldown : rules.AmmoCooldown)) return;
-                break;
             case "Turret damage": ledger.AccumulateChunks(id, reason, amount, rules.TurretDamageChunk, rules.TurretDamagePoints, near); return;
-            case "Tiki hit": case "Mortar hit":
+            case "Beacon damage": case "Miasma damage": case "Torpedo damage":
+                ledger.AccumulateChunks(id, reason, amount, rules.HeroDeviceDamageChunk, rules.HeroDeviceDamagePoints, near); return;
+            case "Lamp gas damage": ledger.Accumulate(id, reason, amount, rules.DeviceDamagePerPoint, near); return;
+            case "Tiki hit":
                 if (target == null || !ledger.Ready(id, reason + ":" + target, _scoreClock.Elapsed.TotalSeconds, rules.DeviceHitCooldown)) return;
-                break;
-            case "Bomb affected": case "C4 hit": case "Bear trap affected": case "Caltrops affected":
-
-            case "Mine affected": case "Fire trap affected": case "Glue affected": case "Bush affected":
-                if (target == null || !ledger.Ready(id, reason + ":" + target, _scoreClock.Elapsed.TotalSeconds, rules.TrapEffectCooldown)) return;
                 break;
             case "Repairs": ledger.Accumulate(id, reason, amount, rules.TonyRepairPerPoint, near); return;
             case "Miracle cure": ledger.Accumulate(id, reason, amount, rules.DocAbilityHealPerPoint, near); return;
             case "Healing": ledger.Accumulate(id, reason, amount, rules.HealPerPoint, near); return;
             case "Device damage": ledger.Accumulate(id, reason, amount, rules.DeviceDamagePerPoint, near); return;
-            case "Radar spot": case "Ability spot":
+            case "Ability spot":
                 if (target == null || !ledger.Ready(id, "spot:" + target, _scoreClock.Elapsed.TotalSeconds, rules.SpotCooldown)) return;
                 break;
         }
         if (reason == "Demolition boost assist" && target == null &&
             !ledger.Ready(id, $"demolish:{MathF.Floor(position.X)}:{MathF.Floor(position.Y)}:{MathF.Floor(position.Z)}", _scoreClock.Elapsed.TotalSeconds, rules.HeroEffectCooldown)) return;
-        if ((reason == "Demolition boost assist" && target != null) || reason is "Jinx" or "Cage affected" or "EMP affected" or "Avalanche affected" or "Goo affected" or "Ally boosted" or "Reload boost" or "Enemy frightened")
+        if ((reason == "Demolition boost assist" && target != null) || reason is "Jinx" or "Cage affected" or "EMP affected" or "Avalanche affected" or "Ally boosted" or "Reload boost" or "Enemy frightened")
             if (target == null || !ledger.Ready(id, reason + ":" + target, _scoreClock.Elapsed.TotalSeconds, rules.HeroEffectCooldown)) return;
         int points = reason switch {
             "Mine affected" => rules.MineAffected, "Fire trap affected" => rules.FireTrapAffected,
@@ -75,7 +65,7 @@ public partial class GameZone
             "Build boost assist" => rules.TonyBuildAssist, "Demolition boost assist" => rules.TrondsonDemolitionAssist,
             "Lamp pickup" => rules.GenieLampPickup, "Jinx" => rules.GenieJinx, "Cage affected" => rules.VanderCage,
             "EMP affected" => rules.SweetScienceEmp, "Avalanche affected" => rules.YetiAvalanche,
-            "Grenade hit" => rules.SargeGrenadeHit, "Goo affected" => rules.RolyGoo, "Mortar destruction" => rules.CogMortarDestroy,
+            "Grenade hit" => rules.SargeGrenadeHit, "Goo affected" => rules.RolyGoo,
             "Ally boosted" => rules.AstarellaBoost, "Reload boost" => rules.KiraReloadBoost, "Enemy frightened" => rules.KreepyFear,
             "First kill" => rules.FirstKill, "Double kill" => rules.DoubleKill, "Multi kill" => rules.MultiKill,
             "Ultra kill" => rules.UltraKill, "Fantastic" => rules.Fantastic, "Unbelievable" => rules.Unbelievable,
@@ -83,9 +73,11 @@ public partial class GameZone
             "Supply pickup" => rules.Supply, "Blockbuster pickup" => rules.Blockbuster,
             "Cube destroyed" => rules.Cube, "Cube assist" => rules.CubeAssist,
             "Device destroyed" => ledger.DeviceValue(amount),
+            "Enemy-side ally spawned" => rules.EnemySideSpawnUse, "Fake block triggered" => rules.FakeBlockTriggered,
+            "Gravity well hit" => rules.GravityWellHit, "Kreepy box hit" => rules.KreepyBoxHit,
             "Radar device" => rules.RadarDevice, "Ally spawned" => rules.SpawnUse, "Portal used" => rules.PortalUse,
             "Ammo supplied" => rules.AmmoSupply, "Bomb affected" or "Bomb device affected" => rules.BombAffected, "C4 hit" => rules.SargeC4Hit,
-            "C4 destruction" => rules.SargeC4Destroy, "Mortar hit" => rules.MortarHit, "Tiki hit" => rules.TikiHit,
+            "Mortar hit" => rules.MortarHit, "Tiki hit" => rules.TikiHit,
             "Bear trap affected" => rules.BearTrapAffected, "Caltrops affected" => rules.CaltropsAffected,
             "Radar spot" => rules.Radar, "Ability spot" => rules.AbilitySpot, _ => 0 };
         ledger.Grant(id, reason, points, near);
@@ -98,11 +90,9 @@ public partial class GameZone
         string? deviceReason = DeviceScoreReason(origin);
         if (deviceReason != null && (target.PlayerId != null ||
             deviceReason == "Bomb affected" && IsScoreDevice(target.UnitCard) && target.UnitCard?.IsObjective != true && !ExcludedDestroyScore(target.UnitCard?.Id)))
-            AwardAction(player, deviceReason, deviceReason == "Turret damage" ? damage : 1, target.GetMidpoint(), target.Id);
+            AwardAction(player, deviceReason, deviceReason is "Turret damage" or "Beacon damage" or "Miasma damage" or "Torpedo damage" or "Lamp gas damage" ? damage : 1, target.GetMidpoint(), target.Id);
         if (target.PlayerId != null && Unit.ScoreSourceId(impact.SourceKey).StartsWith("ability_sarge_frag_grenade", StringComparison.Ordinal))
             AwardAction(player, "Grenade hit", 1, target.GetMidpoint(), target.Id);
-        if (target.PlayerId != null && (attacker?.Key == new Key("unit_device_roly_toxic_waste") || Unit.ScoreSourceId(impact.SourceKey).Contains("toxic_waste", StringComparison.Ordinal)))
-            AwardAction(player, "Goo affected", 1, target.GetMidpoint(), target.Id);
         if (target.UnitCard?.IsObjective == true)
         {
             if (!_cubeContributors.TryGetValue(target.Id, out var contributors)) _cubeContributors[target.Id] = contributors = [];
