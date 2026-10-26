@@ -1001,7 +1001,7 @@ public class MapBinary
     }
 
     // This expects the target block to exist
-    public Dictionary<Vector3s, BlockUpdate> DamageBlock(Vector3s location, DamageData damage, Unit? attacker, bool ignoreToughness = false)
+    public Dictionary<Vector3s, BlockUpdate> DamageBlock(Vector3s location, DamageData damage, Unit? attacker, bool ignoreToughness = false, Key? scoreSource = null)
     {
         var block = this[location];
         var blockCard = block.Card;
@@ -1014,6 +1014,8 @@ public class MapBinary
         var dmgAmount = MathF.Max(damage.BlockDamage - toughness, 0) *
                         (byte.MaxValue / blockCard.Health.MaxHealth);
 
+        if (MathF.Truncate(dmgAmount) > 0)
+            attacker?.ReportDeviceBlockImpact(blockCard, block.Team, location, block.Damage + dmgAmount >= byte.MaxValue, scoreSource);
         if (block.Damage + dmgAmount >= byte.MaxValue)
         {
             if (attacker is { PlayerId: not null })
@@ -1033,13 +1035,6 @@ public class MapBinary
                 }
             }
 
-            // Destroying ice earns no device score and no demolition assist (GameZone.ExcludedDestroyScore).
-            if (attacker?.PlayerId != null && block.Team != TeamType.Neutral && attacker.Team != block.Team && blockCard.DeviceType is DeviceType.Device or DeviceType.Hero &&
-                !ServerTypes.GameZone.ExcludedDestroyScore(blockCard.Id))
-            {
-                attacker.ReportActionScore("Device destroyed", Math.Max(1, blockCard.BaseCost ?? 0), location.ToVector3());
-                attacker.ReportHeroBoostAction("effect_hero_trondson_heigh_ho_buff", "Demolition boost assist", location.ToVector3());
-            }
             var blockKey = blockCard.Key;
             block.Id = 0;
             block.Damage = 0;
@@ -1180,6 +1175,8 @@ public class MapBinary
                             ((100 - blkCard.SplashResistance) / 100f);
             var actDamage = dmgAmount * (byte.MaxValue / blkCard.Health.MaxHealth);
 
+            if (MathF.Truncate(actDamage) > 0)
+                attacker?.ReportDeviceBlockImpact(blkCard, blk.Team, position, blk.Damage + actDamage >= byte.MaxValue, impact.SourceKey);
             var cellAbsorption = blkCard.SplashFalloff > 0 ? blkCard.SplashFalloff / 100f : 0f;
 
             if (blk.Damage + actDamage >= byte.MaxValue)
@@ -1493,6 +1490,8 @@ public class MapBinary
 
                 checkOpenFaces = (blkCard.IsVisualSlope && blk.VData != 0) || blkCard.IsVisualPrefab ||
                                  blkCard.Visual?.CanBePassedByShot is true;
+                if (MathF.Truncate(actDamage) > 0)
+                    attacker?.ReportDeviceBlockImpact(blkCard, blk.Team, propInfo.prop.Position, blk.Damage + actDamage >= byte.MaxValue, impact.SourceKey);
                 if (blk.Damage + actDamage >= byte.MaxValue)
                 {
                     dmgTaken = (byte.MaxValue - blk.Damage) * (blkCard.Health.MaxHealth / byte.MaxValue);

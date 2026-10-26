@@ -27,8 +27,21 @@ public sealed class ActionScoreLedger(ActionScoreRules rules)
         if (cooldowns.TryGetValue(id, out var previous) && now - previous < interval) return false;
         cooldowns[id] = now; return true;
     }
-    public int BuildValue(float cost) => !float.IsFinite(cost) || cost <= 0 ? 0 :
-        (int)Math.Clamp(Math.Ceiling((double)cost / rules.BuildCostPerPoint), rules.BuildMin, rules.BuildMax);
+    // Retained for configuration/API compatibility; construction no longer scores.
+    public int BuildValue(float cost) => 0;
+    private readonly HashSet<(uint, string)> oneTime = [];
+    public bool Once(uint player, string key) => oneTime.Add((player, key));
+    public void AccumulateChunks(uint player, string reason, float amount, float chunk, int pointsPerChunk, bool nearObjective)
+    {
+        if (!float.IsFinite(amount) || amount <= 0 || chunk <= 0) return;
+        // A change of target or objective area must not reset the 50-HP threshold.
+        // The completing hit determines the objective bonus location.
+        var key = (player, reason, false);
+        double sum = fractions.GetValueOrDefault(key) + amount;
+        int count = (int)Math.Min(100000, Math.Floor(sum / chunk));
+        fractions[key] = sum - count * chunk;
+        if (count > 0) Grant(player, reason, (int)Math.Min(int.MaxValue, (long)count * pointsPerChunk), nearObjective);
+    }
     public int DeviceValue(float cost) => !float.IsFinite(cost) ? 0 :
         Math.Clamp((int)Math.Ceiling(Math.Max(0, cost) / rules.DeviceCostPerPoint), rules.DeviceMin, rules.DeviceMax);
     public void Accumulate(uint player, string reason, float amount, float perPoint, bool nearObjective)

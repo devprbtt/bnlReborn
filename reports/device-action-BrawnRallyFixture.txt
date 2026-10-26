@@ -1,0 +1,53 @@
+13:21:54.227 INFO  perf      Zone construction started: GameZone instance=fixture mode=2874013687 map=<embedded>, size=16,8,16, map units=1, players=3
+13:21:54.246 INFO  perf      Zone queued setup started: GameZone instance=fixture mode=2874013687 map=<embedded>
+13:21:54.249 INFO  perf      Zone construction completed: GameZone instance=fixture mode=2874013687 map=<embedded>, elapsed=37ms
+13:21:54.266 INFO  perf      Zone queued setup completed: GameZone instance=fixture mode=2874013687 map=<embedded>, units=1, elapsed=19ms
+PASS three live player units created through the zone
+PASS Brawn carrier is eligible on open ground
+PASS CDB Brawn quiet period blocks early spawn
+PASS CDB Brawn two second quiet period expires
+PASS cannot spawn on yourself
+PASS grounded carrier records a take-off spot
+PASS rising jump offers the take-off spot
+PASS jump apex within 1.5s and 3.5 blocks is eligible
+PASS airborne longer than 1.5s blocked
+PASS flying above jump height blocked
+PASS falling below take-off ground blocked
+PASS jumping away from take-off spot blocked
+PASS wall climb blocked
+PASS grounded upward motion blocked and forgets take-off spot
+PASS jump without an eligible take-off blocked
+PASS standing client stick-to-ground velocity is eligible
+PASS walking client stick-to-ground velocity is eligible
+PASS airborne at jump apex blocked without flag
+PASS unsupported footprint at map edge blocked
+PASS dead carrier blocked
+PASS disconnected carrier blocked
+PASS opponent cannot use rally point
+PASS non-Brawn hero has no perk
+PASS low ceiling blocks standing spawn volume
+PASS one-person pocket cannot spawn a second player or through walls
+PASS single supported block with surrounding drops cannot spawn a guest
+PASS firing even a missed shot starts combat timer
+PASS 4999ms is still in combat
+PASS exactly five seconds allows spawning
+PASS friendly damage does not start enemy-combat timer
+PASS enemy damage starts combat timer
+PASS later damage resets the full five seconds
+PASS quiet period after last damage expires
+13:21:54.297 INFO  perf      Allocation-heavy action: GameZone instance=fixture mode=2874013687 map=<embedded> queue, Program.<Main took 15ms, allocated 1123KB, 0 queued
+PASS mobile marker has distinct protocol ID
+PASS minimap marker starts at carrier
+PASS minimap marker follows movement
+PASS existing spawn protocol roundtrips mobile ID, owner and position
+PASS forged enemy selection rejected
+PASS carrier flight after selection blocks actual respawn
+PASS rally point does not bypass normal respawn timers
+PASS combat after selection blocks actual respawn
+PASS both guests can spawn when two distinct nearby spots are free
+PASS simultaneous guests never overlap
+PASS guest never overlaps the carrier
+PASS guest spawns beside current carrier position
+PASS guest respawns while the carrier is jumping
+PASS jump respawn lands on the take-off ground
+Brawn rally fixture passed: 47 checks.

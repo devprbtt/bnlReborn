@@ -1,0 +1,9 @@
+  Determinando os projetos a serem restaurados...
+  J:\github\blocknload-unity-upgrade\extracted\work\mmr-v2-server\BNLReloadedServer\BNLReloadedServer.csproj restaurado (em 164 ms).
+  BNLReloadedServer -> J:\github\blocknload-unity-upgrade\extracted\work\mmr-v2-server\BNLReloadedServer\bin\Release\net10.0\BNLReloadedServer.dll
+
+Compilação com êxito.
+    0 Aviso(s)
+    0 Erro(s)
+
+Tempo Decorrido 00:00:02.67

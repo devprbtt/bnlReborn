@@ -406,11 +406,11 @@ public partial class GameZone
         switch (effect)
         {
             case InstEffectAddAmmo instEffectAddAmmo:
-                actualUnitList.ForEach(u => u.AddAmmo(instEffectAddAmmo.Amount));
+                actualUnitList.ForEach(u => u.AddAmmo(instEffectAddAmmo.Amount, source));
                 return true;
 
             case InstEffectAddAmmoPercent instEffectAddAmmoPercent:
-                actualUnitList.ForEach(u => u.AddAmmoPercent(instEffectAddAmmoPercent.Fraction));
+                actualUnitList.ForEach(u => u.AddAmmoPercent(instEffectAddAmmoPercent.Fraction, source));
                 return true;
 
             case InstEffectAddResource instEffectAddResource when unitSource is not null:
@@ -868,7 +868,7 @@ public partial class GameZone
                 if (dData.BlockDamage > 0 && damageBlock && (Vector3s)impactPoint is var impPoint &&
                     MapBinary.ContainsBlock(impPoint))
                 {
-                    DoBlockUpdate(MapBinary.DamageBlock(impPoint, dData, unitSource));
+                    DoBlockUpdate(MapBinary.DamageBlock(impPoint, dData, unitSource, scoreSource: impactData.SourceKey));
                 }
 
                 return true;
@@ -881,7 +881,7 @@ public partial class GameZone
                 foreach (var block in MapBinary.EnumerateBlocks(new BoundingSphere(impactPoint,
                              instEffectDamageBlocks.Range), null))
                 {
-                    foreach (var update in MapBinary.DamageBlock(block, bDData, unitSource, true))
+                    foreach (var update in MapBinary.DamageBlock(block, bDData, unitSource, true, impactData.SourceKey))
                     {
                         blUpdates[update.Key] = update.Value;
                     }
@@ -991,7 +991,7 @@ public partial class GameZone
                         unit.ApplyBrainsRecovery(hpGain, source, healerPlayer);
                         if (Unit.HealCredit(source, healerPlayer, unit) is { } credit)
                         {
-                            unit.SendHealAttribution(credit, hpGain, impactData.SourceKey);
+                            unit.SendHealAttribution(credit, hpGain, impactData.SourceKey, repairCredit);
                         }
                     }
                 }

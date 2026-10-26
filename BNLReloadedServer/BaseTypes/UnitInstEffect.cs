@@ -65,12 +65,12 @@ public partial class Unit
     public static bool IsHealAttribution(EffectSource? source, Unit? healerPlayer, Unit healed) =>
         HealCredit(source, healerPlayer, healed) is not null;
 
-    public void SendHealAttribution(Unit credit, float amount, Key? sourceKey)
+    public void SendHealAttribution(Unit credit, float amount, Key? sourceKey, float? scoreAmount = null)
     {
         if (amount <= 0) return;
         if (credit.PlayerId != null && PlayerId != null && credit.PlayerId != PlayerId &&
             credit.Team == Team && Team != TeamType.Neutral)
-            credit.ReportActionScore(ScoreSourceId(sourceKey).StartsWith("ability_eliza_miracle_cure", StringComparison.Ordinal) ? "Miracle cure" : "Healing", amount, GetMidpoint(), Id);
+            credit.ReportActionScore(ScoreSourceId(sourceKey).StartsWith("ability_eliza_miracle_cure", StringComparison.Ordinal) ? "Miracle cure" : "Healing", scoreAmount ?? amount, GetMidpoint(), Id);
         _updater.OnImpactOccur(GetMidpoint(), new Vector3(amount, 0, 0), false, credit, sourceKey, null, [Id]);
     }
 
@@ -89,7 +89,7 @@ public partial class Unit
             if (HealCredit(source, healer, this) is { } credit)
             {
                 CreditEffectiveAllyHealing(healAmount * weight / total, credit, enemyDamageCredit * weight / total);
-                SendHealAttribution(credit, healAmount * weight / total, source.Impact?.SourceKey);
+                SendHealAttribution(credit, healAmount * weight / total, source.Impact?.SourceKey, enemyDamageCredit * weight / total);
                 ApplyBrainsRecovery(healAmount * weight / total, source, healer ?? credit);
             }
         }
@@ -191,7 +191,14 @@ public partial class Unit
                     break;
 
                 case (BuffType.AmmoRegen, _):
-                    AddAmmo(value * multiplier, unitUpdate);
+                    var supplied = AddAmmo(value * multiplier, unitUpdate);
+                    if (supplied > 0)
+                    {
+                        var shares = RegenShares(buffKey);
+                        var total = shares.Sum(s => s.Weight);
+                        foreach (var (ammoSource, weight) in shares)
+                            if (total > 0) ReportAmmoSupply(ammoSource, supplied * weight / total);
+                    }
                     hasUpdate = hasUpdate || unitUpdate.Ammo != null;
                     break;
 
@@ -257,21 +264,23 @@ public partial class Unit
         return ammoRestored;
     }
 
-    public void AddAmmo(float amount)
+    public void AddAmmo(float amount, EffectSource? source = null)
     {
         var update = new UnitUpdate();
-        AddAmmo(amount, update);
+        var supplied = AddAmmo(amount, update);
+        ReportAmmoSupply(source, supplied);
         if (update.Ammo != null)
         {
             UpdateData(update);
         }
     }
 
-    private void AddAmmoPercent(float percentage, UnitUpdate update)
+    private float AddAmmoPercent(float percentage, UnitUpdate update)
     {
-        if (Gears.Count == 0 || percentage <= 0) return;
+        if (Gears.Count == 0 || percentage <= 0) return 0;
         var ammoUpdate = new Dictionary<Key, List<Ammo>>();
         var sendUpdate = false;
+        float supplied = 0;
         foreach (var gear in Gears)
         {
             if (gear.Card.Ammo is not { } ammoData) continue;
@@ -285,6 +294,7 @@ public partial class Unit
                 if (ammoData[i].Pool is not { } pool) continue;
                 ammoUpdate[gear.Key][i].Pool =
                     Math.Min(float.FusedMultiplyAdd(percentage, pool.PoolSize, gearAmmo.Pool), gearAmmo.PoolSize);
+                supplied += (ammoUpdate[gear.Key][i].Pool ?? gearAmmo.Pool) - gearAmmo.Pool;
                 sendUpdate = true;
             }
         }
@@ -293,12 +303,14 @@ public partial class Unit
         {
             update.Ammo = ammoUpdate;
         }
+        return supplied;
     }
 
-    public void AddAmmoPercent(float percentage)
+    public void AddAmmoPercent(float percentage, EffectSource? source = null)
     {
         var update = new UnitUpdate();
-        AddAmmoPercent(percentage, update);
+        var supplied = AddAmmoPercent(percentage, update);
+        ReportAmmoSupply(source, supplied);
         if (update.Ammo != null)
         {
             UpdateData(update);

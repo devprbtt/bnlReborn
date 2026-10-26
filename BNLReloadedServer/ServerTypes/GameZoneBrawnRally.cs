@@ -141,6 +141,7 @@ public partial class GameZone
         if (host == null || RallyState(host, guest, out var position) != SpawnPointLockType.Free) return false;
         if (!guest.Respawn(position, Quaternion.Identity, host.Transform.Rotation)) return false;
         _zoneData.UpdateSpawnTime(guest.PlayerId!.Value, null);
+        ScoreDeviceUse(host, guest, "Ally spawned");
         // Respawn inserts its body into the octree synchronously. The next guest is checked again.
         _nextRallyRefresh = 0;
         return true;

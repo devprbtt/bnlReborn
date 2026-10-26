@@ -2576,6 +2576,7 @@ public partial class GameZone : Updater
                                     $"fromJustTeleported={unit.JustTeleported}, toJustTeleported={otherPortal.JustTeleported}");
 
                                 _serviceZone.SendPortalTeleport(unitToTeleport.Id, unit.Id, otherPortal.Id);
+                                ScoreDeviceUse(unit, unitToTeleport, "Portal used");
                                 var telePos = otherPortal.GetMidpoint();
                                 telePos = telePos with
                                 {
@@ -2675,6 +2676,7 @@ public partial class GameZone : Updater
                                     // timer ran out this tick would spawn inside this player. Lock it now; they wait
                                     // in the death cam until it clears or they pick another spawn.
                                     UpdateSpawnPoint(playerSpawnPoint);
+                                    ScoreDeviceUse(playerSpawnPoint, unit, "Ally spawned");
                                 }
                             }
                         }
@@ -2738,6 +2740,7 @@ public partial class GameZone : Updater
                 if (!doBuffCheck) continue;
 
                 unit.ApplyBuffEffects(BuffMultiplier);
+                unit.ReportScoreSpots();
 
                 if (unit.WinningTeam == _winningTeam) continue;
                 foreach (var contextEffect in unit.MatchContextEffects)

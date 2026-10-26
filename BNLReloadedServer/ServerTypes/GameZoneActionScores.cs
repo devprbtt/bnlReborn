@@ -9,17 +9,7 @@ public partial class GameZone
     private static bool IsScoreDevice(CardUnit? card) => card?.DeviceType is DeviceType.Device or DeviceType.Hero;
     private static void ScoreDeviceBuilt(Unit builder, DeviceType type, Vector3 position, float cost, string? cardId)
     {
-        builder.ReportHeroBoostAction("effect_hero_engineer_bfs_build", "Build boost assist", position);
-        if (type is DeviceType.Device or DeviceType.Hero && !ExcludedBuildScore(cardId))
-            builder.ReportActionScore("Device built", cost, position);
-    }
-    private static bool ExcludedBuildScore(string? cardId)
-    {
-        if (string.IsNullOrEmpty(cardId)) return true;
-        string[] families = ["block_fast_movement", "block_bounce", "block_thorn_bush",
-            "block_glue", "block_caltrops", "block_bear_trap", "block_force_gate",
-            "block_ice", "unit_device_generic_landmine", "unit_device_generic_fire_trap"];
-        return families.Any(family => cardId == family || cardId.StartsWith(family + "_", StringComparison.Ordinal));
+        // Placement itself never earns action score (including construction-boost assists).
     }
     private readonly ActionScoreRules _actionScoreRules = ActionScoreRules.Load();
     private ActionScoreLedger? _actionScores;
@@ -43,6 +33,27 @@ public partial class GameZone
         var rules = _actionScoreRules; var ledger = ActionScores;
         switch (reason)
         {
+            case "Device built": case "Build boost assist": return;
+            case "Bomb device affected":
+                var cell = $"bomb:{MathF.Floor(position.X)}:{MathF.Floor(position.Y)}:{MathF.Floor(position.Z)}";
+                if (!ledger.Ready(id, cell, _scoreClock.Elapsed.TotalSeconds, rules.TrapEffectCooldown)) return;
+                break;
+            case "Radar device":
+                if (target == null || !ledger.Once(id, "radar-device:" + target)) return;
+                break;
+            case "Portal used":
+                if (target == null || !ledger.Ready(id, reason + ":" + target, _scoreClock.Elapsed.TotalSeconds, rules.PortalCooldown)) return;
+                break;
+            case "Ally spawned": case "Ammo supplied":
+                if (target == null || !ledger.Ready(id, reason + ":" + target, _scoreClock.Elapsed.TotalSeconds,
+                    reason == "Ally spawned" ? rules.SpawnCooldown : rules.AmmoCooldown)) return;
+                break;
+            case "Turret damage": ledger.AccumulateChunks(id, reason, amount, rules.TurretDamageChunk, rules.TurretDamagePoints, near); return;
+            case "Tiki hit": case "Mortar hit":
+                if (target == null || !ledger.Ready(id, reason + ":" + target, _scoreClock.Elapsed.TotalSeconds, rules.DeviceHitCooldown)) return;
+                break;
+            case "Bomb affected": case "C4 hit": case "Bear trap affected": case "Caltrops affected":
+
             case "Mine affected": case "Fire trap affected": case "Glue affected": case "Bush affected":
                 if (target == null || !ledger.Ready(id, reason + ":" + target, _scoreClock.Elapsed.TotalSeconds, rules.TrapEffectCooldown)) return;
                 break;
@@ -52,11 +63,6 @@ public partial class GameZone
             case "Device damage": ledger.Accumulate(id, reason, amount, rules.DeviceDamagePerPoint, near); return;
             case "Radar spot": case "Ability spot":
                 if (target == null || !ledger.Ready(id, "spot:" + target, _scoreClock.Elapsed.TotalSeconds, rules.SpotCooldown)) return;
-                break;
-            case "Build boost assist":
-            case "Device built":
-                var cell = $"{reason}:{MathF.Floor(position.X)}:{MathF.Floor(position.Y)}:{MathF.Floor(position.Z)}";
-                if (!ledger.Ready(id, cell, _scoreClock.Elapsed.TotalSeconds, rules.BuildCooldown)) return;
                 break;
         }
         if (reason == "Demolition boost assist" && target == null &&
@@ -76,22 +82,23 @@ public partial class GameZone
             "Kill" => rules.Kill, "Assist" => rules.Assist, "Key assist" => rules.KeyAssist, "Headshot" => rules.Headshot,
             "Supply pickup" => rules.Supply, "Blockbuster pickup" => rules.Blockbuster,
             "Cube destroyed" => rules.Cube, "Cube assist" => rules.CubeAssist,
-            "Device built" => ledger.BuildValue(amount), "Device destroyed" => ledger.DeviceValue(amount),
+            "Device destroyed" => ledger.DeviceValue(amount),
+            "Radar device" => rules.RadarDevice, "Ally spawned" => rules.SpawnUse, "Portal used" => rules.PortalUse,
+            "Ammo supplied" => rules.AmmoSupply, "Bomb affected" or "Bomb device affected" => rules.BombAffected, "C4 hit" => rules.SargeC4Hit,
+            "C4 destruction" => rules.SargeC4Destroy, "Mortar hit" => rules.MortarHit, "Tiki hit" => rules.TikiHit,
+            "Bear trap affected" => rules.BearTrapAffected, "Caltrops affected" => rules.CaltropsAffected,
             "Radar spot" => rules.Radar, "Ability spot" => rules.AbilitySpot, _ => 0 };
         ledger.Grant(id, reason, points, near);
     }
     private void ScoreDamage(Unit target, float damage, ImpactData impact, Unit? player, Unit? attacker)
     {
-        if (!CanScore || damage <= 0 || player?.PlayerId is not { } id || !AreOpponents(target, player)) return;
-        if (target.PlayerId != null && target.Team != TeamType.Neutral && player.Team != TeamType.Neutral)
-        {
-            string origin = Unit.ScoreSourceId(impact.SourceKey);
-            if (origin.Length == 0) origin = Unit.ScoreSourceId(attacker?.Key);
-            string? trapReason = Unit.ScoreCardFamily(origin, "unit_device_generic_landmine") ? "Mine affected" :
-                Unit.ScoreCardFamily(origin, "unit_device_generic_fire_trap") || origin == "block_fire_from_fire_trap" ? "Fire trap affected" :
-                Unit.ScoreCardFamily(origin, "block_thorn_bush") ? "Bush affected" : null;
-            if (trapReason != null) AwardAction(player, trapReason, 1, target.GetMidpoint(), target.Id);
-        }
+        if (!CanScore || damage <= 0 || !float.IsFinite(damage) || !target.IsActive || target.Team == TeamType.Neutral || player?.PlayerId is not { } id || player.Team == TeamType.Neutral || !AreOpponents(target, player)) return;
+        string origin = Unit.ScoreSourceId(impact.SourceKey);
+        if (DeviceScoreReason(origin) == null && attacker != player) origin = Unit.ScoreSourceId(attacker?.Key);
+        string? deviceReason = DeviceScoreReason(origin);
+        if (deviceReason != null && (target.PlayerId != null ||
+            deviceReason == "Bomb affected" && IsScoreDevice(target.UnitCard) && target.UnitCard?.IsObjective != true && !ExcludedDestroyScore(target.UnitCard?.Id)))
+            AwardAction(player, deviceReason, deviceReason == "Turret damage" ? damage : 1, target.GetMidpoint(), target.Id);
         if (target.PlayerId != null && Unit.ScoreSourceId(impact.SourceKey).StartsWith("ability_sarge_frag_grenade", StringComparison.Ordinal))
             AwardAction(player, "Grenade hit", 1, target.GetMidpoint(), target.Id);
         if (target.PlayerId != null && (attacker?.Key == new Key("unit_device_roly_toxic_waste") || Unit.ScoreSourceId(impact.SourceKey).Contains("toxic_waste", StringComparison.Ordinal)))
@@ -101,7 +108,7 @@ public partial class GameZone
             if (!_cubeContributors.TryGetValue(target.Id, out var contributors)) _cubeContributors[target.Id] = contributors = [];
             contributors[id] = _scoreClock.Elapsed.TotalSeconds;
         }
-        if (target.PlayerId != null && DamageAccounting.ResolveImpactCredit(impact.DamageCredit,
+        if (deviceReason == null && target.PlayerId != null && DamageAccounting.ResolveImpactCredit(impact.DamageCredit,
             attacker == player, attacker?.UnitCard?.DeviceType) == DamageCreditType.Block)
             AwardAction(player, "Device damage", damage, target.GetMidpoint(), target.Id);
     }

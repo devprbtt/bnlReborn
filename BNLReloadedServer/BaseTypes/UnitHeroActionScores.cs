@@ -53,7 +53,9 @@ public partial class Unit
                 else if (device && id.StartsWith("effect_hero_boxer_power_surge", StringComparison.Ordinal) && !id.Contains("immunity")) reason = "EMP affected";
                 else if (PlayerId != null)
                 {
-                    if (id == "effect_status_slow_glue" && ScoreCardFamily(origin, "block_glue")) reason = "Glue affected";
+                    if (id == "effect_status_rooted_bear_trap" && ScoreCardFamily(origin, "block_bear_trap")) reason = "Bear trap affected";
+                    else if (id == "effect_status_bleed_caltrops" && ScoreCardFamily(origin, "block_caltrops")) reason = "Caltrops affected";
+                    else if (id == "effect_status_slow_glue" && ScoreCardFamily(origin, "block_glue")) reason = "Glue affected";
                     else if (id == "effect_status_poison_thorn_bush" && ScoreCardFamily(origin, "block_thorn_bush")) reason = "Bush affected";
                     else if (id == "effect_status_burning_fire_trap" && (ScoreCardFamily(origin, "unit_device_generic_fire_trap") || origin == "block_fire_from_fire_trap")) reason = "Fire trap affected";
                     else if (id == "effect_hero_magnus_lightning_cage_hitting") reason = "Cage affected";

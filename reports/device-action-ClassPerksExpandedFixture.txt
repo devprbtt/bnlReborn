@@ -1,0 +1,76 @@
+PASS nine class perk and seven effect CDB documents
+PASS resolved class wire record: perk_class_brains_1
+PASS resolved class wire record: perk_class_brains_2
+PASS resolved class wire record: perk_class_brains_3
+PASS resolved class wire record: perk_class_brawn_1
+PASS resolved class wire record: perk_class_brawn_2
+PASS resolved class wire record: perk_class_brawn_3
+PASS resolved class wire record: perk_class_skill_1
+PASS resolved class wire record: perk_class_skill_2
+PASS resolved class wire record: perk_class_skill_3
+PASS Skill III description resolves its CDB percentage
+PASS no selection plays and applies class perk I
+PASS selected class perk is kept beside regular perks
+PASS another class's perk is stripped and the default applies
+13:21:56.683 INFO  perf      Zone construction started: GameZone instance=fixture mode=2874013687 map=<embedded>, size=64,16,64, map units=0, players=14
+13:21:56.715 INFO  perf      Zone queued setup started: GameZone instance=fixture mode=2874013687 map=<embedded>
+13:21:56.716 INFO  perf      Zone queued setup completed: GameZone instance=fixture mode=2874013687 map=<embedded>, units=0, elapsed=1ms
+13:21:56.716 INFO  perf      Zone construction completed: GameZone instance=fixture mode=2874013687 map=<embedded>, elapsed=39ms
+13:21:56.757 INFO  perf      Slow action: GameZone instance=fixture mode=2874013687 map=<embedded> queue, Program.<Main took 40ms, allocated 217KB, 0 queued
+PASS spawned heroes carry their selected or default class perk
+PASS active class perk follows selection
+PASS healed ally receives the Supply Line effect
+PASS first regeneration tick restores 2.5% of the pool immediately
+PASS Supply Line does not also grant Shared Recovery
+PASS ammo keeps regenerating at 5% per second while the effect lasts
+PASS another heal refreshes, not stacks, the effect
+PASS self-healing does not trigger Supply Line
+PASS healing an enemy does not trigger Supply Line
+PASS a non-Brains healer does not grant Supply Line
+PASS a direct heal on a full-health ally still grants Supply Line ammo
+PASS a full-health ally healed by a non-Brains hero gets nothing
+PASS self-healing at full health does not trigger Supply Line
+PASS a regeneration tick from the Brains healer on a full-health ally grants Supply Line
+PASS regeneration from a non-Brains hero does not grant Supply Line
+PASS Brains III spawns with all seven devices
+PASS Brains II spawns without the seventh device
+PASS the state sent to clients carries device slot 7
+PASS Brains III no longer grants build speed
+PASS ally within 4m takes 15% less damage
+PASS another Brawn in range does not receive Bulwark
+PASS the Bulwark Brawn does not protect itself
+PASS ally outside 4m is not protected
+PASS two Bulwarks do not stack
+PASS protection stays while another Bulwark still covers the ally
+PASS leaving every aura removes the protection
+PASS protected ally loses 17 health from a 20 damage hit
+PASS Bulwark does not stack with a stronger shield
+PASS Demolisher kill grants +50% dig tool and objective damage
+PASS Demolisher lasts 10 seconds
+PASS other Brawns do not gain Demolisher
+PASS the killing blow kills the victim
+PASS Skill II assist with the most damage (60 vs 40) triggers the on-kill perk
+PASS the killer's killing blow counts: 30 assist vs 70 kill triggers nothing
+PASS a tie for the most damage triggers the on-kill perk
+PASS another assister with more damage (45 vs 40) blocks the Skill II proc
+PASS the top-damage assister without Skill II triggers nothing
+PASS an assist without Skill II triggers nothing even with the most damage
+PASS the Accomplice player leading on damage (20 vs 15) is told so
+PASS a player without Skill II is never sent a lead list
+PASS an unchanged lead is not resent
+PASS losing the lead (20 vs 25) clears it
+PASS a tie for the most damage counts as the lead, as the proc does
+PASS a reconnected player is sent the current lead again
+PASS the lead ends when the assist window for that damage runs out
+PASS and returns while the damage is still inside the window
+PASS a dead victim is no longer listed
+PASS a version-6 client is never sent the lead list
+PASS a version-7 client gets message 109 with the count and unit ids
+PASS Skill III kill removes 70% of a dead teammate's remaining respawn time
+PASS enemy respawn timers are untouched
+PASS expired timers are left alone
+PASS the shortened timer is published to clients
+PASS a posthumous kill shortens the killer's own timer too
+PASS a kill without Skill III leaves timers alone
+PASS CDB respawn reduction percent is used live
+BNL_CLASS_PERKS_EXPANDED_FIXTURE_OK checks=70

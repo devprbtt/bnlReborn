@@ -5,6 +5,23 @@ namespace BNLReloadedServer.BaseTypes;
 // Server-only CDB settings on global_logic.action_scores; omitted fields keep defaults.
 public sealed class ActionScoreRules
 {
+    public int AmmoSupply { get; set; } = 5;
+    public float AmmoCooldown { get; set; } = 15;
+    public int RadarDevice { get; set; } = 5;
+    public int SpawnUse { get; set; } = 10;
+    public float SpawnCooldown { get; set; } = 30;
+    public int PortalUse { get; set; } = 10;
+    public float PortalCooldown { get; set; } = 60;
+    public int BombAffected { get; set; } = 10;
+    public int SargeC4Hit { get; set; } = 10;
+    public int SargeC4Destroy { get; set; } = 10;
+    public int MortarHit { get; set; } = 10;
+    public int TikiHit { get; set; } = 5;
+    public int BearTrapAffected { get; set; } = 10;
+    public int CaltropsAffected { get; set; } = 5;
+    public float DeviceHitCooldown { get; set; } = 1;
+    public float TurretDamageChunk { get; set; } = 50;
+    public int TurretDamagePoints { get; set; } = 5;
     public int MineAffected { get; set; } = 10;
     public int FireTrapAffected { get; set; } = 5;
     public int GlueAffected { get; set; } = 5;
@@ -72,6 +89,8 @@ public sealed class ActionScoreRules
             var value = Convert.ToDouble(p.GetValue(this));
             if (!double.IsFinite(value) || value < 0 || value > 100000) throw new InvalidDataException("Invalid action score setting: " + p.Name);
         }
+        if (TurretDamageChunk <= 0 || PortalCooldown < 60 || AmmoCooldown <= 0 || SpawnCooldown <= 0 || DeviceHitCooldown <= 0 || SpotCooldown <= 0 || TrapEffectCooldown <= 0)
+            throw new InvalidDataException("Invalid device action threshold or repeat interval");
         if (FirstKill <= Kill || DoubleKill <= FirstKill || MultiKill <= DoubleKill || UltraKill <= MultiKill || Fantastic <= UltraKill || Unbelievable <= Fantastic)
             throw new InvalidDataException("Kill accolade scores must increase above the regular kill value");
         if (KeyAssist < Assist) throw new InvalidDataException("Key assist must not be worth less than an assist");

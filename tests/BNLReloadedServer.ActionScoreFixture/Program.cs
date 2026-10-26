@@ -54,7 +54,7 @@ updater=updater with { GetPlayerFromPlayerId=id=>players.GetValueOrDefault(ids.G
 var db=(ServerCatalogue)Databases.Catalogue;
 var playerCard=new CardUnit {Id="score_player",Data=new UnitDataCommon(),Health=new UnitHealth{Health=new Health{MaxHealth=100,HealthType=HealthType.Player}}};
 var cubeCard=new CardUnit {Id="score_cube",Labels=[UnitLabel.Objective],Data=new UnitDataCommon(),Health=new UnitHealth{Health=new Health{MaxHealth=100,HealthType=HealthType.Objective}}};
-var deviceCard=new CardUnit {Id="score_device",DeviceType=DeviceType.Device,BaseCost=400,Data=new UnitDataCommon(),Health=new UnitHealth{Health=new Health{MaxHealth=100,HealthType=HealthType.World}}};
+var deviceCard=new CardUnit {Id="unit_device_generic_radar_fixture",DeviceType=DeviceType.Device,BaseCost=400,Data=new UnitDataCommon(),Health=new UnitHealth{Health=new Health{MaxHealth=100,HealthType=HealthType.World}}};
 db.Replicate([playerCard,cubeCard,deviceCard]);
 Unit Make(uint id,CardUnit card,TeamType team,uint? player=null)
 {
@@ -69,20 +69,20 @@ Call("ScoreKill",ally,a,false,true,Array.Empty<uint>());Check(actual.Total(1)==6
 Call("AwardAction",a,"Supply pickup",1f,Vector3.Zero,4u);Call("AwardAction",a,"Blockbuster pickup",1f,Vector3.Zero,5u);
 Check(actual.Total(1)==185,"supply and blockbuster values");
 Call("AwardAction",a,"Device built",200f,Vector3.Zero,null);Call("AwardAction",a,"Device built",200f,Vector3.Zero,null);
-Check(actual.Total(1)==195,"immediate rebuild at same cell does not farm score");
-ally.SendHealAttribution(a,50,null);Check(actual.Total(1)==200,"real ally heal attribution awards score");
-a.SendHealAttribution(a,50,null);enemy.SendHealAttribution(a,50,null);Check(actual.Total(1)==200,"self and enemy healing excluded");
-var device=Make(4,deviceCard,TeamType.Team2);Call("ScoreKill",device,a,true,false,Array.Empty<uint>());Check(actual.Total(1)==220,"enemy device destruction uses device base cost");
-Call("ScoreDamage",enemy,100f,new ImpactData(),a,device);Check(actual.Total(1)==225,"confirmed device damage on opponent scores");
-Call("ScoreDamage",ally,100f,new ImpactData(),a,device);Check(actual.Total(1)==225,"friendly device damage excluded");
+Check(actual.Total(1)==185,"immediate rebuild at same cell does not farm score");
+ally.SendHealAttribution(a,50,null);Check(actual.Total(1)==190,"real ally heal attribution awards score");
+a.SendHealAttribution(a,50,null);enemy.SendHealAttribution(a,50,null);Check(actual.Total(1)==190,"self and enemy healing excluded");
+var device=Make(4,deviceCard,TeamType.Team2);Call("ScoreKill",device,a,true,false,Array.Empty<uint>());Check(actual.Total(1)==210,"enemy device destruction uses device base cost");
+Call("ScoreDamage",enemy,100f,new ImpactData(),a,device);Check(actual.Total(1)==215,"confirmed device damage on opponent scores");
+Call("ScoreDamage",ally,100f,new ImpactData(),a,device);Check(actual.Total(1)==215,"friendly device damage excluded");
 Call("AwardAction",a,"Radar spot",1f,Vector3.Zero,enemy.Id);Call("AwardAction",a,"Ability spot",1f,Vector3.Zero,enemy.Id);
-Check(actual.Total(1)==230,"radar and ability share repeat-target cooldown");
-Call("AwardAction",a,"Ability spot",1f,Vector3.Zero,99u);Check(actual.Total(1)==240,"ability spotting has its own starting value");
+Check(actual.Total(1)==220,"radar and ability share repeat-target cooldown");
+Call("AwardAction",a,"Ability spot",1f,Vector3.Zero,99u);Check(actual.Total(1)==230,"ability spotting has its own starting value");
 var cube=Make(5,cubeCard,TeamType.Team2);Call("ScoreDamage",cube,10f,new ImpactData(),ally,ally);
-Call("ScoreKill",cube,a,true,false,Array.Empty<uint>());Check(actual.Total(1)==490 && actual.Total(2)==275,"cube destroy grants exactly 250 to destroyer and nearby contributor without duplicate assist");
-var result=(Dictionary<PlayerMatchStatType,int>)Call("ScoreResult",1u,null)!;Check(result[PlayerMatchStatType.ActionScore]==490,"results persist authoritative total");
-data.MatchEnded=true;Call("AwardAction",a,"Kill",1f,Vector3.Zero,null);Check(actual.Total(1)==490,"ended match cannot score");
-data.MatchEnded=false;data.Phase.PhaseType=ZonePhaseType.Waiting;Call("AwardAction",a,"Kill",1f,Vector3.Zero,null);Check(actual.Total(1)==490,"waiting phase cannot score");
+Call("ScoreKill",cube,a,true,false,Array.Empty<uint>());Check(actual.Total(1)==480 && actual.Total(2)==275,"cube destroy grants exactly 250 to destroyer and nearby contributor without duplicate assist");
+var result=(Dictionary<PlayerMatchStatType,int>)Call("ScoreResult",1u,null)!;Check(result[PlayerMatchStatType.ActionScore]==480,"results persist authoritative total");
+data.MatchEnded=true;Call("AwardAction",a,"Kill",1f,Vector3.Zero,null);Check(actual.Total(1)==480,"ended match cannot score");
+data.MatchEnded=false;data.Phase.PhaseType=ZonePhaseType.Waiting;Call("AwardAction",a,"Kill",1f,Vector3.Zero,null);Check(actual.Total(1)==480,"waiting phase cannot score");
 data.Phase.PhaseType=ZonePhaseType.Assault;
 var spotted=Make(6,playerCard,TeamType.Team2,6);
 var markCard=new CardEffect {Id="score_vision_mark",Duration=3,Effect=new ConstEffectBuff{Buffs=new(){{BuffType.VisionMark,1}}}};
@@ -158,7 +158,7 @@ db.Replicate([playerCard,heroBlockCard,deviceCard]);
 var buildMethod=typeof(GameZone).GetMethod("ScoreDeviceBuilt",BindingFlags.Static|BindingFlags.NonPublic)!;
 int beforeHero=actual.Total(1);
 buildMethod.Invoke(null,new object[]{a,heroBlockCard.DeviceType,new Vector3(90,0,0),400f,"score_fixture_device"});
-Check(actual.Total(1)==beforeHero+ledger.BuildValue(400),"hero block placement earns configured build points");
+Check(actual.Total(1)==beforeHero+ledger.BuildValue(400),"hero block placement earns no points");
 buildMethod.Invoke(null,new object[]{a,heroBlockCard.DeviceType,new Vector3(90,0,0),400f,"score_fixture_device"});
 Check(actual.Total(1)==beforeHero+ledger.BuildValue(400),"hero block repeated placement retains rebuild cooldown");
 foreach(var type in new[]{DeviceType.None,DeviceType.World,DeviceType.Block})
@@ -208,10 +208,10 @@ var boosted=Make(240,playerCard,TeamType.Team1,240);
 boosted.AddEffects([new ConstEffectInfo(buildBoost.Key),new ConstEffectInfo(demolishBoost.Key)],a.Team,a.GetSelfSource(a.CreateImpactData()));
 int beforeSupport=actual.Total(1);
 buildMethod.Invoke(null,new object[]{boosted,DeviceType.Block,new Vector3(110,0,0),40f,"score_fixture_device"});
-Check(actual.Total(1)==beforeSupport+rules.TonyBuildAssist,"Tony is credited when another player completes a boosted build");
+Check(actual.Total(1)==beforeSupport,"construction boost does not award placement points");
 var destroyed=Make(241,deviceCard,TeamType.Team2);
 Call("ScoreHeroDeviceDestroyed",destroyed,boosted,boosted,boosted.CreateImpactData());
-Check(actual.Total(1)==beforeSupport+rules.TonyBuildAssist+rules.TrondsonDemolitionAssist,"Trondson is credited when boosted ally destroys an enemy device");
+Check(actual.Total(1)==beforeSupport+rules.TrondsonDemolitionAssist,"Trondson is credited when boosted ally destroys an enemy device");
 var repairer=Make(242,engineerCard,TeamType.Team1,242);var friendlyDevice=Make(243,deviceCard,TeamType.Team1);
 friendlyDevice.UpdateData(new UnitUpdate{Health=100});
 friendlyDevice.OwnerPlayerId=242;
@@ -325,35 +325,22 @@ var roundtripRules=JsonSerializer.Deserialize<ActionScoreRules>(JsonSerializer.S
 Check(roundtripRules.GenieLampPickup==37 && roundtripRules.KiraReloadBoost==19 && roundtripRules.HeroEffectCooldown==2 && roundtripRules.TonyRepairPerPoint==4,"hero score values and thresholds round-trip through CDB JSON");
 bool badRepair=false;try{new ActionScoreRules{TonyRepairPerPoint=0}.Validate();}catch(InvalidDataException){badRepair=true;}
 Check(badRepair,"zero repair denominator is rejected");
-Check(ledger.BuildValue(40)==2 && ledger.BuildValue(200)==10 && ledger.BuildValue(600)==30,"build score scales with actual cost");
-Check(ledger.BuildValue(1)==1 && ledger.BuildValue(21)==2 && ledger.BuildValue(10000)==50,"build score rounds up and caps");
-Check(ledger.BuildValue(0)==0 && ledger.BuildValue(-1)==0 && ledger.BuildValue(float.NaN)==0 && ledger.BuildValue(float.PositiveInfinity)==0,"free and invalid builds grant no points");
-Check(ledger.BuildValue(float.MaxValue)==50,"extreme finite cost safely caps without integer overflow");
-var tunedBuild=new ActionScoreRules{BuildCostPerPoint=10,BuildMin=2,BuildMax=25};tunedBuild.Validate();
-var tunedLedger=new ActionScoreLedger(tunedBuild);
-Check(tunedLedger.BuildValue(1)==2 && tunedLedger.BuildValue(100)==10 && tunedLedger.BuildValue(1000)==25,"build cost scale and bounds are CDB tunable");
-var buildJson=JsonSerializer.Serialize(tunedBuild,JsonHelper.DefaultSerializerSettings);
-var loadedBuild=JsonSerializer.Deserialize<ActionScoreRules>(buildJson,JsonHelper.DefaultSerializerSettings)!;
-Check(loadedBuild.BuildCostPerPoint==10 && loadedBuild.BuildMin==2 && loadedBuild.BuildMax==25,"build settings round-trip in CDB");
-var legacyBuild=JsonSerializer.Deserialize<ActionScoreRules>("{\"build\":10}",JsonHelper.DefaultSerializerSettings)!;
-Check(new ActionScoreLedger(legacyBuild).BuildValue(40)==2,"legacy flat-build CDB field does not override proportional defaults");
-foreach(var invalidBuild in new[]{new ActionScoreRules{BuildCostPerPoint=0},new ActionScoreRules{BuildMin=10,BuildMax=5}})
-{
- bool buildRejected=false;try{invalidBuild.Validate();}catch(InvalidDataException){buildRejected=true;}
- Check(buildRejected,"invalid build score denominator or range rejected");
-}
+foreach(float cost in new[]{-1,0,1,40,200,600,float.NaN,float.PositiveInfinity,float.MaxValue})
+ Check(ledger.BuildValue(cost)==0,"construction has zero score for cost "+cost);
+var legacyBuild=JsonSerializer.Deserialize<ActionScoreRules>("{\"build_cost_per_point\":1,\"build_min\":100,\"build_max\":500}",JsonHelper.DefaultSerializerSettings)!;
+Check(new ActionScoreLedger(legacyBuild).BuildValue(400)==0,"legacy live build settings cannot restore placement rewards");
 int beforeBuilds=actual.Total(1);
 buildMethod.Invoke(null,new object[]{a,DeviceType.Device,new Vector3(150,0,0),40f,"score_fixture_device"});
 buildMethod.Invoke(null,new object[]{a,DeviceType.Hero,new Vector3(151,0,0),600f,"score_fixture_device"});
-Check(actual.Total(1)==beforeBuilds+32,"confirmed device and hero builds pass actual cost to score ledger");
+Check(actual.Total(1)==beforeBuilds,"confirmed device and hero builds earn no placement points");
 buildMethod.Invoke(null,new object[]{a,DeviceType.Device,new Vector3(152,0,0),0f,"score_fixture_device"});
-Check(actual.Total(1)==beforeBuilds+32,"free placement cannot earn build points");
+Check(actual.Total(1)==beforeBuilds,"free placement cannot earn build points");
 int beforeObjectiveBuild=actual.Total(1);
 Call("AwardAction",a,"Device built",200f,Vector3.Zero,null);
 // The original cell is still in rebuild cooldown; changing cost must not bypass it.
 Check(actual.Total(1)==beforeObjectiveBuild,"cost changes cannot bypass same-cell rebuild cooldown");
 var bonusBuild=new ActionScoreLedger(rules);bonusBuild.Grant(1,"Device built",bonusBuild.BuildValue(200),true);
-Check(bonusBuild.Total(1)==12,"objective bonus applies after proportional build score");
+Check(bonusBuild.Total(1)==0,"placement near objectives earns no bonus");
 int beforeExcludedBuilds=actual.Total(1);
 string[] excludedBuilds=["block_fast_movement","block_fast_movement_ninja","block_bounce","block_bounce_hunter","block_bounce_kira","block_bounce_plastic","block_thorn_bush","block_thorn_bush_pale","block_glue","block_glue_alien","block_caltrops","block_caltrops_astro","block_caltrops_kreepy","block_bear_trap","block_bear_trap_astro","block_force_gate","block_force_gate_disco","block_force_gate_eliza"];
 for(int i=0;i<excludedBuilds.Length;i++)
@@ -364,7 +351,7 @@ for(int i=0;i<excludedBuilds.Length;i++)
 buildMethod.Invoke(null,new object[]{a,DeviceType.Hero,new Vector3(230,0,0),600f,"block_bounce_future_variant"});
 Check(actual.Total(1)==beforeExcludedBuilds,"excluded family covers hero and future variants");
 buildMethod.Invoke(null,new object[]{a,DeviceType.Device,new Vector3(231,0,0),600f,"unit_device_turret"});
-Check(actual.Total(1)==beforeExcludedBuilds+30,"non-excluded turret retains proportional build score");
+Check(actual.Total(1)==beforeExcludedBuilds,"turret placement earns no points");
 foreach(string excluded in new[]{"block_ice","unit_device_generic_landmine","unit_device_generic_landmine_abe","unit_device_generic_landmine_cogwheel","unit_device_generic_fire_trap","unit_device_generic_fire_trap_djinn"})
 {
  int before=actual.Total(1);buildMethod.Invoke(null,new object[]{a,DeviceType.Hero,new Vector3(240,0,0),600f,excluded});
@@ -460,6 +447,99 @@ Check(VoxelDestroyed(81,new Vector3s(1,1,1))==0,"destroying an enemy ice block g
 Check(VoxelDestroyed(82,new Vector3s(2,2,2))==iceLedger.DeviceValue(400),"destroying another enemy hero block still gives device score");
 Check(GameZone.ExcludedDestroyScore("block_ice") && GameZone.ExcludedDestroyScore("block_ice_yeti") && !GameZone.ExcludedDestroyScore("block_icecream") && !GameZone.ExcludedDestroyScore(null),
     "ice exclusion matches the block_ice family only");
+
+// Action-driven device scoring: real source attribution, usage callbacks and actual supply changes.
+void Publish(List<Card> cards)=>db.Replicate(db.All.Concat(cards).GroupBy(c=>c.Id).Select(g=>g.Last()).ToList());
+Publish([playerCard,cubeCard,deviceCard]);
+units.Clear();players.Clear();ids.Clear();
+a=Make(1,playerCard,TeamType.Team1,1);ally=Make(2,playerCard,TeamType.Team1,2);enemy=Make(3,playerCard,TeamType.Team2,3);
+data.Phase.PhaseType=ZonePhaseType.Assault;data.MatchEnded=false;
+var actionLedger=new ActionScoreLedger(rules);Set("_actionScores",actionLedger);
+void Fresh(){actionLedger=new ActionScoreLedger(rules);Set("_actionScores",actionLedger);}
+Unit Device(uint unitId,string name,uint owner=1)
+{
+ var c=new CardUnit{Id=name,DeviceType=DeviceType.Hero,Data=new UnitDataCommon(),Health=deviceCard.Health,BaseCost=200};
+ Publish([c]);var u=Make(unitId,c,TeamType.Team1);u.OwnerPlayerId=owner;return u;
+}
+var turret=Device(800,"unit_device_engineer_turret_snowman");
+void Hit(Unit source,Unit actionVictim,float hp,Key? sourceKey=null)=>Call("ScoreDamage",actionVictim,hp,new ImpactData{SourceKey=sourceKey??source.Key},a,source);
+Hit(turret,enemy,49);Check(actionLedger.Total(1)==0,"turret waits for 50 actual HP");
+Hit(turret,enemy,1);Check(actionLedger.Total(1)==5,"turret awards one 50-HP chunk without generic double credit");
+Hit(turret,enemy,125);Check(actionLedger.Total(1)==15,"turret carries remainder across hits");
+Hit(turret,ally,50);Hit(turret,a,50);Hit(turret,enemy,float.NaN);Check(actionLedger.Total(1)==15,"friendly self and invalid hits cannot fill turret chunks");
+Hit(turret,enemy,25);Check(actionLedger.Total(1)==20,"turret remainder completes exactly");
+foreach(var entry in new[]{("unit_device_generic_bomb_roly","Bomb affected",10),("unit_device_hunter_tiki","Tiki hit",5),("unit_device_cogwheel_mortar","Mortar hit",10),("unit_device_sarge_bomb","C4 hit",10),("unit_device_roly_toxic_waste","Goo affected",10),("block_bear_trap_astro","Bear trap affected",10),("block_caltrops_kreepy","Caltrops affected",5)})
+{
+ Fresh();var source=Device(801,entry.Item1);Hit(source,enemy,1);Hit(source,enemy,1);
+ Check(actionLedger.Total(1)==entry.Item3,entry.Item2+" credits one useful hit and suppresses duplicate pellets/ticks");
+ Call("ScoreKill",enemy,a,true,false,Array.Empty<uint>());
+ Check(actionLedger.Total(1)==entry.Item3+rules.Kill,entry.Item2+" retains normal kill credit exactly once");
+}
+Fresh();var bomb=Device(802,"unit_device_generic_large_bomb");var actionVictim=Make(803,deviceCard,TeamType.Team2);
+Hit(bomb,actionVictim,1);Check(actionLedger.Total(1)==rules.BombAffected,"bomb damage to enemy device scores");
+actionVictim.Team=TeamType.Team1;Hit(bomb,actionVictim,1);actionVictim.Team=TeamType.Neutral;Hit(bomb,actionVictim,1);
+Check(actionLedger.Total(1)==rules.BombAffected,"bomb friendly and neutral device damage does not score");actionVictim.Team=TeamType.Team2;
+foreach(var name in new[]{"unit_device_cogwheel_mortar","unit_device_sarge_bomb"})
+{
+ Fresh();var source=Device(804,name);Call("ScoreKill",actionVictim,a,true,false,Array.Empty<uint>());Call("ScoreHeroDeviceDestroyed",actionVictim,a,source,source.CreateImpactData(sourceKey:source.Key));
+ Check(actionLedger.Total(1)==actionLedger.DeviceValue(400)+10,name+" awards destruction and normal device credit");
+ var cell=new Vector3s(1,1,1);var block=voxels[cell];block.Id=82;block.Team=TeamType.Team2;block.Damage=0;
+ int previous=actionLedger.Total(1);voxels.DamageBlock(cell,new DamageData(0,0,0,0,0,0,0,0,false,false,false,false){BlockDamage=255},source,scoreSource:source.Key);
+ Check(actionLedger.Total(1)==previous+actionLedger.DeviceValue(400)+10,name+" destruction of voxel device credits owner");
+}
+
+foreach(var route in new[]{"SplashDamageBlocksRaycast","SplashDamageBlocksFlood"})
+foreach(var name in new[]{"unit_device_cogwheel_mortar","unit_device_sarge_bomb","unit_device_generic_bomb"})
+{
+ Fresh();var source=Device(850,name);var blastMap=new MapBinary(3,new byte[4*4*4*6].Zip(0).ToArray(),new Vector3s(4,4,4),-1,new MapUpdater((_,_)=>{},(_,_)=>{},_=>{},_=>true));
+ var cell=new Vector3s(1,1,1);var blastBlock=blastMap[cell];blastBlock.Id=82;blastBlock.Team=TeamType.Team2;
+ typeof(MapBinary).GetMethod(route,BindingFlags.Instance|BindingFlags.NonPublic)!.Invoke(blastMap,new object?[]{new[]{new Vector3(1.5f,1.5f,1.5f)},new DamageData(0,0,0,0,0,0,0,0,false,false,false,false){BlockDamage=1000},source.CreateImpactData(sourceKey:source.Key),3f,Array.Empty<Unit>(),source,TeamType.Team1});
+ Check(blastMap[cell].Id!=82 && actionLedger.Total(1)==actionLedger.DeviceValue(400)+10,route+" credits "+name+" actual voxel destruction");
+}
+Fresh();var portal=Device(805,"unit_device_kira_portal");var portal2=Device(806,"unit_device_kira_portal");
+Call("ScoreDeviceUse",portal,ally,"Portal used");Call("ScoreDeviceUse",portal2,ally,"Portal used");Call("ScoreDeviceUse",portal,a,"Portal used");Call("ScoreDeviceUse",portal,enemy,"Portal used");
+Check(actionLedger.Total(1)==10,"portal limits same ally across owner's portals; self/enemy use excluded");
+var otherAlly=Make(807,playerCard,TeamType.Team1,807);Call("ScoreDeviceUse",portal,otherAlly,"Portal used");
+Check(actionLedger.Total(1)==20,"another ally earns a separate portal reward");
+var cooldownLedger=new ActionScoreLedger(rules);
+Check(cooldownLedger.Ready(1,"Portal used:2",0,60)&&!cooldownLedger.Ready(1,"Portal used:2",59.99,60)&&cooldownLedger.Ready(1,"Portal used:2",60,60),"portal cooldown expires at exactly 60 seconds");
+Call("ScoreDeviceUse",portal,ally,"Ally spawned");Call("ScoreDeviceUse",portal,ally,"Ally spawned");
+Check(actionLedger.Total(1)==30,"successful allied spawn scores and immediate repeat is suppressed");
+Fresh();var radar=Device(808,"unit_device_generic_radar_engineer");
+var scanCard=new CardEffect{Id="score_device_scan",Effect=new ConstEffectBuff{Buffs=new(){{BuffType.VisionMark,1}}}};Publish([scanCard]);
+actionVictim.AddEffects([new ConstEffectInfo(scanCard.Key)],radar.Team,radar.GetSelfSource(radar.CreateImpactData()));
+actionVictim.ReportScoreSpots();actionVictim.ReportScoreSpots();
+Check(actionLedger.Total(1)==5,"radar device discovery gives one fixed award, never tick rewards");
+actionVictim.RemoveEffects([new ConstEffectInfo(scanCard.Key)],radar.Team,radar.GetSelfSource());
+actionVictim.AddEffects([new ConstEffectInfo(scanCard.Key)],radar.Team,radar.GetSelfSource(radar.CreateImpactData()));actionVictim.ReportScoreSpots();
+Check(actionLedger.Total(1)==5,"re-entering radar range cannot farm the same device");
+enemy.AddEffects([new ConstEffectInfo(scanCard.Key)],radar.Team,radar.GetSelfSource(radar.CreateImpactData()));enemy.ReportScoreSpots();
+Check(actionLedger.Total(1)==10,"radar hero spotting gives one award per scoring tick");
+Fresh();var station=Device(809,"unit_device_generic_ammo_resupply_engineer");
+var ammoGear=new CardGear{Id="score_supply_weapon",Ammo=[new AmmoData{MagSize=10,Pool=new AmmoPool{PoolSize=100,BaseRegen=1}}],Tools=[]};Publish([ammoGear]);
+ally.Gears.Add(new GearData(ally,ammoGear.Key,0));var reserve=ally.Gears[0].Ammo[0];
+ally.AddAmmo(10,station.GetSelfSource());Check(actionLedger.Total(1)==0,"full ammo earns nothing");
+reserve.Pool=50;ally.AddAmmo(10,station.GetSelfSource());Check(actionLedger.Total(1)==5 && reserve.Pool==60,"actual ally ammo restored credits station owner");
+ally.AddAmmo(10,station.GetSelfSource());Check(actionLedger.Total(1)==5 && reserve.Pool==70,"ammo ticks continue refilling without score spam");
+Fresh();station.OwnerPlayerId=ally.PlayerId;ally.AddAmmo(10,station.GetSelfSource());Check(actionLedger.Total(2)==0,"own ammo crate earns no self-supply reward");station.OwnerPlayerId=1;
+Fresh();ally.AddAmmoPercent(.1f,station.GetSelfSource());Check(actionLedger.Total(1)==5,"percentage ammo restoration uses the same attribution gate");
+Fresh();var ammoBuff=new CardEffect{Id="score_supply_regen",Effect=new ConstEffectBuff{Buffs=new(){{BuffType.AmmoRegen,1}}}};Publish([ammoBuff]);reserve.Pool=50;
+ally.AddEffects([new ConstEffectInfo(ammoBuff.Key)],a.Team,station.GetSelfSource(station.CreateImpactData()));ally.ApplyBuffEffects(1);
+Check(actionLedger.Total(1)==5,"station regeneration tick attributes actual supplied ammo");
+Fresh();ally.SendHealAttribution(a,50,null,0);Check(actionLedger.Total(1)==0,"healing self/friendly/environmental damage cannot farm support score");
+ally.SendHealAttribution(a,50,null,50);Check(actionLedger.Total(1)==5,"effective ally healing earns normal amount-based points");
+var crossing=new ActionScoreLedger(rules);crossing.AccumulateChunks(1,"Turret damage",49,50,5,false);crossing.AccumulateChunks(1,"Turret damage",1,50,5,true);
+Check(crossing.Total(1)==6,"moving into an objective area does not reset the turret damage remainder");
+var extremeChunks=new ActionScoreLedger(rules);extremeChunks.AccumulateChunks(1,"Turret damage",float.MaxValue,1,100000,false);
+Check(extremeChunks.Total(1)==int.MaxValue,"configured chunk rewards cannot overflow the score integer");
+Fresh();var objective=Make(810,cubeCard,TeamType.Team2);Hit(turret,enemy,50);
+Check(actionLedger.Total(1)==6,"turret action retains cube-area objective bonus");
+units.Remove(objective.Id);var bbCard=new CardUnit{Id="score_bb_spot",Data=new UnitDataCommon(),Labels=[UnitLabel.DropPointBlockbuster]};Publish([bbCard]);Make(811,bbCard,TeamType.Neutral);
+Fresh();Call("ScoreDeviceUse",portal,ally,"Portal used");Check(actionLedger.Total(1)==12,"portal use retains Blockbuster-area objective bonus");
+Fresh();Call("AwardAction",a,"Device built",999f,Vector3.Zero,null);Call("AwardAction",a,"Build boost assist",1f,Vector3.Zero,null);
+Check(actionLedger.Total(1)==0,"no placement or construction boost bonus even inside objective area");
+data.MatchEnded=true;Call("ScoreDeviceUse",portal,ally,"Portal used");Hit(turret,enemy,50);Check(actionLedger.Total(1)==0,"ended matches cannot gain device action score");
+
 Console.WriteLine($"PASS action scoring: {checks} checks");
 public class EmptyInitiator : DispatchProxy
 {
