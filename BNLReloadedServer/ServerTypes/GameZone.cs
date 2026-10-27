@@ -1854,6 +1854,12 @@ public partial class GameZone : Updater
             });
         }
 
+        // Match Gold is settled for the whole lobby at once, since stat leaders depend on everyone's totals.
+        var goldAwards = PaysMatchGold() ? ComputeMatchGold(winner, gameEnd) : null;
+        if (goldAwards != null)
+            foreach (var entry in matchStats)
+                if (entry.Stats?.Stats is { } goldStats) MatchGold.Write(goldAwards.GetValueOrDefault(entry.PlayerId), goldStats);
+
         // Send match stats
         var zoneDataGameModeCard = _zoneData.GameModeCard;
         var winners = new List<uint>();
@@ -1958,49 +1964,13 @@ public partial class GameZone : Updater
             // Heroes played earlier in the match level up on the master; the reward screen shows the final hero.
             var otherHeroXp = heroXp.Where(h => h.Key != player.Key && h.Value > 0).ToDictionary(h => h.Key, h => h.Value);
 
-            var currencyAmountVirtual = 0f;
-            var currencyAmountReal = 0f;
-            if (!_gameInitiator.IsMapEditor() && (zoneDataGameModeCard.CurrencyLogic?.CurrencyPerMinute?.TryGetValue(CurrencyType.Virtual,
-                    out var currPerMinVir) ?? false))
-            {
-                currencyAmountVirtual = currPerMinVir * (float)gameLength.TotalMinutes;
-                if
-                    (zoneDataGameModeCard.CurrencyLogic.MinCap?.TryGetValue(CurrencyType.Virtual,
-                         out var currMinCapVir) ?? false)
-                {
-                    currencyAmountVirtual = MathF.Min(currencyAmountVirtual, currMinCapVir);
-                }
-
-                if (zoneDataGameModeCard.CurrencyLogic.MaxCap?.TryGetValue(CurrencyType.Virtual,
-                        out var currMaxCapVir) ?? false)
-                {
-                    currencyAmountVirtual = MathF.Min(currencyAmountVirtual, currMaxCapVir);
-                }
-            }
-
-            if (!_gameInitiator.IsMapEditor() && (zoneDataGameModeCard.CurrencyLogic?.CurrencyPerMinute?.TryGetValue(CurrencyType.Real,
-                    out var currPerMinReal) ?? false))
-            {
-                currencyAmountReal = currPerMinReal * (float)gameLength.TotalMinutes;
-                if
-                    (zoneDataGameModeCard.CurrencyLogic.MinCap?.TryGetValue(CurrencyType.Real,
-                         out var currMinCapReal) ?? false)
-                {
-                    currencyAmountReal = MathF.Min(currencyAmountReal, currMinCapReal);
-                }
-
-                if (zoneDataGameModeCard.CurrencyLogic.MaxCap?.TryGetValue(CurrencyType.Virtual,
-                        out var currMaxCapReal) ?? false)
-                {
-                    currencyAmountReal = MathF.Min(currencyAmountReal, currMaxCapReal);
-                }
-            }
-
+            // The mode card's original currency_logic is no longer used: Gold comes only from MatchGold.
+            var goldEarned = goldAwards?.GetValueOrDefault(playerId)?.Total ?? 0;
             endMatchData.OldCurrency = Databases.PlayerDatabase.GetCurrency(player.PlayerId.Value);
             endMatchData.RewardCurrency = new Dictionary<CurrencyType, float>
             {
-                { CurrencyType.Virtual, currencyAmountVirtual },
-                { CurrencyType.Real, currencyAmountReal }
+                { CurrencyType.Virtual, MatchGold.DisplayBase(goldEarned, applicableBonuses.Values) },
+                { CurrencyType.Real, 0 }
             };
             endMatchData.RewardBonuses = applicableBonuses;
             endMatchData.ChallengesData = [];
@@ -2112,6 +2082,25 @@ public partial class GameZone : Updater
             Teams = teams,
             Players = CompleteRatingParticipants(_ratingEndedAt ?? endedAt, winner)
         });
+
+    // Matchmade casual and ranked rounds pay Gold; custom games, the waiting arena, the editor and time trials do not.
+    private bool PaysMatchGold() =>
+        !_gameInitiator.IsMapEditor() && _gameInitiator is MatchmakerInitiator &&
+        _zoneData.GameModeCard.Ranking is GameRankingType.Friendly or GameRankingType.Ranked &&
+        _zoneData.MatchCard.Data?.Type is not MatchType.TimeTrial;
+
+    private Dictionary<uint, MatchGold.Award> ComputeMatchGold(TeamType winner, DateTimeOffset gameEnd) =>
+        MatchGold.Compute(_playerUnits.Values.Where(p => p.PlayerId.HasValue).Select(p =>
+        {
+            var id = p.PlayerId!.Value;
+            // The tracker holds totals across reconnects; this session's counters were added just before.
+            var archived = _matchParticipation.Find(id);
+            IReadOnlyDictionary<PlayerMatchStatType, int> stats = archived?.Stats ?? [];
+            IReadOnlyDictionary<ScoreType, float> raw = archived?.RawStats ?? p.Stats ?? [];
+            return new MatchGold.Candidate(id, p.Team, p.IsActive && !_gameInitiator.IsPlayerSpectator(id),
+                winner != TeamType.Neutral && p.Team == winner, _matchParticipation.PlayedSeconds(id, gameEnd),
+                Enum.GetValues<MatchGold.Category>().ToDictionary(c => c, c => MatchGold.Value(c, stats, raw)));
+        }));
 
     private List<CompletedMatchPlayer> CompleteRatingParticipants(DateTimeOffset endedAt, TeamType winner)
     {

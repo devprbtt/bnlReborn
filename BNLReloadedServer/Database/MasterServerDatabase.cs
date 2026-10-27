@@ -5,6 +5,7 @@ using BNLReloadedServer.BaseTypes;
 using BNLReloadedServer.ControlPanel;
 using BNLReloadedServer.Logging;
 using BNLReloadedServer.Service;
+using BNLReloadedServer.ServerTypes;
 using BNLReloadedServer.ProtocolHelpers;
 using Moserware.Skills;
 using SQLite;
@@ -1038,10 +1039,13 @@ public class MasterServerDatabase : IMasterServerDatabase
             }
 
             record = currPlayer.ToPlayerRecord();
+            // Without a settlement id a replayed result could not be recognised, so it never pays Gold.
+            var matchGold = settlementId != null ? MatchGold.Earned(endMatchResults) : 0;
             await _playerDb.RunInTransactionAsync(db =>
             {
-                // Save XP, one-time claims, wallet and retry guard atomically.
+                // Save XP, one-time claims, match Gold, wallet and retry guard atomically.
                 HeroMilestoneRewards.GrantEarned(db, record, currPlayer.Progression);
+                record.Gold = checked(record.Gold + matchGold);
                 db.Update(record);
                 if(settlementId != null) db.Insert(new HeroProgressSettlement { Id=settlementId });
             });

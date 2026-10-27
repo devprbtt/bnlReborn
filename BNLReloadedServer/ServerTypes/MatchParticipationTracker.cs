@@ -10,6 +10,25 @@ internal sealed class MatchParticipationTracker
     public DateTimeOffset? StartedAt { get; private set; }
     public bool HasParticipant(uint playerId) => _players.ContainsKey(playerId);
 
+    /// <summary>Stats accumulated across every session of this player, including earlier reconnects.</summary>
+    public CompletedMatchPlayer? Find(uint playerId) => _players.GetValueOrDefault(playerId);
+
+    /// <summary>Seconds present between the match start and <paramref name="at"/>, with overlapping reconnects merged.</summary>
+    public double PlayedSeconds(uint playerId, DateTimeOffset at)
+    {
+        if (!StartedAt.HasValue || !_players.TryGetValue(playerId, out var player)) return 0;
+        long start = StartedAt.Value.ToUnixTimeMilliseconds(), end = at.ToUnixTimeMilliseconds(), covered = start, total = 0;
+        foreach (var presence in player.Presences.OrderBy(p => p.JoinedAt))
+        {
+            var from = Math.Max(covered, (long)presence.JoinedAt);
+            var to = Math.Min(end, (long)(presence.LeftAt ?? (ulong)end));
+            if (to <= from) continue;
+            total += to - from;
+            covered = to;
+        }
+        return total / 1000.0;
+    }
+
     public void Start(DateTimeOffset startedAt, IEnumerable<PlayerLobbyState> initialPlayers,
         IReadOnlyDictionary<uint, Rating> startingRatings)
     {
