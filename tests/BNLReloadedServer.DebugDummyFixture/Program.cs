@@ -19,7 +19,12 @@ cards.Add(new CardGlobalLogic{Id="global_logic", AvailableHeroes=[new Key(hero.I
 Check(JsonSerializer.Serialize(hero, JsonHelper.DefaultSerializerSettings) == original, "real Sarge is not mutated");
 var card = cards.OfType<CardUnit>().Single(c => c.Id == DebugDummyRegistration.Id);
 Check(card.Health!.Health!.HealthType == HealthType.Player && card.Data is UnitDataPlayer, "dummy receives player damage and player-target effects");
-Check(card.Health.Health.MaxHealth == 1 && card.Health.KillReward?.PlayerReward == 50 && card.Health.KillReward?.TeamReward == 50 && card.Loot == null && card.SpawnPoint == null && card.Capturing == null, "dummy preserves hero kill resources without loot, spawn or capture features");
+Check(card.Health.Health.MaxHealth == 1 && card.Health.KillReward?.PlayerReward == 50 && card.Health.KillReward?.TeamReward == 50 && card.SpawnPoint == null && card.Capturing == null, "dummy preserves hero kill resources without spawn or capture features");
+Check(card.Loot is { SpawnOnEnemyKill: true, SpawnOnUndefinedKill: true, LootItem: LootItemCommon } &&
+    ((LootItemCommon)card.Loot.LootItem).Item?.LootUnitKey == new Key("unit_pickup_hero_loot") &&
+    ((LootItemCommon)card.Loot.LootItem).OpponentItem?.LootUnitKey == new Key("unit_pickup_hero_loot"),
+    "dummy death retains normal hero health pickup for enemy and environmental kills");
+Check(!ReferenceEquals(card.Loot, hero.Loot), "dummy loot is an independent copy of hero loot");
 Check(card.Movement is UnitMovementStatic && card.InitEffects!.Count == 0 && card.EnabledEffects!.Count == 0, "stationary dummy has no passive regeneration");
 ((ServerCatalogue)Databases.Catalogue).Replicate(cards);
 var dummyData = (UnitDataPlayer)card.Data!;
