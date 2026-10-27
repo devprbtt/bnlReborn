@@ -1,4 +1,4 @@
-﻿using BNLReloadedServer.BaseTypes;
+using BNLReloadedServer.BaseTypes;
 using SQLite;
 
 namespace BNLReloadedServer.Database;
@@ -38,6 +38,12 @@ public class PlayerRecord
     // mean parsing a match history blob per row. Recomputed on every save.
     [Column("rank_eligible_until")]
     public DateTimeOffset? RankEligibleUntil { get; set; }
+
+    [Column("gold")]
+    public long Gold { get; set; }
+
+    [Column("platinum")]
+    public long Platinum { get; set; }
 
     [Column("progression")]
     public byte[] Progression { get; set; } = [];

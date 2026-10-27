@@ -42,3 +42,8 @@ Set both movement and jump cone modifiers to zero, since the client applies jump
 ## 2026-10-26 — Test targets reuse player damage without player identity
 
 Generate a separate catalogue unit cloned from Sarge presentation, with player health type and static movement, no passive effects, capture, loot or respawn features. Each instance carries its requested max HP through the replicated HealthCap buff (base HP 1), including status-effect recalculation and late-join snapshots. Keep PlayerId/OwnerId unset so the dummy does not become a connected match participant or automatic respawn candidate. Route spawning through the existing Core/Admin-authorized debug RPC; load its hero presentation independently of the player roster on updated clients.
+
+
+## 2026-10-27 — Atomic hero milestone claims and wallets
+
+Persist integer Gold/Platinum balances on Users, initialized to zero, and use a separate unique claim row for each player/hero/milestone. Apply rewards to all earned but unclaimed levels, so multi-level gains and retroactive grants share the same idempotent path. Commit claims and balances with progression in one SQLite transaction. A per-player match-result guard prevents duplicate delivery from replaying switched-hero XP into additional milestones. Client balances use existing PlayerUpdate.Currency; internal master/region PlayerData adds a wallet field, so server components must update together. Do not derive real balances from the former hardcoded test values.

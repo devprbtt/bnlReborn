@@ -26,6 +26,7 @@ public interface IRegionServerDatabase
     public Task NotifyFriends(uint playerId);
     public Task NotifyFriendsOfDeparture(IEnumerable<uint> friendIds);
     public Task NotifyRequests(uint playerId, bool requestsForMe, bool requestsFromMe);
+    public void NotifyCurrency(uint playerId, Dictionary<CurrencyType, float> currency);
     public void NotifyLeague(uint playerId, League league);
     public void NotifyInventory(uint playerId, List<InventoryItem> inventory);
     public List<CustomGameInfo> GetCustomGames();

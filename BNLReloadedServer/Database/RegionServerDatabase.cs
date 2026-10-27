@@ -372,6 +372,13 @@ public partial class RegionServerDatabase(AsyncTaskTcpServer server, AsyncTaskTc
     internal static IEnumerable<uint> FriendUpdateRecipients(uint playerId, IEnumerable<FriendInfo> currentFriends) =>
         currentFriends.Select(friend => friend.PlayerId).Append(playerId).Distinct();
 
+    public void NotifyCurrency(uint playerId, Dictionary<CurrencyType, float> currency)
+    {
+        if (UserConnected(playerId, out var playerInfo) &&
+            GetService<IServicePlayer>(playerInfo.Guid, ServiceId.ServicePlayer, out var servicePlayer))
+            servicePlayer.SendPlayerUpdate(new PlayerUpdate { Currency = currency });
+    }
+
     public void NotifyLeague(uint playerId, League league)
     {
         if (UserConnected(playerId, out var playerInfo) &&

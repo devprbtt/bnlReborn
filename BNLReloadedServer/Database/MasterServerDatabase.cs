@@ -55,6 +55,7 @@ public class MasterServerDatabase : IMasterServerDatabase
         BackfillRankEligibility().Wait();
         ImportLegacyPrivateSkinGrants().Wait();
         ResetProgressionForScoreXp().Wait();
+        _playerDb.RunInTransactionAsync(HeroMilestoneRewards.InstallAndBackfill).Wait();
         var grants = _playerDb.Table<InventoryGrantRecord>().ToListAsync().Result;
         PlayerInventory.Load(grants);
         ReportGrantsWithoutPrivateCards(grants);
@@ -689,7 +690,15 @@ public class MasterServerDatabase : IMasterServerDatabase
         await _asyncLock.WaitAsync();
         try
         {
-            await _playerDb.UpdateAsync(player.ToPlayerRecord());
+            // The initial read may predate a match settlement while waiting for the lock.
+            // Re-read before sanitizing so a profile load cannot overwrite newly earned currency/XP.
+            var current = await _playerDb.FindAsync<PlayerRecord>(record.PlayerId);
+            if (current != null)
+            {
+                player = PlayerData.FromPlayerRecord(current);
+                await MatchHistoryArchiveLinker.ResolveAsync(_playerDb, player.PlayerId, player.MatchHistory);
+                if (player.SanitizeAgainstCatalogue()) await _playerDb.UpdateAsync(player.ToPlayerRecord());
+            }
         }
         finally
         {
@@ -935,6 +944,8 @@ public class MasterServerDatabase : IMasterServerDatabase
             var record = await _playerDb.Table<PlayerRecord>().Where(x => x.PlayerId == endMatchResults.PlayerId)
                 .FirstOrDefaultAsync();
             if (record == null) return false;
+            var settlementId = HeroMilestoneRewards.SettlementId(endMatchResults);
+            if (settlementId != null && await _playerDb.FindAsync<HeroProgressSettlement>(settlementId) != null) return true;
 
             // Convert record to player data
             var currPlayer = PlayerData.FromPlayerRecord(record);
@@ -1027,7 +1038,14 @@ public class MasterServerDatabase : IMasterServerDatabase
             }
 
             record = currPlayer.ToPlayerRecord();
-            await _playerDb.UpdateAsync(record);
+            await _playerDb.RunInTransactionAsync(db =>
+            {
+                // Save XP, one-time claims, wallet and retry guard atomically.
+                HeroMilestoneRewards.GrantEarned(db, record, currPlayer.Progression);
+                db.Update(record);
+                if(settlementId != null) db.Insert(new HeroProgressSettlement { Id=settlementId });
+            });
+            currPlayer.Currency = PlayerCurrency.Balance(record.Gold, record.Platinum);
             // This match may have been the fifth one that makes the player rankable, so the ladder
             // has to be rebuilt before their league is read back out of the record.
             await RefreshLadder();
@@ -1036,6 +1054,7 @@ public class MasterServerDatabase : IMasterServerDatabase
             Databases.PlayerDatabase.UpdatePlayer(currPlayer.PlayerId, new PlayerUpdate
             {
                 Progression = currPlayer.Progression,
+                Currency = currPlayer.Currency,
                 League = league,
                 TimeTrial = currPlayer.TimeTrial
             });

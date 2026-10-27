@@ -4,11 +4,12 @@ namespace BNLReloadedServer.Database;
 
 public static class PlayerCurrency
 {
-    // Currency persistence and match earnings are not enabled yet. Do not expose
-    // the old test funds or share a mutable wallet across player snapshots.
-    public static Dictionary<CurrencyType, float> CreateStartingBalance() => new()
+    // Return snapshots, never a shared mutable wallet. New accounts start at zero.
+    public static Dictionary<CurrencyType, float> CreateStartingBalance() => Balance(0, 0);
+
+    public static Dictionary<CurrencyType, float> Balance(long gold, long platinum) => new()
     {
-        [CurrencyType.Virtual] = 0f,
-        [CurrencyType.Real] = 0f
+        [CurrencyType.Virtual] = gold,
+        [CurrencyType.Real] = platinum
     };
 }

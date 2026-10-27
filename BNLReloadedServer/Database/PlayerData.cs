@@ -6,6 +6,7 @@ namespace BNLReloadedServer.Database;
 
 public class PlayerData
 {
+    public Dictionary<CurrencyType, float> Currency { get; set; } = PlayerCurrency.CreateStartingBalance();
     public uint PlayerId { get; set; }
     public ulong SteamId { get; set; }
     public string Nickname { get; set; } = string.Empty;
@@ -33,7 +34,7 @@ public class PlayerData
     public void Write(BinaryWriter writer)
     {
         new BitField(true, true, true, true, Region != null, true, League != null, true, true, true, true, true, true, true, LastPlayedHero.HasValue, true, true, true,
-            true, true, MatchmakerBanEnd.HasValue, GraveyardPermanent.HasValue, GraveyardLeaveTime.HasValue).Write(writer);
+            true, true, MatchmakerBanEnd.HasValue, GraveyardPermanent.HasValue, GraveyardLeaveTime.HasValue, true).Write(writer);
         writer.Write(PlayerId);
         writer.Write(SteamId);
         writer.Write(Nickname);
@@ -77,11 +78,12 @@ public class PlayerData
         {
             writer.Write(GraveyardLeaveTime.Value);
         }
+        writer.WriteMap(Currency, writer.WriteByteEnum, writer.Write);
     }
 
     public void Read(BinaryReader reader)
     {
-        var bitField = new BitField(23);
+        var bitField = new BitField(24);
         bitField.Read(reader);
         if (bitField[0])
         {
@@ -180,6 +182,7 @@ public class PlayerData
         MatchmakerBanEnd = bitField[20] ? reader.ReadUInt64() : null;
         GraveyardPermanent = bitField[21] ? reader.ReadBoolean() : null;
         GraveyardLeaveTime = bitField[22] ? reader.ReadUInt64() : null;
+        Currency = bitField[23] ? reader.ReadMap<CurrencyType, float, Dictionary<CurrencyType, float>>(reader.ReadByteEnum<CurrencyType>, reader.ReadSingle) : PlayerCurrency.CreateStartingBalance();
     }
 
     public static void WriteRecord(BinaryWriter writer, PlayerData value) => value.Write(writer);
@@ -280,6 +283,8 @@ public class PlayerData
             LeagueInfo = League != null ? League.WriteByteRecord(League) : null,
             RankEligibleUntil = LeagueRanker.EligibleUntil(MatchHistory),
             Progression = PlayerProgression.WriteByteRecord(Progression),
+            Gold = (long)Currency.GetValueOrDefault(CurrencyType.Virtual),
+            Platinum = (long)Currency.GetValueOrDefault(CurrencyType.Real),
             LookingForFriends = LookingForFriends,
             BadgeInfo = WriteBadgeByteRecord(Badges),
             LastPlayedHero = LastPlayedHero.HasValue ? Databases.Catalogue.GetCard<Card>(LastPlayedHero.Value)?.Id : null,
@@ -307,6 +312,7 @@ public class PlayerData
             Rating = new Rating(playerRecord.RatingMean, playerRecord.RatingDeviation),
             League = LeagueRanker.Derive(playerRecord),
             Progression = PlayerProgression.ReadByteRecord(playerRecord.Progression),
+            Currency = PlayerCurrency.Balance(playerRecord.Gold, playerRecord.Platinum),
             LookingForFriends = playerRecord.LookingForFriends,
             Badges = ReadBadgeByteRecord(playerRecord.BadgeInfo),
             LastPlayedHero = playerRecord.LastPlayedHero != null ? Catalogue.Key(playerRecord.LastPlayedHero) : null,

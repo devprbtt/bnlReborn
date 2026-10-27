@@ -398,7 +398,8 @@ public class PlayerDatabase : IPlayerDatabase
         return deviceLevels;
     }
 
-    public Dictionary<CurrencyType, float> GetCurrency(uint playerId) => PlayerCurrency.CreateStartingBalance();
+    public Dictionary<CurrencyType, float> GetCurrency(uint playerId) => _players.TryGetValue(playerId, out var player)
+        ? new Dictionary<CurrencyType, float>(player.Currency) : PlayerCurrency.CreateStartingBalance();
 
     public Task<List<string>?> GetRegions() => Task.FromResult<List<string>?>(
         Databases.MasterServerDatabase.GetRegionServers().Select(region => region.Id ?? string.Empty).ToList());
@@ -589,6 +590,12 @@ public class PlayerDatabase : IPlayerDatabase
         if (!_players.TryGetValue(playerId, out var player))
         {
             return;
+        }
+
+        if (update.Currency != null)
+        {
+            player.Currency = new Dictionary<CurrencyType, float>(update.Currency);
+            Databases.RegionServerDatabase.NotifyCurrency(playerId, player.Currency);
         }
 
         if (update.Progression != null)
