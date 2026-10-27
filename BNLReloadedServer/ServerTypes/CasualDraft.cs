@@ -3,7 +3,7 @@ using BNLReloadedServer.Database;
 
 namespace BNLReloadedServer.ServerTypes;
 
-/// <summary>One match's ballot. A vote is final, authenticated by the lobby, and scoped to its phase.</summary>
+/// <summary>One match's ballot. Votes can change until closure, are authenticated by the lobby, and scoped to their phase.</summary>
 public sealed class CasualDraft
 {
     public static readonly Key[] Classes = [CatalogueHelper.SkillsClassKey, CatalogueHelper.BrawnClassKey, CatalogueHelper.BrainsClassKey];
@@ -21,7 +21,9 @@ public sealed class CasualDraft
     public bool Vote(uint player, int phase, Key hero, long now)
     {
         if (!Voting || phase != Phase || now >= Deadline || !Candidates.Contains(hero)) return false;
-        return Votes.TryAdd(player, hero);
+        if (Votes.TryGetValue(player, out var previous) && previous == hero) return false;
+        Votes[player] = hero;
+        return true;
     }
 
     public Key Winner(Random random)
