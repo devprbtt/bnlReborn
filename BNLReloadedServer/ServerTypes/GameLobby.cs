@@ -275,7 +275,10 @@ public class GameLobby : Updater
         var limit = LobbyData.GameMode?.HeroLimit;
         var unavailable = BannedHeroes.ToList();
         if (_casualDraft != null)
+        {
             unavailable.AddRange(CatalogueHelper.GetHeroes().Where(h => !CasualCanComplete(player.PlayerId, h)));
+            return unavailable.Distinct().ToList();
+        }
         if (LobbyData.GameMode?.LobbyMode is LobbyModeDraftPick)
             unavailable.AddRange(LobbyData.Players.Values.Where(p => p.PlayerId != player.PlayerId && p.Hero != Key.None).Select(p => p.Hero));
         if (limit?.Limit is not { } max) return unavailable.Distinct().ToList();

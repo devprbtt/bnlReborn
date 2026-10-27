@@ -27,7 +27,7 @@ var heroes = Enumerable.Range(0, 21).Select(i => new CardUnit { Id = "casual_fix
     Data = new UnitDataPlayer { Class = CasualDraft.Classes[i / 7] }, Scope = ScopeType.Public }).ToArray();
 catalogue.Replicate(new Card[] { mode, ranked, custom, global }.Concat(heroes).ToList());
 global.AvailableHeroes = heroes.Select(h => h.Key).ToList();
-Check(mode.LobbyMode is LobbyModeDraftPick { SelectionTime: 20, WaitTime: 10 } && mode.HeroLimit?.Limit == 2, "casual registration");
+Check(mode.LobbyMode is LobbyModeDraftPick { SelectionTime: 20, WaitTime: 10 } && mode.HeroLimit == null, "casual registration");
 Check(ranked.LobbyMode is LobbyModeDraftPick { SelectionTime: 42 } && custom.LobbyMode is LobbyModeFreePick, "other modes unchanged");
 
 var ballot = new CasualDraft();
@@ -95,10 +95,18 @@ foreach (int size in new[] { 3, 4, 5 })
     }
     Check(lobby.BannedHeroes.Count == 3 && data.Timer.TimerType == LobbyTimerType.Selection, "three global bans then picking");
     var expected = (uint[])Field(lobby, "_draftOrder")!;
+    var teamTurns = new Dictionary<TeamType, int>();
     for (int turn = 0; turn < size * 2; turn++)
     {
         var player = data.Players.Values.Single(p => p.CanLoadout && !p.Ready);
         Check(player.PlayerId == expected[turn], "randomized snake order used by lobby");
+        int teamTurn = teamTurns.GetValueOrDefault(player.Team);
+        teamTurns[player.Team] = teamTurn + 1;
+        int classIndex = size < 4 || teamTurn < size - 2 ? 0 : teamTurn == size - 2 ? 1 : 2;
+        var repeatedHero = heroes.First(h => ((UnitDataPlayer)h.Data!).Class == CasualDraft.Classes[classIndex] && !lobby.BannedHeroes.Contains(h.Key)).Key;
+        Check(!player.RestrictedHeroes!.Contains(repeatedHero), "repeat pick remains selectable on either team");
+        lobby.SwapHero(player.PlayerId, repeatedHero);
+        Check(player.Hero == repeatedHero, "same-team and opposing-team duplicate accepted by actual lobby");
         var selected = player.Hero;
         lobby.SwapHero(player.PlayerId, lobby.BannedHeroes.First());
         Check(player.Hero == selected, "ban enforced at pick");
@@ -107,11 +115,12 @@ foreach (int size in new[] { 3, 4, 5 })
         if (turn % 2 == 0) lobby.PlayerReady(player.PlayerId); else Expire(lobby, "OnSelectionTimerElapsed");
         Check(player.Ready && !player.CanLoadout, "manual and timeout lock");
     }
-    Check(data.Timer.TimerType == LobbyTimerType.Start && data.Players.Values.Select(p => p.Hero).Distinct().Count() == size * 2, "complete unique roster");
+    Check(data.Timer.TimerType == LobbyTimerType.Start && data.Players.Values.All(p => p.Ready && p.Hero != Key.None), "complete roster permits duplicate heroes");
     foreach (var team in data.Players.Values.GroupBy(p => p.Team))
     {
         var classes = team.GroupBy(p => ((UnitDataPlayer)p.Hero.GetCard<CardUnit>()!.Data!).Class).ToArray();
-        Check(classes.All(g => g.Count() <= 2), "class maximum honored");
+        Check(team.Count(p => p.Hero == team.First().Hero) >= 1, "locked picks retained");
+        if (size == 5) Check(classes.Any(g => g.Count() == 3), "three of the same class allowed when other classes covered");
         if (size >= 4) Check(classes.Length == 3, "all three classes on each large team");
     }
     StopTimer(lobby); data.Timer.TimerType = LobbyTimerType.Requeue;
@@ -143,7 +152,7 @@ foreach (int size in new[] { 3, 4, 5 })
 var pool = heroes.Select(h => new CasualDraft.Hero(h.Key, ((UnitDataPlayer)h.Data!).Class)).ToArray();
 var seats = new[] { new CasualDraft.Seat(1, TeamType.Team1, heroes[0].Key), new CasualDraft.Seat(2, TeamType.Team1, heroes[1].Key),
     new CasualDraft.Seat(3, TeamType.Team1, heroes[7].Key), new CasualDraft.Seat(4, TeamType.Team1, heroes[8].Key) };
-Check(!CasualDraft.CanComplete(seats, pool, (_, _) => true, new HashSet<TeamType>{TeamType.Team1}), "missing Brain rejected despite legal class caps");
+Check(!CasualDraft.CanComplete(seats, pool, (_, _) => true, new HashSet<TeamType>{TeamType.Team1}), "missing Brain rejected");
 Check(CasualDraft.CanComplete(seats.Select(s => s.Id == 4 ? s with { Hero = heroes[14].Key } : s).ToArray(), pool,
     (_, _) => true, new HashSet<TeamType>{TeamType.Team1}), "Brain completes legal team");
 Check(CasualDraft.CanComplete(seats.Take(3).ToArray(), pool, (_, _) => true, new HashSet<TeamType>()), "small matches need no class minimum");
@@ -159,11 +168,17 @@ for (int seed = 0; seed < 80; seed++)
     bool exact = CasualDraft.CanComplete(proposed, pool.Append(unowned).ToArray(), (_, h) => h != unowned.Key, minimum);
     Check(fast == exact, "public pool and ownership solver agree " + seed);
 }
-// One team cannot consume the only two remaining Brains; the other still needs one.
+// Brains can repeat across teams; picks never consume shared hero supply.
 var scarce = pool.Where(h => h.Class != CasualDraft.Classes[2] || h.Key == heroes[14].Key || h.Key == heroes[15].Key).ToArray();
 var reserved = entrants.Select(p => new CasualDraft.Seat(p.Id, p.Team,
     p.Id == 1 ? heroes[14].Key : p.Id == 2 ? heroes[15].Key : Key.None)).ToArray();
-Check(!CasualDraft.CanComplete(reserved, scarce, (_, _) => true, minimum), "other team's mandatory class is protected");
+Check(CasualDraft.CanComplete(reserved, scarce, (_, _) => true, minimum), "both teams may reuse the remaining Brain heroes");
+var onePerClass = new[] {pool[0],pool[7],pool[14]};
+Check(CasualDraft.CanComplete(entrants.Select(p=>new CasualDraft.Seat(p.Id,p.Team,Key.None)).ToArray(), onePerClass, (_,_)=>true, minimum), "only three available heroes can fill both five-player teams");
+var needsTwo = new[] { new CasualDraft.Seat(1,TeamType.Team1,heroes[0].Key),new CasualDraft.Seat(2,TeamType.Team1,heroes[0].Key),new CasualDraft.Seat(3,TeamType.Team1,Key.None),new CasualDraft.Seat(4,TeamType.Team1,Key.None) };
+Check(!CasualDraft.CanComplete(needsTwo,onePerClass,(id,h)=>id==3 || h==heroes[0].Key,new HashSet<TeamType>{TeamType.Team1}),"one remaining player cannot fill two missing classes");
+Check(CasualDraft.CanComplete(needsTwo,onePerClass,(id,h)=>id==3 ? h==heroes[7].Key : id==4 ? h==heroes[14].Key : true,new HashSet<TeamType>{TeamType.Team1}),"distinct remaining owners can complete missing classes");
+Check(!CasualDraft.CanComplete(needsTwo,onePerClass,(id,h)=>id!=4,new HashSet<TeamType>{TeamType.Team1}),"unowned choices cannot fill a seat");
 Console.WriteLine($"Casual draft fixture passed: {checks} checks.");
 
 class GameProxy : DispatchProxy

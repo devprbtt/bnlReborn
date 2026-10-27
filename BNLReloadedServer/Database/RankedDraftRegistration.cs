@@ -12,7 +12,7 @@ public static class RankedDraftRegistration
             {
                 mode.LobbyMode = new LobbyModeDraftPick { WaitTime = 10, SelectionTime = 20,
                     PrestartTime = 5, ReconnectSelectionTime = 60 };
-                mode.HeroLimit = new LobbyHeroLimit { LimitOption = LobbyHeroLimitOption.PerClass, Limit = 2 };
+                mode.HeroLimit = null; // Casual permits duplicates; class minimums are enforced by the draft.
             }
             else if (mode.Ranking == GameRankingType.Friendly && mode.LobbyMode is LobbyModeDraftPick draft)
                 mode.LobbyMode = new LobbyModeFreePick { SelectionTime = 60, PrestartTime = draft.PrestartTime,
