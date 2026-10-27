@@ -48,3 +48,12 @@ Rollback: stop the bot, restore the prior main unit/env from the protected
 backup, restore `current` to the recorded prior release, reload systemd and
 start the main bot. Old revoked credentials cannot restore Discord access;
 preserve the newly working credential. Do not restore the retired China unit.
+
+
+## 24-hour player-count graph
+
+`bnl-discord-graph.service` is a companion using the same bot identity, not a second bot. It samples local status once a minute into `/var/lib/bnl-discord-graph/history.sqlite` and edits one message in `#server-status` (`1564744213390696528`) every five minutes. Times are GMT/UTC+0. Counts are simultaneous online players, including menus, not daily unique players. Missing samples remain gaps; statistics use valid minute samples. The graph displays coverage and its last update timestamp. State survives restarts, old samples are pruned, message IDs persist, and a bot-owned footer marker recovers an existing message after local state loss. Deleted messages are recreated; denied access retries without spamming new messages.
+
+Deployment: upload `deploy_graph.py`, `player_graph.py`, `test_graph.py`, `run-bot.py`, `test_preflight.py`, the graph unit and the Pillow 12.2.0 Linux CPython 3.13 manylinux_2_28 x86_64 wheel. Its pinned SHA-256 is in deploy_graph.py. The wheel comes from PyPI and stays out of Git; licenses are retained inside the vendored wheel. `sudo python3 deploy_graph.py` validates identity/channel, runs tests, imports the available last 24 hours of presence journal counts and starts only the new companion. It never restarts the game or existing gateway bot. Requires View Channel, Read Message History, Send Messages, Embed Links and Attach Files. No administrator permission or privileged intent needed.
+
+Verify the live message, its attachment and edited timestamp; also check `systemctl status bnl-discord-graph` and the state database. Rollback: disable/stop only bnl-discord-graph; retain history/message for recovery. For an upgrade, restore `current` to the path recorded in previous-release.txt then restart the graph companion. Existing presence remains unaffected.

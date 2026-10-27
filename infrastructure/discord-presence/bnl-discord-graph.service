@@ -1,0 +1,33 @@
+[Unit]
+Description=BNL Reborn Discord 24 hour player graph
+After=network-online.target bnl-discordbot.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=bnldiscord
+Group=bnldiscord
+WorkingDirectory=/opt/bnl-discord-graph/current
+EnvironmentFile=/etc/bnl/discordbot/main.env
+Environment=PYTHONDONTWRITEBYTECODE=1
+Environment=PYTHONPATH=/opt/bnl-discord-graph/current/vendor
+ExecStart=/usr/bin/python3 /opt/bnl-discord-graph/current/player_graph.py
+StateDirectory=bnl-discord-graph
+Restart=on-failure
+RestartSec=60
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectSystem=strict
+ProtectHome=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+CapabilityBoundingSet=
+MemoryMax=128M
+TasksMax=16
+
+[Install]
+WantedBy=multi-user.target
