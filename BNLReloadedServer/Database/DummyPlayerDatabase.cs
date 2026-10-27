@@ -161,11 +161,6 @@ public class DummyPlayerDatabase : IPlayerDatabase
         { BadgeType.Title, [Catalogue.Key("badge_title_hunter_the_most_dangerous_game")] }
     };
 
-    private readonly Dictionary<CurrencyType, float> _testCurrencies = new()
-    {
-        { CurrencyType.Virtual, 10000f },
-        { CurrencyType.Real, 1000f }
-    };
 
     private readonly TimeTrialData _testTimeTrialData = new()
     {
@@ -293,7 +288,7 @@ public class DummyPlayerDatabase : IPlayerDatabase
             ChallengeRefusesLeft = 1,
             ChallengeDayEndTime = (ulong)new DateTimeOffset(DateTime.Today.AddDays(1)).ToUnixTimeMilliseconds(),
             ChallengesCompleted = 3,
-            Currency = _testCurrencies,
+            Currency = GetCurrency(playerId),
             Inventory = GetInventory(playerId),
             OneTimeRewards = [],
             DailyMatchPlayed = true,
@@ -411,7 +406,7 @@ public class DummyPlayerDatabase : IPlayerDatabase
         return deviceLevels;
     }
 
-    public Dictionary<CurrencyType, float> GetCurrency(uint playerId) => _testCurrencies;
+    public Dictionary<CurrencyType, float> GetCurrency(uint playerId) => PlayerCurrency.CreateStartingBalance();
     public async Task<List<string>?> GetRegions() => [];
 
     public async Task<List<SearchResult>?> GetSearchResults(string pattern) => [];

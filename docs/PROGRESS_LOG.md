@@ -99,3 +99,12 @@ Old bot credential rejected by Discord; main service had over 32,000 restarts. N
 Added Admin Tools > Test Dummy with whole-number HP from 1 to 10,000,000 (default 1,000). The existing authorized debug command spawns a stationary opposing target three metres ahead, rejects blocked placement, and gives it player damage semantics. It has no connected-player identity and never schedules a respawn. Updated client hero-prefab loading for the target and guarded its voice handler against a missing player ID.
 
 Validation: DebugDummyFixture 31 checks, ActionScoreFixture 278 checks, HealAttributionFixture 22 checks pass. Unity 6000.3.23f1 batch compile exits 0 (Logs/admin-dummy-compile.log). No live multiplayer/rendering test or deployment performed. Four canonical patch-note surfaces are prepared, not live; server and signed client releases are required.
+
+
+## 2026-10-27 — Remove hardcoded currency grants (not deployed)
+
+PlayerDatabase and DummyPlayerDatabase supplied a shared dictionary containing 10,000 Virtual/Gold and 1,000 Real/Platinum in both initial player replication and GetCurrency. Replaced it with a fresh zero-balance snapshot from PlayerCurrency.CreateStartingBalance for each read. UpdateCurrency is currently a no-op and shop purchases return false; there are no persisted wallets to reset. Awarding match Gold requires persistent per-player wallets and idempotent match settlement, to be implemented separately once the reward policy is chosen.
+
+Validation: server Release build with warnings as errors passes, currency fixture 8 checks confirms both zeros and isolation between player snapshots/readbacks. Production provider constructed normally; dummy provider wallet reads isolated from unrelated XP catalogue-dependent construction. No deployment. Four canonical note surfaces prepared, not live.
+
+Suggested initial economy (proposal only): 10 Gold per active minute, capped at 300 per match, +50 for winning; no AFK, abandonment or custom/testing rewards; backfill earns for active participation. A 15-minute match yields 150/200 Gold loss/win. Archived catalogue shop prices commonly include 5,000 and 11,000 Gold, equivalent to 25/55 wins at that example rate; shop pricing/unlocks need review before purchases are enabled. No raw performance-score multiplier to avoid hero-role and device-scoring bias.

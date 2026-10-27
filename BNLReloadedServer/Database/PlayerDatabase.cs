@@ -22,11 +22,6 @@ public class PlayerDatabase : IPlayerDatabase
 
     private readonly RSA _tokenSigner = new RSACryptoServiceProvider();
 
-    private readonly Dictionary<CurrencyType, float> _testCurrencies = new()
-    {
-        { CurrencyType.Virtual, 10000f },
-        { CurrencyType.Real, 1000f }
-    };
 
     private List<InventoryItem> GetInventory(uint playerId)
     {
@@ -270,7 +265,7 @@ public class PlayerDatabase : IPlayerDatabase
             ChallengeRefusesLeft = 1,
             ChallengeDayEndTime = (ulong)new DateTimeOffset(DateTime.Today.AddDays(1)).ToUnixTimeMilliseconds(),
             ChallengesCompleted = 3,
-            Currency = _testCurrencies,
+            Currency = GetCurrency(playerId),
             Inventory = GetInventory(playerId),
             OneTimeRewards =
                 [rewardsLogic.CompleteFirstMatch, rewardsLogic.CompleteSecondMatch, rewardsLogic.PlayTutorialVideo],
@@ -403,7 +398,7 @@ public class PlayerDatabase : IPlayerDatabase
         return deviceLevels;
     }
 
-    public Dictionary<CurrencyType, float> GetCurrency(uint playerId) => _testCurrencies;
+    public Dictionary<CurrencyType, float> GetCurrency(uint playerId) => PlayerCurrency.CreateStartingBalance();
 
     public Task<List<string>?> GetRegions() => Task.FromResult<List<string>?>(
         Databases.MasterServerDatabase.GetRegionServers().Select(region => region.Id ?? string.Empty).ToList());
