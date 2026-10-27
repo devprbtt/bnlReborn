@@ -25,7 +25,9 @@ var custom = new CardGameMode { Id = "game_mode_custom", Ranking = GameRankingTy
 var global = new CardGlobalLogic { Id = "global_logic" };
 var heroes = Enumerable.Range(0, 21).Select(i => new CardUnit { Id = "casual_fixture_" + i,
     Data = new UnitDataPlayer { Class = CasualDraft.Classes[i / 7] }, Scope = ScopeType.Public }).ToArray();
-catalogue.Replicate(new Card[] { mode, ranked, custom, global }.Concat(heroes).ToList());
+var testDevice = new CardDevice {Id="fixture_loadout_device"};
+var testPerk = new CardPerk {Id="fixture_loadout_perk",SlotType=PerkSlotType.Offensive};
+catalogue.Replicate(new Card[] { mode, ranked, custom, global, testDevice, testPerk }.Concat(heroes).ToList());
 global.AvailableHeroes = heroes.Select(h => h.Key).ToList();
 Check(mode.LobbyMode is LobbyModeDraftPick { SelectionTime: 20, WaitTime: 10 } && mode.HeroLimit == null, "casual registration");
 Check(ranked.LobbyMode is LobbyModeDraftPick { SelectionTime: 42 } && custom.LobbyMode is LobbyModeFreePick, "other modes unchanged");
@@ -132,9 +134,26 @@ foreach (int size in new[] { 3, 4, 5 })
         lobby.SwapHero(player.PlayerId, lobby.BannedHeroes.First());
         Check(player.Hero == selected, "ban enforced at pick");
         var waiting = data.Players.Values.FirstOrDefault(p => p.Hero == Key.None);
-        if (waiting != null) { lobby.PlayerReady(waiting.PlayerId); Check(!waiting.Ready, "out of turn cannot lock"); }
-        if (turn % 2 == 0) lobby.PlayerReady(player.PlayerId); else Expire(lobby, "OnSelectionTimerElapsed");
+        if (waiting != null) {
+            lobby.PlayerReady(waiting.PlayerId); lobby.RandomHeroAndReady(waiting.PlayerId);
+            Check(!waiting.Ready && waiting.Hero==Key.None, "out of turn cannot lock or roll random");
+        }
+        if (turn == size * 2 - 1) {
+            // Final seat must cover the remaining class; random must respect that constraint.
+            lobby.RandomHeroAndReady(player.PlayerId);
+            Check(!lobby.BannedHeroes.Contains(player.Hero) && (size < 4 || ((UnitDataPlayer)player.Hero.GetCard<CardUnit>()!.Data!).Class == CasualDraft.Classes[classIndex]),"random chooses an unbanned legal hero and completes missing class");
+        }
+        else if (turn % 2 == 0) lobby.PlayerReady(player.PlayerId); else Expire(lobby, "OnSelectionTimerElapsed");
         Check(player.Ready && !player.CanLoadout, "manual and timeout lock");
+        var lockedHero=player.Hero;var activeAfter=Field(lobby,"_activeDrafter");
+        lobby.RandomHeroAndReady(player.PlayerId);lobby.SwapHero(player.PlayerId,heroes.First(h=>h.Key!=lockedHero).Key);
+        Check(player.Hero==lockedHero && Equals(activeAfter,Field(lobby,"_activeDrafter")),"locked hero cannot reroll, change or advance another pick");
+        lobby.UpdateDeviceSlot(player.PlayerId,2,testDevice.Key);
+        Check(player.Devices![2]==testDevice.Key && player.Ready,"locked player can add block without unlocking");
+        lobby.SwapDevices(player.PlayerId,2,3);Check(player.Devices.ContainsKey(3)&&!player.Devices.ContainsKey(2),"locked player can rearrange blocks");
+        lobby.UpdateDeviceSlot(player.PlayerId,3,null);Check(!player.Devices.ContainsKey(3),"locked player can remove blocks");
+        lobby.SelectPerk(player.PlayerId,testPerk.Key);Check(player.Perks!.Contains(testPerk.Key),"locked player can select perk");
+        lobby.DeselectPerk(player.PlayerId,testPerk.Key);Check(!player.Perks.Contains(testPerk.Key)&&player.Ready,"locked player can deselect perk without changing lock");
     }
     Check(data.Timer.TimerType == LobbyTimerType.Start && data.Players.Values.All(p => p.Ready && p.Hero != Key.None), "complete roster permits duplicate heroes");
     foreach (var team in data.Players.Values.GroupBy(p => p.Team))
@@ -145,6 +164,8 @@ foreach (int size in new[] { 3, 4, 5 })
         if (size >= 4) Check(classes.Length == 3, "all three classes on each large team");
     }
     StopTimer(lobby); data.Timer.TimerType = LobbyTimerType.Requeue;
+    var finishedPlayer=data.Players[1];lobby.UpdateDeviceSlot(1,2,testDevice.Key);lobby.SelectPerk(1,testPerk.Key);
+    Check(!finishedPlayer.Devices!.ContainsKey(2)&&!finishedPlayer.Perks!.Contains(testPerk.Key),"loadout edits close when initial match transfers to zone");
     lobby.PlayerLeft(1, null); lobby.AddPlayer(99, TeamType.Team1, null);
     var replacement = data.Players[99];
     Check(replacement.Hero != Key.None && !lobby.BannedHeroes.Contains(replacement.Hero) && replacement.CanLoadout, "backfill receives legal default");

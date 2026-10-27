@@ -221,6 +221,21 @@ public class GameLobby : Updater
         SendLobbyUpdate(players: LobbyData.Players.Values.ToList(), maps: WithdrawVote(playerId));
     }
 
+    public void RandomHeroAndReady(uint playerId)
+    {
+        if (_casualDraft is not { Phase: 3 } || LobbyData.Timer.TimerType != LobbyTimerType.Selection ||
+            _activeDrafter != playerId || !LobbyData.Players.TryGetValue(playerId, out var player) || player.Ready) return;
+        var legal = CatalogueHelper.GetHeroes().Where(h => CanPickHero(player, h)).ToArray();
+        if (legal.Length == 0) return;
+        SwapHero(playerId, legal[Random.Shared.Next(legal.Length)]);
+        PlayerReady(playerId);
+    }
+
+    private bool CanEditLoadout(PlayerLobbyState player) => _casualDraft == null ||
+        player.Hero != Key.None && (LobbyData.Timer.TimerType is LobbyTimerType.Selection or LobbyTimerType.Start
+            ? player.CanLoadout || player.Ready
+            : LobbyData.Timer.TimerType == LobbyTimerType.Requeue && _casualBackfillPickers.Contains(player.PlayerId) && player.CanLoadout && !player.Ready);
+
     public void SwapHero(uint playerId, Key hero)
     {
         if (!LobbyData.Players.TryGetValue(playerId, out var player)) return;
@@ -272,6 +287,8 @@ public class GameLobby : Updater
     private List<Key> RestrictedHeroesFor(PlayerLobbyState player)
     {
         if (_randomHeroes != null) return CatalogueHelper.GetHeroes().Where(h => h != player.Hero).ToList();
+        if (_casualDraft != null && player.Ready)
+            return CatalogueHelper.GetHeroes().Where(h => h != player.Hero).ToList();
         var limit = LobbyData.GameMode?.HeroLimit;
         var unavailable = BannedHeroes.ToList();
         if (_casualDraft != null)
@@ -421,7 +438,7 @@ public class GameLobby : Updater
 
     public void UpdateDeviceSlot(uint playerId, int slot, Key? deviceKey)
     {
-        if (!LobbyData.Players.TryGetValue(playerId, out var player) || player.Devices == null) return;
+        if (!LobbyData.Players.TryGetValue(playerId, out var player) || !CanEditLoadout(player) || player.Devices == null) return;
         if (slot < 1 || slot > ClassPerkCatalogue.DeviceSlots(player.Hero, player.Perks) ||
             deviceKey is { } selectedDevice && selectedDevice.GetCard<CardDevice>() == null ||
             slot == 1 && (deviceKey == null || !CatalogueHelper.IsHeroSpecialDevice(player.Hero, deviceKey.Value)))
@@ -439,7 +456,7 @@ public class GameLobby : Updater
 
     public void SwapDevices(uint playerId, int slot1, int slot2)
     {
-        if (!LobbyData.Players.TryGetValue(playerId, out var player) || player.Devices == null || slot1 == 1 || slot2 == 1) return;
+        if (!LobbyData.Players.TryGetValue(playerId, out var player) || !CanEditLoadout(player) || player.Devices == null || slot1 == 1 || slot2 == 1) return;
         var maxSlot = ClassPerkCatalogue.DeviceSlots(player.Hero, player.Perks);
         if (slot1 < 1 || slot2 < 1 || slot1 > maxSlot || slot2 > maxSlot) return;
         player.Devices.TryGetValue(slot1, out var dev1);
@@ -465,7 +482,7 @@ public class GameLobby : Updater
 
     public void ResetToDefaultDevices(uint playerId)
     {
-        if (!LobbyData.Players.TryGetValue(playerId, out var player)) return;
+        if (!LobbyData.Players.TryGetValue(playerId, out var player) || !CanEditLoadout(player)) return;
         player.Devices = CatalogueHelper.GetDefaultDevices(player.Hero);
         SendLobbyUpdate(players: LobbyData.Players.Values.ToList());
     }
@@ -478,7 +495,7 @@ public class GameLobby : Updater
 
     public void SelectPerk(uint playerId, Key perkKey)
     {
-        if (!LobbyData.Players.TryGetValue(playerId, out var player) || player.Perks == null) return;
+        if (!LobbyData.Players.TryGetValue(playerId, out var player) || !CanEditLoadout(player) || player.Perks == null) return;
         var perkCard = Databases.Catalogue.GetCard<CardPerk>(perkKey);
         if (perkCard == null) return;
         // A class perk is chosen per hero and only from that hero's class.
@@ -502,7 +519,7 @@ public class GameLobby : Updater
 
     public void DeselectPerk(uint playerId, Key perkKey)
     {
-        if (!LobbyData.Players.TryGetValue(playerId, out var player) || player.Perks == null) return;
+        if (!LobbyData.Players.TryGetValue(playerId, out var player) || !CanEditLoadout(player) || player.Perks == null) return;
         for (var i = 0; i < player.Perks.Count; i++)
         {
             player.Perks.RemoveAll(p => p == perkKey);
@@ -513,7 +530,7 @@ public class GameLobby : Updater
 
     public void SelectSkin(uint playerId, Key skinKey)
     {
-        if (!LobbyData.Players.TryGetValue(playerId, out var player)) return;
+        if (!LobbyData.Players.TryGetValue(playerId, out var player) || !CanEditLoadout(player)) return;
         if (!PlayerInventory.CanEquipSkin(playerId, player.Hero, skinKey)) return;
         player.SkinKey = skinKey;
         SendLobbyUpdate(players: LobbyData.Players.Values.ToList());
@@ -521,7 +538,7 @@ public class GameLobby : Updater
 
     public void SelectRole(uint playerId, PlayerRoleType role)
     {
-        if (!LobbyData.Players.TryGetValue(playerId, out var player)) return;
+        if (!LobbyData.Players.TryGetValue(playerId, out var player) || !CanEditLoadout(player)) return;
         player.Role = role;
         SendLobbyUpdate(players: LobbyData.Players.Values.ToList());
     }
