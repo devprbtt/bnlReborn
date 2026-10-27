@@ -192,10 +192,10 @@ def main():
         if now >= next_publish:
             try:
                 publish(db, api, render(window(db, now), now), now)
-                next_publish = now + 300
+                next_publish = (int(now) // 300 + 1) * 300
             except (OSError, ValueError) as exc:
                 print("graph publish failed: " + type(exc).__name__ + " code=" + str(getattr(exc, "code", "")), flush=True)
-                next_publish = now + 60
+                next_publish = (int(now) // 60 + 1) * 60
         time.sleep(max(1, 60 - time.time() % 60))
 
 
