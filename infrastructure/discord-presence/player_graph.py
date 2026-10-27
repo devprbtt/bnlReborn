@@ -32,7 +32,7 @@ def record(db, timestamp, count):
     if count is not None and (type(count) is not int or count < 0):
         count = None
     db.execute("INSERT OR REPLACE INTO samples VALUES (?,?)", (minute, count))
-    db.execute("DELETE FROM samples WHERE minute < ?", (minute - 25 * 3600,))
+    db.execute("DELETE FROM samples WHERE minute < ?", (minute - 31 * 86400,))
     db.commit()
 
 
@@ -52,9 +52,11 @@ def import_journal(db, lines):
     return len(samples)
 
 
-def window(db, now):
+def window(db, now, days=1):
+    if days not in (1, 7, 30):
+        raise ValueError("Unsupported period")
     end = int(now) // 60 * 60
-    return list(db.execute("SELECT minute,count FROM samples WHERE minute > ? AND minute <= ? ORDER BY minute", (end - 86400, end)))
+    return list(db.execute("SELECT minute,count FROM samples WHERE minute > ? AND minute <= ? ORDER BY minute", (end - days * 86400, end)))
 
 
 def segments(rows):
@@ -71,29 +73,32 @@ def segments(rows):
     return parts
 
 
-def render(rows, now):
+def render(rows, now, days=1):
+    if days not in (1, 7, 30):
+        raise ValueError("Unsupported period")
+    label = "24 hours" if days == 1 else str(days) + " days"
     image = Image.new("RGB", (1200, 560), "#151b24")
     draw = ImageDraw.Draw(image)
     font = lambda size: ImageFont.load_default(size=size)
     draw.text((40, 25), "BLOCK N LOAD REBORN", fill="#f4c259", font=font(27))
-    draw.text((40, 67), "Players online | Last 24 hours | GMT (UTC+0)", fill="#e2e8f0", font=font(20))
+    draw.text((40, 67), f"Players online | Last {label} | GMT (UTC+0)", fill="#e2e8f0", font=font(20))
     end = int(now) // 60 * 60
-    start = end - 86400
+    start = end - days * 86400
     values = [n for _, n in rows if n is not None]
     peak = max(values, default=0)
     top = max(5, math.ceil(peak / 5) * 5)
     left, right, upper, lower = 75, 1155, 150, 445
-    xy = lambda stamp, n: (left + (stamp - start) / 86400 * (right - left), lower - n / top * (lower - upper))
+    xy = lambda stamp, n: (left + (stamp - start) / (days * 86400) * (right - left), lower - n / top * (lower - upper))
     for i in range(6):
         n = top * i / 5
         y = xy(start, n)[1]
         draw.line((left, y, right, y), fill="#34404e")
         draw.text((20, y - 8), f"{n:g}", fill="#aebdce", font=font(16))
     for i in range(9):
-        stamp = start + i * 10800
+        stamp = start + i * days * 10800
         x = xy(stamp, 0)[0]
         draw.line((x, upper, x, lower), fill="#222e3c")
-        draw.text((x - 23, lower + 15), datetime.fromtimestamp(stamp, timezone.utc).strftime("%H:%M"), fill="#aebdce", font=font(15))
+        draw.text((x - 23, lower + 15), datetime.fromtimestamp(stamp, timezone.utc).strftime("%H:%M" if days == 1 else "%d %b"), fill="#aebdce", font=font(15))
     for part in segments(rows):
         points = [xy(t, n) for t, n in part]
         if len(points) > 1:
@@ -104,7 +109,7 @@ def render(rows, now):
     current = rows[-1][1] if rows and end - rows[-1][0] < 90 else None
     average = f"{sum(values)/len(values):.1f}" if values else "N/A"
     draw.text((75, 112), f"NOW  {current if current is not None else 'Unavailable'}     PEAK  {peak if values else 'N/A'}     AVERAGE  {average}", fill="#ffffff", font=font(20))
-    coverage = len(values) / 1440 * 100
+    coverage = len(values) / (days * 1440) * 100
     draw.text((40, 506), f"Recorded coverage: {coverage:.0f}% | Gaps = unavailable data | Average uses recorded samples", fill="#aebdce", font=font(16))
     out = io.BytesIO()
     image.save(out, format="PNG")
@@ -142,6 +147,13 @@ def is_graph(message):
     return message.get("author", {}).get("id") == BOT and any(e.get("footer", {}).get("text") == MARKER for e in message.get("embeds", []))
 
 
+def graph_controls():
+    return [{"type": 1, "components": [
+        {"type": 2, "style": 2, "label": label, "custom_id": "bnl_graph:" + str(days)}
+        for days, label in [(1, "24 Hours"), (7, "7 Days"), (30, "30 Days")]]
+        + [{"type": 2, "style": 5, "label": "Open Interactive Graph", "url": "https://blocknload.cc/player-history/"}]}]
+
+
 def publish(db, api, png, now):
     key = "message:" + CHANNEL
     saved = db.execute("SELECT value FROM state WHERE key=?", (key,)).fetchone()
@@ -150,9 +162,9 @@ def publish(db, api, png, now):
         # Recover a message created before a crash, rather than posting duplicates.
         messages = api.request("GET", f"channels/{CHANNEL}/messages?limit=100")
         message_id = next((m["id"] for m in messages if is_graph(m)), None)
-    payload = {"allowed_mentions": {"parse": []}, "attachments": [{"id": 0, "filename": "players.png"}],
+    payload = {"components": graph_controls(), "allowed_mentions": {"parse": []}, "attachments": [{"id": 0, "filename": "players.png"}],
                "embeds": [{"title": "Player count — last 24 hours", "color": 0x51d9e0,
-               "description": "Times in GMT (UTC+0). Samples every minute; graph refreshes every 5 minutes.",
+               "description": "Times in GMT (UTC+0). Updates every 5 minutes. Buttons open private views; the interactive page supports hover and zoom.",
                "image": {"url": "attachment://players.png"}, "footer": {"text": MARKER},
                "timestamp": datetime.fromtimestamp(now, timezone.utc).isoformat()}]}
     try:
@@ -180,6 +192,8 @@ def main():
     if channel.get("guild_id") != GUILD:
         raise ValueError("Unexpected channel guild")
     db = database(Path(os.environ.get("STATE_DIRECTORY", "/var/lib/bnl-discord-graph")) / "history.sqlite")
+    from graph_http import start_http
+    start_http(Path(os.environ.get("STATE_DIRECTORY", "/var/lib/bnl-discord-graph")) / "history.sqlite", api)
     next_publish = 0
     while True:
         now = time.time()

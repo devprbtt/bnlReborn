@@ -25,7 +25,7 @@ class FakeDiscord:
 class GraphTests(unittest.TestCase):
     def test_sampling_prunes_and_replaces_but_preserves_zero(self):
         db = g.database(":memory:")
-        for stamp, value in [(60, 5), (120000, 0), (120001, -3), (120002, 0), (120060, True)]:
+        for stamp, value in [(-4000000, 5), (120000, 0), (120001, -3), (120002, 0), (120060, True)]:
             g.record(db, stamp, value)
         self.assertEqual(g.window(db, 120060), [(120000, 0), (120060, None)])
         self.assertEqual(db.execute("SELECT count(*) FROM samples").fetchone()[0], 2)
@@ -43,6 +43,20 @@ class GraphTests(unittest.TestCase):
     def test_missing_samples_break_lines(self):
         self.assertEqual(g.segments([(60, 0), (120, 1), (180, None), (240, 3), (420, 4)]),
                          [[(60, 0), (120, 1)], [(240, 3)], [(420, 4)]])
+
+    def test_periods_keep_month_and_exclude_outside_window(self):
+        db = g.database(":memory:")
+        now = 4000000 // 60 * 60
+        for days in [0, 2, 8, 29, 32]:
+            g.record(db, now-days*86400, days)
+        self.assertEqual(len(g.window(db, now, 1)), 1)
+        self.assertEqual(len(g.window(db, now, 7)), 2)
+        self.assertEqual(len(g.window(db, now, 30)), 4)
+        with self.assertRaises(ValueError):
+            g.window(db, now, 365)
+        for period in [7, 30]:
+            self.assertTrue(g.render(g.window(db, now, period), now, period).startswith(b'\x89PNG'))
+        self.assertEqual(len(g.graph_controls()[0]['components']), 4)
 
     def test_render_empty_and_real_zero(self):
         for rows in [[], [(60, 0)], [(60, None)], [(60, 5000), (120, 3)]]:
