@@ -45,6 +45,7 @@ public class MasterServerDatabase : IMasterServerDatabase
         _playerDb.ExecuteAsync("CREATE INDEX IF NOT EXISTS IX_MatchPlayers_Player ON MatchPlayers(player_id)").Wait();
         _playerDb.ExecuteAsync("CREATE INDEX IF NOT EXISTS IX_MatchPresences_Player ON MatchPresences(player_id)").Wait();
         _playerDb.CreateTableAsync<InventoryGrantRecord>().Wait();
+        _playerDb.CreateTableAsync<ShopPurchaseRecord>().Wait();
         _playerDb.CreateTableAsync<TrophyRecord>().Wait();
         _playerDb.CreateTableAsync<PlayerTrophyRecord>().Wait();
         _playerDb.CreateTableAsync<TrophyShowcaseRecord>().Wait();
@@ -265,6 +266,58 @@ public class MasterServerDatabase : IMasterServerDatabase
         await ChangeInventory(playerId, itemId, async () =>
             await _playerDb.ExecuteAsync("DELETE FROM InventoryGrants WHERE player_id = ? AND item = ?", playerId, itemId) > 0,
             InventoryChange.Revoked);
+
+    /// <summary>
+    /// Buys a shop item card: the balance check, the deduction, the grants and the receipt commit together, so a
+    /// failed or repeated purchase can neither take currency without granting nor grant without paying.
+    /// </summary>
+    public async Task<PurchaseResult> PurchaseShopItem(uint playerId, Key shopItem, bool real)
+    {
+        if (shopItem.GetCard<CardShopItem>() is not { } item) return PurchaseResult.UnknownItem;
+        var grants = ShopPurchases.Grants(item);
+        if (!item.AvailableInShop || grants.Count == 0 || ShopPurchases.Price(item, real, DateTime.UtcNow) is not { } price)
+            return PurchaseResult.NotForSale;
+
+        PlayerRecord? record;
+        await _asyncLock.WaitAsync();
+        try
+        {
+            record = await _playerDb.Table<PlayerRecord>().Where(p => p.PlayerId == playerId).FirstOrDefaultAsync();
+            if (record == null) return PurchaseResult.UnknownPlayer;
+            var missing = grants.Where(card => !PlayerInventory.Owns(playerId, card.Key)).ToList();
+            if (missing.Count == 0) return PurchaseResult.AlreadyOwned;
+            var column = ShopPurchases.Column(real);
+            var paid = false;
+            await _playerDb.RunInTransactionAsync(db =>
+            {
+                // Conditional on the stored balance, not the one read above.
+                if (db.Execute($"UPDATE Users SET {column} = {column} - ? WHERE id = ? AND {column} >= ?", price, playerId, price) != 1) return;
+                var now = DateTimeOffset.UtcNow;
+                foreach (var card in missing)
+                    db.Execute("INSERT OR IGNORE INTO InventoryGrants (player_id, item, granted_at, granted_by, note) VALUES (?, ?, ?, ?, ?)",
+                        playerId, card.Id, now, "shop", item.Id);
+                db.Insert(new ShopPurchaseRecord
+                {
+                    PlayerId = playerId, ShopItem = item.Id!, Currency = real ? CurrencyType.Real : CurrencyType.Virtual,
+                    Price = price, Items = string.Join(",", missing.Select(card => card.Id)), PurchasedAt = now
+                });
+                paid = true;
+            });
+            if (!paid) return PurchaseResult.InsufficientFunds;
+            var owned = await _playerDb.Table<InventoryGrantRecord>().Where(g => g.PlayerId == playerId).ToListAsync();
+            PlayerInventory.Set(playerId, owned.Select(g => g.Item));
+            record = await _playerDb.Table<PlayerRecord>().Where(p => p.PlayerId == playerId).FirstAsync();
+        }
+        finally
+        {
+            _asyncLock.Release();
+        }
+
+        Databases.PlayerDatabase.RefreshInventory(playerId);
+        Databases.PlayerDatabase.UpdatePlayer(playerId, new PlayerUpdate { Currency = PlayerCurrency.Balance(record.Gold, record.Platinum) });
+        Log.Info(LogCat.Player, $"Player {playerId} bought {item.Id} for {price} {(real ? "Platinum" : "Gold")}");
+        return PurchaseResult.Purchased;
+    }
 
     private async Task<InventoryChange> ChangeInventory(uint playerId, string itemId, Func<Task<bool>> write, InventoryChange done)
     {

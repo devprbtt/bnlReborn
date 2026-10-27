@@ -51,6 +51,7 @@ public interface IMasterServerDatabase
     public Task<bool> UpdatePlayerAsync(uint playerId, PlayerData updated);
     public Task<List<InventoryGrantRecord>> GetInventoryGrants(uint playerId);
     public Task<InventoryChange> GrantItem(uint playerId, string itemId, string grantedBy, string? note);
+    public Task<PurchaseResult> PurchaseShopItem(uint playerId, Key shopItem, bool real);
     public Task<InventoryChange> RevokeItem(uint playerId, string itemId);
 
 }

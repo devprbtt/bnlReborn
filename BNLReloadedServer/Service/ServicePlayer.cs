@@ -678,8 +678,22 @@ public class ServicePlayer(ISender sender, IServiceScene serviceScene, IServiceT
         var rpcId = reader.ReadUInt16();
         var item = Key.ReadRecord(reader);
         var isRealPrice = reader.ReadBoolean();
+        if (!sender.AssociatedPlayerId.HasValue) { SendBuyShopItem(rpcId, false); return; }
+        _ = BuyShopItem(rpcId, sender.AssociatedPlayerId.Value, item, isRealPrice);
+    }
 
-        SendBuyShopItem(rpcId, false);
+    private async Task BuyShopItem(ushort rpcId, uint playerId, Key item, bool real)
+    {
+        try
+        {
+            var result = await Databases.MasterServerDatabase.PurchaseShopItem(playerId, item, real);
+            SendBuyShopItem(rpcId, result == PurchaseResult.Purchased);
+        }
+        catch (Exception ex)
+        {
+            Log.Error(LogCat.Player, $"Purchase of {item} by {playerId} failed", ex);
+            SendBuyShopItem(rpcId, false);
+        }
     }
 
     public void SendUpgradeDevice(ushort rpcId, string? error = null)
