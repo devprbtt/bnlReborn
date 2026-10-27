@@ -76,7 +76,7 @@ def render(rows, now):
     draw = ImageDraw.Draw(image)
     font = lambda size: ImageFont.load_default(size=size)
     draw.text((40, 25), "BLOCK N LOAD REBORN", fill="#f4c259", font=font(27))
-    draw.text((40, 67), "Players online • Last 24 hours • GMT (UTC+0)", fill="#e2e8f0", font=font(20))
+    draw.text((40, 67), "Players online | Last 24 hours | GMT (UTC+0)", fill="#e2e8f0", font=font(20))
     end = int(now) // 60 * 60
     start = end - 86400
     values = [n for _, n in rows if n is not None]
@@ -102,10 +102,10 @@ def render(rows, now):
             x, y = points[0]
             draw.ellipse((x-2, y-2, x+2, y+2), fill="#51d9e0")
     current = rows[-1][1] if rows and end - rows[-1][0] < 90 else None
-    average = f"{sum(values)/len(values):.1f}" if values else "—"
-    draw.text((75, 112), f"NOW  {current if current is not None else 'Unavailable'}     PEAK  {peak if values else '—'}     AVERAGE  {average}", fill="#ffffff", font=font(20))
+    average = f"{sum(values)/len(values):.1f}" if values else "N/A"
+    draw.text((75, 112), f"NOW  {current if current is not None else 'Unavailable'}     PEAK  {peak if values else 'N/A'}     AVERAGE  {average}", fill="#ffffff", font=font(20))
     coverage = len(values) / 1440 * 100
-    draw.text((40, 506), f"Recorded coverage: {coverage:.0f}% • Gaps = unavailable data • Average uses recorded samples", fill="#aebdce", font=font(16))
+    draw.text((40, 506), f"Recorded coverage: {coverage:.0f}% | Gaps = unavailable data | Average uses recorded samples", fill="#aebdce", font=font(16))
     out = io.BytesIO()
     image.save(out, format="PNG")
     return out.getvalue()
