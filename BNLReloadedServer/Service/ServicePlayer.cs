@@ -61,7 +61,10 @@ public class ServicePlayer(ISender sender, IServiceScene serviceScene, IServiceT
         MessageUpgradeDevice = 48,
         MessageReceiveFreeCrate = 49,
         MessageOpenCrate = 50,
-        MessageMarkItemAsShown = 51
+        MessageMarkItemAsShown = 51,
+        // Reborn: weapon-skin choices. Only clients that know them send these, and the reply uses the same id.
+        MessageSetWeaponSkin = 52,
+        MessageGetWeaponSkins = 53
     }
 
     private readonly IPlayerDatabase _playerDatabase = Databases.PlayerDatabase;
@@ -696,6 +699,48 @@ public class ServicePlayer(ISender sender, IServiceScene serviceScene, IServiceT
         }
     }
 
+    private void SendWeaponSkins(ServicePlayerId message, ushort rpcId, bool accepted, uint playerId)
+    {
+        using var writer = CreateWriter();
+        writer.Write((byte)message);
+        writer.Write(rpcId);
+        writer.Write(accepted);
+        writer.Write(WeaponSkinSelections.Json(playerId));
+        sender.Send(writer);
+    }
+
+    private void ReceiveSetWeaponSkin(BinaryReader reader)
+    {
+        var rpcId = reader.ReadUInt16();
+        var characterSkin = Key.ReadRecord(reader);
+        var weaponSkin = Key.ReadRecord(reader);
+        if (!sender.AssociatedPlayerId.HasValue) return;
+        _ = SetWeaponSkin(rpcId, sender.AssociatedPlayerId.Value, characterSkin, weaponSkin);
+    }
+
+    private async Task SetWeaponSkin(ushort rpcId, uint playerId, Key characterSkin, Key weaponSkin)
+    {
+        var accepted = false;
+        try
+        {
+            var change = await Databases.MasterServerDatabase.SetWeaponSkin(playerId, characterSkin, weaponSkin);
+            accepted = change is WeaponSkinChange.Set or WeaponSkinChange.Cleared;
+            if (!accepted) Log.Warn(LogCat.Player, $"Weapon skin {weaponSkin} for {characterSkin} refused for {playerId}: {change}");
+        }
+        catch (Exception ex)
+        {
+            Log.Error(LogCat.Player, $"Weapon skin change by {playerId} failed", ex);
+        }
+        SendWeaponSkins(ServicePlayerId.MessageSetWeaponSkin, rpcId, accepted, playerId);
+    }
+
+    private void ReceiveGetWeaponSkins(BinaryReader reader)
+    {
+        var rpcId = reader.ReadUInt16();
+        if (!sender.AssociatedPlayerId.HasValue) return;
+        SendWeaponSkins(ServicePlayerId.MessageGetWeaponSkins, rpcId, true, sender.AssociatedPlayerId.Value);
+    }
+
     public void SendUpgradeDevice(ushort rpcId, string? error = null)
     {
         using var writer = CreateWriter();
@@ -883,6 +928,12 @@ public class ServicePlayer(ISender sender, IServiceScene serviceScene, IServiceT
                 break;
             case ServicePlayerId.MessageSteamMicroTxnResponse:
                 ReceiveSteamMicroTxnResponse(reader);
+                break;
+            case ServicePlayerId.MessageSetWeaponSkin:
+                ReceiveSetWeaponSkin(reader);
+                break;
+            case ServicePlayerId.MessageGetWeaponSkins:
+                ReceiveGetWeaponSkins(reader);
                 break;
             case ServicePlayerId.MessageBuyShopItem:
                 ReceiveBuyShopItem(reader);

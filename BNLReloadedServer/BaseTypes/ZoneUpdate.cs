@@ -5,6 +5,9 @@ namespace BNLReloadedServer.BaseTypes;
 public class ZoneUpdate
 {
     public string? ActionScoresJson { get; set; }
+    // {"playerId": "skin_weapon_*"} for every player wearing a weapon skin. Last field: clients that predate it
+    // read their 13 bits and stop, leaving this string unread in the message buffer.
+    public string? WeaponSkinsJson { get; set; }
     public long? WeatherStartTime { get; set; }
     public string? ConquestStateJson { get; set; }
     public string? BlockOwnersJson { get; set; }
@@ -31,7 +34,7 @@ public class ZoneUpdate
     {
         new BitField(Phase != null, Statistics != null, SpawnPoints != null, PlayerSpawnPoints != null,
           RespawnInfo != null, PlayerInfo != null, SupplyInfo != null, Objectives != null,
-          ResourceCap.HasValue, ConquestStateJson != null, BlockOwnersJson != null, WeatherStartTime.HasValue, ActionScoresJson != null).Write(writer);
+          ResourceCap.HasValue, ConquestStateJson != null, BlockOwnersJson != null, WeatherStartTime.HasValue, ActionScoresJson != null, WeaponSkinsJson != null).Write(writer);
         if (Phase != null)
             ZonePhase.WriteRecord(writer, Phase);
         if (Statistics != null)
@@ -53,11 +56,12 @@ public class ZoneUpdate
         if (BlockOwnersJson != null) writer.Write(BlockOwnersJson);
         if (WeatherStartTime.HasValue) writer.Write(WeatherStartTime.Value);
         if (ActionScoresJson != null) writer.Write(ActionScoresJson);
+        if (WeaponSkinsJson != null) writer.Write(WeaponSkinsJson);
     }
 
     public void Read(BinaryReader reader)
     {
-        var bitField = new BitField(13);
+        var bitField = new BitField(14);
         bitField.Read(reader);
         Phase = bitField[0] ? ZonePhase.ReadRecord(reader) : null;
         Statistics = bitField[1] ? MatchStats.ReadRecord(reader) : null;
@@ -72,6 +76,7 @@ public class ZoneUpdate
         BlockOwnersJson = bitField[10] ? reader.ReadString() : null;
         WeatherStartTime = bitField[11] ? reader.ReadInt64() : null;
         ActionScoresJson = bitField[12] ? reader.ReadString() : null;
+        WeaponSkinsJson = bitField[13] ? reader.ReadString() : null;
     }
 
     public static void WriteRecord(BinaryWriter writer, ZoneUpdate value) => value.Write(writer);

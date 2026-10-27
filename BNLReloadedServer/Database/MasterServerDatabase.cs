@@ -46,6 +46,8 @@ public class MasterServerDatabase : IMasterServerDatabase
         _playerDb.ExecuteAsync("CREATE INDEX IF NOT EXISTS IX_MatchPresences_Player ON MatchPresences(player_id)").Wait();
         _playerDb.CreateTableAsync<InventoryGrantRecord>().Wait();
         _playerDb.CreateTableAsync<ShopPurchaseRecord>().Wait();
+        _playerDb.CreateTableAsync<WeaponSkinSelectionRecord>().Wait();
+        WeaponSkinSelections.Load(_playerDb.Table<WeaponSkinSelectionRecord>().ToListAsync().Result);
         _playerDb.CreateTableAsync<TrophyRecord>().Wait();
         _playerDb.CreateTableAsync<PlayerTrophyRecord>().Wait();
         _playerDb.CreateTableAsync<TrophyShowcaseRecord>().Wait();
@@ -317,6 +319,30 @@ public class MasterServerDatabase : IMasterServerDatabase
         Databases.PlayerDatabase.UpdatePlayer(playerId, new PlayerUpdate { Currency = PlayerCurrency.Balance(record.Gold, record.Platinum) });
         Log.Info(LogCat.Player, $"Player {playerId} bought {item.Id} for {price} {(real ? "Platinum" : "Gold")}");
         return PurchaseResult.Purchased;
+    }
+
+    /// <summary>Saves (or clears, with Key.None) the weapon skin a player wears with one character skin.</summary>
+    public async Task<WeaponSkinChange> SetWeaponSkin(uint playerId, Key characterSkin, Key weaponSkin)
+    {
+        var change = WeaponSkinSelections.Validate(playerId, characterSkin, weaponSkin);
+        if (change is not (WeaponSkinChange.Set or WeaponSkinChange.Cleared)) return change;
+        var character = characterSkin.GetCard<CardSkin>()!.Id!;
+        await _asyncLock.WaitAsync();
+        try
+        {
+            if (change == WeaponSkinChange.Cleared)
+                await _playerDb.ExecuteAsync("DELETE FROM PlayerWeaponSkins WHERE player_id = ? AND character_skin = ?", playerId, character);
+            else
+                await _playerDb.ExecuteAsync("INSERT INTO PlayerWeaponSkins (player_id, character_skin, weapon_skin) VALUES (?, ?, ?) " +
+                    "ON CONFLICT(player_id, character_skin) DO UPDATE SET weapon_skin = excluded.weapon_skin",
+                    playerId, character, weaponSkin.GetCard<CardSkin>()!.Id!);
+            WeaponSkinSelections.Remember(playerId, characterSkin, weaponSkin);
+        }
+        finally
+        {
+            _asyncLock.Release();
+        }
+        return change;
     }
 
     private async Task<InventoryChange> ChangeInventory(uint playerId, string itemId, Func<Task<bool>> write, InventoryChange done)

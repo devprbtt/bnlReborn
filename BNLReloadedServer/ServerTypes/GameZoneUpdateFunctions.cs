@@ -23,6 +23,7 @@ public partial class GameZone
 
         ApplyConquestUnit(unit);
         if (unit.PlayerId != null) MarkClassPerkCombat(unit);
+        if (unit.PlayerId != null) PublishWeaponSkins();
 
         // Applied on both creation and respawn - effects are wiped on death.
         if (unitInit.PlayerId != null && _zoneData.Phase.PhaseType is ZonePhaseType.Build or ZonePhaseType.Build2)

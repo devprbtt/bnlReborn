@@ -802,6 +802,7 @@ public partial class GameZone : Updater
             ActionScoresJson = ScoreSnapshot(),
             WeatherStartTime = ParadiseWeatherRegistration.StartTime(_zoneData.MapKey, _weatherEpoch),
             BlockOwnersJson = BlockOwnerSnapshot(),
+            WeaponSkinsJson = WeaponSkinSnapshot(),
             Phase = _zoneData.Phase,
             PlayerInfo = _zoneData.PlayerInfo,
             SpawnPoints = _zoneData.SpawnPoints.Values.ToList(),
@@ -1183,6 +1184,7 @@ public partial class GameZone : Updater
             ActionScoresJson = ScoreSnapshot(),
             WeatherStartTime = ParadiseWeatherRegistration.StartTime(_zoneData.MapKey, _weatherEpoch),
             BlockOwnersJson = BlockOwnerSnapshot(),
+            WeaponSkinsJson = WeaponSkinSnapshot(),
             Phase = _zoneData.Phase,
             SpawnPoints = _zoneData.SpawnPoints.Values.ToList()
         });
@@ -2082,6 +2084,27 @@ public partial class GameZone : Updater
             Teams = teams,
             Players = CompleteRatingParticipants(_ratingEndedAt ?? endedAt, winner)
         });
+
+    private string? _publishedWeaponSkins;
+
+    /// <summary>The weapon skin each player's current unit wears, keyed by player id.</summary>
+    private string WeaponSkinSnapshot()
+    {
+        var skins = new SortedDictionary<uint, string>();
+        foreach (var unit in _playerUnits.Values)
+            if (unit.PlayerId is { } playerId && WeaponSkinSelections.For(playerId, unit.SkinKey).GetCard<CardSkin>()?.Id is { } id)
+                skins[playerId] = id;
+        return System.Text.Json.JsonSerializer.Serialize(skins);
+    }
+
+    // Sent on its own so clients that predate the field read an empty update.
+    private void PublishWeaponSkins()
+    {
+        var snapshot = WeaponSkinSnapshot();
+        if (snapshot == _publishedWeaponSkins) return;
+        _publishedWeaponSkins = snapshot;
+        _serviceZone.SendUpdateZone(new ZoneUpdate { WeaponSkinsJson = snapshot });
+    }
 
     // Matchmade casual and ranked rounds pay Gold; custom games, the waiting arena, the editor and time trials do not.
     private bool PaysMatchGold() =>
