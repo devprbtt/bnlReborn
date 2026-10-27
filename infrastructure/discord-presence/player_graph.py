@@ -98,7 +98,7 @@ def render(rows, now, days=1):
         stamp = start + i * days * 10800
         x = xy(stamp, 0)[0]
         draw.line((x, upper, x, lower), fill="#222e3c")
-        draw.text((x - 23, lower + 15), datetime.fromtimestamp(stamp, timezone.utc).strftime("%H:%M" if days == 1 else "%d %b"), fill="#aebdce", font=font(15))
+        draw.text((x, lower + 15), datetime.fromtimestamp(stamp, timezone.utc).strftime("%a %H:%M" if days == 1 else "%a %d %b"), fill="#aebdce", font=font(15), anchor="lt" if i == 0 else "rt" if i == 8 else "mt")
     for part in segments(rows):
         points = [xy(t, n) for t, n in part]
         if len(points) > 1:
