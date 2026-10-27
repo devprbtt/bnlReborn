@@ -7,6 +7,8 @@ public static class DebugDummyRegistration
     public const string Id = "unit_reborn_debug_dummy";
     public const int MaxHealth = 10_000_000;
     public static readonly Key Key = new(Id);
+    public const string ClassId = "hero_class_reborn_debug_dummy";
+    public static readonly Key ClassKey = new(ClassId);
 
     public static void Register(List<Card> cards)
     {
@@ -28,7 +30,18 @@ public static class DebugDummyRegistration
         card.Movement = new UnitMovementStatic();
         if (card.Data is UnitDataPlayer data)
         {
-            data.Class = Key.None; data.ActiveAbilityKey = Key.None;
+            // Shipped clients resolve every player-style card's class while building
+            // the Catalogue block browser. None throws and strands the menu transition.
+            // A dedicated target class with no devices keeps the dummy out of
+            // block availability lists without advertising it as a playable hero.
+            if (!cards.OfType<CardHeroClass>().Any(c => c.Id == ClassId))
+                cards.Add(new CardHeroClass {
+                    Id = ClassId, Key = ClassKey, Scope = ScopeType.Public,
+                    Type = HeroClassType.Brawn,
+                    Name = new LocalizedString { Text = "Test Dummy", Data = [] },
+                    AvailableDevices = []
+                });
+            data.Class = ClassKey; data.ActiveAbilityKey = Key.None;
             data.Gears = []; data.Passive = []; data.SpecialDevices = []; data.DefaultDevices = [];
         }
         cards.Add(card);

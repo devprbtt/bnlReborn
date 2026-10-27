@@ -132,3 +132,9 @@ Validation: Release build warnings-as-errors clean; HeroMilestoneFixture 50 chec
 ## 2026-10-27 - Casual hero picks capped at 20 seconds (prepared)
 
 Reduced standard casual draft SelectionTime from 30 to 20 seconds. Lock-in still advances immediately and timeout locks a legal default. The three ban phases remain 15 seconds each. Updated the existing fixture expectation, editor preview configuration and all four prepared note surfaces in the client repository. Not deployed.
+
+
+## 2026-10-27 - Catalogue navigation compatibility hotfix
+
+Beta.83 exposed a client contract violation: RebornShopBlocks enumerates every UnitDataPlayer and resolves its class, but the new admin dummy advertised Key.None. The client threw Invalid card id 0 and stranded its menu transition. Give the dummy a dedicated public class card with an empty AvailableDevices list while retaining no special devices; it contributes no block availability and is absent from GlobalLogic.AvailableHeroes. The target remains Sarge-shaped/Brawn, receives player damage, has configurable HP and no respawn. DebugDummyFixture now checks class resolution, block traversal after wire serialization, and non-playable roster membership in addition to existing damage/death checks.
+Validation: 35 debug-dummy checks, 463 casual-draft checks, TeamFeatures/Auth/Accounting fixtures, warning-as-error Release build/publish and vulnerability audit passed. The actual Unity Catalogue UI consumed the server-exported binary dummy/class cards and passed 23 shop checks: opens, all 15 heroes, block browser, details and return navigation. No new UI exceptions.

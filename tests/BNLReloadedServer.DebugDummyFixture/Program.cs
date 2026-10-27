@@ -14,14 +14,31 @@ var root = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../
 var hero = (CardUnit)JsonSerializer.Deserialize<Card>(File.ReadAllText(Path.Combine(root,"tests/fixtures/debug-dummy-sarge.json")), JsonHelper.DefaultSerializerSettings)!;
 string original = JsonSerializer.Serialize(hero, JsonHelper.DefaultSerializerSettings);
 List<Card> cards = [hero]; DebugDummyRegistration.Register(cards); DebugDummyRegistration.Register(cards);
-Check(cards.Count == 2, "registration is idempotent");
-cards.Add(new CardGlobalLogic{Id="global_logic"});
+Check(cards.Count == 3, "registration and compatibility class are idempotent");
+cards.Add(new CardGlobalLogic{Id="global_logic", AvailableHeroes=[new Key(hero.Id!)]});
 Check(JsonSerializer.Serialize(hero, JsonHelper.DefaultSerializerSettings) == original, "real Sarge is not mutated");
 var card = cards.OfType<CardUnit>().Single(c => c.Id == DebugDummyRegistration.Id);
 Check(card.Health!.Health!.HealthType == HealthType.Player && card.Data is UnitDataPlayer, "dummy receives player damage and player-target effects");
 Check(card.Health.Health.MaxHealth == 1 && card.Health.KillReward == null && card.Loot == null && card.SpawnPoint == null && card.Capturing == null, "dummy has no loot, reward, spawn or capture features");
 Check(card.Movement is UnitMovementStatic && card.InitEffects!.Count == 0 && card.EnabledEffects!.Count == 0, "stationary dummy has no passive regeneration");
 ((ServerCatalogue)Databases.Catalogue).Replicate(cards);
+var dummyData = (UnitDataPlayer)card.Data!;
+var dummyClass = dummyData.Class.GetCard<CardHeroClass>();
+Check(dummyData.Class != Key.None && dummyClass is not null,
+    "shipped Catalogue browser can resolve the dummy class instead of throwing on card zero");
+Check(dummyData.SpecialDevices!.Count == 0 && dummyClass!.AvailableDevices is { Count: 0 },
+    "dummy contributes no shared or hero blocks to Catalogue availability");
+Check(!CatalogueHelper.GetHeroes().Contains(DebugDummyRegistration.Key),
+    "dummy remains outside the playable and draft hero roster");
+using (var wire = new MemoryStream())
+{
+    card.Write(new BinaryWriter(wire)); wire.Position = 0;
+    var received = new CardUnit(); received.Read(new BinaryReader(wire));
+    var receivedData = (UnitDataPlayer)received.Data!;
+    Check(receivedData.Class == DebugDummyRegistration.ClassKey &&
+        receivedData.SpecialDevices!.Concat(receivedData.Class.GetCard<CardHeroClass>()!.AvailableDevices!).Count() == 0,
+        "replicated player card supports the shipped block-browser traversal");
+}
 foreach (var text in new[]{"1","1000","10000000"}) Check(GameZone.TryParseDummyHealth([text], out _), "accept HP " + text);
 foreach (var text in new[]{"0","-1","10000001","NaN","Infinity","1.5","999999999999",""}) Check(!GameZone.TryParseDummyHealth([text],out _), "reject HP " + text);
 Check(!GameZone.TryParseDummyHealth([],out _) && !GameZone.TryParseDummyHealth(["1","2"],out _), "reject wrong argument count");
@@ -69,3 +86,10 @@ Check(spawned.Count==3 && spawned[2].UnitMaxHealth(1)==1,"minimum HP creates a v
 spawned[2].TakeDamage(1,player.GetSelfSource());
 Check(spawned[2].IsDead && spawned[2].RespawnTime==null,"minimum HP target dies without respawn");
 Console.WriteLine($"PASS debug dummy: {checks} checks");
+if (args is ["--export-client-fixture", var output])
+{
+    using var writer = new BinaryWriter(File.Create(output));
+    writer.Write(2);
+    Card.WriteVariant(writer, dummyClass!);
+    Card.WriteVariant(writer, card);
+}
