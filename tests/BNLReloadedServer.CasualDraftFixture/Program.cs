@@ -27,7 +27,7 @@ var heroes = Enumerable.Range(0, 21).Select(i => new CardUnit { Id = "casual_fix
     Data = new UnitDataPlayer { Class = CasualDraft.Classes[i / 7] }, Scope = ScopeType.Public }).ToArray();
 catalogue.Replicate(new Card[] { mode, ranked, custom, global }.Concat(heroes).ToList());
 global.AvailableHeroes = heroes.Select(h => h.Key).ToList();
-Check(mode.LobbyMode is LobbyModeDraftPick { SelectionTime: 30, WaitTime: 10 } && mode.HeroLimit?.Limit == 2, "casual registration");
+Check(mode.LobbyMode is LobbyModeDraftPick { SelectionTime: 20, WaitTime: 10 } && mode.HeroLimit?.Limit == 2, "casual registration");
 Check(ranked.LobbyMode is LobbyModeDraftPick { SelectionTime: 42 } && custom.LobbyMode is LobbyModeFreePick, "other modes unchanged");
 
 var ballot = new CasualDraft();

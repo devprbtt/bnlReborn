@@ -10,7 +10,7 @@ public static class RankedDraftRegistration
         {
             if (mode.Id == "game_mode_friendly")
             {
-                mode.LobbyMode = new LobbyModeDraftPick { WaitTime = 10, SelectionTime = 30,
+                mode.LobbyMode = new LobbyModeDraftPick { WaitTime = 10, SelectionTime = 20,
                     PrestartTime = 5, ReconnectSelectionTime = 60 };
                 mode.HeroLimit = new LobbyHeroLimit { LimitOption = LobbyHeroLimitOption.PerClass, Limit = 2 };
             }

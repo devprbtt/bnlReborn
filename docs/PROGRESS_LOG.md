@@ -127,3 +127,8 @@ Validation: Release build warnings-as-errors clean; HeroMilestoneFixture 50 chec
 - Client adds a native-canvas ballot with portraits/counts/locked-vote feedback and a draft-order/status panel. The original hero picker and Block In button handle draft selection. LobbyUpdate optional bit 9 carries a JSON snapshot (unchanged two-byte mask); lobby request 20 submits phase + hero. Publish matching clients before enabling this server change; old clients cannot vote or present these phases.
 - Validation: server Release warning-as-error build clean; CasualDraftFixture 463 checks, PublicQueueRulesFixture 64, ClanFightFixture 217, RandomHeroesFixture 4018 (one existing CS9216 fixture warning). Unity compiled; actual offline lobby validation and screenshots verify voting, locking, draft transition and clearing. Live multiplayer and signed builds have not been tested for this change.
 - All four player-facing note surfaces prepared: versioned CHANGELOG-2026-10-27-casual-draft-v1.md, launcher, in-game JSON and website. Nothing deployed or published. Launcher/in-game entries await a signed client release.
+
+
+## 2026-10-27 - Casual hero picks capped at 20 seconds (prepared)
+
+Reduced standard casual draft SelectionTime from 30 to 20 seconds. Lock-in still advances immediately and timeout locks a legal default. The three ban phases remain 15 seconds each. Updated the existing fixture expectation, editor preview configuration and all four prepared note surfaces in the client repository. Not deployed.
