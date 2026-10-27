@@ -56,6 +56,7 @@ class GraphTests(unittest.TestCase):
         g.publish(db, api, b"png", 180)
         self.assertEqual([c[0] for c in api.calls], ["GET", "POST", "PATCH"])
         self.assertTrue(api.calls[1][2]["enforce_nonce"])
+        self.assertLessEqual(len(api.calls[1][2]["nonce"]), 25)
         self.assertEqual(api.calls[2][2]["attachments"], [{"id": 0, "filename": "players.png"}])
 
     def test_recovers_existing_message_after_lost_local_state(self):

@@ -159,7 +159,7 @@ def publish(db, api, png, now):
         if message_id:
             result = api.request("PATCH", f"channels/{CHANNEL}/messages/{message_id}", payload, png)
         else:
-            payload.update(nonce="bnlgraph" + CHANNEL, enforce_nonce=True)
+            payload.update(nonce="bnlg" + CHANNEL, enforce_nonce=True)
             result = api.request("POST", f"channels/{CHANNEL}/messages", payload, png)
     except urllib.error.HTTPError as exc:
         if exc.code == 404 and message_id:
