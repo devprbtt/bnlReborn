@@ -1453,6 +1453,7 @@ public partial class Unit
             }
         }
 
+        if (_debugDummyMaxHealth is { } dummyHealth) buffResult[BuffType.HealthCap] = dummyHealth - 1;
         return buffResult;
     }
 

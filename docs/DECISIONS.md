@@ -37,3 +37,8 @@ Use existing MapBinary.OnEnemySide boundary for the user-confirmed doubled spawn
 ## 2026-10-26 — Mobile accuracy through catalogue modifiers
 
 Set both movement and jump cone modifiers to zero, since the client applies jump instead of movement while airborne. Removing only jump would make jumping more accurate than walking. Keep the client formula and normal spread/bloom/recoil/crouch settings intact. Exempt all Nigel weapons and variants, not just his scoped rifle, per user instruction. Use a dry-run-first, revision-guarded catalogue migration with private backups and rollback; no server binary or client build is needed for the balance settings themselves.
+
+
+## 2026-10-26 — Test targets reuse player damage without player identity
+
+Generate a separate catalogue unit cloned from Sarge presentation, with player health type and static movement, no passive effects, capture, loot or respawn features. Each instance carries its requested max HP through the replicated HealthCap buff (base HP 1), including status-effect recalculation and late-join snapshots. Keep PlayerId/OwnerId unset so the dummy does not become a connected match participant or automatic respawn candidate. Route spawning through the existing Core/Admin-authorized debug RPC; load its hero presentation independently of the player roster on updated clients.

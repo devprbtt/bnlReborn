@@ -1735,6 +1735,9 @@ public partial class GameZone
 
         switch (command)
         {
+            case "spawn_test_dummy" when TryParseDummyHealth(args, out var dummyHealth):
+                SpawnDebugDummy(player, dummyHealth);
+                break;
             case "add_ammo" when args.Count == 1 &&
                                  float.TryParse(args[0], NumberStyles.Float, CultureInfo.InvariantCulture, out var ammo):
                 player.AddAmmo(ammo);

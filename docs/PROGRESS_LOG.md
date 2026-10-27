@@ -92,3 +92,10 @@ Old bot credential rejected by Discord; main service had over 32,000 restarts. N
 - User requested removing movement and airborne inaccuracy for all heroes except Nigel. Added tools/remove_mobile_weapon_spread.py to the server repository: public hero gear families, including variants and aimed tool cones, get move_mod=jump_mod=0. Nigel's entire gear_hunter family and his hero gear references are protected. Normal angle, bloom, recoil, crouch and non-gear cards stay unchanged.
 - Read-only live catalogue audit plans 37 changed cards / 43 cones. Source-derived fixture records provenance and hashes. Six tests pass: exact allowed-field diffs, protected/unrelated cards, aimed fire/variants, invalid source rejection, repeat-apply no-op, backups/read-back, preflight conflicts and rollback after failed writes.
 - No production writes or restart. Deployment remains separate. All four notes surfaces prepared; website not published, launcher/in-game source awaits a later signed client release.
+
+
+## 2026-10-26 — Admin test dummy (prepared, not deployed)
+
+Added Admin Tools > Test Dummy with whole-number HP from 1 to 10,000,000 (default 1,000). The existing authorized debug command spawns a stationary opposing target three metres ahead, rejects blocked placement, and gives it player damage semantics. It has no connected-player identity and never schedules a respawn. Updated client hero-prefab loading for the target and guarded its voice handler against a missing player ID.
+
+Validation: DebugDummyFixture 31 checks, ActionScoreFixture 278 checks, HealAttributionFixture 22 checks pass. Unity 6000.3.23f1 batch compile exits 0 (Logs/admin-dummy-compile.log). No live multiplayer/rendering test or deployment performed. Four canonical patch-note surfaces are prepared, not live; server and signed client releases are required.

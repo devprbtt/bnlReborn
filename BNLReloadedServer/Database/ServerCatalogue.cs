@@ -49,6 +49,7 @@ public class ServerCatalogue : Catalogue
             TeamPingRegistration.Register(cards);
             RankedDraftRegistration.Register(cards);
             GenieHealingVisualRegistration.Register(cards);
+            DebugDummyRegistration.Register(cards);
             var tempDict = new Dictionary<Key, Card>(KeyEqualityComparer.Instance);
             foreach (var card in cards)
             {

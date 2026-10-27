@@ -1,0 +1,401 @@
+{
+  "_id": "unit_hero_sarge_stone",
+  "_rev": "12-7e298ef0dbedaf0980b0d2132c2576be",
+  "scope": "public",
+  "build_time": null,
+  "cooldown": null,
+  "base_cost": null,
+  "cost_inc_per_unit": null,
+  "level": 1,
+  "prefab": "Prefabs/Units/Sergeant",
+  "killscore_icon": "",
+  "name": {
+    "text": "Sergeant 'Sarge' Stone",
+    "data": {
+      "ru": {
+        "original": "Sergeant 'Sarge' Stone",
+        "translation": "Sergeant 'Sarge' Stone"
+      },
+      "es": {
+        "original": "Sergeant 'Sarge' Stone",
+        "translation": "Sergeant 'Sarge' Stone"
+      },
+      "de": {
+        "original": "Sergeant 'Sarge' Stone",
+        "translation": "Sergeant 'Sarge' Stone"
+      },
+      "pt": {
+        "original": "Sergeant 'Sarge' Stone",
+        "translation": "Sergeant \"Sarge\" Stone"
+      },
+      "fr": {
+        "original": "Sergeant 'Sarge' Stone",
+        "translation": "Sergeant 'Sarge' Stone"
+      }
+    }
+  },
+  "description": null,
+  "minimap_type": "player",
+  "indicator": null,
+  "icon_map_editor": "player_select_seargent",
+  "size": {
+    "x": 1,
+    "y": 2,
+    "z": 1
+  },
+  "pivot_type": "center_bottom",
+  "ground_only": true,
+  "can_rotate": false,
+  "block_movement": false,
+  "capturing": null,
+  "health": {
+    "health": {
+      "max_health": 160,
+      "toughness": 0,
+      "shield": 0,
+      "health_type": "player",
+      "mining_only": false,
+      "melee_only": false
+    },
+    "forcefield": null,
+    "kill_reward": {
+      "player_reward": 50,
+      "enemy_reward": null,
+      "team_reward": 50,
+      "mining": false
+    }
+  },
+  "loot": {
+    "spawn_on_enemy_kill": true,
+    "spawn_on_friendly_kill": false,
+    "spawn_on_undefined_kill": true,
+    "loot_item": {
+      "type": "common",
+      "item": {
+        "loot_unit_key": "unit_pickup_hero_loot",
+        "killer_relative_loot_team": "both"
+      },
+      "opponent_item": {
+        "loot_unit_key": "unit_pickup_hero_loot",
+        "killer_relative_loot_team": "both"
+      }
+    }
+  },
+  "spawn_point": null,
+  "count_limit": null,
+  "lifetime": null,
+  "labels": [
+    "destroy_on_match_end",
+    "objective_capturer"
+  ],
+  "fall_hit_modifier": 1,
+  "block_binding": "none",
+  "allow_underwater": true,
+  "movement": {
+    "type": "custom"
+  },
+  "device_type": "none",
+  "init_effects": [],
+  "enabled_effects": [],
+  "material": "material_flesh",
+  "treat_hits_as_owner_hits": false,
+  "data": {
+    "type": "player",
+    "gui_info": {
+      "icon_portrait": "portrait_sergeant_freedomfighter",
+      "icon_portrait_background": "",
+      "icon_portrait_profile": "shop_sarge",
+      "icon_portrait_levelup": "levelup_sarge_sk1",
+      "description": {
+        "text": "Difficulty: Starter ",
+        "data": {
+          "ru": {
+            "original": "Difficulty: Starter ",
+            "translation": "\u0421\u043b\u043e\u0436\u043d\u043e\u0441\u0442\u044c: \u043d\u043e\u0432\u0438\u0447\u043e\u043a"
+          },
+          "es": {
+            "original": "Difficulty: Starter ",
+            "translation": "Nivel: B\u00e1sico"
+          },
+          "de": {
+            "original": "Difficulty: Starter ",
+            "translation": "Schwierigkeit: Leicht"
+          },
+          "pt": {
+            "original": "Difficulty: Starter ",
+            "translation": "Dificuldade: Iniciante"
+          },
+          "fr": {
+            "original": "Difficulty: Starter ",
+            "translation": "Difficult\u00e9\u00a0: d\u00e9butant"
+          }
+        }
+      },
+      "long_description": {
+        "text": "He ain't the brightest but he sure is the toughest. Sarge adds insults to injuries but don\u2019t let him get to ya\u2019. Not just a state-sponsored, brain-washed killing machine, he can set up spawn points too!",
+        "data": {
+          "ru": {
+            "original": "He ain't the brightest but he sure is the toughest. Sarge adds insults to injuries but don\u2019t let him get to ya\u2019. Not just a state-sponsored, brain-washed killing machine, he can set up spawn points too!",
+            "translation": "\u041f\u0443\u0441\u0442\u044c \u043e\u043d \u043d\u0435 \u0441\u0430\u043c\u044b\u0439 \u0443\u043c\u043d\u044b\u0439, \u0437\u0430\u0442\u043e \u0443\u0436 \u0442\u043e\u0447\u043d\u043e \u0441\u0430\u043c\u044b\u0439 \u043a\u0440\u0443\u0442\u043e\u0439. Sarge \u0437\u043d\u0430\u0435\u0442 \u0442\u043e\u043b\u043a \u0432 \u0443\u0432\u0435\u0447\u044c\u044f\u0445, \u043f\u043e\u044d\u0442\u043e\u043c\u0443 \u043d\u0435 \u0441\u0442\u043e\u0438\u0442 \u043f\u043e\u043f\u0430\u0434\u0430\u0442\u044c\u0441\u044f \u0443 \u043d\u0435\u0433\u043e \u043d\u0430 \u043f\u0443\u0442\u0438. \u041a\u0441\u0442\u0430\u0442\u0438, \u044d\u0442\u043e \u043d\u0435 \u043f\u0440\u043e\u0441\u0442\u043e \u0441\u043f\u043e\u043d\u0441\u0438\u0440\u0443\u0435\u043c\u0430\u044f \u0433\u043e\u0441\u0443\u0434\u0430\u0440\u0441\u0442\u0432\u043e\u043c \u043c\u0430\u0448\u0438\u043d\u0430 \u0434\u043b\u044f \u0443\u0431\u0438\u0439\u0441\u0442\u0432, \u043a\u043e\u0442\u043e\u0440\u043e\u0439 \u043f\u0440\u043e\u043c\u044b\u043b\u0438 \u043c\u043e\u0437\u0433\u0438, \u0432\u0435\u0434\u044c \u043e\u043d \u0443\u043c\u0435\u0435\u0442 \u0442\u0430\u043a\u0436\u0435 \u0441\u043e\u0437\u0434\u0430\u0432\u0430\u0442\u044c \u0442\u043e\u0447\u043a\u0438 \u0432\u043e\u0437\u0440\u043e\u0436\u0434\u0435\u043d\u0438\u044f."
+          },
+          "es": {
+            "original": "He ain't the brightest but he sure is the toughest. Sarge adds insults to injuries but don\u2019t let him get to ya\u2019. Not just a state-sponsored, brain-washed killing machine, he can set up spawn points too!",
+            "translation": "Stone siempre est\u00e1 dispuesto a colocarse al frente de las l\u00edneas enemigas y arriesgar su vida por la patria y por su equipo. Su arsenal de explosivos no deja nada librado al azar: lanzacohetes, granadas y C4. \u00a1Si explota, \u00e9l lo tiene!"
+          },
+          "de": {
+            "original": "He ain't the brightest but he sure is the toughest. Sarge adds insults to injuries but don\u2019t let him get to ya\u2019. Not just a state-sponsored, brain-washed killing machine, he can set up spawn points too!",
+            "translation": "Er ist nicht der Hellste, daf\u00fcr aber definitiv der H\u00e4rteste. Sarge kann einen ordentlich fertigmachen, wenn man es zul\u00e4sst. Aber er ist nicht blo\u00df eine staatlich gef\u00f6rderte und kontrollierte T\u00f6tungsmaschine, er kann auch Respawnfelder platzieren!"
+          },
+          "pt": {
+            "original": "He ain't the brightest but he sure is the toughest. Sarge adds insults to injuries but don\u2019t let him get to ya\u2019. Not just a state-sponsored, brain-washed killing machine, he can set up spawn points too!",
+            "translation": "Ele pode n\u00e3o ser o mais astuto, mas \u00e9, sem d\u00favida, o mais dur\u00e3o. Sarge joga sal na ferida, ent\u00e3o n\u00e3o deixe ele chegar perto. Al\u00e9m de ser uma m\u00e1quina mort\u00edfera sem igual, ele sabe montar pontos de ressurgimento tamb\u00e9m!"
+          },
+          "fr": {
+            "original": "He ain't the brightest but he sure is the toughest. Sarge adds insults to injuries but don\u2019t let him get to ya\u2019. Not just a state-sponsored, brain-washed killing machine, he can set up spawn points too!",
+            "translation": "Ce n'est pas une lumi\u00e8re, mais c'est l'un des plus costauds. Sarge est une vraie terreur, mais ne vous laissez pas faire. Cette machine \u00e0 tuer au service du gouvernement peut aussi placer des points d'apparition\u00a0!"
+          }
+        }
+      },
+      "learning_video": "hero_sarge.ogg",
+      "message": {
+        "text": "Truly Offensive Soldier",
+        "data": {
+          "ru": {
+            "original": "Truly Offensive Soldier",
+            "translation": "\u0421\u043e\u043b\u0434\u0430\u0442 \u0434\u043e \u043c\u043e\u0437\u0433\u0430 \u043a\u043e\u0441\u0442\u0435\u0439"
+          },
+          "es": {
+            "original": "Truly Offensive Soldier",
+            "translation": "Soldado despiadado"
+          },
+          "de": {
+            "original": "Truly Offensive Soldier",
+            "translation": "Superoffensiver Soldat"
+          },
+          "pt": {
+            "original": "Truly Offensive Soldier",
+            "translation": "Soldado Ofensivo de Verdade"
+          },
+          "fr": {
+            "original": "Truly Offensive Soldier",
+            "translation": "Va-t-en-guerre"
+          }
+        }
+      },
+      "focus": {
+        "text": "Destruction | Range | Resilience",
+        "data": {
+          "ru": {
+            "original": "Destruction | Range | Resilience",
+            "translation": "\u0420\u0430\u0437\u0440\u0443\u0448\u0435\u043d\u0438\u0435 | \u0414\u0430\u043b\u044c\u043d\u0438\u0439 \u0431\u043e\u0439 | \u0416\u0438\u0437\u043d\u0435\u0441\u0442\u043e\u0439\u043a\u043e\u0441\u0442\u044c"
+          },
+          "es": {
+            "original": "Destruction | Range | Resilience",
+            "translation": "Destrucci\u00f3n | Alcance | Resistencia"
+          },
+          "de": {
+            "original": "Destruction | Range | Resilience",
+            "translation": "Zerst\u00f6rung | Distanz | Robustheit"
+          },
+          "pt": {
+            "original": "Destruction | Range | Resilience",
+            "translation": "Destrui\u00e7\u00e3o | Ataque \u00e0 Dist\u00e2ncia | Resist\u00eancia"
+          },
+          "fr": {
+            "original": "Destruction | Range | Resilience",
+            "translation": "Destruction | Port\u00e9e | R\u00e9sistance"
+          }
+        }
+      },
+      "difficulty": "easy",
+      "toughness": 0.75,
+      "mobility": 0.5,
+      "construction": 0.3,
+      "passive_ability": {
+        "icon": "passive_longshot_bully",
+        "name": {
+          "text": "True Grit ",
+          "data": {
+            "ru": {
+              "original": "True Grit ",
+              "translation": "\u0421\u0442\u043e\u0439\u043a\u043e\u0441\u0442\u044c"
+            },
+            "es": {
+              "original": "True Grit ",
+              "translation": "Pleno coraje"
+            },
+            "de": {
+              "original": "True Grit ",
+              "translation": "Wahre Hartn\u00e4ckigkeit"
+            },
+            "pt": {
+              "original": "True Grit ",
+              "translation": "Coragem Pura"
+            },
+            "fr": {
+              "original": "True Grit ",
+              "translation": "Second souffle"
+            }
+          }
+        },
+        "description": {
+          "text": "Sarge regenerates health when low on hit points. Get back up and fight soldier!",
+          "data": {
+            "ru": {
+              "original": "Sarge regenerates health when low on hit points. Get back up and fight soldier!",
+              "translation": "\u0421\u0435\u0440\u0436\u0430\u043d\u0442 \u0431\u044b\u0441\u0442\u0440\u043e \u0437\u0430\u043b\u0435\u0447\u0438\u0432\u0430\u0435\u0442 \u0440\u0430\u043d\u044b, \u043a\u043e\u0433\u0434\u0430 \u0443 \u043d\u0435\u0433\u043e \u043e\u0441\u0442\u0430\u0435\u0442\u0441\u044f \u043c\u0430\u043b\u043e \u0437\u0434\u043e\u0440\u043e\u0432\u044c\u044f. \u0412\u0441\u0442\u0430\u0432\u0430\u0439 \u0438 \u0432\u043e\u0437\u0432\u0440\u0430\u0449\u0430\u0439\u0441\u044f \u0432 \u0431\u043e\u0439, \u0441\u043e\u043b\u0434\u0430\u0442!"
+            },
+            "es": {
+              "original": "Sarge regenerates health when low on hit points. Get back up and fight soldier!",
+              "translation": "Regenera su nivel de salud cuando est\u00e1 bajo."
+            },
+            "de": {
+              "original": "Sarge regenerates health when low on hit points. Get back up and fight soldier!",
+              "translation": "Sarges Gesundheit wird wiederhergestellt, wenn sie zu stark absinkt. Aufstehen und weiterk\u00e4mpfen, Soldat!"
+            },
+            "pt": {
+              "original": "Sarge regenerates health when low on hit points. Get back up and fight soldier!",
+              "translation": "Sarge ativa sua fun\u00e7\u00e3o de regenera\u00e7\u00e3o quando seus pontos de vida est\u00e3o baixos. Levante-se e lute, soldado!"
+            },
+            "fr": {
+              "original": "Sarge regenerates health when low on hit points. Get back up and fight soldier!",
+              "translation": "La sant\u00e9 de Sarge se r\u00e9g\u00e9n\u00e8re lorsque son nombre de points de vie est bas. On se rel\u00e8ve et on repart au combat, soldat\u00a0!"
+            }
+          }
+        }
+      },
+      "active_ability": {
+        "icon": "activeability_icon_grenade",
+        "name": {
+          "text": "Frag Grenade",
+          "data": {
+            "ru": {
+              "original": "Frag Grenade",
+              "translation": "\u041e\u0441\u043a\u043e\u043b\u043e\u0447\u043d\u0430\u044f \u0433\u0440\u0430\u043d\u0430\u0442\u0430"
+            },
+            "es": {
+              "original": "Frag Grenade",
+              "translation": "Granada"
+            },
+            "de": {
+              "original": "Frag Grenade",
+              "translation": "Splittergranate"
+            },
+            "pt": {
+              "original": "Frag Grenade",
+              "translation": "Granada de Fragmenta\u00e7\u00e3o"
+            },
+            "fr": {
+              "original": "Frag Grenade",
+              "translation": "Grenade \u00e0 fragmentation"
+            }
+          }
+        },
+        "description": {
+          "text": "Throws a deadly grenade. Fire in the hole! ",
+          "data": {
+            "ru": {
+              "original": "Throws a deadly grenade. Fire in the hole! ",
+              "translation": "\u0413\u0435\u0440\u043e\u0439 \u0431\u0440\u043e\u0441\u0430\u0435\u0442 \u0441\u043c\u0435\u0440\u0442\u043e\u043d\u043e\u0441\u043d\u0443\u044e \u0433\u0440\u0430\u043d\u0430\u0442\u0443. \u0412\u0441\u0435\u043c \u0432 \u0443\u043a\u0440\u044b\u0442\u0438\u0435!"
+            },
+            "es": {
+              "original": "Throws a deadly grenade. Fire in the hole! ",
+              "translation": "Lanza una granada letal."
+            },
+            "de": {
+              "original": "Throws a deadly grenade. Fire in the hole! ",
+              "translation": "Wirf eine t\u00f6dliche Granate. Die Lunte brennt!"
+            },
+            "pt": {
+              "original": "Throws a deadly grenade. Fire in the hole! ",
+              "translation": "Lan\u00e7a uma granada fatal. Fogo!"
+            },
+            "fr": {
+              "original": "Throws a deadly grenade. Fire in the hole! ",
+              "translation": "Lancez une grenade mortelle. \u00c7a va p\u00e9ter\u00a0!"
+            }
+          }
+        }
+      },
+      "steam_guide_link": "https://steamcommunity.com/app/299360/guides/?searchText=&browsefilter=toprated&browsesort=creationorder&requiredtags%5B%5D=-1&requiredtags%5B%5D=-1&requiredtags%5B%5D=Heroes"
+    },
+    "skins": [
+      "skin_sarge_stone_s1",
+      "skin_sarge_stone_s2",
+      "skin_sarge_stone_s3",
+      "skin_sarge_stone_s4",
+      "skin_sarge_stone_s5",
+      "skin_sarge_stone_s6"
+    ],
+    "class": "hero_class_brawn",
+    "gears": [
+      "gear_sarge_stone_shovel",
+      "gear_sarge_stone_m60",
+      "gear_sarge_stone_rocket_launcher"
+    ],
+    "special_devices": [
+      "device_sarge_bomb"
+    ],
+    "default_devices": [
+      "device_block_crate",
+      "device_block_brick",
+      "device_generic_landmine",
+      "device_generic_respawn_point",
+      "device_generic_radar"
+    ],
+    "active_ability_key": "ability_sarge_frag_grenade",
+    "passive": [
+      "effect_hero_sarge_true_grit"
+    ],
+    "ground_acceleration_mod": 1,
+    "crouch_speed": 1,
+    "run_speed": 3.25,
+    "jump_speed": 2,
+    "sprint_speed": 6.5,
+    "swim_speed": 1.5,
+    "swim_sprint_speed": 3,
+    "jump_height": 1.1,
+    "double_jump_height": null,
+    "init_resource_bonus": 1,
+    "force_fall": null,
+    "drown_damage": 20,
+    "unlockables": {},
+    "aim_assist_size": {
+      "x": 2,
+      "y": 2,
+      "z": 2
+    },
+    "aim_assist_ads_size": {
+      "x": 2,
+      "y": 2,
+      "z": 2
+    },
+    "aim_assist_center": {
+      "x": 0,
+      "y": 1,
+      "z": 0
+    },
+    "aim_assist_crouch_size": {
+      "x": 2,
+      "y": 1,
+      "z": 2
+    },
+    "aim_assist_crouch_ads_size": {
+      "x": 2,
+      "y": 1,
+      "z": 2
+    },
+    "aim_assist_crouch_center": {
+      "x": 0,
+      "y": 0.5,
+      "z": 0
+    },
+    "crit_modifier": 0
+  },
+  "category": "unit",
+  "hercules_metadata": {
+    "timestamp": "202609090118096492",
+    "user": "joshmesh",
+    "prev_rev": "9-ab40dce174ffbab4625010e161c173b5"
+  }
+}

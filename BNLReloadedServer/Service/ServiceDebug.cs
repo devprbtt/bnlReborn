@@ -169,6 +169,15 @@ public class ServiceDebug(ISender sender) : IServiceDebug
 
         switch (cmd)
         {
+            case "spawn_test_dummy":
+                if (!BNLReloadedServer.ServerTypes.GameZone.TryParseDummyHealth(args, out _) || GameInstance == null)
+                {
+                    SendExecuteArgs(rpcId, null, "Enter whole-number HP from 1 to 10000000 while in a match");
+                    break;
+                }
+                GameInstance.DebugZoneCommand(sender.AssociatedPlayerId.Value, cmd, args);
+                SendExecuteArgs(rpcId, "success");
+                break;
             case "spawn_blockbuster":
                 SendExecuteArgs(rpcId, "success");
                 GameInstance?.DebugSpawnSupply(args.Count > 0 ? args[0] : null);
