@@ -535,9 +535,11 @@ public class GameLobby : Updater
         List<LobbyMapData> maps;
         lock (_votesLock)
         {
+            if (!BallotOpen) return;
             var map = LobbyData.Maps.FirstOrDefault(map => (map.Info as MapInfoCard)?.MapKey == mapKey);
-            if (map?.PlayerVotes == null) return;
-            if (LobbyData.Maps.Any(m => m.PlayerVotes?.Contains(playerId) == true)) return;
+            if (map?.PlayerVotes == null || map.PlayerVotes.Contains(playerId)) return;
+            // Transfer the existing vote atomically; invalid choices never withdraw it.
+            foreach (var candidate in LobbyData.Maps) candidate.PlayerVotes?.RemoveAll(id => id == playerId);
             map.PlayerVotes.Add(playerId);
             maps = SnapshotMaps();
         }
@@ -767,7 +769,7 @@ public class GameLobby : Updater
         _currentTimer.Value.timer.Dispose();
         _currentTimer = null;
 
-        LobbyData.Timer.TimerType = LobbyTimerType.Requeue;
+        lock (_votesLock) LobbyData.Timer.TimerType = LobbyTimerType.Requeue;
         EnqueueAction(() =>
         {
             var mostVoted = SnapshotMaps().MaxBy(m => m.PlayerVotes?.Count);

@@ -68,6 +68,27 @@ foreach (int size in new[] { 3, 4, 5 })
     lobby.InitializeDraftRoster(roster);
     var data = (LobbyData)Field(lobby, "<LobbyData>k__BackingField")!;
     foreach (var p in roster) lobby.AddPlayer(p.Id, p.Team, null);
+    var mapA = new Key("fixture_map_a"); var mapB = new Key("fixture_map_b");
+    data.Maps.Add(new LobbyMapData {Info=new MapInfoCard{MapKey=mapA},PlayerVotes=[]});
+    data.Maps.Add(new LobbyMapData {Info=new MapInfoCard{MapKey=mapB},PlayerVotes=[]});
+    foreach (var phase in new[]{LobbyTimerType.Wait,LobbyTimerType.Selection,LobbyTimerType.Start})
+    {
+        data.Timer.TimerType=phase;
+        lobby.VoteForMap(1,mapA); lobby.VoteForMap(2,mapA);
+        lobby.VoteForMap(1,mapB);
+        Check(data.Maps[0].PlayerVotes!.SequenceEqual(new uint[]{2}) && data.Maps[1].PlayerVotes!.SequenceEqual(new uint[]{1}),"vote transfers exactly once during "+phase);
+        var snapshot=sent.Last(m=>m.Maps!=null).Maps!;
+        Check(snapshot[0].PlayerVotes!.SequenceEqual(new uint[]{2}) && snapshot[1].PlayerVotes!.SequenceEqual(new uint[]{1}),"changed vote broadcast shows updated totals");
+        int sentCount=sent.Count;
+        lobby.VoteForMap(1,mapB); Check(sent.Count==sentCount && data.Maps[1].PlayerVotes!.Count==1,"same-map click is idempotent");
+        lobby.VoteForMap(1,new Key("invalid_map")); lobby.VoteForMap(999,mapB);
+        Check(data.Maps[1].PlayerVotes!.SequenceEqual(new uint[]{1}),"invalid map and spectator requests preserve valid votes");
+        lobby.VoteForMap(1,mapA);
+        Check(data.Maps[0].PlayerVotes!.Count==2 && data.Maps[1].PlayerVotes!.Count==0 && snapshot[1].PlayerVotes!.Count==1,"switch back works and prior broadcast snapshot remains immutable");
+    }
+    data.Timer.TimerType=LobbyTimerType.Requeue;lobby.VoteForMap(1,mapB);
+    Check(data.Maps[0].PlayerVotes!.Contains(1) && data.Maps[1].PlayerVotes!.Count==0,"closed map ballot rejects changes");
+    data.Timer.TimerType=LobbyTimerType.Wait;
     Expire(lobby, "OnWaitTimerElapsed");
     var draft = (CasualDraft)Field(lobby, "_casualDraft")!;
     Check(draft.Phase == 0 && data.Timer.EndTime - data.Timer.StartTime == 15000, "first 15-second phase");
