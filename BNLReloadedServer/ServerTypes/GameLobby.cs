@@ -254,6 +254,7 @@ public class GameLobby : Updater
     {
         if (_randomHeroes != null && hero != player.Hero) return false;
         if (_casualDraft != null && !CatalogueHelper.GetHeroes().Contains(hero)) return false;
+        if (_casualDraft != null && player.Ready && hero != player.Hero) return false;
         if (hero.GetCard<CardUnit>()?.Data is not UnitDataPlayer || !PlayerInventory.Owns(player.PlayerId, hero)) return false;
         // Only the player whose turn it is may pick, and a locked-in pick stays locked.
         if (IsDraftSelection && (_activeDrafter != player.PlayerId || !player.CanLoadout || player.Ready)) return false;

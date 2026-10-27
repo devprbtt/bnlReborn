@@ -120,6 +120,11 @@ foreach (int size in new[] { 3, 4, 5 })
     Check(replacement.Hero != Key.None && !lobby.BannedHeroes.Contains(replacement.Hero) && replacement.CanLoadout, "backfill receives legal default");
     var old = replacement.Hero; lobby.SwapHero(99, lobby.BannedHeroes.First());
     Check(replacement.Hero == old, "backfill cannot bypass bans");
+    replacement.Ready = true;
+    var canPick = typeof(GameLobby).GetMethod("CanPickHero", Any)!;
+    var alternate = heroes.First(h => h.Key != replacement.Hero).Key;
+    Check(!(bool)canPick.Invoke(lobby, [replacement, alternate])!, "backfill lock rejects queued hero changes before zone transfer");
+    replacement.Ready = false;
     lobby.PlayerReady(99);
     var drained = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously); lobby.EnqueueAction(() => drained.SetResult()); await drained.Task.WaitAsync(TimeSpan.FromSeconds(5));
     Check(replacement.Ready && !replacement.CanLoadout, "backfill lock enters match");
