@@ -1753,44 +1753,7 @@ public partial class GameZone
                 break;
         }
 
-        if (targetUnitCard?.Health?.KillReward is { } reward && killerPlayer is not null && (!reward.Mining || mining))
-        {
-            if (reward.TeamReward is not null && (target.PlayerId == null || killerIsOpponent))
-            {
-                foreach (var player in _playerUnits.Values.Where(p => p.Team == killerPlayer.Team && p != killerPlayer))
-                {
-                    player.AddResource(reward.TeamReward.Value,
-                        target.PlayerId != null ? ResourceType.TeamKill :
-                        isObjective ? ResourceType.Objective : ResourceType.General);
-                }
-            }
-            if (reward.EnemyReward is not null && (target.PlayerId == null
-                    ? killerPlayer.Team != targetTeam
-                    : killerIsOpponent))
-            {
-                killerPlayer.AddResource(reward.EnemyReward.Value,
-                    target.PlayerId != null ? ResourceType.Kill :
-                    isObjective ? ResourceType.Objective :
-                    mining ? ResourceType.Mining : ResourceType.General);
-
-                if (targetUnitCard.Health.Health?.HealthType is HealthType.World)
-                {
-                    killerPlayer.DestroyedBlock(targetUnitCard.DeviceType, reward.EnemyReward.Value);
-                }
-            }
-            else if (reward.PlayerReward is not null)
-            {
-                killerPlayer.AddResource(reward.PlayerReward.Value,
-                    target.PlayerId != null ? ResourceType.Kill :
-                    isObjective ? ResourceType.Objective :
-                    mining ? ResourceType.Mining : ResourceType.General);
-
-                if (targetUnitCard.Health.Health?.HealthType is HealthType.World)
-                {
-                    killerPlayer.DestroyedBlock(targetUnitCard.DeviceType, reward.PlayerReward.Value);
-                }
-            }
-        }
+        AwardKillResources(target, killerPlayer, killerIsOpponent, mining);
 
         if (isObjective)
         {

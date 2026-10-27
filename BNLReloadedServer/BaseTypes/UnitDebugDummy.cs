@@ -4,6 +4,8 @@ namespace BNLReloadedServer.BaseTypes;
 
 public partial class Unit
 {
+    public bool IsTestDummy => Key == DebugDummyRegistration.Key;
+
     private int? _debugDummyMaxHealth;
 
     public void SetDebugDummyHealth(int health)

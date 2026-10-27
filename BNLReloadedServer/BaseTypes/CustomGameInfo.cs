@@ -6,6 +6,7 @@ public class CustomGameInfo
 {
     // Session setting replicated through CustomGameUpdate, not the legacy browser record.
     public bool RandomHeroes { get; set; }
+    public bool TestDummies { get; set; }
     public bool TeamKilling { get; set; }
     public bool TeamSwitching { get; set; }
     // Compatibility for clients with the original combined control.

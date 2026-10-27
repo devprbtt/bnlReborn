@@ -15,9 +15,19 @@ public partial class GameZone
             && health is >= 1 and <= DebugDummyRegistration.MaxHealth;
     }
 
+    private Unit? _livingTestDummy;
+
+    public void ReceivedCustomTestDummy(uint playerId, int health)
+    {
+        if (_gameInitiator is not CustomGamePlayerGroup custom || !custom.GameInfo.TestDummies ||
+            health is < 1 or > DebugDummyRegistration.MaxHealth ||
+            !_playerIdToUnitId.TryGetValue(playerId, out var unitId) || !_playerUnits.TryGetValue(unitId, out var player)) return;
+        SpawnDebugDummy(player, health);
+    }
+
     private void SpawnDebugDummy(Unit player, int health)
     {
-        if (player.IsDead || !player.IsActive || _zoneData.MatchEnded || player.Team == TeamType.Neutral ||
+        if (_livingTestDummy is { IsDead: false, IsDropped: false } || player.IsDead || !player.IsActive || _zoneData.MatchEnded || player.Team == TeamType.Neutral ||
             Databases.Catalogue.GetCard<CardUnit>(DebugDummyRegistration.Key) == null) return;
         var forward = Vector3.Transform(Vector3.UnitZ, player.Transform.GetRotation());
         forward.Y = 0;
@@ -38,5 +48,6 @@ public partial class GameZone
         // No PlayerId/OwnerId: this is a world target, never a connected participant or respawn candidate.
         var dummy = new Unit(NewUnitId(), init, _defaultUnitUpdater);
         dummy.SetDebugDummyHealth(health);
+        _livingTestDummy = dummy;
     }
 }

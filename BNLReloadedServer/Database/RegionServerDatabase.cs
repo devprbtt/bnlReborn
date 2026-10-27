@@ -886,6 +886,13 @@ public partial class RegionServerDatabase(AsyncTaskTcpServer server, AsyncTaskTc
         return true;
     }
 
+    public bool UpdateCustomTestDummies(uint playerId, bool enabled)
+    {
+        if (!UserConnected(playerId, out var playerInfo) || !playerInfo.CustomGameId.HasValue) return false;
+        if (!TryGetCustomGame(playerInfo.CustomGameId.Value, out var customGame)) return false;
+        return customGame.custom.UpdateTestDummies(playerId, enabled);
+    }
+
     public bool UpdateCustomTeamOption(uint playerId, bool switching, bool enabled)
     {
         if (!UserConnected(playerId, out var playerInfo) || !playerInfo.CustomGameId.HasValue) return false;

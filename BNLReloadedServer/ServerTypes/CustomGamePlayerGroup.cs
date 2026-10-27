@@ -290,6 +290,17 @@ public class CustomGamePlayerGroup(IServiceMatchmaker matchService) : IGameIniti
         }
     }
 
+    public bool UpdateTestDummies(uint playerId, bool enabled)
+    {
+        lock (_lock)
+        {
+            if (GameInfo.Status != CustomGameStatus.Preparing || !_players.Any(p => p.Id == playerId && p.Owner)) return false;
+            GameInfo.TestDummies = enabled;
+            Send(BuildUpdate());
+            return true;
+        }
+    }
+
     public bool UpdateTeamOption(uint playerId, bool switching, bool enabled)
     {
         lock (_lock)
@@ -454,7 +465,8 @@ public class CustomGamePlayerGroup(IServiceMatchmaker matchService) : IGameIniti
                 RandomHeroes = GameInfo.RandomHeroes,
                 TeamCombat = GameInfo.TeamCombat,
                 TeamKilling = GameInfo.TeamKilling,
-                TeamSwitching = GameInfo.TeamSwitching
+                TeamSwitching = GameInfo.TeamSwitching,
+                TestDummies = GameInfo.TestDummies
             };
         }
     }
@@ -495,6 +507,7 @@ public class CustomGamePlayerGroup(IServiceMatchmaker matchService) : IGameIniti
     private void Send(CustomGameUpdate? update)
     {
         if (update == null) return;
+        update.TestDummies = GameInfo.TestDummies;
         update.TeamCombat = GameInfo.TeamCombat;
         update.TeamKilling = GameInfo.TeamKilling;
         update.TeamSwitching = GameInfo.TeamSwitching;

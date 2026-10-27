@@ -61,9 +61,9 @@ var sender=DispatchProxy.Create<ISender,Sink>();var wire=(ServiceMatchmaker)Raw(
 wire.SendUpdateCustomGame(group.GetCustomGameUpdate());
 var bytes=((Sink)(object)sender).Bytes!;
 using(var reader=new BinaryReader(new MemoryStream(bytes))){reader.ReadByte();reader.ReadByte();var old=CustomGameUpdate.ReadRecord(reader);
-Check(old.Players?.Count==3&&reader.BaseStream.Length-reader.BaseStream.Position==11,"legacy record remains readable with only an optional tail");
+Check(old.Players?.Count==3&&reader.BaseStream.Length-reader.BaseStream.Position==16,"legacy record remains readable with only an optional tail");
 Check(reader.ReadUInt32()==0x54434D31u&&reader.ReadBoolean(),"new message tail carries enabled flag");
-Check(reader.ReadUInt32()==0x54434D32u && reader.ReadBoolean() && reader.ReadBoolean(), "independent extension carries both flags");}
+Check(reader.ReadUInt32()==0x54434D32u && reader.ReadBoolean() && reader.ReadBoolean(), "independent extension carries both flags");Check(reader.ReadUInt32()==0x44554D31u && !reader.ReadBoolean(), "dummy extension defaults off");}
 foreach (bool killing in new[]{false,true}) foreach(bool switching in new[]{false,true}) {
     group.GameInfo.Status=CustomGameStatus.Preparing;
     Check(!group.UpdateTeamOption(2,false,killing) && !group.UpdateTeamOption(99,true,switching), "independent settings require owner");
@@ -80,6 +80,11 @@ group.UpdateTeamOption(1,false,true); group.UpdateRandomHeroes(1,true);
 Check(group.GameInfo.TeamKilling && !group.GameInfo.TeamSwitching && group.GameInfo.RandomHeroes, "random heroes preserves team killing");
 group.UpdateTeamOption(1,false,false);
 Check(group.GameInfo.RandomHeroes, "team killing toggle preserves random heroes");
+group.GameInfo.Status=CustomGameStatus.Preparing;
+Check(!group.UpdateTestDummies(2,true) && !group.UpdateTestDummies(99,true),"only owner can enable test dummies");
+Check(group.UpdateTestDummies(1,true) && group.GetCustomGameUpdate().TestDummies==true && ((Sink)(object)service).Last?.TestDummies==true,"dummy setting appears in join and live room snapshots");
+group.GameInfo.Status=CustomGameStatus.Match;
+Check(!group.UpdateTestDummies(1,false) && group.GameInfo.TestDummies,"dummy setting is locked after start");
 Console.WriteLine($"Custom team combat: {checks} checks passed.");
 
 public class Sink:DispatchProxy

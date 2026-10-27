@@ -22,7 +22,7 @@ public static class DebugDummyRegistration
         card.Read(new BinaryReader(buffer));
         card.Id = Id; card.Key = Key;
         card.Name = new LocalizedString { Text = "Test Dummy", Data = [] };
-        card.Health = new UnitHealth { Health = new Health { MaxHealth = 1, HealthType = HealthType.Player } };
+        card.Health = new UnitHealth { Health = new Health { MaxHealth = 1, HealthType = HealthType.Player }, KillReward = card.Health?.KillReward };
         card.Loot = null; card.SpawnPoint = null; card.Capturing = null; card.CountLimit = null; card.Lifetime = null;
         card.Labels = [UnitLabel.DestroyOnMatchEnd];
         card.InitEffects = []; card.EnabledEffects = [];

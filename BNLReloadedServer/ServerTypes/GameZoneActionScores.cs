@@ -109,7 +109,7 @@ public partial class GameZone
     {
         if (!CanScore || !target.IsActive) return;
         var position = target.GetMidpoint();
-        if (target.PlayerId != null)
+        if (target.PlayerId != null || target.IsTestDummy)
         {
             if (killer != null && opponent)
             {

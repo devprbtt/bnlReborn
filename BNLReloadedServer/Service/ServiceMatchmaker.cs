@@ -42,7 +42,9 @@ public class ServiceMatchmaker(ISender sender) : IServiceMatchmaker
         MessageChangeWaitingArenaHero = 29,
         MessageSetCustomGameRandomHeroes = 30,
         MessageSetCustomGameTeamCombat = 31,
-        MessageSetCustomGameTeamOption = 32
+        MessageSetCustomGameTeamOption = 32,
+        MessageSetCustomTestDummies = 33,
+        MessageSpawnCustomTestDummy = 34
     }
 
     private readonly IRegionServerDatabase _serverDatabase = Databases.RegionServerDatabase;
@@ -294,6 +296,7 @@ public class ServiceMatchmaker(ISender sender) : IServiceMatchmaker
             writer.Write(update.TeamCombat.Value);
             if (update.TeamKilling.HasValue && update.TeamSwitching.HasValue) {
                 writer.Write(0x54434D32u); writer.Write(update.TeamKilling.Value); writer.Write(update.TeamSwitching.Value);
+                if (update.TestDummies.HasValue) { writer.Write(0x44554D31u); writer.Write(update.TestDummies.Value); }
             }
         }
         sender.Send(writer);
@@ -449,6 +452,15 @@ public class ServiceMatchmaker(ISender sender) : IServiceMatchmaker
                 break;
             case ServiceMatchmakerId.MessageSetCustomGameRandomHeroes:
                 ReceiveSetCustomGameRandomHeroes(reader);
+                break;
+            case ServiceMatchmakerId.MessageSetCustomTestDummies:
+                var dummiesEnabled = reader.ReadBoolean();
+                if (sender.AssociatedPlayerId is { } ownerId) _serverDatabase.UpdateCustomTestDummies(ownerId, dummiesEnabled);
+                break;
+            case ServiceMatchmakerId.MessageSpawnCustomTestDummy:
+                var dummyHealth = reader.ReadInt32();
+                if (sender.AssociatedPlayerId is { } playerId && _serverDatabase.GetGameInstance(playerId) is GameInstance game)
+                    game.SpawnCustomTestDummy(playerId, dummyHealth);
                 break;
             case ServiceMatchmakerId.MessageSetCustomGameTeamOption:
                 var switching = reader.ReadBoolean();
