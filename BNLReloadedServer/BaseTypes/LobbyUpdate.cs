@@ -21,11 +21,12 @@ public class LobbyUpdate
     public Dictionary<TeamType, LobbyTimer>? RequeueTimers { get; set; }
 
     public string? SessionName { get; set; }
+    public string? CasualDraft { get; set; }
 
     public void Write(BinaryWriter writer)
     {
         new BitField(MatchMode.HasValue, GameMode.HasValue, Maps != null, Started.HasValue, Timer != null,
-          Players != null, RequeuePlayers != null, RequeueTimers != null, SessionName != null).Write(writer);
+          Players != null, RequeuePlayers != null, RequeueTimers != null, SessionName != null, CasualDraft != null).Write(writer);
         if (MatchMode.HasValue)
             Key.WriteRecord(writer, MatchMode.Value);
         if (GameMode.HasValue)
@@ -42,14 +43,13 @@ public class LobbyUpdate
             writer.WriteMap(RequeuePlayers, writer.WriteByteEnum, item => writer.WriteList(item, writer.Write));
         if (RequeueTimers != null)
             writer.WriteMap(RequeueTimers, writer.WriteByteEnum, LobbyTimer.WriteRecord);
-        if (SessionName == null)
-            return;
-        writer.Write(SessionName);
+        if (SessionName != null) writer.Write(SessionName);
+        if (CasualDraft != null) writer.Write(CasualDraft);
     }
 
     public void Read(BinaryReader reader)
     {
-        var bitField = new BitField(9);
+        var bitField = new BitField(10);
         bitField.Read(reader);
         MatchMode = bitField[0] ? Key.ReadRecord(reader) : null;
         GameMode = bitField[1] ? Key.ReadRecord(reader) : null;
@@ -60,6 +60,7 @@ public class LobbyUpdate
         RequeuePlayers = bitField[6] ? reader.ReadMap<TeamType, List<uint>, Dictionary<TeamType, List<uint>>>(reader.ReadByteEnum<TeamType>, () => reader.ReadList<uint, List<uint>>(reader.ReadUInt32)) : null;
         RequeueTimers = bitField[7] ? reader.ReadMap<TeamType, LobbyTimer, Dictionary<TeamType, LobbyTimer>>(reader.ReadByteEnum<TeamType>, LobbyTimer.ReadRecord) : null;
         SessionName = bitField[8] ? reader.ReadString() : null;
+        CasualDraft = bitField[9] ? reader.ReadString() : null;
     }
 
     public static void WriteRecord(BinaryWriter writer, LobbyUpdate value) => value.Write(writer);

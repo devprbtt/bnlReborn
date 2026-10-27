@@ -47,3 +47,10 @@ Generate a separate catalogue unit cloned from Sarge presentation, with player h
 ## 2026-10-27 — Atomic hero milestone claims and wallets
 
 Persist integer Gold/Platinum balances on Users, initialized to zero, and use a separate unique claim row for each player/hero/milestone. Apply rewards to all earned but unclaimed levels, so multi-level gains and retroactive grants share the same idempotent path. Commit claims and balances with progression in one SQLite transaction. A per-player match-result guard prevents duplicate delivery from replaying switched-hero XP into additional milestones. Client balances use existing PlayerUpdate.Currency; internal master/region PlayerData adds a wallet field, so server components must update together. Do not derive real balances from the former hardcoded test values.
+
+
+## 2026-10-27 — Casual draft authority and class feasibility
+
+Use the existing server lobby queue and timers for casual bans and snake picks, with an explicit phase number in every vote. Reserve the accepted roster before loading, count one final vote per authenticated member, and reject stale/late inputs. Keep class minimums per team for initial 4v4/5v5 rosters; do not infer size from the four-player catalogue card because automatic casual can be 5v5. Preserve vacancy capacity during backfill. Require a complete feasible lineup for both teams before accepting any hero or exposing a ban candidate; public pools use class-capacity allocation and restricted inventories use exact ownership search. Keep ranked/clan draft ordering unchanged.
+
+Use an optional LobbyUpdate JSON snapshot at bit 9 and lobby request 20 for phase-scoped ban votes, with coordinated client/server publication. Reconnects use the normal full lobby snapshot rather than reconstructing client state. Author UI adapters under compatibility/runtime-session and install through tools/Install-CasualDraft.ps1 with staged copies and hashes. No production deployment is part of this implementation request.

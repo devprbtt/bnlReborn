@@ -22,6 +22,9 @@ public class GameLobby : Updater
     private readonly RandomHeroRoster? _randomHeroes;
     private uint[]? _draftOrder;
     private uint? _activeDrafter;
+    private CasualDraft? _casualDraft;
+    private readonly HashSet<uint> _casualBackfillPickers = [];
+    private readonly HashSet<TeamType> _casualMinimumTeams = [];
 
     private readonly IPlayerDatabase _playerDatabase = Databases.PlayerDatabase;
     private readonly IServiceLobby _serviceLobby;
@@ -34,6 +37,7 @@ public class GameLobby : Updater
         _gameInstance = gameInstance;
         LobbyData = new LobbyData();
         var gameCard = Databases.Catalogue.GetCard<CardGameMode>(gameModeKey);
+        if (gameCard?.Id == "game_mode_friendly" && randomHeroes == null) _casualDraft = new CasualDraft();
         var timer = gameCard?.LobbyMode switch
         {
             LobbyModeFreePick lobbyFree => new LobbyTimer
@@ -100,7 +104,13 @@ public class GameLobby : Updater
     {
         if (LobbyData.GameMode?.LobbyMode is not LobbyModeDraftPick) return;
         var players=roster.ToArray();
-        _draftOrder=RankedSnakeDraft.Order(players, Random.Shared.Next(2)==0);
+        _draftOrder = _casualDraft != null ? CasualDraft.Order(players, Random.Shared) : RankedSnakeDraft.Order(players, Random.Shared.Next(2)==0);
+        if (_casualDraft != null)
+            foreach (var team in players.GroupBy(p => p.Team))
+            {
+                _casualTeamSizes[team.Key] = team.Count();
+                if (team.Count() is 4 or 5) _casualMinimumTeams.Add(team.Key);
+            }
         foreach (var player in players)
         {
             AddPlayer(player.Id,player.Team,null);
@@ -140,6 +150,17 @@ public class GameLobby : Updater
                 DeviceLevels = deviceLevels
             };
             LobbyData.Players.TryAdd(playerId, playerState);
+            if (_casualDraft != null && LobbyData.Timer.TimerType == LobbyTimerType.Requeue)
+            {
+                _casualBackfillPickers.Add(playerId);
+                playerState.Hero = DraftDefaultHero(playerState, RestrictedHeroesFor(playerState));
+                var replacementLoadout = _playerDatabase.GetLoadoutForHero(playerId, playerState.Hero);
+                playerState.Devices = replacementLoadout.Devices;
+                playerState.Perks = replacementLoadout.Perks;
+                playerState.SkinKey = replacementLoadout.SkinKey;
+                playerState.Ready = false;
+                playerState.CanLoadout = true;
+            }
         }
         else if (value != null)
         {
@@ -194,6 +215,7 @@ public class GameLobby : Updater
         else
         {
             LobbyData.Players.Remove(playerId, out _);
+            if (_casualDraft != null) _casualBackfillPickers.Remove(playerId);
         }
         lobbyService?.SendClearLobby();
         SendLobbyUpdate(players: LobbyData.Players.Values.ToList(), maps: WithdrawVote(playerId));
@@ -231,10 +253,12 @@ public class GameLobby : Updater
     private bool CanPickHero(PlayerLobbyState player, Key hero)
     {
         if (_randomHeroes != null && hero != player.Hero) return false;
+        if (_casualDraft != null && !CatalogueHelper.GetHeroes().Contains(hero)) return false;
         if (hero.GetCard<CardUnit>()?.Data is not UnitDataPlayer || !PlayerInventory.Owns(player.PlayerId, hero)) return false;
         // Only the player whose turn it is may pick, and a locked-in pick stays locked.
         if (IsDraftSelection && (_activeDrafter != player.PlayerId || !player.CanLoadout || player.Ready)) return false;
-        if (!IsDraftSelection && LobbyData.GameMode?.LobbyMode is LobbyModeDraftPick && hero != player.Hero) return false;
+        if (!IsDraftSelection && LobbyData.GameMode?.LobbyMode is LobbyModeDraftPick &&
+            !(_casualDraft != null && _casualBackfillPickers.Contains(player.PlayerId)) && hero != player.Hero) return false;
         return !RestrictedHeroesFor(player).Contains(hero);
     }
 
@@ -249,6 +273,8 @@ public class GameLobby : Updater
         if (_randomHeroes != null) return CatalogueHelper.GetHeroes().Where(h => h != player.Hero).ToList();
         var limit = LobbyData.GameMode?.HeroLimit;
         var unavailable = BannedHeroes.ToList();
+        if (_casualDraft != null)
+            unavailable.AddRange(CatalogueHelper.GetHeroes().Where(h => !CasualCanComplete(player.PlayerId, h)));
         if (LobbyData.GameMode?.LobbyMode is LobbyModeDraftPick)
             unavailable.AddRange(LobbyData.Players.Values.Where(p => p.PlayerId != player.PlayerId && p.Hero != Key.None).Select(p => p.Hero));
         if (limit?.Limit is not { } max) return unavailable.Distinct().ToList();
@@ -320,6 +346,64 @@ public class GameLobby : Updater
         }
         RefreshRestrictions();
     }
+
+    private bool CasualCanComplete(uint? player = null, Key? pick = null, Key? ban = null)
+    {
+        var heroes = CatalogueHelper.GetHeroes().Where(h => !BannedHeroes.Contains(h) && h != ban)
+            .Select(h => new CasualDraft.Hero(h, HeroClass(h) ?? Key.None)).ToArray();
+        var seats = LobbyData.Players.Values.Select(p => new CasualDraft.Seat(p.PlayerId, p.Team,
+            p.PlayerId == player ? pick ?? Key.None : p.Hero)).ToList();
+        // A running match may temporarily have vacant seats. Preserve room for their replacements.
+        if (LobbyData.Timer.TimerType == LobbyTimerType.Requeue)
+            foreach (var team in _casualMinimumTeams)
+                for (int n = seats.Count(s => s.Team == team); n < _casualTeamSizes.GetValueOrDefault(team); n++)
+                    seats.Add(new CasualDraft.Seat(uint.MaxValue - (uint)seats.Count, team, Key.None));
+        return CasualDraft.CanComplete(seats, heroes, (id, h) =>
+            id > uint.MaxValue - 20 ? h.GetCard<CardUnit>()?.Scope != ScopeType.Private : PlayerInventory.Owns(id, h), _casualMinimumTeams);
+    }
+
+    private readonly Dictionary<TeamType, int> _casualTeamSizes = [];
+
+    public void VoteHeroBan(uint playerId, int phase, Key hero)
+    {
+        if (_casualDraft is not { Voting: true } draft ||
+            !LobbyData.Players.TryGetValue(playerId, out var player) || player.Status != LobbyStatus.Online ||
+            !draft.Vote(playerId, phase, hero, DateTimeOffset.UtcNow.ToUnixTimeMilliseconds())) return;
+        if (LobbyData.Players.Keys.All(draft.Votes.ContainsKey) && _currentTimer.HasValue)
+            OnWaitTimerElapsed(_currentTimer.Value.timer, new ElapsedEventArgs(DateTime.Now));
+        else SendLobbyUpdate();
+    }
+
+    private bool AdvanceCasualBans()
+    {
+        if (_casualDraft == null || _casualDraft.Phase >= 3) return false;
+        if (_casualDraft.Voting) BannedHeroes.Add(_casualDraft.Winner(Random.Shared));
+        int phase = _casualDraft.Phase + 1;
+        if (phase == 3) { _casualDraft.Finish(); return false; }
+        var candidates = CatalogueHelper.GetHeroes().Where(h => HeroClass(h) == CasualDraft.Classes[phase] &&
+            !BannedHeroes.Contains(h) && CasualCanComplete(ban: h)).ToArray();
+        if (candidates.Length == 0)
+        {
+            Log.Error(LogCat.Match, "Casual draft cannot form a legal roster after bans; cancelling " + LobbyData.SessionName);
+            _gameInstance.RemoveAllPlayers();
+            return true;
+        }
+        long now = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+        _casualDraft.Begin(phase, candidates, now);
+        LobbyData.Timer = new LobbyTimer { TimerType = LobbyTimerType.Wait, StartTime = (ulong)now, EndTime = (ulong)_casualDraft.Deadline };
+        SendLobbyUpdate(timer: LobbyData.Timer, players: LobbyData.Players.Values.ToList());
+        SetUpTimerEvent();
+        return true;
+    }
+
+    private string? CasualSnapshot() => _casualDraft == null ? null : System.Text.Json.JsonSerializer.Serialize(new
+    {
+        phase = _casualDraft.Phase, deadline = _casualDraft.Deadline,
+        candidates = _casualDraft.Candidates.Select(h => h.Hash), banned = BannedHeroes.Select(h => h.Hash),
+        votes = _casualDraft.Votes.Select(v => new { player = v.Key, hero = v.Value.Hash }),
+        order = _draftOrder ?? [], active = _activeDrafter ?? 0,
+        minimumClasses = _casualMinimumTeams.Count > 0
+    });
 
     private void RefreshRestrictions()
     {
@@ -578,7 +662,8 @@ public class GameLobby : Updater
                 Players = players,
                 RequeuePlayers = requeuePlayers,
                 RequeueTimers = requeueTimers,
-                SessionName = sessionName
+                SessionName = sessionName,
+                CasualDraft = CasualSnapshot()
             });
     }
 
@@ -593,7 +678,8 @@ public class GameLobby : Updater
             Players = LobbyData.Players.Values.ToList(),
             RequeuePlayers = LobbyData.RequeuePlayers,
             RequeueTimers = LobbyData.RequeueTimers,
-            SessionName = LobbyData.SessionName
+            SessionName = LobbyData.SessionName,
+            CasualDraft = CasualSnapshot()
         };
 
     private void OnWaitTimerElapsed(object? sender, ElapsedEventArgs e)
@@ -604,6 +690,8 @@ public class GameLobby : Updater
         _currentTimer = null;
 
         if (LobbyData.GameMode?.LobbyMode == null) return;
+
+        if (AdvanceCasualBans()) return;
 
         LobbyData.Timer.TimerType = LobbyTimerType.Selection;
         LobbyData.Timer.StartTime = (ulong)DateTimeOffset.Now.ToUnixTimeMilliseconds();
@@ -713,6 +801,11 @@ public class GameLobby : Updater
             if (LobbyData.Players.TryGetValue(playerId, out var player))
             {
                 player.Ready = true;
+                if (_casualDraft != null)
+                {
+                    player.CanLoadout = false;
+                    _casualBackfillPickers.Remove(playerId);
+                }
             }
 
             if (LobbyData.RequeuePlayers.TryGetValue(LobbyData.GetPlayerTeam(playerId), out var requeuePlayers))

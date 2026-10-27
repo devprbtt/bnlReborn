@@ -29,7 +29,8 @@ public class ServiceLobby(ISender sender) : IServiceLobby
         MessageRequeueAsTeam = 16,
         MessageExitToMenu = 17,
         MessageExitToCustomGame = 18,
-        MessageExitToMenuAsSquad = 19
+        MessageExitToMenuAsSquad = 19,
+        MessageVoteHeroBan = 20
     }
 
     private readonly IRegionServerDatabase _serverDatabase = Databases.RegionServerDatabase;
@@ -209,6 +210,12 @@ public class ServiceLobby(ISender sender) : IServiceLobby
 
         switch (lobbyEnum)
         {
+            case ServiceLobbyId.MessageVoteHeroBan:
+                var phase = reader.ReadInt32();
+                var hero = Key.ReadRecord(reader);
+                if (sender.AssociatedPlayerId is { } voter && GameInstance is GameInstance instance && instance.Lobby is { } lobby)
+                    lobby.EnqueueAction(() => lobby.VoteHeroBan(voter, phase, hero));
+                break;
             case ServiceLobbyId.MessageSwitchHero:
                 ReceiveSwitchHero(reader);
                 break;

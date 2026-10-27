@@ -228,7 +228,7 @@ lobby.PlayerReady(waiting.PlayerId);
 Check(!waiting.Ready,"out-of-turn Block In cannot advance the draft");
 var casualDraft=new CardGameMode { Ranking=GameRankingType.Friendly, LobbyMode=new LobbyModeDraftPick { PrestartTime=5, ReconnectSelectionTime=30 }};
 RankedDraftRegistration.Register([casualDraft,ranked]);
-Check(casualDraft.LobbyMode is LobbyModeFreePick && ranked.LobbyMode is LobbyModeDraftPick,"casual uses free pick while ranked retains draft");
+Check(casualDraft.LobbyMode is LobbyModeFreePick && ranked.LobbyMode is LobbyModeDraftPick,"other friendly modes retain free pick while ranked retains draft");
 
 // Exercise real lobby transitions across ten turns, mixing manual Block In and timer expiry.
 var fullHeroes=Enumerable.Range(0,15).Select(i=>Hero("snake_hero_"+i,new[]{attack,defense,support}[i/5])).ToArray();
