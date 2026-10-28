@@ -23,7 +23,7 @@ SKINS = [
     ("hunter_walnut_rifle", "Walnut Rifle", "Hand-finished burl walnut with polished brass fittings."),
     ("hunter_blackout", "Blackout Rifle", "Matte black rifle with a dark steel finish."),
     ("hunter_blackout_revolver", "Blackout Revolver", "Old School Nigel's school revolver in matte black."),
-    ("hunter_blackout_cricket_bat", "Blackout Cricket Bat", "Old School Nigel's cricket bat, blacked out."),
+    ("hunter_blackout_cricket_bat", "Blackout Cricket Bat", "Old School Nigel's cricket bat in brushed steel with a black carbon grip."),
 ]
 # Existing documents this run may change (the 2026-10-28 Blackout split); every other difference is refused.
 UPDATE = {"skin_weapon_hunter_blackout", "shop_item_skin_weapon_hunter_blackout"}
