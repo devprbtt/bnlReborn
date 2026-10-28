@@ -49,6 +49,9 @@ public sealed class ReplayInstance : GameInstanceBase
     private int _barrierSequence;
     private readonly List<(int Id, TaskCompletionSource<bool> Completion)> _barriers = [];
     private bool _presentationReady;
+    private bool _rewindInPlace;
+    private bool _rewindPending;
+    private ReplayWorld _world = new();
     private readonly int _seekWindow;
 
     private int _generation;
@@ -126,9 +129,16 @@ public sealed class ReplayInstance : GameInstanceBase
         Send(_initZone.Data);
     }
 
-    public void EnableControls(uint playerId, bool acknowledgedSeeking = false, bool presentationReady = false)
+    public void EnableControls(uint playerId, bool acknowledgedSeeking = false, bool presentationReady = false,
+        bool rewindInPlace = false)
     {
-        if (playerId == _viewerId) { _controls = true; _acknowledgedSeeking = acknowledgedSeeking; _presentationReady = presentationReady; }
+        if (playerId != _viewerId) return;
+        _controls = true;
+        _acknowledgedSeeking = acknowledgedSeeking;
+        _presentationReady = presentationReady;
+        // In-place rewind relies on acknowledged batches to know when the
+        // rebuilt state is visible.
+        _rewindInPlace = rewindInPlace && acknowledgedSeeking;
     }
 
     private long Position => Math.Min(_timeline.DurationMs, _position + _clock.ElapsedMilliseconds);
@@ -174,10 +184,18 @@ public sealed class ReplayInstance : GameInstanceBase
             _clock.Reset();
             _seekTarget = target;
             _seeking = true;
-            // Forward catch-up can continue from the existing reader/world.
-            // Only rewind requires reconstructing from the initial snapshot.
+            // Forward catch-up continues from the existing reader/world.
             if (target >= _position)
             {
+                SendState();
+                return;
+            }
+            // Capability 12 rewinds by removing what the client holds and
+            // rebuilding the target state in the loaded scene. End-of-match
+            // state has no packet that reverts it, so that case reloads.
+            if (_rewindInPlace && !_world.Ended)
+            {
+                _rewindPending = true;
                 SendState();
                 return;
             }
@@ -216,6 +234,8 @@ public sealed class ReplayInstance : GameInstanceBase
             _streaming = 1;
             _position = 0;
             _clock.Reset();
+            _world = new ReplayWorld(); // the client loaded a fresh scene
+            _rewindPending = false;
             if (_presentationReady && !_seeking)
             {
                 _seekTarget = _timeline.FirstPlayableOffset;
@@ -224,7 +244,7 @@ public sealed class ReplayInstance : GameInstanceBase
             if (!_seeking && !_paused) _clock.Start();
             SetClock();
             SendState();
-            Send(_load.Data);
+            SendTracked(_load.Data);
             _playback = CancellationTokenSource.CreateLinkedTokenSource(_stop.Token);
             int generation = _generation;
             var cancellation = _playback;
@@ -232,39 +252,96 @@ public sealed class ReplayInstance : GameInstanceBase
         }
     }
 
+    private ReplayReader OpenAfterKeyframe()
+    {
+        var reader = new ReplayReader(_path);
+        reader.Next(); reader.Next(); // InitZone and join snapshot were sent by the join handshake.
+        return reader;
+    }
+
     private async Task StreamAsync(int generation, CancellationTokenSource cancellation)
     {
         var token = cancellation.Token;
+        var reader = OpenAfterKeyframe();
         try
         {
-            using var reader = new ReplayReader(_path);
-            reader.Next(); reader.Next(); // InitZone and join snapshot were sent by the join handshake.
             var next = reader.Next();
-            int batchBytes = 0, batchRecords = 0;
             long lastState = 0;
             var updates = Stopwatch.StartNew();
-            while (next != null)
+            bool ended = false, endShown = false;
+            while (true)
             {
-                bool delivered = false, catchup = false, finishSeek = false;
+                long target = -1;
+                ReplayWorld? rewind = null;
                 lock (_gate)
                 {
                     token.ThrowIfCancellationRequested();
                     if (_seeking)
                     {
-                        if (next.Kind == MatchRecorder.KindEnd || next.OffsetMs > _seekTarget) finishSeek = true;
-                        else
-                        {
-                            _position = next.OffsetMs;
-                            SendState();
-                            if (next.Kind == MatchRecorder.KindStream) Send(next.Data);
-                            delivered = catchup = true;
-                        }
+                        target = _seekTarget;
+                        if (_rewindPending) rewind = _world;
+                        _rewindPending = false;
                     }
-                    else if (!_paused && next.OffsetMs <= Position)
+                }
+                if (target >= 0)
+                {
+                    var timer = Stopwatch.StartNew();
+                    var catchUp = new ReplayCatchUp();
+                    if (rewind != null)
                     {
-                        if (next.Kind == MatchRecorder.KindEnd) break;
-                        if (next.Kind == MatchRecorder.KindStream) Send(next.Data);
-                        delivered = true;
+                        // Rebuild from the keyframe: remove what the client
+                        // holds, replay the join snapshot, then the stream.
+                        reader.Dispose();
+                        reader = OpenAfterKeyframe();
+                        next = reader.Next();
+                        catchUp.Add(rewind.RemovalFrames());
+                        catchUp.Add(_load!.Data);
+                    }
+                    int read = 0;
+                    while (next != null && next.Kind != MatchRecorder.KindEnd && next.OffsetMs <= target)
+                    {
+                        if (next.Kind == MatchRecorder.KindStream) catchUp.Add(next.Data);
+                        next = reader.Next();
+                        if ((++read & 1023) == 0) token.ThrowIfCancellationRequested();
+                    }
+                    if (rewind != null && _initZone != null)
+                    {
+                        var touched = rewind.Blocks.Where(p => !catchUp.HasBlock(p)).ToList();
+                        if (touched.Count > 0) catchUp.RestoreBlocks(ReplayWorld.KeyframeBlocks(_initZone.Data, touched));
+                    }
+                    await DeliverCatchUpAsync(catchUp, target, rewind != null, timer, token);
+                    ended = endShown = false;
+                    continue;
+                }
+                if (ended || next == null)
+                {
+                    if (!_controls) break;
+                    if (!endShown)
+                    {
+                        lock (_gate)
+                        {
+                            token.ThrowIfCancellationRequested();
+                            _position = _timeline.DurationMs;
+                            _clock.Reset();
+                            _paused = true;
+                            SetClock(); SendState();
+                        }
+                        endShown = true;
+                    }
+                    // Keep the viewer in the replay, still serving seeks, so
+                    // they can rewind after the final frame.
+                    await Task.Delay(10, token);
+                    continue;
+                }
+                bool delivered = false;
+                lock (_gate)
+                {
+                    token.ThrowIfCancellationRequested();
+                    if (!_seeking && !_paused && next.OffsetMs <= Position)
+                    {
+                        if (next.Kind == MatchRecorder.KindEnd) ended = true;
+                        else if (next.Kind == MatchRecorder.KindStream) SendTracked(next.Data);
+                        delivered = !ended;
                     }
                     if (!_seeking && _controls && updates.ElapsedMilliseconds - lastState >= 500)
                     {
@@ -272,54 +349,62 @@ public sealed class ReplayInstance : GameInstanceBase
                         lastState = updates.ElapsedMilliseconds;
                     }
                 }
-                if (catchup)
-                {
-                    batchBytes += next.Data.Length;
-                    if (batchBytes >= 32 * 1024 || ++batchRecords >= 128)
-                    {
-                        await DrainSeekBatchAsync(token);
-                        batchBytes = batchRecords = 0;
-                    }
-                }
-                if (finishSeek)
-                {
-                    await DrainSeekBatchAsync(token, true);
-                    lock (_gate)
-                    {
-                        token.ThrowIfCancellationRequested();
-                        _position = _seekTarget;
-                        _seeking = false;
-                        _clock.Reset();
-                        if (!_paused) _clock.Start();
-                        SetClock(); SendState();
-                    }
-                    batchBytes = batchRecords = 0;
-                }
                 if (delivered) next = reader.Next();
-                else if (!finishSeek) await Task.Delay(10, token);
+                else await Task.Delay(10, token);
             }
-            if (_controls)
-            {
-                lock (_gate)
-                {
-                    token.ThrowIfCancellationRequested();
-                    _position = _timeline.DurationMs;
-                    _clock.Reset();
-                    _paused = true;
-                    SetClock(); SendState();
-                }
-                // Keep the viewer in the replay so they can rewind after the final frame.
-                await Task.Delay(Timeout.Infinite, token);
-            }
-            else await Task.Delay(EndHold, token);
+            await Task.Delay(EndHold, token);
         }
         catch (OperationCanceledException) { return; }
         catch (Exception exception)
         {
             Log.Warn(LogCat.Match, $"Replay playback failed: {MatchId} for {_viewerId}: {exception.Message}");
         }
-        finally { lock (_gate) { if (ReferenceEquals(_playback, cancellation)) _playback = null; cancellation.Dispose(); } }
+        finally
+        {
+            reader.Dispose();
+            lock (_gate) { if (ReferenceEquals(_playback, cancellation)) _playback = null; cancellation.Dispose(); }
+        }
         lock (_gate) { if (generation == _generation) End(); }
+    }
+
+    // Sends a seek's folded state in bounded, acknowledged chunks. The clock
+    // moves to the target first so absolute timestamps in the state (cooldown
+    // ends, respawns, phase times) are applied against the time they describe.
+    private async Task DeliverCatchUpAsync(ReplayCatchUp catchUp, long target, bool rewind, Stopwatch timer,
+        CancellationToken token)
+    {
+        var chunks = catchUp.Build();
+        long from;
+        lock (_gate)
+        {
+            token.ThrowIfCancellationRequested();
+            from = _position;
+            _position = target;
+            SendState();
+        }
+        long folded = timer.ElapsedMilliseconds;
+        foreach (var chunk in chunks)
+        {
+            lock (_gate)
+            {
+                token.ThrowIfCancellationRequested();
+                SendTracked(chunk);
+            }
+            await DrainSeekBatchAsync(token);
+        }
+        await DrainSeekBatchAsync(token, true);
+        lock (_gate)
+        {
+            token.ThrowIfCancellationRequested();
+            _position = _seekTarget;
+            _seeking = false;
+            _clock.Reset();
+            if (!_paused) _clock.Start();
+            SetClock(); SendState();
+        }
+        Log.Info(LogCat.Match, $"Replay seek {MatchId} for {_viewerId}: {from / 1000.0:F1}s -> {target / 1000.0:F1}s" +
+            $"{(rewind ? " (in-place rewind)" : "")}, {catchUp.InputPackets} -> {catchUp.OutputPackets} packets, " +
+            $"{catchUp.OutputBytes / 1024} KiB, folded {folded} ms, visible {timer.ElapsedMilliseconds} ms");
     }
 
     private async Task DrainSeekBatchAsync(CancellationToken token, bool final = false)
@@ -354,6 +439,13 @@ public sealed class ReplayInstance : GameInstanceBase
     private void Send(byte[] framed)
     {
         if (_viewerSession is { } session) _host.SendToSession(session, framed);
+    }
+
+    // World-changing packets also update the record of what the client holds.
+    private void SendTracked(byte[] framed)
+    {
+        _world.Observe(framed);
+        Send(framed);
     }
 
     public override void PlayerLeftInstance(uint userId, KickReason reason)
