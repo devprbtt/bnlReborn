@@ -28,6 +28,7 @@ try {
     Check(WeaponSkinSelections.Validate(owner,K("skin_hunter_s1"),K("skin_hunter_arctic_wolf_private"))==WeaponSkinChange.NotWeaponSkin,"a character skin is not a weapon skin");
     Check(WeaponSkinSelections.Validate(owner,K("skin_weapon_hunter_blackout"),K("skin_weapon_hunter_ice_rifle"))==WeaponSkinChange.UnknownSkin,"a weapon skin cannot host another");
     Check(WeaponSkinSelections.Validate(owner,new Key("skin_missing"),K("skin_weapon_hunter_ice_rifle"))==WeaponSkinChange.UnknownSkin,"unknown character skin refused");
+    Check(!PlayerInventory.CanEquipSkin(owner,K("unit_hero_hunter"),K("skin_weapon_hunter_ice_rifle")) && PlayerInventory.CanEquipSkin(owner,K("unit_hero_hunter"),K("skin_hunter_arctic_wolf_private")),"an owned weapon skin cannot be worn as the hero skin");
 
     using(var db=new SQLiteConnection(path)){db.CreateTable<PlayerRecord>();db.CreateTable<WeaponSkinSelectionRecord>();}
     var asyncDb=new SQLiteAsyncConnection(path);

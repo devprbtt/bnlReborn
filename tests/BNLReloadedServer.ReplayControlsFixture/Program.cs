@@ -98,6 +98,10 @@ try {
     int count=host.Packets.Count;await Task.Delay(80);
     Check(replay.IsOver() && host.Ends==1 && host.Packets.Count==count,"leaving cancels streaming and cleans up once");
     replay.PlayerDisconnected(7);Check(host.Ends==1,"disconnect after leave is idempotent");
+    var folded=new ZoneUpdate{ActionScoresJson="old",WeaponSkinsJson="{\"1\":{}}"};
+    ReplayCatchUp.Merge(folded,new ZoneUpdate{WeaponSkinsJson="{\"1\":{\"skin_hunter_s1\":\"skin_weapon_hunter_ice_rifle\"}}"});
+    ReplayCatchUp.Merge(folded,new ZoneUpdate{ActionScoresJson="new"});
+    Check(folded.ActionScoresJson=="new" && folded.WeaponSkinsJson!.Contains("ice_rifle"),"folded seeks keep the latest action scores and weapon skins");
     var ackHost=new Host();var ackReplay=Track(new ReplayInstance(ackHost,path,"ack",7));
     ackReplay.EnableControls(7,true);ackReplay.LinkGuidToPlayer(7,Guid.NewGuid(),Guid.NewGuid());
     ackReplay.PlayerEnterScene(7);ackReplay.PlayerZoneReady(7);ackReplay.Control(7,1,0);

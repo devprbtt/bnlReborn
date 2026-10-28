@@ -352,6 +352,8 @@ public sealed class ReplayCatchUp
         if (from.ConquestStateJson != null) into.ConquestStateJson = from.ConquestStateJson;
         if (from.BlockOwnersJson != null) into.BlockOwnersJson = from.BlockOwnersJson;
         if (from.WeatherStartTime.HasValue) into.WeatherStartTime = from.WeatherStartTime;
+        if (from.ActionScoresJson != null) into.ActionScoresJson = from.ActionScoresJson;
+        if (from.WeaponSkinsJson != null) into.WeaponSkinsJson = from.WeaponSkinsJson;
     }
 
     private bool MergeBlocks(byte[] record, int start, int size)

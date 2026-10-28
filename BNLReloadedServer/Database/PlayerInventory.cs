@@ -20,9 +20,10 @@ public static class PlayerInventory
         item.GetCard<Card>() is { } card &&
         (!RequiresGrant(card) || (Grants.TryGetValue(playerId, out var owned) && owned.Contains(item)));
 
-    /// <summary>A skin is wearable when the player owns it and it belongs to that hero. No skin is always allowed.</summary>
+    /// <summary>A skin is wearable when the player owns it and it belongs to that hero. No skin is always allowed.
+    /// Weapon skins have no hero model, so they are never worn as the character skin.</summary>
     public static bool CanEquipSkin(uint playerId, Key hero, Key skin) =>
-        skin == Key.None || (skin.GetCard<CardSkin>() is { } card && card.HeroKey == hero && Owns(playerId, skin));
+        skin == Key.None || (skin.GetCard<CardSkin>() is { } card && card.HeroKey == hero && !WeaponSkinSelections.IsWeaponSkin(card) && Owns(playerId, skin));
 
     /// <summary>The requested skin if wearable, otherwise the hero's first skin the player owns.</summary>
     public static Key SafeSkin(uint playerId, Key hero, Key skin)
