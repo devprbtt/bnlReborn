@@ -53,6 +53,7 @@ public interface IMasterServerDatabase
     public Task<InventoryChange> GrantItem(uint playerId, string itemId, string grantedBy, string? note);
     public Task<PurchaseResult> PurchaseShopItem(uint playerId, Key shopItem, bool real);
     public Task<WeaponSkinChange> SetWeaponSkin(uint playerId, Key characterSkin, Key weaponSkin);
+    public Task<WeaponSkinChange> SetWeaponSkins(uint playerId, Key characterSkin, IReadOnlyList<Key> weaponSkins);
     public Task<InventoryChange> RevokeItem(uint playerId, string itemId);
 
 }

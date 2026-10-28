@@ -321,10 +321,15 @@ public class MasterServerDatabase : IMasterServerDatabase
         return PurchaseResult.Purchased;
     }
 
-    /// <summary>Saves (or clears, with Key.None) the weapon skin a player wears with one character skin.</summary>
-    public async Task<WeaponSkinChange> SetWeaponSkin(uint playerId, Key characterSkin, Key weaponSkin)
+    /// <summary>Saves (or clears, with Key.None) a single weapon skin for one character skin: the whole list becomes it.</summary>
+    public Task<WeaponSkinChange> SetWeaponSkin(uint playerId, Key characterSkin, Key weaponSkin) =>
+        SetWeaponSkins(playerId, characterSkin, weaponSkin == Key.None ? [] : [weaponSkin]);
+
+    /// <summary>Saves (or clears, with an empty list) the weapon skins a player wears with one character skin.</summary>
+    public async Task<WeaponSkinChange> SetWeaponSkins(uint playerId, Key characterSkin, IReadOnlyList<Key> weaponSkins)
     {
-        var change = WeaponSkinSelections.Validate(playerId, characterSkin, weaponSkin);
+        weaponSkins = weaponSkins.Distinct().ToList();
+        var change = WeaponSkinSelections.Validate(playerId, characterSkin, weaponSkins);
         if (change is not (WeaponSkinChange.Set or WeaponSkinChange.Cleared)) return change;
         var character = characterSkin.GetCard<CardSkin>()!.Id!;
         await _asyncLock.WaitAsync();
@@ -335,8 +340,8 @@ public class MasterServerDatabase : IMasterServerDatabase
             else
                 await _playerDb.ExecuteAsync("INSERT INTO PlayerWeaponSkins (player_id, character_skin, weapon_skin) VALUES (?, ?, ?) " +
                     "ON CONFLICT(player_id, character_skin) DO UPDATE SET weapon_skin = excluded.weapon_skin",
-                    playerId, character, weaponSkin.GetCard<CardSkin>()!.Id!);
-            WeaponSkinSelections.Remember(playerId, characterSkin, weaponSkin);
+                    playerId, character, WeaponSkinSelections.Ids(weaponSkins));
+            WeaponSkinSelections.Remember(playerId, characterSkin, weaponSkins);
         }
         finally
         {

@@ -64,7 +64,9 @@ public class ServicePlayer(ISender sender, IServiceScene serviceScene, IServiceT
         MessageMarkItemAsShown = 51,
         // Reborn: weapon-skin choices. Only clients that know them send these, and the reply uses the same id.
         MessageSetWeaponSkin = 52,
-        MessageGetWeaponSkins = 53
+        MessageGetWeaponSkins = 53,
+        // The whole list for one character skin, one weapon skin per weapon (the client keeps them apart).
+        MessageSetWeaponSkins = 54
     }
 
     private readonly IPlayerDatabase _playerDatabase = Databases.PlayerDatabase;
@@ -734,6 +736,33 @@ public class ServicePlayer(ISender sender, IServiceScene serviceScene, IServiceT
         SendWeaponSkins(ServicePlayerId.MessageSetWeaponSkin, rpcId, accepted, playerId);
     }
 
+    private void ReceiveSetWeaponSkins(BinaryReader reader)
+    {
+        var rpcId = reader.ReadUInt16();
+        var characterSkin = Key.ReadRecord(reader);
+        var count = reader.ReadByte();
+        var weaponSkins = new List<Key>(count);
+        for (var i = 0; i < count; i++) weaponSkins.Add(Key.ReadRecord(reader));
+        if (!sender.AssociatedPlayerId.HasValue) return;
+        _ = SetWeaponSkins(rpcId, sender.AssociatedPlayerId.Value, characterSkin, weaponSkins);
+    }
+
+    private async Task SetWeaponSkins(ushort rpcId, uint playerId, Key characterSkin, List<Key> weaponSkins)
+    {
+        var accepted = false;
+        try
+        {
+            var change = await Databases.MasterServerDatabase.SetWeaponSkins(playerId, characterSkin, weaponSkins);
+            accepted = change is WeaponSkinChange.Set or WeaponSkinChange.Cleared;
+            if (!accepted) Log.Warn(LogCat.Player, $"Weapon skins [{string.Join(", ", weaponSkins)}] for {characterSkin} refused for {playerId}: {change}");
+        }
+        catch (Exception ex)
+        {
+            Log.Error(LogCat.Player, $"Weapon skins change by {playerId} failed", ex);
+        }
+        SendWeaponSkins(ServicePlayerId.MessageSetWeaponSkins, rpcId, accepted, playerId);
+    }
+
     private void ReceiveGetWeaponSkins(BinaryReader reader)
     {
         var rpcId = reader.ReadUInt16();
@@ -934,6 +963,9 @@ public class ServicePlayer(ISender sender, IServiceScene serviceScene, IServiceT
                 break;
             case ServicePlayerId.MessageGetWeaponSkins:
                 ReceiveGetWeaponSkins(reader);
+                break;
+            case ServicePlayerId.MessageSetWeaponSkins:
+                ReceiveSetWeaponSkins(reader);
                 break;
             case ServicePlayerId.MessageBuyShopItem:
                 ReceiveBuyShopItem(reader);

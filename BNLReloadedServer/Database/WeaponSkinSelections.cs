@@ -5,7 +5,7 @@ using SQLite;
 
 namespace BNLReloadedServer.Database;
 
-/// <summary>The weapon skin a player wears with one character skin.</summary>
+/// <summary>The weapon skins a player wears with one character skin (card ids, comma-separated).</summary>
 [Table("PlayerWeaponSkins")]
 public sealed class WeaponSkinSelectionRecord
 {
@@ -19,13 +19,17 @@ public enum WeaponSkinChange { Set, Cleared, UnknownSkin, NotWeaponSkin, WrongHe
 
 /// <summary>
 /// Weapon skins are private CardSkin cards named skin_weapon_*: they belong to a hero and recolour its weapons on
-/// whichever character skin the player wears. Each player picks at most one per character skin. Choices are only
-/// honoured while the player still owns the weapon skin, so a revoked grant falls back to stock weapons.
+/// whichever character skin the player wears. A weapon skin covers one or more of the hero's weapons; each character
+/// skin wears a list of them, one per weapon. Which weapons a skin covers is client art data, so the client sends the
+/// whole list and keeps one per weapon; the server checks each entry. Entries are only honoured while the player still
+/// owns them, so a revoked grant falls back to stock for that weapon alone.
 /// </summary>
 public static class WeaponSkinSelections
 {
     public const string Prefix = "skin_weapon_";
-    private static readonly ConcurrentDictionary<uint, Dictionary<Key, Key>> Selections = new();
+    /// <summary>More than any hero has weapons; bounds a hostile list.</summary>
+    public const int MaxPerSkin = 8;
+    private static readonly ConcurrentDictionary<uint, Dictionary<Key, Key[]>> Selections = new();
 
     public static bool IsWeaponSkin(CardSkin? card) => card?.Id?.StartsWith(Prefix, StringComparison.Ordinal) == true;
 
@@ -38,19 +42,38 @@ public static class WeaponSkinSelections
         return PlayerInventory.Owns(playerId, weaponSkin) ? WeaponSkinChange.Set : WeaponSkinChange.NotOwned;
     }
 
-    /// <summary>The weapon skin to show for a player wearing a character skin, or None.</summary>
-    public static Key For(uint playerId, Key characterSkin) =>
-        Selections.TryGetValue(playerId, out var chosen) && chosen.TryGetValue(characterSkin, out var weapon) &&
-        Validate(playerId, characterSkin, weapon) == WeaponSkinChange.Set ? weapon : Key.None;
+    /// <summary>A whole list for one character skin: Set when every entry is valid, Cleared when it is empty.</summary>
+    public static WeaponSkinChange Validate(uint playerId, Key characterSkin, IReadOnlyCollection<Key> weaponSkins)
+    {
+        if (weaponSkins.Count > MaxPerSkin) return WeaponSkinChange.NotWeaponSkin;
+        if (weaponSkins.Count == 0) return Validate(playerId, characterSkin, Key.None);
+        foreach (var weaponSkin in weaponSkins)
+        {
+            if (weaponSkin == Key.None) return WeaponSkinChange.NotWeaponSkin;
+            var change = Validate(playerId, characterSkin, weaponSkin);
+            if (change != WeaponSkinChange.Set) return change;
+        }
+        return WeaponSkinChange.Set;
+    }
 
-    /// <summary>Every honoured choice of one player, character skin id to weapon skin id.</summary>
+    /// <summary>The weapon skins to show for a player wearing a character skin, in the order chosen (none: stock).</summary>
+    public static Key[] For(uint playerId, Key characterSkin) =>
+        Selections.TryGetValue(playerId, out var chosen) && chosen.TryGetValue(characterSkin, out var weapons)
+            ? weapons.Where(w => Validate(playerId, characterSkin, w) == WeaponSkinChange.Set).ToArray()
+            : [];
+
+    /// <summary>Card ids joined with commas, the form the client reads.</summary>
+    public static string Ids(IEnumerable<Key> weaponSkins) =>
+        string.Join(",", weaponSkins.Select(w => w.GetCard<CardSkin>()?.Id).OfType<string>());
+
+    /// <summary>Every honoured choice of one player, character skin id to its weapon skin ids.</summary>
     public static Dictionary<string, string> Of(uint playerId)
     {
         var result = new Dictionary<string, string>();
         if (!Selections.TryGetValue(playerId, out var chosen)) return result;
-        foreach (var (character, weapon) in chosen)
-            if (For(playerId, character) != Key.None && character.GetCard<CardSkin>()?.Id is { } c && weapon.GetCard<CardSkin>()?.Id is { } w)
-                result[c] = w;
+        foreach (var character in chosen.Keys)
+            if (Ids(For(playerId, character)) is { Length: > 0 } ids && character.GetCard<CardSkin>()?.Id is { } c)
+                result[c] = ids;
         return result;
     }
 
@@ -60,16 +83,19 @@ public static class WeaponSkinSelections
     {
         Selections.Clear();
         foreach (var group in records.GroupBy(r => r.PlayerId))
-            Selections[group.Key] = group.ToDictionary(r => Catalogue.Key(r.CharacterSkin), r => Catalogue.Key(r.WeaponSkin));
+            Selections[group.Key] = group.ToDictionary(r => Catalogue.Key(r.CharacterSkin), r => Parse(r.WeaponSkin));
     }
 
-    public static void Remember(uint playerId, Key characterSkin, Key weaponSkin)
+    private static Key[] Parse(string ids) =>
+        ids.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).Select(Catalogue.Key).ToArray();
+
+    public static void Remember(uint playerId, Key characterSkin, IReadOnlyCollection<Key> weaponSkins)
     {
-        var chosen = Selections.GetOrAdd(playerId, _ => new Dictionary<Key, Key>());
+        var chosen = Selections.GetOrAdd(playerId, _ => new Dictionary<Key, Key[]>());
         lock (chosen)
         {
-            var copy = new Dictionary<Key, Key>(chosen);
-            if (weaponSkin == Key.None) copy.Remove(characterSkin); else copy[characterSkin] = weaponSkin;
+            var copy = new Dictionary<Key, Key[]>(chosen);
+            if (weaponSkins.Count == 0) copy.Remove(characterSkin); else copy[characterSkin] = weaponSkins.ToArray();
             Selections[playerId] = copy;
         }
     }

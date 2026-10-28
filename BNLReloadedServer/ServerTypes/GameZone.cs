@@ -2087,13 +2087,13 @@ public partial class GameZone : Updater
 
     private string? _publishedWeaponSkins;
 
-    /// <summary>The weapon skin each player's current unit wears, keyed by player id.</summary>
+    /// <summary>The weapon skins each player's current unit wears (comma-separated card ids), keyed by player id.</summary>
     private string WeaponSkinSnapshot()
     {
         var skins = new SortedDictionary<uint, string>();
         foreach (var unit in _playerUnits.Values)
-            if (unit.PlayerId is { } playerId && WeaponSkinSelections.For(playerId, unit.SkinKey).GetCard<CardSkin>()?.Id is { } id)
-                skins[playerId] = id;
+            if (unit.PlayerId is { } playerId && WeaponSkinSelections.Ids(WeaponSkinSelections.For(playerId, unit.SkinKey)) is { Length: > 0 } ids)
+                skins[playerId] = ids;
         return System.Text.Json.JsonSerializer.Serialize(skins);
     }
 
