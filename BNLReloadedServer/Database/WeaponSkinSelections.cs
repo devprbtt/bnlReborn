@@ -29,6 +29,25 @@ public static class WeaponSkinSelections
     public const string Prefix = "skin_weapon_";
     /// <summary>More than any hero has weapons; bounds a hostile list.</summary>
     public const int MaxPerSkin = 8;
+
+    /// <summary>
+    /// Derived weapon skins: a character skin's own weapons, worn on the hero's other skins. They are never sold or
+    /// granted; owning the character skin owns them. Weapon skin card id to character skin card id (the client's
+    /// WeaponSkins.Models with Derived set must match).
+    /// </summary>
+    public static readonly IReadOnlyDictionary<string, string> Derived = new Dictionary<string, string>(StringComparer.Ordinal)
+    {
+        ["skin_weapon_hunter_old_school_cricket_bat"] = "skin_hunter_s3",
+        ["skin_weapon_hunter_old_school_revolver"] = "skin_hunter_s3",
+        ["skin_weapon_hunter_arctic_wolf_rifle"] = "skin_hunter_arctic_wolf_private",
+        ["skin_weapon_hunter_arctic_wolf_pistol"] = "skin_hunter_arctic_wolf_private",
+    };
+
+    /// <summary>Owned outright, or through the character skin a derived weapon skin belongs to.</summary>
+    public static bool Owns(uint playerId, CardSkin weapon) =>
+        PlayerInventory.Owns(playerId, weapon.Key) ||
+        (weapon.Id is { } id && Derived.TryGetValue(id, out var source) && Catalogue.Key(source) is var sourceKey &&
+         sourceKey.GetCard<CardSkin>() != null && PlayerInventory.Owns(playerId, sourceKey));
     private static readonly ConcurrentDictionary<uint, Dictionary<Key, Key[]>> Selections = new();
 
     public static bool IsWeaponSkin(CardSkin? card) => card?.Id?.StartsWith(Prefix, StringComparison.Ordinal) == true;
@@ -39,7 +58,7 @@ public static class WeaponSkinSelections
         if (weaponSkin == Key.None) return WeaponSkinChange.Cleared;
         if (weaponSkin.GetCard<CardSkin>() is not { } weapon || !IsWeaponSkin(weapon)) return WeaponSkinChange.NotWeaponSkin;
         if (weapon.HeroKey != character.HeroKey) return WeaponSkinChange.WrongHero;
-        return PlayerInventory.Owns(playerId, weaponSkin) ? WeaponSkinChange.Set : WeaponSkinChange.NotOwned;
+        return Owns(playerId, weapon) ? WeaponSkinChange.Set : WeaponSkinChange.NotOwned;
     }
 
     /// <summary>A whole list for one character skin: Set when every entry is valid, Cleared when it is empty.</summary>

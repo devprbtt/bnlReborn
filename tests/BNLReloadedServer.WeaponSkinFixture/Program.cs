@@ -15,6 +15,8 @@ try {
         new CardSkin{Id="skin_hunter_s1",HeroKey=nigel},new CardSkin{Id="skin_hunter_s3",HeroKey=nigel},new CardSkin{Id="skin_sarge_s1",HeroKey=sarge},
         new CardSkin{Id="skin_weapon_hunter_ice_rifle",HeroKey=nigel,Scope=ScopeType.Private},
         new CardSkin{Id="skin_weapon_hunter_blackout",HeroKey=nigel,Scope=ScopeType.Private},
+        new CardSkin{Id="skin_weapon_hunter_old_school_cricket_bat",HeroKey=nigel,Scope=ScopeType.Private},
+        new CardSkin{Id="skin_weapon_hunter_arctic_wolf_rifle",HeroKey=nigel,Scope=ScopeType.Private},
         new CardSkin{Id="skin_hunter_arctic_wolf_private",HeroKey=nigel,Scope=ScopeType.Private}]);
     Key K(string id)=>Catalogue.Key(id);
     string F(uint player,string character)=>WeaponSkinSelections.Ids(WeaponSkinSelections.For(player,K(character)));
@@ -29,6 +31,13 @@ try {
     Check(WeaponSkinSelections.Validate(owner,K("skin_hunter_s1"),K("skin_hunter_arctic_wolf_private"))==WeaponSkinChange.NotWeaponSkin,"a character skin is not a weapon skin");
     Check(WeaponSkinSelections.Validate(owner,K("skin_weapon_hunter_blackout"),K("skin_weapon_hunter_ice_rifle"))==WeaponSkinChange.UnknownSkin,"a weapon skin cannot host another");
     Check(WeaponSkinSelections.Validate(owner,new Key("skin_missing"),K("skin_weapon_hunter_ice_rifle"))==WeaponSkinChange.UnknownSkin,"unknown character skin refused");
+    // Derived: a character skin's own weapon is owned with that skin. Public skins are everyone's, so Old School
+    // Nigel's bat is too; a private skin's weapons need its grant.
+    Check(WeaponSkinSelections.Validate(other,K("skin_hunter_s1"),K("skin_weapon_hunter_old_school_cricket_bat"))==WeaponSkinChange.Set,"a public skin's own weapon is everyone's");
+    PlayerInventory.Set(other,["skin_hunter_arctic_wolf_private"]);
+    Check(WeaponSkinSelections.Validate(other,K("skin_hunter_s1"),K("skin_weapon_hunter_arctic_wolf_rifle"))==WeaponSkinChange.Set,"a private skin's own weapon is owned with its grant");
+    PlayerInventory.Set(other,[]);
+    Check(WeaponSkinSelections.Validate(other,K("skin_hunter_s1"),K("skin_weapon_hunter_arctic_wolf_rifle"))==WeaponSkinChange.NotOwned,"without the grant it is not");
     Check(!PlayerInventory.CanEquipSkin(owner,K("unit_hero_hunter"),K("skin_weapon_hunter_ice_rifle")) && PlayerInventory.CanEquipSkin(owner,K("unit_hero_hunter"),K("skin_hunter_arctic_wolf_private")),"an owned weapon skin cannot be worn as the hero skin");
 
     using(var db=new SQLiteConnection(path)){db.CreateTable<PlayerRecord>();db.CreateTable<WeaponSkinSelectionRecord>();}

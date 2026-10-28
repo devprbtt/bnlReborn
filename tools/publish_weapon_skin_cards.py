@@ -27,6 +27,14 @@ SKINS = [
     ("hunter_gilded_rifle", "Gilded Rifle", "Engraved brass fittings on a deep navy stock."),
     ("hunter_sapphire_rifle", "Sapphire Rifle", "Polished steel scrollwork over sapphire-blue wood."),
 ]
+# Derived weapon skins: a character skin's own weapons for its owner's other skins. Owned with that skin
+# (WeaponSkinSelections.Derived), so they get a private card and no shop item.
+DERIVED = [
+    ("hunter_old_school_cricket_bat", "Old School Cricket Bat"),
+    ("hunter_old_school_revolver", "Old School Revolver"),
+    ("hunter_arctic_wolf_rifle", "Arctic Wolf Rifle"),
+    ("hunter_arctic_wolf_pistol", "Arctic Wolf M1911"),
+]
 # Existing documents this run may change (the 2026-10-28 Blackout split); every other difference is refused.
 UPDATE = {"skin_weapon_hunter_blackout", "shop_item_skin_weapon_hunter_blackout"}
 
@@ -46,6 +54,11 @@ def build():
         out[shop_id] = {"_id": shop_id, "category": "shop_item", "scope": "public", "name": text(name),
                         "description": text(description), "image": skin_id, "available_in_shop": True,
                         "is_new": True, "free_to_try": False, "items": [skin_id], "price_virtual": PRICE}
+    for suffix, name in DERIVED:
+        skin_id = "skin_weapon_" + suffix
+        out[skin_id] = {"_id": skin_id, "category": "skin", "scope": "private", "name": text(name),
+                        "hero_key": "unit_hero_" + suffix.split("_")[0], "icon_portrait": skin_id,
+                        "icon_portrait_profile": skin_id, "bundle": "weapon_skins_longshot"}
     return out
 
 
