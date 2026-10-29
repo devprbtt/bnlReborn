@@ -1,5 +1,5 @@
-"""Put four character skins on sale at 10,000 Gold each (owner decision 2026-10-29): Arctic Wolf, Darklord (card name
-"Demon"), Christmas Boris and Snow Globe Vander (Christmas Vander).
+"""Put four character skins on sale at 10,000 Gold each (owner decision 2026-10-29): Arctic Wolf, Darklord (renamed from
+"Demon", owner 2026-10-29), Christmas Boris and Snow Globe Vander (Christmas Vander).
 
 Each skin card becomes private (owned only once bought or granted) and gets a public shop item at 10,000 Gold, listed
 in no shop_logic category, as the weapon skins' are: the Reborn client's Catalogue > SKINS > CHARACTER SKINS tab sells
@@ -30,6 +30,8 @@ SALES = [
     ("skin_magnus_christmas", "shop_skin_magnus_christmas", "unit_hero_magnus",
      "Vander Graaf in a navy peacoat and Fair Isle scarf, with a snowy village in his globe."),
 ]
+# Card names changed with the sale (owner 2026-10-29); the shop items take the card's name.
+RENAME = {"skin_boxer_demon_private": "Darklord"}
 # Snow Globe Vander's new card, cut from Vander Graaf's (bundles and music).
 NEW_SKIN, NEW_SOURCE = "skin_magnus_christmas", "skin_magnus_s1"
 
@@ -60,6 +62,8 @@ def build(docs):
             card = copy.deepcopy(docs[skin_id])
             assert card["category"] == "skin" and card.get("hero_key") == hero_id, skin_id
             card["scope"] = "private"
+            if skin_id in RENAME:
+                card["name"] = text(RENAME[skin_id])
         out[skin_id] = card
         shop = {"_id": shop_id, "category": "shop_item", "scope": "public", "name": copy.deepcopy(card["name"]),
                 "description": text(description), "short_description": text("Character skin"),
