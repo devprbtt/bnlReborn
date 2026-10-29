@@ -48,6 +48,20 @@ try {
     Check(WeaponSkinSelections.Validate(other,K("skin_hunter_s1"),K("skin_weapon_sarge_stone_tommy_gun"))==WeaponSkinChange.WrongHero,"a derived weapon stays on its own hero");
     Check(WeaponSkinSelections.Derived.Count==52 && WeaponSkinSelections.Derived.All(d=>d.Key.StartsWith(WeaponSkinSelections.Prefix) && !d.Value.StartsWith(WeaponSkinSelections.Prefix)),
         "every derived weapon skin names a character skin (52, as the client table)");
+    // Skins put on sale stay with the accounts that had them while public: one grant each, once.
+    var salePath=Path.Combine(Path.GetTempPath(),"bnl-sale-skins-"+Guid.NewGuid().ToString("N")+".db");
+    using(var sale=new SQLiteConnection(salePath))
+    {
+        sale.CreateTable<PlayerRecord>();sale.CreateTable<InventoryGrantRecord>();
+        for(ulong steam=1;steam<=3;steam++)sale.Insert(new PlayerRecord{SteamId=steam});
+        sale.Execute("INSERT INTO InventoryGrants (player_id, item, granted_at, granted_by, note) VALUES (1, 'skin_abe_christmas', 0, 'test', '')");
+        var first=MasterServerDatabase.GrantSaleSkins(sale,DateTimeOffset.UtcNow);
+        var again=MasterServerDatabase.GrantSaleSkins(sale,DateTimeOffset.UtcNow);
+        var rows=sale.Table<InventoryGrantRecord>().ToList();
+        Check(first==(3,8) && again==(3,0) && rows.Count==9 && MasterServerDatabase.SaleSkins.All(s=>rows.Count(g=>g.Item==s)==3),
+            "every existing account keeps the skins put on sale, granted once ("+first+", then "+again+", "+rows.Count+" rows)");
+    }
+    File.Delete(salePath);
 
     using(var db=new SQLiteConnection(path)){db.CreateTable<PlayerRecord>();db.CreateTable<WeaponSkinSelectionRecord>();}
     var asyncDb=new SQLiteAsyncConnection(path);

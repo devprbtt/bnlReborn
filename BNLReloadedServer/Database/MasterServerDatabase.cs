@@ -58,6 +58,7 @@ public class MasterServerDatabase : IMasterServerDatabase
         _playerDb.CreateTableAsync<AppliedMigrationRecord>().Wait();
         BackfillRankEligibility().Wait();
         ImportLegacyPrivateSkinGrants().Wait();
+        GrantSaleSkinsToExistingAccounts().Wait();
         ResetProgressionForScoreXp().Wait();
         _playerDb.RunInTransactionAsync(HeroMilestoneRewards.InstallAndBackfill).Wait();
         var grants = _playerDb.Table<InventoryGrantRecord>().ToListAsync().Result;
@@ -202,6 +203,13 @@ public class MasterServerDatabase : IMasterServerDatabase
 
     // The skins the old grant file could name, and the account the old code always treated as their owner.
     private static readonly string[] LegacyPrivateSkins = ["skin_hunter_arctic_wolf_private", "skin_boxer_demon_private"];
+
+    internal const string SaleSkinOwnersMigration = "skin_sale_owners_v1";
+    /// <summary>
+    /// Skins every account owned while they were public, put on sale (private, 10,000 Gold) on 2026-10-29: the accounts
+    /// existing then keep them through a grant; later accounts buy them. Snow Globe Vander was never public.
+    /// </summary>
+    internal static readonly string[] SaleSkins = ["skin_hunter_arctic_wolf_private", "skin_boxer_demon_private", "skin_abe_christmas"];
     private const ulong LegacyRecoveryOwnerSteamId = 76561197990315750;
 
     /// <summary>
@@ -253,6 +261,31 @@ public class MasterServerDatabase : IMasterServerDatabase
 
         Log.Info(LogCat.Player, $"Imported {imported.Count} legacy private skin grants [{string.Join(", ", imported)}]" +
                           (unresolved.Count > 0 ? $"; no account for [{string.Join(", ", unresolved)}]" : string.Empty));
+    }
+
+    /// <summary>Grants SaleSkins to every existing account once, before inventories load (recorded as applied).</summary>
+    private async Task GrantSaleSkinsToExistingAccounts()
+    {
+        if (await _playerDb.FindAsync<AppliedMigrationRecord>(SaleSkinOwnersMigration) != null) return;
+        var granted = 0; var accounts = 0;
+        await _playerDb.RunInTransactionAsync(db =>
+        {
+            (accounts, granted) = GrantSaleSkins(db, DateTimeOffset.UtcNow);
+            db.Insert(new AppliedMigrationRecord { Name = SaleSkinOwnersMigration, AppliedAt = DateTimeOffset.UtcNow });
+        });
+        Log.Info(LogCat.Player, $"Granted the skins put on sale to {accounts} existing accounts ({granted} new grants: {string.Join(", ", SaleSkins)})");
+    }
+
+    /// <summary>Every account gets each of SaleSkins it lacks; returns the accounts and the grants written.</summary>
+    internal static (int Accounts, int Granted) GrantSaleSkins(SQLiteConnection db, DateTimeOffset now)
+    {
+        var players = db.Table<PlayerRecord>().Select(p => p.PlayerId).ToList();
+        var granted = 0;
+        foreach (var playerId in players)
+        foreach (var skin in SaleSkins)
+            granted += db.Execute("INSERT OR IGNORE INTO InventoryGrants (player_id, item, granted_at, granted_by, note) VALUES (?, ?, ?, ?, ?)",
+                playerId, skin, now, "migration", "owned while public; kept when it went on sale");
+        return (players.Count, granted);
     }
 
     public async Task<List<InventoryGrantRecord>> GetInventoryGrants(uint playerId) =>
