@@ -287,7 +287,7 @@ public class PlayerDatabase : IPlayerDatabase
             NextLootCrateTime = (int)DateTimeOffset.Now.AddHours(4).ToUnixTimeSeconds(),
             LootCrates = GetLootCrates(),
             LastPlayedHero = GetLastPlayedHero(playerId),
-            NewItems = [],
+            NewItems = ShopNewItems.For(playerId),
             HeroesOnRotation = []
         };
     }

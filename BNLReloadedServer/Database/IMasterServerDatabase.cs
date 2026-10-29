@@ -50,6 +50,7 @@ public interface IMasterServerDatabase
     public Task<List<PlayerData>> GetAllPlayersAsync();
     public Task<bool> UpdatePlayerAsync(uint playerId, PlayerData updated);
     public Task<List<InventoryGrantRecord>> GetInventoryGrants(uint playerId);
+    public Task<CardShopItem?> MarkShopItemSeen(uint playerId, Key key);
     public Task<InventoryChange> GrantItem(uint playerId, string itemId, string grantedBy, string? note);
     public Task<PurchaseResult> PurchaseShopItem(uint playerId, Key shopItem, bool real);
     public Task<WeaponSkinChange> SetWeaponSkin(uint playerId, Key characterSkin, Key weaponSkin);

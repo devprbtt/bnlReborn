@@ -48,6 +48,8 @@ public class MasterServerDatabase : IMasterServerDatabase
         _playerDb.CreateTableAsync<ShopPurchaseRecord>().Wait();
         _playerDb.CreateTableAsync<WeaponSkinSelectionRecord>().Wait();
         WeaponSkinSelections.Load(_playerDb.Table<WeaponSkinSelectionRecord>().ToListAsync().Result);
+        _playerDb.CreateTableAsync<SeenShopItemRecord>().Wait();
+        ShopNewItems.Load(_playerDb.Table<SeenShopItemRecord>().ToListAsync().Result);
         _playerDb.CreateTableAsync<TrophyRecord>().Wait();
         _playerDb.CreateTableAsync<PlayerTrophyRecord>().Wait();
         _playerDb.CreateTableAsync<TrophyShowcaseRecord>().Wait();
@@ -352,6 +354,18 @@ public class MasterServerDatabase : IMasterServerDatabase
         Databases.PlayerDatabase.UpdatePlayer(playerId, new PlayerUpdate { Currency = PlayerCurrency.Balance(record.Gold, record.Platinum) });
         Log.Info(LogCat.Player, $"Player {playerId} bought {item.Id} for {price} {(real ? "Platinum" : "Gold")}");
         return PurchaseResult.Purchased;
+    }
+
+    /// <summary>
+    /// Records that a player opened a new shop item (MessageMarkItemAsShown): it stops being one of their NewItems.
+    /// Returns the item recorded, or null when the key names nothing new in the shop or it was already seen.
+    /// </summary>
+    public async Task<CardShopItem?> MarkShopItemSeen(uint playerId, Key key)
+    {
+        if (ShopNewItems.Resolve(key) is not { Id: { } id } item || !ShopNewItems.Remember(playerId, id)) return null;
+        await _playerDb.ExecuteAsync("INSERT OR IGNORE INTO PlayerSeenShopItems (player_id, shop_item, seen_at) VALUES (?, ?, ?)",
+            playerId, id, DateTimeOffset.UtcNow);
+        return item;
     }
 
     /// <summary>Saves (or clears, with Key.None) a single weapon skin for one character skin: the whole list becomes it.</summary>

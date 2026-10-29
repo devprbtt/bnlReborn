@@ -396,7 +396,8 @@ public partial class RegionServerDatabase(AsyncTaskTcpServer server, AsyncTaskTc
         if (UserConnected(playerId, out var playerInfo) &&
             GetService<IServicePlayer>(playerInfo.Guid, ServiceId.ServicePlayer, out var servicePlayer))
         {
-            servicePlayer.SendPlayerUpdate(new PlayerUpdate { Inventory = inventory });
+            // A bought or granted shop item is no longer new to the player.
+            servicePlayer.SendPlayerUpdate(new PlayerUpdate { Inventory = inventory, NewItems = ShopNewItems.For(playerId) });
         }
     }
 

@@ -20,7 +20,11 @@ try {
         new CardSkin{Id="skin_hunter_arctic_wolf_private",HeroKey=nigel,Scope=ScopeType.Private},
         new CardSkin{Id="skin_sarge_stone_s1",HeroKey=sarge},new CardSkin{Id="skin_sarge_stone_s3",HeroKey=sarge},
         new CardSkin{Id="skin_weapon_sarge_stone_m60",HeroKey=sarge,Scope=ScopeType.Private},
-        new CardSkin{Id="skin_weapon_sarge_stone_tommy_gun",HeroKey=sarge,Scope=ScopeType.Private}]);
+        new CardSkin{Id="skin_weapon_sarge_stone_tommy_gun",HeroKey=sarge,Scope=ScopeType.Private},
+        // New in the shop: is_new, on sale, priced and selling a private card. Not new: Blackout's (no is_new), a public skin's.
+        new CardShopItem{Id="shop_item_skin_weapon_hunter_ice_rifle",IsNew=true,AvailableInShop=true,PriceVirtual=2000,Items=[new Key("skin_weapon_hunter_ice_rifle")]},
+        new CardShopItem{Id="shop_item_skin_weapon_hunter_blackout",IsNew=false,AvailableInShop=true,PriceVirtual=2000,Items=[new Key("skin_weapon_hunter_blackout")]},
+        new CardShopItem{Id="shop_item_skin_hunter_s1",IsNew=true,AvailableInShop=true,PriceVirtual=2000,Items=[new Key("skin_hunter_s1")]}]);
     Key K(string id)=>Catalogue.Key(id);
     string F(uint player,string character)=>WeaponSkinSelections.Ids(WeaponSkinSelections.For(player,K(character)));
     const uint owner=1,other=2;
@@ -63,12 +67,25 @@ try {
     }
     File.Delete(salePath);
 
-    using(var db=new SQLiteConnection(path)){db.CreateTable<PlayerRecord>();db.CreateTable<WeaponSkinSelectionRecord>();}
+    using(var db=new SQLiteConnection(path)){db.CreateTable<PlayerRecord>();db.CreateTable<WeaponSkinSelectionRecord>();db.CreateTable<SeenShopItemRecord>();}
     var asyncDb=new SQLiteAsyncConnection(path);
     var master=(MasterServerDatabase)System.Runtime.CompilerServices.RuntimeHelpers.GetUninitializedObject(typeof(MasterServerDatabase));
     typeof(MasterServerDatabase).GetField("_playerDb",flags)!.SetValue(master,asyncDb);
     typeof(MasterServerDatabase).GetField("_asyncLock",flags)!.SetValue(master,new SemaphoreSlim(1,1));
     WeaponSkinSelections.Load([]);
+
+    // NewItems: new shop items the player neither owns nor has opened, as shop item keys.
+    ShopNewItems.Load([]);
+    var ice=K("shop_item_skin_weapon_hunter_ice_rifle");
+    string N(uint player)=>string.Join(",",ShopNewItems.For(player).Select(k=>k.GetCard<CardShopItem>()!.Id));
+    Check(N(other)=="shop_item_skin_weapon_hunter_ice_rifle","only an is_new, priced item selling a private card is new ("+N(other)+")");
+    Check(N(owner)=="","an item the player already owns is not new to them");
+    Check(ShopNewItems.Resolve(K("skin_weapon_hunter_ice_rifle"))?.Key==ice && ShopNewItems.Resolve(K("shop_item_skin_weapon_hunter_blackout"))==null,
+        "a shown skin key resolves to the new shop item selling it; an item not new resolves to nothing");
+    Check((await master.MarkShopItemSeen(other,K("skin_weapon_hunter_ice_rifle")))?.Key==ice && N(other)=="","opening the item takes it out of the player's NewItems");
+    Check(await master.MarkShopItemSeen(other,ice)==null && await asyncDb.Table<SeenShopItemRecord>().CountAsync()==1,"opening it again changes nothing; one stored row");
+    ShopNewItems.Load(await asyncDb.Table<SeenShopItemRecord>().ToListAsync());
+    Check(N(other)=="","seen items stay seen after a server restart");
 
     Check(await master.SetWeaponSkin(owner,K("skin_hunter_s1"),K("skin_weapon_hunter_ice_rifle"))==WeaponSkinChange.Set,"save a choice");
     Check(await master.SetWeaponSkin(owner,K("skin_hunter_s3"),K("skin_weapon_hunter_blackout"))==WeaponSkinChange.Set,"save a second character skin's choice");

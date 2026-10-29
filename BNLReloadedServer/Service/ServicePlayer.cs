@@ -829,6 +829,22 @@ public class ServicePlayer(ISender sender, IServiceScene serviceScene, IServiceT
     private void ReceiveMarkItemAsShown(BinaryReader reader)
     {
         var itemKey = Key.ReadRecord(reader);
+        if (!sender.AssociatedPlayerId.HasValue) return;
+        _ = MarkItemAsShown(sender.AssociatedPlayerId.Value, itemKey);
+    }
+
+    /// <summary>A new shop item the player opened leaves their NewItems; the client's NEW tags play their exit.</summary>
+    private async Task MarkItemAsShown(uint playerId, Key itemKey)
+    {
+        try
+        {
+            if (await Databases.MasterServerDatabase.MarkShopItemSeen(playerId, itemKey) != null)
+                SendPlayerUpdate(new PlayerUpdate { NewItems = ShopNewItems.For(playerId) });
+        }
+        catch (Exception ex)
+        {
+            Log.Error(LogCat.Player, $"Marking {itemKey} shown for {playerId} failed", ex);
+        }
     }
 
     public bool Receive(BinaryReader reader)
