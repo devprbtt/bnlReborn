@@ -17,7 +17,10 @@ try {
         new CardSkin{Id="skin_weapon_hunter_blackout",HeroKey=nigel,Scope=ScopeType.Private},
         new CardSkin{Id="skin_weapon_hunter_old_school_cricket_bat",HeroKey=nigel,Scope=ScopeType.Private},
         new CardSkin{Id="skin_weapon_hunter_arctic_wolf_rifle",HeroKey=nigel,Scope=ScopeType.Private},
-        new CardSkin{Id="skin_hunter_arctic_wolf_private",HeroKey=nigel,Scope=ScopeType.Private}]);
+        new CardSkin{Id="skin_hunter_arctic_wolf_private",HeroKey=nigel,Scope=ScopeType.Private},
+        new CardSkin{Id="skin_sarge_stone_s1",HeroKey=sarge},new CardSkin{Id="skin_sarge_stone_s3",HeroKey=sarge},
+        new CardSkin{Id="skin_weapon_sarge_stone_m60",HeroKey=sarge,Scope=ScopeType.Private},
+        new CardSkin{Id="skin_weapon_sarge_stone_tommy_gun",HeroKey=sarge,Scope=ScopeType.Private}]);
     Key K(string id)=>Catalogue.Key(id);
     string F(uint player,string character)=>WeaponSkinSelections.Ids(WeaponSkinSelections.For(player,K(character)));
     const uint owner=1,other=2;
@@ -39,6 +42,12 @@ try {
     PlayerInventory.Set(other,[]);
     Check(WeaponSkinSelections.Validate(other,K("skin_hunter_s1"),K("skin_weapon_hunter_arctic_wolf_rifle"))==WeaponSkinChange.NotOwned,"without the grant it is not");
     Check(!PlayerInventory.CanEquipSkin(owner,K("unit_hero_hunter"),K("skin_weapon_hunter_ice_rifle")) && PlayerInventory.CanEquipSkin(owner,K("unit_hero_hunter"),K("skin_hunter_arctic_wolf_private")),"an owned weapon skin cannot be worn as the hero skin");
+    // Every hero: Al Castone's Tommy Gun on Sarge's other skins, and the default M60 back on Al Castone.
+    Check(WeaponSkinSelections.Validate(other,K("skin_sarge_stone_s1"),K("skin_weapon_sarge_stone_tommy_gun"))==WeaponSkinChange.Set
+        && WeaponSkinSelections.Validate(other,K("skin_sarge_stone_s3"),K("skin_weapon_sarge_stone_m60"))==WeaponSkinChange.Set,"another hero's derived weapons follow their public skins");
+    Check(WeaponSkinSelections.Validate(other,K("skin_hunter_s1"),K("skin_weapon_sarge_stone_tommy_gun"))==WeaponSkinChange.WrongHero,"a derived weapon stays on its own hero");
+    Check(WeaponSkinSelections.Derived.Count==52 && WeaponSkinSelections.Derived.All(d=>d.Key.StartsWith(WeaponSkinSelections.Prefix) && !d.Value.StartsWith(WeaponSkinSelections.Prefix)),
+        "every derived weapon skin names a character skin (52, as the client table)");
 
     using(var db=new SQLiteConnection(path)){db.CreateTable<PlayerRecord>();db.CreateTable<WeaponSkinSelectionRecord>();}
     var asyncDb=new SQLiteAsyncConnection(path);

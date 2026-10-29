@@ -27,13 +27,62 @@ SKINS = [
     ("hunter_gilded_rifle", "Gilded Rifle", "Engraved brass fittings on a deep navy stock."),
     ("hunter_sapphire_rifle", "Sapphire Rifle", "Polished steel scrollwork over sapphire-blue wood."),
 ]
-# Derived weapon skins: a character skin's own weapons for its owner's other skins. Owned with that skin
-# (WeaponSkinSelections.Derived), so they get a private card and no shop item.
+# Derived weapon skins: a character skin's own weapons for its owner's other skins, on every hero with skins that
+# carry their own (and the default skin's weapons in those slots). Owned with that skin (WeaponSkinSelections.Derived),
+# so they get a private card and no shop item. id suffix, hero, name (client tools/skin-shop/derived_weapon_skins.py).
 DERIVED = [
-    ("hunter_old_school_cricket_bat", "Old School Cricket Bat"),
-    ("hunter_old_school_revolver", "Old School Revolver"),
-    ("hunter_arctic_wolf_rifle", "Arctic Wolf Rifle"),
-    ("hunter_arctic_wolf_pistol", "Arctic Wolf M1911"),
+    ("abe_ice_axe", "unit_hero_abe", "Ice Axe"),
+    ("abe_snow_thrower", "unit_hero_abe", "SnowThrower 6000 SUX"),
+    ("abe_ghillie_ice_axe", "unit_hero_abe", "Ghillie Ice Axe"),
+    ("abe_ghillie_snow_thrower", "unit_hero_abe", "Ghillie SnowThrower"),
+    ("cogwheel_gear_grinder", "unit_hero_cogwheel", "Gear Grinder"),
+    ("cogwheel_rotary_cannon", "unit_hero_cogwheel", "Rotary Cannon"),
+    ("cogwheel_cannon", "unit_hero_cogwheel", "Cannon"),
+    ("cogwheel_golden_gear_grinder", "unit_hero_cogwheel", "Golden Gear Grinder"),
+    ("cogwheel_golden_rotary_cannon", "unit_hero_cogwheel", "Golden Rotary Cannon"),
+    ("cogwheel_golden_cannon", "unit_hero_cogwheel", "Golden Cannon"),
+    ("cogwheel_capn_gear_grinder", "unit_hero_cogwheel", "Cap'n Gear Grinder"),
+    ("cogwheel_capn_rotary_cannon", "unit_hero_cogwheel", "Cap'n Rotary Cannon"),
+    ("cogwheel_capn_cannon", "unit_hero_cogwheel", "Cap'n Cannon"),
+    ("cogwheel_dwarven_gear_grinder", "unit_hero_cogwheel", "Dwarven Gear Grinder"),
+    ("cogwheel_dwarven_rotary_cannon", "unit_hero_cogwheel", "Dwarven Rotary Cannon"),
+    ("cogwheel_dwarven_cannon", "unit_hero_cogwheel", "Dwarven Cannon"),
+    ("cogwheel_cambot_gear_grinder", "unit_hero_cogwheel", "Cambot Gear Grinder"),
+    ("cogwheel_cambot_rotary_cannon", "unit_hero_cogwheel", "Cambot Rotary Cannon"),
+    ("cogwheel_cambot_cannon", "unit_hero_cogwheel", "Cambot Cannon"),
+    ("cogwheel_soldered_gear_grinder", "unit_hero_cogwheel", "Soldered Gear Grinder"),
+    ("cogwheel_soldered_rotary_cannon", "unit_hero_cogwheel", "Soldered Rotary Cannon"),
+    ("cogwheel_soldered_cannon", "unit_hero_cogwheel", "Soldered Cannon"),
+    ("engineer_drill", "unit_hero_engineer", "Drill"),
+    ("engineer_rivet_gun", "unit_hero_engineer", "Rivet Gun"),
+    ("engineer_caulk_gun", "unit_hero_engineer", "Caulk Gun"),
+    ("engineer_spaced_out_drill", "unit_hero_engineer", "Spaced Out Drill"),
+    ("engineer_spaced_out_rivet_gun", "unit_hero_engineer", "Spaced Out Rivet Gun"),
+    ("engineer_spaced_out_caulk_gun", "unit_hero_engineer", "Spaced Out Caulk Gun"),
+    ("hunter_machete", "unit_hero_hunter", "Machete"),
+    ("hunter_nellie", "unit_hero_hunter", "Nellie"),
+    ("hunter_revolver", "unit_hero_hunter", "Revolver"),
+    ("hunter_old_school_rifle", "unit_hero_hunter", "Old School Rifle"),
+    ("hunter_old_school_cricket_bat", "unit_hero_hunter", "Old School Cricket Bat"),
+    ("hunter_old_school_revolver", "unit_hero_hunter", "Old School Revolver"),
+    ("hunter_arctic_wolf_rifle", "unit_hero_hunter", "Arctic Wolf Rifle"),
+    ("hunter_arctic_wolf_pistol", "unit_hero_hunter", "Arctic Wolf M1911"),
+    ("ninja_shuko", "unit_hero_ninja", "Shuko"),
+    ("ninja_katana", "unit_hero_ninja", "Katana"),
+    ("ninja_ninja_star", "unit_hero_ninja", "Ninja Star"),
+    ("ninja_2080_shuko", "unit_hero_ninja", "2080 Shuko"),
+    ("ninja_2080_katana", "unit_hero_ninja", "2080 Katana"),
+    ("ninja_2080_ninja_star", "unit_hero_ninja", "2080 Ninja Star"),
+    ("roly_robo_paw", "unit_hero_roly", "RoboPaw"),
+    ("roly_tank_ball_cannons", "unit_hero_roly", "TankBall Cannons"),
+    ("roly_high_techy_robo_paw", "unit_hero_roly", "High Techy RoboPaw"),
+    ("roly_high_techy_tank_ball_cannons", "unit_hero_roly", "High Techy TankBall Cannons"),
+    ("roly_shake_shake_robo_paw", "unit_hero_roly", "Shake Shake RoboPaw"),
+    ("roly_shake_shake_tank_ball_cannons", "unit_hero_roly", "Shake Shake TankBall Cannons"),
+    ("roly_dive_dive_robo_paw", "unit_hero_roly", "Dive Dive RoboPaw"),
+    ("roly_dive_dive_tank_ball_cannons", "unit_hero_roly", "Dive Dive TankBall Cannons"),
+    ("sarge_stone_m60", "unit_hero_sarge_stone", "M60 OMG"),
+    ("sarge_stone_tommy_gun", "unit_hero_sarge_stone", "Tommy Gun"),
 ]
 # Existing documents this run may change (the 2026-10-28 Blackout split); every other difference is refused.
 UPDATE = {"skin_weapon_hunter_blackout", "shop_item_skin_weapon_hunter_blackout"}
@@ -54,10 +103,10 @@ def build():
         out[shop_id] = {"_id": shop_id, "category": "shop_item", "scope": "public", "name": text(name),
                         "description": text(description), "image": skin_id, "available_in_shop": True,
                         "is_new": True, "free_to_try": False, "items": [skin_id], "price_virtual": PRICE}
-    for suffix, name in DERIVED:
+    for suffix, hero, name in DERIVED:
         skin_id = "skin_weapon_" + suffix
         out[skin_id] = {"_id": skin_id, "category": "skin", "scope": "private", "name": text(name),
-                        "hero_key": "unit_hero_" + suffix.split("_")[0], "icon_portrait": skin_id,
+                        "hero_key": hero, "icon_portrait": skin_id,
                         "icon_portrait_profile": skin_id, "bundle": "weapon_skins_longshot"}
     return out
 
@@ -94,8 +143,9 @@ def body(doc):
     return {k: v for k, v in doc.items() if k != "_rev"}
 
 
-hero = fetch("unit_hero_hunter")
-assert hero and hero["category"] == "unit", "hero missing"
+heroes = {h: fetch(h) for h in sorted({"unit_hero_hunter"} | {hero for _, hero, _ in DERIVED})}
+assert all(h and h["category"] == "unit" for h in heroes.values()), "hero missing"
+hero = heroes["unit_hero_hunter"]
 shop_logic = fetch("shop_logic")
 listed = json.dumps(shop_logic or {})
 assert not any(k in listed for k in planned), "a weapon skin is listed in shop_logic; released clients would show it"
@@ -120,5 +170,5 @@ for name in changed:
 after = {n: request(n) for n in planned}
 for name, doc in planned.items():
     assert body(after[name]) == doc, "readback differs for " + name
-assert fetch("unit_hero_hunter") == hero, "hero changed"
+assert all(fetch(h) == doc for h, doc in heroes.items()), "hero changed"
 print(json.dumps({"backup": str(backup), "revisions": {n: after[n]["_rev"] for n in sorted(after)}}), flush=True)
