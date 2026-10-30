@@ -4,13 +4,13 @@
     "fire_trap_affected": 5,
     "glue_affected": 5,
     "bush_affected": 5,
-    "kill": 50,
-    "first_kill": 60,
-    "double_kill": 75,
-    "multi_kill": 100,
-    "ultra_kill": 125,
-    "fantastic": 150,
-    "unbelievable": 175,
+    "kill": 75,
+    "first_kill": 85,
+    "double_kill": 100,
+    "multi_kill": 125,
+    "ultra_kill": 150,
+    "fantastic": 175,
+    "unbelievable": 200,
     "assist": 25,
     "headshot": 10,
     "supply": 25,
@@ -64,6 +64,10 @@
     "hero_device_damage_chunk": 50,
     "hero_device_damage_points": 5,
     "gravity_well_hit": 5,
-    "kreepy_box_hit": 5
+    "kreepy_box_hit": 5,
+    "radar_cooldown": 15,
+    "ammo_cooldown": 15,
+    "hero_damage_chunk": 100,
+    "hero_damage_points": 20
   }
 }

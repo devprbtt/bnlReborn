@@ -20,20 +20,22 @@ The server's existing CDB watcher validates catalogue edits. Invalid scores are 
 
 | Action | Default points |
 | --- | ---: |
-| Kill / assist / headshot bonus | 50 / 25 / 10 |
-| First kill | 60 |
-| Double / multi / ultra kill | 75 / 100 / 125 |
-| Fantastic / unbelievable | 150 / 175 |
+| Kill / assist / headshot bonus | 75 / 25 / 10 |
+| First kill | 85 |
+| Double / multi / ultra kill | 100 / 125 / 150 |
+| Fantastic / unbelievable | 175 / 200 |
 | Supply / blockbuster pickup | 25 / 100 |
 | Cube destroyed / assist | 250 / 75 |
 | Device / hero block built | ceil(actual resource cost / 20), clamped 1-50; free builds give 0 |
 | Enemy device destroyed | ceil(base resource cost / 20), clamped 5–50 |
 | Actual teammate healing | 5 per 50 HP |
 | Device damage to enemy players | 5 per 100 damage |
-| Radar / ability spot | 5 / 10 |
+| Own weapon/ability damage to enemy players (Damage dealt) | 20 per full 100 damage, banked across targets |
+| Radar / ability spot | 5 / 10, once per spotter and enemy every 15 s |
+| Ammo supplied to an ally | 5, once per crate owner and ally every 15 s |
 | Action within 12 world units of a live cube or blockbuster drop zone | +25%, floored with minimum 1 |
 
-Kill accolades replace the regular kill award and label: e.g. Double kill +75, not Kill +50 plus another +75. Headshot +10 and objective bonuses still stack. The highest kill-chain tier wins; first kill uses 60. The authoritative existing eight-second chain resets on death or expiry, with the sixth and subsequent chain kills using Unbelievable. Tunable `first_kill`, `double_kill`, `multi_kill`, `ultra_kill`, `fantastic`, and `unbelievable` must increase above `kill` in that order.
+Kill accolades replace the regular kill award and label: e.g. Double kill +100, not Kill +75 plus another +100. Headshot +10 and objective bonuses still stack. The highest kill-chain tier wins; first kill uses 85. The authoritative existing eight-second chain resets on death or expiry, with the sixth and subsequent chain kills using Unbelievable. Tunable `first_kill`, `double_kill`, `multi_kill`, `ultra_kill`, `fantastic`, and `unbelievable` must increase above `kill` in that order.
 
 Objective proximity checks the action location, applies once even if zones overlap, and uses either team's cubes. Device damage and healing bank partial progress until a five-point chunk. Cube destruction grants exactly 250 to the destroyer (even at range) and each living, active teammate within `objective_radius` (default12 units, inclusive) of the destroyed cube. Damage contribution is not required for nearby teammates; defenders are excluded. This full shared reward does not receive an additional proximity bonus or duplicate assist. Recent contributors outside the area retain the cube assist award (75 plus the existing objective bonus). Cube assists require damage within 30 seconds. Repeated spotting of the same target has a shared 15-second cooldown per spotter; rebuilding at the same grid cell has a 30-second cooldown. Self/friendly damage, self healing, full-health healing, neutral-device destruction and disconnect cleanup award no points. Device type refers to deployable devices, not ordinary terrain blocks.
 

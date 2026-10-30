@@ -63,26 +63,26 @@ Unit Make(uint id,CardUnit card,TeamType team,uint? player=null)
  return unit;
 }
 var a=Make(1,playerCard,TeamType.Team1,1);var ally=Make(2,playerCard,TeamType.Team1,2);var enemy=Make(3,playerCard,TeamType.Team2,3);
-Call("ScoreKill",enemy,a,true,true,new uint[]{2,2});Check(actual.Total(1)==60 && actual.Total(2)==25,"server kill routes headshot and distinct assists");
-enemy.IsActive=false;Call("ScoreKill",enemy,a,true,true,new uint[]{2});Check(actual.Total(1)==60 && actual.Total(2)==25,"disconnect cleanup cannot award kills or assists");enemy.IsActive=true;
-Call("ScoreKill",ally,a,false,true,Array.Empty<uint>());Check(actual.Total(1)==60,"team kill has no kill or headshot award");
+Call("ScoreKill",enemy,a,true,true,new uint[]{2,2});Check(actual.Total(1)==85 && actual.Total(2)==25,"server kill routes headshot and distinct assists");
+enemy.IsActive=false;Call("ScoreKill",enemy,a,true,true,new uint[]{2});Check(actual.Total(1)==85 && actual.Total(2)==25,"disconnect cleanup cannot award kills or assists");enemy.IsActive=true;
+Call("ScoreKill",ally,a,false,true,Array.Empty<uint>());Check(actual.Total(1)==85,"team kill has no kill or headshot award");
 Call("AwardAction",a,"Supply pickup",1f,Vector3.Zero,4u);Call("AwardAction",a,"Blockbuster pickup",1f,Vector3.Zero,5u);
-Check(actual.Total(1)==185,"supply and blockbuster values");
+Check(actual.Total(1)==210,"supply and blockbuster values");
 Call("AwardAction",a,"Device built",200f,Vector3.Zero,null);Call("AwardAction",a,"Device built",200f,Vector3.Zero,null);
-Check(actual.Total(1)==185,"immediate rebuild at same cell does not farm score");
-ally.SendHealAttribution(a,50,null);Check(actual.Total(1)==190,"real ally heal attribution awards score");
-a.SendHealAttribution(a,50,null);enemy.SendHealAttribution(a,50,null);Check(actual.Total(1)==190,"self and enemy healing excluded");
-var device=Make(4,deviceCard,TeamType.Team2);Call("ScoreKill",device,a,true,false,Array.Empty<uint>());Check(actual.Total(1)==210,"enemy device destruction uses device base cost");
-Call("ScoreDamage",enemy,100f,new ImpactData(),a,device);Check(actual.Total(1)==215,"confirmed device damage on opponent scores");
-Call("ScoreDamage",ally,100f,new ImpactData(),a,device);Check(actual.Total(1)==215,"friendly device damage excluded");
+Check(actual.Total(1)==210,"immediate rebuild at same cell does not farm score");
+ally.SendHealAttribution(a,50,null);Check(actual.Total(1)==215,"real ally heal attribution awards score");
+a.SendHealAttribution(a,50,null);enemy.SendHealAttribution(a,50,null);Check(actual.Total(1)==215,"self and enemy healing excluded");
+var device=Make(4,deviceCard,TeamType.Team2);Call("ScoreKill",device,a,true,false,Array.Empty<uint>());Check(actual.Total(1)==235,"enemy device destruction uses device base cost");
+Call("ScoreDamage",enemy,100f,new ImpactData(),a,device);Check(actual.Total(1)==240,"confirmed device damage on opponent scores");
+Call("ScoreDamage",ally,100f,new ImpactData(),a,device);Check(actual.Total(1)==240,"friendly device damage excluded");
 Call("AwardAction",a,"Radar spot",1f,Vector3.Zero,enemy.Id);
-Check(actual.Total(1)==220,"radar awards confirmed scan");
-Call("AwardAction",a,"Ability spot",1f,Vector3.Zero,99u);Check(actual.Total(1)==230,"ability spotting has its own starting value");
+Check(actual.Total(1)==245,"radar awards confirmed scan");
+Call("AwardAction",a,"Ability spot",1f,Vector3.Zero,99u);Check(actual.Total(1)==255,"ability spotting has its own starting value");
 var cube=Make(5,cubeCard,TeamType.Team2);Call("ScoreDamage",cube,10f,new ImpactData(),ally,ally);
-Call("ScoreKill",cube,a,true,false,Array.Empty<uint>());Check(actual.Total(1)==480 && actual.Total(2)==275,"cube destroy grants exactly 250 to destroyer and nearby contributor without duplicate assist");
-var result=(Dictionary<PlayerMatchStatType,int>)Call("ScoreResult",1u,null)!;Check(result[PlayerMatchStatType.ActionScore]==480,"results persist authoritative total");
-data.MatchEnded=true;Call("AwardAction",a,"Kill",1f,Vector3.Zero,null);Check(actual.Total(1)==480,"ended match cannot score");
-data.MatchEnded=false;data.Phase.PhaseType=ZonePhaseType.Waiting;Call("AwardAction",a,"Kill",1f,Vector3.Zero,null);Check(actual.Total(1)==480,"waiting phase cannot score");
+Call("ScoreKill",cube,a,true,false,Array.Empty<uint>());Check(actual.Total(1)==505 && actual.Total(2)==275,"cube destroy grants exactly 250 to destroyer and nearby contributor without duplicate assist");
+var result=(Dictionary<PlayerMatchStatType,int>)Call("ScoreResult",1u,null)!;Check(result[PlayerMatchStatType.ActionScore]==505,"results persist authoritative total");
+data.MatchEnded=true;Call("AwardAction",a,"Kill",1f,Vector3.Zero,null);Check(actual.Total(1)==505,"ended match cannot score");
+data.MatchEnded=false;data.Phase.PhaseType=ZonePhaseType.Waiting;Call("AwardAction",a,"Kill",1f,Vector3.Zero,null);Check(actual.Total(1)==505,"waiting phase cannot score");
 data.Phase.PhaseType=ZonePhaseType.Assault;
 var spotted=Make(6,playerCard,TeamType.Team2,6);
 var markCard=new CardEffect {Id="score_vision_mark",Duration=3,Effect=new ConstEffectBuff{Buffs=new(){{BuffType.VisionMark,1}}}};
@@ -97,7 +97,7 @@ Check(actual.Total(1)==beforeSpot+12,"real hero ability mark awards spotter");
 // Drive the same authoritative accolade registration used by UnitIsKilled.
 data.MatchEnded=false;data.Phase.PhaseType=ZonePhaseType.Assault;units.Clear();units[a.Id]=a;units[enemy.Id]=enemy;
 Set("_killAccolades",new KillAccoladeTracker());Set("_accoladeClock",Stopwatch.StartNew());
-foreach(var expected in new[]{("First kill",60),("Double kill",75),("Multi kill",100),("Ultra kill",125),("Fantastic",150),("Unbelievable",175),("Unbelievable",175)})
+foreach(var expected in new[]{("First kill",85),("Double kill",100),("Multi kill",125),("Ultra kill",150),("Fantastic",175),("Unbelievable",200),("Unbelievable",200)})
 {
  actual.Published();int before=actual.Total(1);
  var accolade=Call("RecordKillAccolades",enemy,a,true,false);
@@ -106,7 +106,7 @@ foreach(var expected in new[]{("First kill",60),("Double kill",75),("Multi kill"
  Check(actual.Total(1)-before==expected.Item2 && awards.GetArrayLength()==1 && awards[0].GetProperty("reason").GetString()==expected.Item1,"accolade replaces kill: "+expected.Item1+" +"+expected.Item2);
 }
 actual.Published();int prior=actual.Total(1);Call("ScoreKill",enemy,a,true,true,Array.Empty<uint>(),KillAccolade.DoubleKill);
-Check(actual.Total(1)-prior==85,"double kill and headshot stack once (75 + 10)");
+Check(actual.Total(1)-prior==110,"double kill and headshot stack once (100 + 10)");
 // Shared cube rewards: actual player positions, radius edge, team and life eligibility.
 units[cube.Id]=cube;a.Transform.Position=new Vector3(50,0,0);
 var nearby=Make(20,playerCard,TeamType.Team1,20);
@@ -135,7 +135,7 @@ var globalJson=JsonSerializer.Serialize(global,JsonHelper.DefaultSerializerSetti
 var parsed=(CardGlobalLogic)JsonSerializer.Deserialize<Card>(globalJson,JsonHelper.DefaultSerializerSettings)!;
 Check(globalJson.Contains("action_scores") && globalJson.Contains("cube_assist_window") && typeof(ActionScoreRules).GetProperties().All(p=>Equals(p.GetValue(configured),p.GetValue(parsed.ActionScores))),"all CDB score settings round-trip using catalogue snake_case JSON");
 db.Replicate([parsed]);var frozen=ActionScoreRules.Load();
-Check(frozen.Cube==251 && frozen.ObjectiveRadius==13 && frozen.Kill==51,"new match loads edited CDB values");
+Check(frozen.Cube==251 && frozen.ObjectiveRadius==13 && frozen.Kill==76,"new match loads edited CDB values");
 parsed.ActionScores!.Cube=300;
 Check(frozen.Cube==251 && ActionScoreRules.Load().Cube==300,"running match keeps independent score snapshot after catalogue edit");
 var invalid=new CardGlobalLogic { Id="global_logic",ActionScores=new ActionScoreRules { HealPerPoint=0 } };
@@ -415,7 +415,7 @@ Check(keyLedger.Total(2)==2*rules.KeyAssist+rules.Assist,"the killer leading on 
 // Kills near an objective earn at least +20; other actions keep the percentage.
 var near=new ActionScoreLedger(rules);
 near.Grant(1,"Kill",rules.Kill,true);Check(near.Total(1)==rules.Kill+20,"a kill near an objective earns +20");
-near.Grant(2,"First kill",rules.FirstKill,true);Check(near.Total(2)==rules.FirstKill+20,"accolade kills near an objective earn at least +20");
+near.Grant(2,"First kill",rules.FirstKill,true);Check(near.Total(2)==rules.FirstKill+Math.Max(rules.KillObjectiveBonus,(int)Math.Floor(rules.FirstKill*rules.ObjectiveBonus)),"accolade kills near an objective earn at least +20");
 near.Grant(3,"Unbelievable",rules.Unbelievable,true);Check(near.Total(3)==rules.Unbelievable+(int)Math.Floor(rules.Unbelievable*rules.ObjectiveBonus),"large accolades keep the larger percentage bonus");
 near.Grant(4,"Key assist",rules.KeyAssist,true);Check(near.Total(4)==rules.KeyAssist+(int)Math.Floor(rules.KeyAssist*rules.ObjectiveBonus),"assists keep the percentage objective bonus");
 near.Grant(5,"Kill",rules.Kill,false);Check(near.Total(5)==rules.Kill,"kills away from objectives get no bonus");
@@ -522,7 +522,8 @@ var ammoGear=new CardGear{Id="score_supply_weapon",Ammo=[new AmmoData{MagSize=10
 ally.Gears.Add(new GearData(ally,ammoGear.Key,0));var reserve=ally.Gears[0].Ammo[0];
 ally.AddAmmo(10,station.GetSelfSource());Check(actionLedger.Total(1)==0,"full ammo earns nothing");
 reserve.Pool=50;ally.AddAmmo(10,station.GetSelfSource());Check(actionLedger.Total(1)==5 && reserve.Pool==60,"actual ally ammo restored credits station owner");
-ally.AddAmmo(10,station.GetSelfSource());Check(actionLedger.Total(1)==10 && reserve.Pool==70,"each real ammo refill scores without cooldown");
+ally.AddAmmo(10,station.GetSelfSource());Check(actionLedger.Total(1)==5 && reserve.Pool==70,"a repeat refill of the same ally inside the ammo cooldown earns nothing");
+Set("_actionScoreRules",new ActionScoreRules{AmmoCooldown=.05f});Thread.Sleep(80);ally.AddAmmo(10,station.GetSelfSource());Check(actionLedger.Total(1)==10 && reserve.Pool==80,"the same ally scores again once the ammo cooldown expires");Set("_actionScoreRules",rules);
 Fresh();station.OwnerPlayerId=ally.PlayerId;ally.AddAmmo(10,station.GetSelfSource());Check(actionLedger.Total(2)==0,"own ammo crate earns no self-supply reward");station.OwnerPlayerId=1;
 Fresh();ally.AddAmmoPercent(.1f,station.GetSelfSource());Check(actionLedger.Total(1)==5,"percentage ammo restoration uses the same attribution gate");
 Fresh();var ammoBuff=new CardEffect{Id="score_supply_regen",Effect=new ConstEffectBuff{Buffs=new(){{BuffType.AmmoRegen,1}}}};Publish([ammoBuff]);reserve.Pool=50;
@@ -565,10 +566,11 @@ portal.Team=a.Team=ally.Team=TeamType.Team1;portal.Transform.Position=Vector3.Ze
 Fresh();enemy.RemoveEffects([new ConstEffectInfo(scanCard.Key)],radar.Team,radar.GetSelfSource());
 enemy.AddEffects([new ConstEffectInfo(scanCard.Key)],radar.Team,radar.GetSelfSource(radar.CreateImpactData()));
 Check(actionLedger.Total(1)==0,"radar effect admission does not add a duplicate scan award");
-enemy.ReportScoreSpots();enemy.ReportScoreSpots();Check(actionLedger.Total(1)==10,"successive radar scan ticks score without 15-second wait");
+enemy.ReportScoreSpots();enemy.ReportScoreSpots();Check(actionLedger.Total(1)==5,"successive radar scan ticks inside the radar cooldown score once");
 var secondRadar=Device(882,"unit_device_generic_radar");
 enemy.AddEffects([new ConstEffectInfo(scanCard.Key)],secondRadar.Team,secondRadar.GetSelfSource(secondRadar.CreateImpactData()));
-enemy.ReportScoreSpots();Check(actionLedger.Total(1)==15,"overlapping radars from one owner score once per target per tick");
+enemy.ReportScoreSpots();Check(actionLedger.Total(1)==5,"a second radar from the same owner cannot bypass the cooldown on that enemy");
+Set("_actionScoreRules",new ActionScoreRules{RadarCooldown=.05f});Thread.Sleep(80);enemy.ReportScoreSpots();Check(actionLedger.Total(1)==10,"overlapping radars from one owner score once per target after the cooldown");Set("_actionScoreRules",rules);
 Fresh();var realLamp=Device(883,"unit_device_djinn_lamp");
 var gasCard=new CardUnit{Id="unit_dummy_djinn_acid_cloud_lamp",Data=new UnitDataCommon()};Publish([gasCard]);
 createdPickup=null;
@@ -595,6 +597,17 @@ Check(actionLedger.Total(1)==10,"enemy entering an owned fake block awards 10 th
 Call("RunBlockCheckForUnit",enemy);Check(actionLedger.Total(1)==10,"remaining inside the fake block is not another trigger");
 ally.Transform.Position=enemy.Transform.Position;Call("RunBlockCheckForUnit",ally);Check(actionLedger.Total(1)==10,"friendly fake-block entry earns no points");
 
+// Hero damage is banked across targets and paid per full chunk, so single hits raise no notification.
+Fresh();var far=new Vector3(5000,0,0);enemy.Transform.Position=far;spotted.Transform.Position=far;
+Call("ScoreDamage",enemy,60f,new ImpactData(),a,a);Check(actionLedger.Total(1)==0,"hero damage below one chunk is banked without an award");
+Call("ScoreDamage",spotted,60f,new ImpactData(),a,a);
+using(var doc=JsonDocument.Parse(actionLedger.Snapshot(false))){var awards=doc.RootElement.GetProperty("awards");
+ Check(actionLedger.Total(1)==rules.HeroDamagePoints && awards.GetArrayLength()==1 && awards[0].GetProperty("reason").GetString()=="Damage dealt","banked damage across two enemies pays one Damage dealt award per full chunk");}
+Call("ScoreDamage",enemy,80f,new ImpactData(),a,a);Check(actionLedger.Total(1)==2*rules.HeroDamagePoints,"the remainder carries over to the next chunk");
+Call("ScoreDamage",ally,500f,new ImpactData(),a,a);Check(actionLedger.Total(1)==2*rules.HeroDamagePoints,"friendly damage earns no Damage dealt");
+Fresh();Call("ScoreDamage",enemy,100f,new ImpactData(),a,device);
+using(var doc=JsonDocument.Parse(actionLedger.Snapshot(false))){var awards=doc.RootElement.GetProperty("awards");
+ Check(awards.EnumerateArray().All(x=>x.GetProperty("reason").GetString()!="Damage dealt"),"device-credited damage stays Device damage, never Damage dealt");}
 Console.WriteLine($"PASS action scoring: {checks} checks");
 public class EmptyInitiator : DispatchProxy
 {

@@ -1,3 +1,10 @@
+## 2026-10-29 - Radar and ammo score cooldowns; kills and damage pay more
+
+- Replay award breakdown (20 matches, client repo tools/action_score_breakdown.py): Radar spot was 47% and Ammo supplied 16% of all action score since the 26 Oct device-scoring deploy; one Sarge scored 41,729, 85% Radar spot. ReportScoreSpots runs on the 200 ms buff check and neither award had a cooldown (AmmoCooldown existed unread).
+- Radar spot: once per owner and enemy every radar_cooldown (15 s), shared across that owner's radars. Ammo supplied: once per crate owner and ally every ammo_cooldown (15 s).
+- Compensation: kill 75 (was 50) and every accolade +25 (85/100/125/150/175/200). New "Damage dealt": enemy-hero health removed with hero damage credit (own weapons/abilities) is banked across targets and paid 20 per full 100 (hero_damage_chunk/hero_damage_points), so single hits raise no notification. Simulated on the live rows, the median match moves from 3,592 to about 1,960 (progression curves assume ~1,840).
+- ActionScore fixture 285 checks (cooldown inside/expiry for both, chunk banking and carry-over, friendly and device-credited damage excluded); Progression 19, DebugDummy 51, WeaponSkin 29, ReplayControls 65; warning-as-error build passes.
+
 
 
 ## 2026-10-19 - Replay seek flow control
