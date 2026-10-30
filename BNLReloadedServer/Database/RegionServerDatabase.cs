@@ -1,3 +1,4 @@
+using BNLReloadedServer.Authentication;
 using System.Collections.Concurrent;
 using System.Diagnostics.CodeAnalysis;
 using System.Text.Json;
@@ -251,7 +252,7 @@ public partial class RegionServerDatabase(AsyncTaskTcpServer server, AsyncTaskTc
         {
             var chatPlayer = new ChatPlayer
             {
-                Nickname = _playerDatabase.GetPlayerName(userId),
+                Nickname = PlayerChatText.Plain(_playerDatabase.GetPlayerName(userId)),
                 PlayerId = userId
             };
 
@@ -271,6 +272,8 @@ public partial class RegionServerDatabase(AsyncTaskTcpServer server, AsyncTaskTc
             }
         }
 
+        if (ChatBanList.Shared.Active(userId, DateTimeOffset.UtcNow) is { } chatBan)
+            _scheduledNotifications.GetOrAdd(userId, _ => new ConcurrentQueue<string>()).Enqueue(chatBan.Warning);
         QueueScheduledNotificationDelivery(userId);
         LiveStateChanged();
         return result;
@@ -1135,6 +1138,7 @@ public partial class RegionServerDatabase(AsyncTaskTcpServer server, AsyncTaskTc
 
     public bool SendMessage(uint playerId, RoomId roomId, string message)
     {
+        if (!PreparePlayerChat(playerId, ref message)) return false;
         if (roomId is RoomIdGlobal)
         {
             if (!UserConnected(playerId, out var speaker) || !CanUseGlobalChat(speaker) || string.IsNullOrWhiteSpace(message) || message.Length > 500) return false;
@@ -1187,6 +1191,7 @@ public partial class RegionServerDatabase(AsyncTaskTcpServer server, AsyncTaskTc
 
     public PrivateMessageFailReason? SendMessage(uint playerId, uint receiver, string message)
     {
+        if (!PreparePlayerChat(playerId, ref message)) return PrivateMessageFailReason.Ignor;
         if (!UserConnected(playerId, out var me) || !UserConnected(receiver, out var them))
             return PrivateMessageFailReason.Offline;
         if (them.GameInstanceId != null) return PrivateMessageFailReason.Match;

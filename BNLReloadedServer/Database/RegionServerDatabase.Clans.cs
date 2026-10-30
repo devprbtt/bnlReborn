@@ -63,6 +63,7 @@ public partial class RegionServerDatabase
 
     public bool SendClanChat(uint id, string message)
     {
+        if (!PreparePlayerChat(id, ref message)) return false;
         var clan = ClanHub.Store.ClanOf(id);
         if (clan == null || !UserConnected(id, out var speaker) || !speaker.Online || string.IsNullOrWhiteSpace(message) || message.Length > 500) return false;
         long now = Environment.TickCount64, last = Interlocked.Read(ref speaker.LastGlobalMessage);
