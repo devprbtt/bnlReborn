@@ -1,5 +1,5 @@
-"""Put four character skins on sale at 10,000 Gold each (owner decision 2026-10-29): Arctic Wolf, Darklord (renamed from
-"Demon", owner 2026-10-29), Christmas Boris and Snow Globe Vander (Christmas Vander).
+"""Put six character skins on sale at 10,000 Gold each (owner decisions 2026-10-29/30): Arctic Wolf, Darklord (renamed
+from "Demon", owner 2026-10-29), Christmas Boris, Snow Globe Vander (Christmas Vander), Winter Ops Tony and Winter Ops Sarge.
 
 Each skin card becomes private (owned only once bought or granted) and gets a public shop item at 10,000 Gold, listed
 in no shop_logic category, as the weapon skins' are: the Reborn client's Catalogue > SKINS > CHARACTER SKINS tab sells
@@ -29,23 +29,36 @@ SALES = [
      "Boris the yeti dressed for Christmas, from his Santa hat to his festive coat."),
     ("skin_magnus_christmas", "shop_skin_magnus_christmas", "unit_hero_magnus",
      "Vander Graaf in a navy peacoat and Fair Isle scarf, with a snowy village in his globe."),
+    # Winter Ops pair (owner 2026-10-30, 10,000 Gold, shipped with client beta.85): the skin swaps the weapon's look.
+    ("skin_engineer_winter_ops", "shop_skin_engineer_winter_ops", "unit_hero_engineer",
+     "Tony in snow camouflage, with a SPAS-12 shotgun in place of his Nail Gun."),
+    ("skin_sarge_stone_winter_ops", "shop_skin_sarge_stone_winter_ops", "unit_hero_sarge_stone",
+     "Sarge in snow camouflage, a knit beanie and black aviators, with an M249 in place of his M60."),
 ]
 # Card names changed with the sale (owner 2026-10-29); the shop items take the card's name.
 RENAME = {"skin_boxer_demon_private": "Darklord"}
-# Snow Globe Vander's new card, cut from Vander Graaf's (bundles and music).
-NEW_SKIN, NEW_SOURCE = "skin_magnus_christmas", "skin_magnus_s1"
+# New cards, each cut from a stock skin of the same hero (bundles and music): source, prefab, fps prefab, portrait, name.
+NEW_SKINS = {
+    "skin_magnus_christmas": ("skin_magnus_s1", "Prefabs/Units/MagnusChristmas", "Prefabs/Player/MagnusPlayerChristmas",
+                              "portrait_magnus_christmas", "Snow Globe Vander"),
+    "skin_engineer_winter_ops": ("skin_engineer_s1", "Prefabs/Units/EngineerWinterOps", "Prefabs/Player/EngineerPlayerWinterOps",
+                                 "portrait_engineer_winter_ops", "Winter Ops Tony"),
+    "skin_sarge_stone_winter_ops": ("skin_sarge_stone_s2", "Prefabs/Units/SergeantWinterOps", "Prefabs/Player/SergeantPlayerWinterOps",
+                                    "portrait_sarge_stone_winter_ops", "Winter Ops Sarge"),
+}
 
 
 def text(value):
     return {"text": value, "data": {}}
 
 
-def new_skin(source):
-    card = {"_id": NEW_SKIN, "category": "skin", "scope": "private",
-            "prefab": "Prefabs/Units/MagnusChristmas", "fps_prefab": "Prefabs/Player/MagnusPlayerChristmas",
-            "icon_portrait": "portrait_magnus_christmas", "icon_portrait_profile": NEW_SKIN,
+def new_skin(skin_id, source):
+    _, prefab, fps_prefab, portrait, name = NEW_SKINS[skin_id]
+    card = {"_id": skin_id, "category": "skin", "scope": "private",
+            "prefab": prefab, "fps_prefab": fps_prefab,
+            "icon_portrait": portrait, "icon_portrait_profile": skin_id,
             "bundle": source["bundle"], "fps_bundle": source["fps_bundle"],
-            "name": text("Snow Globe Vander"), "hero_key": "unit_hero_magnus"}
+            "name": text(name), "hero_key": source["hero_key"]}
     for music in ("learning_music", "lockin_music", "death_music_sting"):
         if source.get(music) is not None:
             card[music] = source[music]
@@ -56,8 +69,9 @@ def build(docs):
     """Returns {doc id: new document}: each skin card, its shop item, and Vander's unit listing the new skin."""
     out = {}
     for skin_id, shop_id, hero_id, description in SALES:
-        if skin_id == NEW_SKIN and skin_id not in docs:
-            card = new_skin(docs[NEW_SOURCE])
+        if skin_id in NEW_SKINS and skin_id not in docs:
+            card = new_skin(skin_id, docs[NEW_SKINS[skin_id][0]])
+            assert card["hero_key"] == hero_id, skin_id
         else:
             card = copy.deepcopy(docs[skin_id])
             assert card["category"] == "skin" and card.get("hero_key") == hero_id, skin_id
@@ -108,11 +122,12 @@ def fetch(name):
         return None
 
 
-names = sorted({NEW_SOURCE} | {n for sale in SALES for n in sale[:3]})
+sources = sorted(v[0] for v in NEW_SKINS.values())
+names = sorted(set(sources) | {n for sale in SALES for n in sale[:3]})
 before = {n: fetch(n) for n in names}
 for skin_id, _, hero_id, _ in SALES:
     assert before[hero_id] and before[hero_id]["category"] == "unit", "hero missing: " + hero_id
-    assert skin_id == NEW_SKIN or before[skin_id], "skin missing: " + skin_id
+    assert skin_id in NEW_SKINS or before[skin_id], "skin missing: " + skin_id
 shop_logic = fetch("shop_logic")
 listed = json.dumps(shop_logic or {})
 assert not any(sale[1] in listed for sale in SALES), "a shop item is listed in shop_logic; released clients would show it"
@@ -134,6 +149,7 @@ after = {n: request(n) for n in planned}
 for name, doc in planned.items():
     saved = {k: v for k, v in after[name].items() if k != "_rev"}
     assert saved == {k: v for k, v in doc.items() if k != "_rev"}, "readback differs for " + name
-assert request(NEW_SOURCE) == before[NEW_SOURCE], "source skin changed"
+for source in sources:
+    assert request(source) == before[source], "source skin changed: " + source
 assert not any(sale[1] in json.dumps(fetch("shop_logic") or {}) for sale in SALES), "shop_logic changed"
 print(json.dumps({"backup": str(backup), "revisions": {n: after[n]["_rev"] for n in sorted(after)}}), flush=True)
