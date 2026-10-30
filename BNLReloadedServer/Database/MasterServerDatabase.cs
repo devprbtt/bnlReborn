@@ -163,15 +163,19 @@ public class MasterServerDatabase : IMasterServerDatabase
         return result;
     }
 
-    // A grant whose card is missing or public means the catalogue was not published before this server started:
-    // logins would then strip those skins from saved loadouts. The "<3>" prefix makes journald record the line at
-    // error priority, which the deploy health gate treats as a failed start and rolls back.
+    // A grant whose card is missing means the catalogue was not published before this server started: logins would
+    // then strip those skins from saved loadouts. The "<3>" prefix makes journald record the line at error priority,
+    // which the deploy health gate treats as a failed start and rolls back. A grant on a still-public card changes
+    // nothing (everyone owns public cards) and is expected while a sale's grants wait for its catalogue publish.
     private static void ReportGrantsWithoutPrivateCards(IEnumerable<InventoryGrantRecord> grants)
     {
-        var orphaned = grants.Select(g => g.Item).Distinct()
-            .Where(item => Catalogue.Key(item).GetCard<Card>() is not { Scope: ScopeType.Private }).ToList();
-        if (orphaned.Count == 0) return;
-        var message = $"Inventory grants name items that are not private cards in the catalogue: {string.Join(", ", orphaned)}";
+        var items = grants.Select(g => g.Item).Distinct().ToList();
+        var missing = items.Where(item => Catalogue.Key(item).GetCard<Card>() == null).ToList();
+        var stillPublic = items.Where(item => Catalogue.Key(item).GetCard<Card>() is { Scope: not ScopeType.Private }).ToList();
+        if (stillPublic.Count > 0)
+            Log.Warn(LogCat.Catalogue, $"Inventory grants name cards that are still public: {string.Join(", ", stillPublic)}");
+        if (missing.Count == 0) return;
+        var message = $"Inventory grants name items missing from the catalogue: {string.Join(", ", missing)}";
         Log.Error(LogCat.Catalogue, message);
         Console.Error.WriteLine("<3>" + message);
     }
