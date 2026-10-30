@@ -398,7 +398,12 @@ public class GameLobby : Updater
     private bool AdvanceCasualBans()
     {
         if (_casualDraft == null || _casualDraft.Phase >= 3) return false;
-        if (_casualDraft.Voting) BannedHeroes.Add(_casualDraft.Winner(Random.Shared));
+        if (_casualDraft.Voting)
+        {
+            var banned = _casualDraft.Winner(Random.Shared);
+            BannedHeroes.Add(banned);
+            RecordCasualBan(_casualDraft, banned);
+        }
         int phase = _casualDraft.Phase + 1;
         if (phase == 3) { _casualDraft.Finish(); return false; }
         var candidates = CatalogueHelper.GetHeroes().Where(h => HeroClass(h) == CasualDraft.Classes[phase] &&
@@ -415,6 +420,16 @@ public class GameLobby : Updater
         SendLobbyUpdate(timer: LobbyData.Timer, players: LobbyData.Players.Values.ToList());
         SetUpTimerEvent();
         return true;
+    }
+
+    private void RecordCasualBan(CasualDraft draft, Key banned)
+    {
+        var record = CasualHeroBans.Create(LobbyData.SessionName ?? string.Empty, draft.Phase, CasualDraft.Classes[draft.Phase], banned,
+            draft.Candidates, draft.Votes, LobbyData.Players.Count, DateTimeOffset.UtcNow.ToUnixTimeMilliseconds());
+        Log.Info(LogCat.Match, $"Casual ban {LobbyData.SessionName} phase {draft.Phase}: {record.HeroId} " +
+            $"({record.HeroVotes}/{record.Voters} votes, {LobbyData.Players.Count} players)");
+        try { CasualHeroBans.Recorder?.Invoke(record); }
+        catch (Exception ex) { Log.Error(LogCat.Match, "Casual ban could not be recorded", ex); }
     }
 
     private string? CasualSnapshot() => _casualDraft == null ? null : System.Text.Json.JsonSerializer.Serialize(new

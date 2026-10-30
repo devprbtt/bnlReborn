@@ -58,6 +58,11 @@ public class MasterServerDatabase : IMasterServerDatabase
         _playerDb.CreateTableAsync<LeaguePlayerRecord>().Wait();
         _playerDb.CreateTableAsync<LeagueResultRecord>().Wait();
         _playerDb.CreateTableAsync<AppliedMigrationRecord>().Wait();
+        _playerDb.CreateTableAsync<CasualHeroBanRecord>().Wait();
+        CasualHeroBans.Recorder = ban => _playerDb.InsertAsync(ban).ContinueWith(t =>
+        {
+            if (t.IsFaulted) Log.Error(LogCat.Match, "Casual ban could not be stored", t.Exception!);
+        });
         BackfillRankEligibility().Wait();
         ImportLegacyPrivateSkinGrants().Wait();
         GrantSaleSkinsToExistingAccounts().Wait();
@@ -627,6 +632,9 @@ public class MasterServerDatabase : IMasterServerDatabase
         await _playerDb.RunInTransactionAsync(db => result = LifetimeProfileStats.Read(db, playerId));
         return result;
     }
+
+    public async Task<CasualHeroBanSummary> GetCasualHeroBans(long since) =>
+        CasualHeroBans.Summarize(await _playerDb.Table<CasualHeroBanRecord>().Where(b => b.BannedAt >= since).ToListAsync(), since);
 
     /// <summary>Runs one trophy operation (Database/Trophies.cs) in a transaction on the player database.</summary>
     public async Task<T> WithTrophies<T>(Func<SQLiteConnection, T> action)

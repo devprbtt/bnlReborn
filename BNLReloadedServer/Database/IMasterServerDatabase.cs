@@ -33,6 +33,7 @@ public interface IMasterServerDatabase
     public Task<List<ArchivedMatchRecord>> GetCompletedMatches(int limit, long? before);
     public Task<ArchivedMatchDetail?> GetCompletedMatch(string matchId);
     public Task<LifetimeProfileStats> GetLifetimeProfileStats(uint playerId);
+    public Task<CasualHeroBanSummary> GetCasualHeroBans(long since);
     public Task<PlayerLeaderboard> GetPlayerLeaderboard(PlayerLeaderboardStat stat, bool recentOnly);
     public Task<T> WithTrophies<T>(Func<SQLite.SQLiteConnection, T> action);
     public Task<bool> SetNewRatings(List<uint> winners, List<uint> losers, HashSet<uint> excluded, bool ranked = false);

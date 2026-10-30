@@ -64,8 +64,11 @@ for (int seed = 0; seed < 100; seed++)
 }
 Check(orders.Count > 90 && firsts.Count == 10, "every seat can pick first");
 
+var recorded = new List<CasualHeroBanRecord>();
+CasualHeroBans.Recorder = recorded.Add;
 foreach (int size in new[] { 3, 4, 5 })
 {
+    recorded.Clear();
     var roster = Enumerable.Range(1, size * 2).Select(i => new RankedSnakeDraft.Player((uint)i,
         i <= size ? TeamType.Team1 : TeamType.Team2, i)).ToArray();
     var last = roster.ToDictionary(p => p.Id, _ => heroes[0].Key); last[99] = heroes[0].Key;
@@ -123,6 +126,13 @@ foreach (int size in new[] { 3, 4, 5 })
         Check(draft.Phase == next, "stale ban timer cannot skip phase");
     }
     Check(lobby.BannedHeroes.Count == 3 && data.Timer.TimerType == LobbyTimerType.Selection, "three global bans then picking");
+    Check(recorded.Count == 3 && recorded.Select(r => r.Phase).SequenceEqual(new[] { 0, 1, 2 }) &&
+        recorded.All(r => lobby.BannedHeroes.Contains(Key.FromHash((uint)r.HeroKey)) && r.Session == "casual-fixture" && r.Players == size * 2) &&
+        recorded.Select(r => r.ClassKey).SequenceEqual(CasualDraft.Classes.Select(c => (long)c.Hash)), "every closed ballot is recorded once with its class");
+    Check(recorded[0].HeroVotes == size * 2 && recorded[0].Voters == size * 2 && recorded[1].HeroVotes == 1 && recorded[1].Voters == 1,
+        "recorded tallies match the ballot, including a disconnected voter");
+    Check(recorded.All(r => CasualHeroBans.ReadBallot(r.Ballot).Count() == 7 && CasualHeroBans.ReadBallot(r.Ballot).Sum(b => b.Votes) == r.Voters &&
+        CasualHeroBans.ReadBallot(r.Ballot).Single(b => b.Hero == r.HeroKey).Votes == r.HeroVotes), "ballot keeps every candidate and its votes");
     var expected = (uint[])Field(lobby, "_draftOrder")!;
     var teamTurns = new Dictionary<TeamType, int>();
     for (int turn = 0; turn < size * 2; turn++)
@@ -227,6 +237,28 @@ var needsTwo = new[] { new CasualDraft.Seat(1,TeamType.Team1,heroes[0].Key),new 
 Check(!CasualDraft.CanComplete(needsTwo,onePerClass,(id,h)=>id==3 || h==heroes[0].Key,new HashSet<TeamType>{TeamType.Team1}),"one remaining player cannot fill two missing classes");
 Check(CasualDraft.CanComplete(needsTwo,onePerClass,(id,h)=>id==3 ? h==heroes[7].Key : id==4 ? h==heroes[14].Key : true,new HashSet<TeamType>{TeamType.Team1}),"distinct remaining owners can complete missing classes");
 Check(!CasualDraft.CanComplete(needsTwo,onePerClass,(id,h)=>id!=4,new HashSet<TeamType>{TeamType.Team1}),"unowned choices cannot fill a seat");
+CasualHeroBans.Recorder = null;
+var h0 = heroes[0].Key.Hash; var h1 = heroes[1].Key.Hash; var cls = CasualDraft.Classes[0].Hash;
+var history = new List<CasualHeroBanRecord>
+{
+    new() { Session = "a", ClassKey = cls, HeroKey = h0, HeroVotes = 3, Voters = 4, Ballot = $"{h0}:3,{h1}:1" },
+    new() { Session = "b", ClassKey = cls, HeroKey = h1, HeroVotes = 0, Voters = 0, Ballot = $"{h0}:0,{h1}:0" },
+    new() { Session = "b", ClassKey = cls, HeroKey = h0, HeroVotes = 2, Voters = 3, Ballot = $"{h0}:2,{h1}:1" },
+};
+var summary = CasualHeroBans.Summarize(history, 0);
+var s0 = summary.Heroes.Single(h => h.HeroKey == h0); var s1 = summary.Heroes.Single(h => h.HeroKey == h1);
+Check(summary.Ballots == 3 && summary.Drafts == 2 && summary.UnvotedBallots == 1 && summary.Heroes[0].HeroKey == h0, "summary totals and ordering");
+Check(s0 is { Bans: 2, VotedBans: 2, RandomBans: 0, Offered: 3, Votes: 5 } && s1 is { Bans: 1, VotedBans: 0, RandomBans: 1, Offered: 3, Votes: 2 },
+    "summary separates voted bans from no-vote random bans");
+// The table round-trips through SQLite with the same query the master database runs.
+var dbPath = Path.Combine(Path.GetTempPath(), "bnl-casual-bans-" + Guid.NewGuid().ToString("N") + ".db");
+var store = new SQLite.SQLiteAsyncConnection(dbPath);
+await store.CreateTableAsync<CasualHeroBanRecord>();
+foreach (var (row, at) in history.Select((r, i) => (r, 1000L * (i + 1)))) { row.BannedAt = at; await store.InsertAsync(row); }
+var stored = await store.Table<CasualHeroBanRecord>().Where(b => b.BannedAt >= 2000).ToListAsync();
+Check(stored.Count == 2 && stored.All(r => r.Session == "b") && CasualHeroBans.Summarize(stored, 2000).Heroes.Single(h => h.HeroKey == h1).RandomBans == 1,
+    "stored rows round-trip and the window filter applies");
+await store.CloseAsync(); File.Delete(dbPath);
 Console.WriteLine($"Casual draft fixture passed: {checks} checks.");
 
 class GameProxy : DispatchProxy

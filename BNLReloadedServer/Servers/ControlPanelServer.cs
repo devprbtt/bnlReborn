@@ -250,6 +250,12 @@ public sealed class ControlPanelServer : IDisposable
                 return;
             }
 
+            if (method == "GET" && path == "/api/casual-bans")
+            {
+                await ServeCasualBans(ctx);
+                return;
+            }
+
             if (method == "GET" && path.StartsWith("/api/profile-stats/"))
             {
                 if (!uint.TryParse(path["/api/profile-stats/".Length..], out var statsPlayerId))
@@ -1047,6 +1053,32 @@ public sealed class ControlPanelServer : IDisposable
     {
         queues = Databases.RegionServerDatabase?.GetQueueSnapshot() ?? []
     };
+
+    // Admin only. ?days=N limits the window (default 30, 0 for all history).
+    private static async Task ServeCasualBans(HttpListenerContext ctx)
+    {
+        var days = int.TryParse(ctx.Request.QueryString["days"], out var requested) ? Math.Max(0, requested) : 30;
+        long since = days == 0 ? 0 : DateTimeOffset.UtcNow.AddDays(-days).ToUnixTimeMilliseconds();
+        var summary = await Databases.MasterServerDatabase.GetCasualHeroBans(since);
+        await WriteJson(ctx, new
+        {
+            since = summary.Since,
+            ballots = summary.Ballots,
+            drafts = summary.Drafts,
+            unvoted_ballots = summary.UnvotedBallots,
+            heroes = summary.Heroes.Select(h => new
+            {
+                hero = DescribeArchiveKey(h.HeroKey),
+                @class = DescribeArchiveKey(h.ClassKey),
+                bans = h.Bans,
+                voted_bans = h.VotedBans,
+                random_bans = h.RandomBans,
+                offered = h.Offered,
+                votes = h.Votes,
+                ban_rate = h.Offered == 0 ? 0 : Math.Round((double)h.Bans / h.Offered, 3)
+            })
+        });
+    }
 
     private static async Task ServeActivity(HttpListenerContext ctx)
     {
