@@ -6,7 +6,7 @@ namespace BNLReloadedServer.BaseTypes;
 public sealed class ActionScoreRules
 {
     public int AmmoSupply { get; set; } = 5;
-    // Legacy intervals remain parseable but no longer gate device actions.
+    // Per station owner and recipient: each crate tick that restores ammo would otherwise pay again.
     public float AmmoCooldown { get; set; } = 15;
     public int RadarDevice { get; set; } = 5;
     public int SpawnUse { get; set; } = 10;
@@ -50,13 +50,13 @@ public sealed class ActionScoreRules
     public float TonyRepairPerPoint { get; set; } = 10;
     public float DocAbilityHealPerPoint { get; set; } = 10;
     public float HeroEffectCooldown { get; set; } = 15;
-    public int Kill { get; set; } = 50;
-    public int FirstKill { get; set; } = 60;
-    public int DoubleKill { get; set; } = 75;
-    public int MultiKill { get; set; } = 100;
-    public int UltraKill { get; set; } = 125;
-    public int Fantastic { get; set; } = 150;
-    public int Unbelievable { get; set; } = 175;
+    public int Kill { get; set; } = 75;
+    public int FirstKill { get; set; } = 85;
+    public int DoubleKill { get; set; } = 100;
+    public int MultiKill { get; set; } = 125;
+    public int UltraKill { get; set; } = 150;
+    public int Fantastic { get; set; } = 175;
+    public int Unbelievable { get; set; } = 200;
     public int Assist { get; set; } = 25;
     // Replaces the assist for the assister who dealt the victim the most damage (ties share it).
     public int KeyAssist { get; set; } = 35;
@@ -69,8 +69,14 @@ public sealed class ActionScoreRules
     public int BuildMin { get; set; } = 1;
     public int BuildMax { get; set; } = 50;
     public int Radar { get; set; } = 5;
+    // Per radar owner and spotted enemy: radar marks are rechecked every 200 ms buff tick.
+    public float RadarCooldown { get; set; } = 15;
     public int AbilitySpot { get; set; } = 10;
     public float HealPerPoint { get; set; } = 10;
+    // Enemy-hero health removed by the player's own weapons and abilities (hero damage credit), banked across
+    // targets and paid per full chunk so individual hits do not each raise a score notification.
+    public float HeroDamageChunk { get; set; } = 100;
+    public int HeroDamagePoints { get; set; } = 20;
     public float DeviceDamagePerPoint { get; set; } = 20;
     public int ContinuousChunk { get; set; } = 5;
     public float DeviceCostPerPoint { get; set; } = 20;
@@ -96,7 +102,7 @@ public sealed class ActionScoreRules
             var value = Convert.ToDouble(p.GetValue(this));
             if (!double.IsFinite(value) || value < 0 || value > 100000) throw new InvalidDataException("Invalid action score setting: " + p.Name);
         }
-        if (HeroDeviceDamageChunk <= 0 || TurretDamageChunk <= 0 || PortalCooldown < 60 || DeviceHitCooldown <= 0 || SpotCooldown <= 0)
+        if (HeroDeviceDamageChunk <= 0 || TurretDamageChunk <= 0 || HeroDamageChunk <= 0 || PortalCooldown < 60 || DeviceHitCooldown <= 0 || SpotCooldown <= 0 || RadarCooldown <= 0 || AmmoCooldown <= 0)
             throw new InvalidDataException("Invalid device action threshold or repeat interval");
         if (FirstKill <= Kill || DoubleKill <= FirstKill || MultiKill <= DoubleKill || UltraKill <= MultiKill || Fantastic <= UltraKill || Unbelievable <= Fantastic)
             throw new InvalidDataException("Kill accolade scores must increase above the regular kill value");

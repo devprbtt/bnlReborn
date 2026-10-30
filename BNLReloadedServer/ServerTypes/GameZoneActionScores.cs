@@ -51,6 +51,13 @@ public partial class GameZone
             case "Miracle cure": ledger.Accumulate(id, reason, amount, rules.DocAbilityHealPerPoint, near); return;
             case "Healing": ledger.Accumulate(id, reason, amount, rules.HealPerPoint, near); return;
             case "Device damage": ledger.Accumulate(id, reason, amount, rules.DeviceDamagePerPoint, near); return;
+            case "Radar spot":
+                if (target == null || !ledger.Ready(id, "radar-spot:" + target, _scoreClock.Elapsed.TotalSeconds, rules.RadarCooldown)) return;
+                break;
+            case "Ammo supplied":
+                if (target == null || !ledger.Ready(id, "ammo:" + target, _scoreClock.Elapsed.TotalSeconds, rules.AmmoCooldown)) return;
+                break;
+            case "Damage dealt": ledger.AccumulateChunks(id, reason, amount, rules.HeroDamageChunk, rules.HeroDamagePoints, near); return;
             case "Ability spot":
                 if (target == null || !ledger.Ready(id, "spot:" + target, _scoreClock.Elapsed.TotalSeconds, rules.SpotCooldown)) return;
                 break;
@@ -98,9 +105,12 @@ public partial class GameZone
             if (!_cubeContributors.TryGetValue(target.Id, out var contributors)) _cubeContributors[target.Id] = contributors = [];
             contributors[id] = _scoreClock.Elapsed.TotalSeconds;
         }
-        if (deviceReason == null && target.PlayerId != null && DamageAccounting.ResolveImpactCredit(impact.DamageCredit,
-            attacker == player, attacker?.UnitCard?.DeviceType) == DamageCreditType.Block)
-            AwardAction(player, "Device damage", damage, target.GetMidpoint(), target.Id);
+        if (deviceReason == null && target.PlayerId != null)
+        {
+            var credit = DamageAccounting.ResolveImpactCredit(impact.DamageCredit, attacker == player, attacker?.UnitCard?.DeviceType);
+            if (credit == DamageCreditType.Block) AwardAction(player, "Device damage", damage, target.GetMidpoint(), target.Id);
+            else if (credit == DamageCreditType.Hero) AwardAction(player, "Damage dealt", damage, target.GetMidpoint(), target.Id);
+        }
     }
     // Ice (Yeti/Abe block_ice and variants) gives no destruction score: it is cheap, temporary and mass-spawned.
     public static bool ExcludedDestroyScore(string? cardId) => cardId != null && Unit.ScoreCardFamily(cardId, "block_ice");
