@@ -43,7 +43,12 @@ public partial class GameZone
             _skillRecoveryFrom[id] = now;
             if (unit.UnitCard?.Health?.Health is not { } health) continue;
             var gained = unit.AddHealth(unit.UnitMaxHealth(health.MaxHealth) * (ClassPerkCatalogue.Balance(ClassPerkCatalogue.SkillId).RegenMaxHealthPercentPerSecond / 100f) * Math.Min(elapsed, 1000) / 1000f);
-            if (gained > 0) unit.SendHealAttribution(unit, gained, unit.Key);
+            if (gained <= 0) continue;
+            unit.SendHealAttribution(unit, gained, unit.Key);
+            // The timed CDB effect only carries the icon; each heal refreshes it, so it lapses once healing stops.
+            if (ClassPerkCatalogue.Balance(ClassPerkCatalogue.SkillId).RegenEffect is { } effectId &&
+                Databases.Catalogue.GetCard<CardEffect>(effectId) != null)
+                unit.AddEffect(new ConstEffectInfo(Catalogue.Key(effectId)), unit.Team, unit.GetSelfSource(unit.CreateImpactData()));
         }
     }
 }

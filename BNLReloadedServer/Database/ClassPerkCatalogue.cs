@@ -93,6 +93,8 @@ public static class ClassPerkCatalogue
         Range(b.RespawnReductionPercent, 0, 100, "respawn_reduction_percent");
         if (b.HealedAllyEffect is { } effect && string.IsNullOrWhiteSpace(effect))
             throw new InvalidDataException("Invalid class_perk.healed_ally_effect: expected an effect card id.");
+        if (b.RegenEffect is { } regen && string.IsNullOrWhiteSpace(regen))
+            throw new InvalidDataException("Invalid class_perk.regen_effect: expected an effect card id.");
     }
     public static string? Resolve(CardPerk card, string? text)
     {

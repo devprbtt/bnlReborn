@@ -11,4 +11,6 @@ public sealed class ClassPerkBalance
     public float RespawnReductionPercent { get; set; } = 70;
     // Brains II: effect card applied to an ally whenever this hero's healing restores their health.
     public string? HealedAllyEffect { get; set; }
+    // Skill I: effect card kept on the hero while Second Wind restores health, so its gui_info icon shows.
+    public string? RegenEffect { get; set; }
 }

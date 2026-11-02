@@ -148,6 +148,13 @@ OnZone(()=>{
     tuned = new CardPerk { Id=ClassPerkCatalogue.SkillId, SlotType=PerkSlotType.Class, ClassPerk=new ClassPerkBalance { OutOfCombatSeconds=2, RegenMaxHealthPercentPerSecond=20 } };
     catalogue.Replicate(catalogue.All.Where(c=>c.Id!=tuned.Id).Append(tuned).ToList());
     Step(1000);Near(44,"replicated CDB rate updates an existing hero");
+    var icon = new CardEffect { Id="fixture_second_wind_icon", Positive=true, Duration=1, Effect=new ConstEffectBuff { Buffs=new Dictionary<BuffType,float>() } };
+    bool HasIcon() => healer.ActiveEffects.Any(e=>e.Key==icon.Key);
+    Check(!HasIcon(),"no Second Wind effect without class_perk.regen_effect");
+    tuned = new CardPerk { Id=ClassPerkCatalogue.SkillId, SlotType=PerkSlotType.Class, ClassPerk=new ClassPerkBalance { OutOfCombatSeconds=2, RegenMaxHealthPercentPerSecond=20, RegenEffect=icon.Id } };
+    catalogue.Replicate(catalogue.All.Where(c=>c.Id!=tuned.Id).Append(tuned).Append(icon).ToList());
+    Reset();Step(1999);Check(!HasIcon(),"Second Wind effect absent during the quiet period");
+    Step(251);Check(HasIcon(),"CDB regen_effect applied while Second Wind heals");
     return true;
 });
 zone.Stop();
