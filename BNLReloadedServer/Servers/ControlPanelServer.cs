@@ -301,7 +301,21 @@ public sealed class ControlPanelServer : IDisposable
                     ctx.Response.StatusCode = 400;
                     await WriteJson(ctx, new { error = "Unknown stat or period" });
                 }
-                else await WriteJson(ctx, await Databases.MasterServerDatabase.GetPlayerLeaderboard(stat, period == "30d"));
+                else await WriteJson(ctx, await Databases.MasterServerDatabase.GetPlayerLeaderboard(stat, period == "30d",
+                    QueryInt(ctx, "offset", 0), QueryInt(ctx, "limit", PlayerStatLeaderboards.Limit)));
+                return;
+            }
+
+            // Every placed player of this league season, a page at a time (the league RPC stops at the top 100).
+            if (method == "GET" && path == LeagueStandingsPath)
+            {
+                var page = await Databases.MasterServerDatabase.GetLeagueStandings(QueryInt(ctx, "offset", 0), QueryInt(ctx, "limit", PlayerStatLeaderboards.Limit));
+                await WriteJson(ctx, new
+                {
+                    offset = page.Offset, players = page.Players,
+                    rows = page.Rows.Select(r => new { rank = r.Status, playerId = r.PlayerId, steamId = r.SteamId?.ToString(), name = r.PlayerName, points = r.Points,
+                        wins = r.Wins, matches = r.TotalMatches, tier = r.Region })
+                });
                 return;
             }
 
@@ -761,6 +775,10 @@ public sealed class ControlPanelServer : IDisposable
     private const string PlayerLeaderboardPath = "/api/leaderboards/players";
     private const string TrophiesPath = "/api/trophies";
     private const string LeaguePath = "/api/league";
+    private const string LeagueStandingsPath = "/api/league/standings";
+
+    private static int QueryInt(HttpListenerContext ctx, string name, int fallback) =>
+        int.TryParse(ctx.Request.QueryString[name], System.Globalization.NumberStyles.None, System.Globalization.CultureInfo.InvariantCulture, out var value) ? value : fallback;
     private const string TrophyGrantsPath = "/api/trophies/grants";
 
     // The catalogue, images and each player's collection are public; who granted what (and notes) is admin-only.
@@ -900,7 +918,7 @@ public sealed class ControlPanelServer : IDisposable
          IsPublicPlayerDetailPath(path) ||
          path.StartsWith("/api/profile-stats/", StringComparison.Ordinal) ||
          path == PlayerLeaderboardPath ||
-         path == LeaguePath || path.StartsWith(LeaguePath + "/players/", StringComparison.Ordinal) ||
+         path == LeaguePath || path == LeagueStandingsPath || path.StartsWith(LeaguePath + "/players/", StringComparison.Ordinal) ||
          IsPublicTrophyRead(path) ||
          path == "/api/matches" ||
          path.StartsWith("/api/matches/", StringComparison.Ordinal) ||

@@ -961,7 +961,8 @@ public partial class GameZone
                 foreach (var unit in actualUnitList)
                 {
                     float hpGain = 0, repairCredit = 0;
-                    if (unit.PlayerId != null)
+                    // Practice dummies take the hero heal, so a weapon's instant heal can be tested on them.
+                    if (unit.PlayerId != null || unit.IsHeroPracticeTarget)
                     {
                         hpGain = unit.AddHealth(instEffectHeal.PlayerHeal, out repairCredit);
                         unit.AddForcefield(instEffectHeal.ForcefieldAmount);
@@ -1564,7 +1565,7 @@ public partial class GameZone
     /// player's unit, never for blocks, devices or the attacker's own unit.
     /// </summary>
     internal static bool OnHitApplies(Unit attackerPlayer, Unit target) =>
-        attackerPlayer is { IsDead: false } && target.PlayerId is not null && target.Id != attackerPlayer.Id;
+        attackerPlayer is { IsDead: false } && (target.PlayerId is not null || target.IsHeroPracticeTarget) && target.Id != attackerPlayer.Id;
 
     /// <summary>
     /// Damage dealt by the player's own gear: the impact source is a gear card, or a projectile unit

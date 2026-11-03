@@ -648,7 +648,12 @@ public class MasterServerDatabase : IMasterServerDatabase
     private static readonly TimeSpan LeaderboardCacheTime = TimeSpan.FromSeconds(60);
     private readonly Dictionary<(PlayerLeaderboardStat, bool), (DateTimeOffset At, PlayerLeaderboard Board)> _leaderboardCache = [];
 
-    public async Task<PlayerLeaderboard> GetPlayerLeaderboard(PlayerLeaderboardStat stat, bool recentOnly)
+    /// <summary>One page of a stat board. The whole ranking is cached; offset 0, limit 100 is the original response.</summary>
+    public async Task<PlayerLeaderboard> GetPlayerLeaderboard(PlayerLeaderboardStat stat, bool recentOnly,
+        int offset = 0, int limit = PlayerStatLeaderboards.Limit) =>
+        (await GetFullPlayerLeaderboard(stat, recentOnly)).Page(Math.Max(0, offset), Math.Clamp(limit, 1, PlayerStatLeaderboards.MaxPage));
+
+    private async Task<PlayerLeaderboard> GetFullPlayerLeaderboard(PlayerLeaderboardStat stat, bool recentOnly)
     {
         lock (_leaderboardCache)
             if (_leaderboardCache.TryGetValue((stat, recentOnly), out var cached) && DateTimeOffset.UtcNow - cached.At < LeaderboardCacheTime)
@@ -657,7 +662,7 @@ public class MasterServerDatabase : IMasterServerDatabase
         PlayerLeaderboard result = null!;
         await _playerDb.RunInTransactionAsync(db =>
             result = PlayerStatLeaderboards.Read(db, stat, recentOnly, DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(), modes,
-                CatalogueHelper.ModeFriendly.Key.Hash));
+                CatalogueHelper.ModeFriendly.Key.Hash, int.MaxValue));
         lock (_leaderboardCache) _leaderboardCache[(stat, recentOnly)] = (DateTimeOffset.UtcNow, result);
         return result;
     }
@@ -1513,14 +1518,21 @@ public class MasterServerDatabase : IMasterServerDatabase
         return leaderboard;
     }
 
-    public async Task<List<LeagueLeaderboardRecord>> GetLeaderboard()
+    // The league RPC of released clients: the first 100 standings.
+    public async Task<List<LeagueLeaderboardRecord>> GetLeaderboard() => (await GetLeagueStandings(0, 100)).Rows;
+
+    public sealed record LeagueStandingsPage(int Offset, int Players, List<LeagueLeaderboardRecord> Rows);
+
+    /// <summary>This season's standings from an offset: placed players who have played a ranked match since it began.</summary>
+    public async Task<LeagueStandingsPage> GetLeagueStandings(int offset, int limit)
     {
-        // This season's standings: placed players who have played a ranked match since it began.
-        var standings = LeagueSeasons.Snapshot.Values.Where(s => s.Rank != null).OrderBy(s => s.Rank).Take(100).ToList();
+        var placed = LeagueSeasons.Snapshot.Values.Where(s => s.Rank != null).OrderBy(s => s.Rank).ToList();
+        offset = Math.Max(0, offset);
+        var standings = placed.Skip(offset).Take(Math.Clamp(limit, 1, PlayerStatLeaderboards.MaxPage)).ToList();
         var ids = standings.Select(s => s.PlayerId).ToList();
         var records = (await _playerDb.Table<PlayerRecord>().Where(p => ids.Contains(p.PlayerId)).ToListAsync() ?? [])
             .ToDictionary(r => r.PlayerId);
-        return standings.Where(s => records.ContainsKey(s.PlayerId)).Select(s => new LeagueLeaderboardRecord
+        var rows = standings.Where(s => records.ContainsKey(s.PlayerId)).Select(s => new LeagueLeaderboardRecord
         {
             PlayerId = s.PlayerId,
             SteamId = records[s.PlayerId].SteamId,
@@ -1534,5 +1546,6 @@ public class MasterServerDatabase : IMasterServerDatabase
             // anywhere else, so the slot carries the player's tier instead.
             Region = LeagueRules.TierNames[(int)s.Tier]
         }).ToList();
+        return new LeagueStandingsPage(offset, placed.Count, rows);
     }
 }

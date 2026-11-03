@@ -6,6 +6,14 @@ public partial class Unit
 {
     public bool IsTestDummy => Key == DebugDummyRegistration.Key;
 
+    /// <summary>
+    /// A practice target that stands in for a hero: the spawned test dummy, or a map-editor test dummy device with
+    /// player health (unit_device_generic_test_dummy_player). Player heals and on-hit perks treat it as a player.
+    /// </summary>
+    public bool IsHeroPracticeTarget => PlayerId == null && (IsTestDummy ||
+        (UnitCard?.Id?.StartsWith("unit_device_generic_test_dummy", StringComparison.Ordinal) == true &&
+         UnitCard.Health?.Health?.HealthType == HealthType.Player));
+
     private int? _debugDummyMaxHealth;
 
     public void SetDebugDummyHealth(int health)

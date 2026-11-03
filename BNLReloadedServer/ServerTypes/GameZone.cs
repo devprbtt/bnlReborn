@@ -2123,7 +2123,7 @@ public partial class GameZone : Updater
             return new MatchGold.Candidate(id, p.Team, p.IsActive && !_gameInitiator.IsPlayerSpectator(id),
                 winner != TeamType.Neutral && p.Team == winner, _matchParticipation.PlayedSeconds(id, gameEnd),
                 Enum.GetValues<MatchGold.Category>().ToDictionary(c => c, c => MatchGold.Value(c, stats, raw)));
-        }));
+        }), _zoneData.GameModeCard.Ranking is GameRankingType.Ranked);
 
     private List<CompletedMatchPlayer> CompleteRatingParticipants(DateTimeOffset endedAt, TeamType winner)
     {

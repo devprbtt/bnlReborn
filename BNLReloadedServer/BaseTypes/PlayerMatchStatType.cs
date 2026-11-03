@@ -24,5 +24,7 @@ public enum PlayerMatchStatType
     GoldMostKills = 19,
     GoldMostAssists = 20,
     GoldMostObjectiveDamage = 21,
-    GoldMostDropsCollected = 22
+    GoldMostDropsCollected = 22,
+    // Ranked-round bonus on top of the lines above; clients without the line still credit GoldEarned.
+    GoldRanked = 23
 }

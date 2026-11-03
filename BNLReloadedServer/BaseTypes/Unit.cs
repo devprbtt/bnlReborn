@@ -253,14 +253,29 @@ public partial class Unit
     {
         var immunities = ActiveEffects.Select(info => info.Card.Effect).OfType<ConstEffectImmunity>();
 
-        var eCard = effect.Card;
         foreach (var immunity in immunities)
         {
-            if (immunity.EffectLabels?.Intersect(eCard.Labels ?? []).Any() ?? false) return true;
-            if (immunity.EffectKeys?.Contains(effect.Key) ?? false) return true;
+            if (Blocks(immunity, effect)) return true;
         }
 
         return false;
+    }
+
+    private static bool Blocks(ConstEffectImmunity immunity, ConstEffectInfo effect) =>
+        (immunity.EffectLabels?.Intersect(effect.Card.Labels ?? []).Any() ?? false) ||
+        (immunity.EffectKeys?.Contains(effect.Key) ?? false);
+
+    // A newly applied immunity also removes the matching effects already on the unit, timed ones included,
+    // so an immunity gained while slowed (or pulled, jinxed...) ends that effect instead of only blocking the next.
+    private void ClearEffectsBlockedBy(IReadOnlyCollection<ConstEffectInfo> added)
+    {
+        var immunities = added.Select(e => e.Card.Effect).OfType<ConstEffectImmunity>().ToList();
+        if (immunities.Count == 0) return;
+        var blocked = ActiveEffects.Where(e => immunities.Exists(i => Blocks(i, e))).ToList();
+        if (blocked.Count == 0) return;
+        foreach (var effect in blocked) _effectSources.Remove(effect.Key);
+        ActiveEffects = ActiveEffects.RemoveRange(blocked);
+        ReconcilePull();
     }
 
     private bool ContainsLabelOrIsUnitType(EffectTargeting targeting)
@@ -415,6 +430,7 @@ public partial class Unit
         }
 
         ActiveEffects = ActiveEffects.Add(effect);
+        ClearEffectsBlockedBy([effect]);
 
         _updater.OnUnitUpdate(this, new UnitUpdate
         {
@@ -526,6 +542,7 @@ public partial class Unit
         }
 
         ActiveEffects = ActiveEffects.AddRange(actualEffects);
+        ClearEffectsBlockedBy(actualEffects);
 
         _updater.OnUnitUpdate(this, new UnitUpdate
         {

@@ -5,7 +5,8 @@ namespace BNLReloadedServer.ServerTypes;
 /// <summary>
 /// Match Gold (docs/DECISIONS.md, 2026-10-25 policy): 10 Gold per minute played, up to 40 minutes, 50 for a win and
 /// 10 for each stat a player leads on their own team. Only matchmade casual/ranked rounds pay, and AFK players get
-/// nothing. The payout travels inside each player's end-match stats so every client can show the whole lobby's Gold.
+/// nothing. Ranked rounds add RankedBonusPercent of that on top (owner decision 2026-11-02, an incentive to queue
+/// ranked). The payout travels inside each player's end-match stats so every client can show the whole lobby's Gold.
 /// </summary>
 public static class MatchGold
 {
@@ -13,7 +14,9 @@ public static class MatchGold
     public const int MaxPaidMinutes = 40;
     public const int WinBonus = 50;
     public const int LeaderBonus = 10;
-    public const int MaxTotal = GoldPerMinute * MaxPaidMinutes + WinBonus + LeaderBonus * 7;
+    public const int RankedBonusPercent = 50;
+    public const int MaxCasualTotal = GoldPerMinute * MaxPaidMinutes + WinBonus + LeaderBonus * 7;
+    public const int MaxTotal = MaxCasualTotal + MaxCasualTotal * RankedBonusPercent / 100;
 
     public enum Category { Healing, Damage, DevicesDestroyed, Kills, Assists, ObjectiveDamage, DropsCollected }
 
@@ -31,9 +34,11 @@ public static class MatchGold
     public sealed record Candidate(uint PlayerId, TeamType Team, bool Eligible, bool Winner, double PlayedSeconds,
         IReadOnlyDictionary<Category, double> Values);
 
-    public sealed record Award(int Participation, int Victory, IReadOnlyList<Category> Leads)
+    public sealed record Award(int Participation, int Victory, IReadOnlyList<Category> Leads, bool RankedRound = false)
     {
-        public int Total => Participation + Victory + LeaderBonus * Leads.Count;
+        public int Base => Participation + Victory + LeaderBonus * Leads.Count;
+        public int Ranked => RankedRound ? Base * RankedBonusPercent / 100 : 0;
+        public int Total => Base + Ranked;
     }
 
     /// <summary>The same counters the scoreboard and stat leaderboards use, so a leader is who players see on top.</summary>
@@ -57,7 +62,7 @@ public static class MatchGold
         (int)Math.Floor(GoldPerMinute * Math.Clamp(playedSeconds, 0, MaxPaidMinutes * 60) / 60);
 
     /// <summary>Awards for eligible players. Leaders are found per team among eligible players; ties all qualify, zero never does.</summary>
-    public static Dictionary<uint, Award> Compute(IEnumerable<Candidate> players)
+    public static Dictionary<uint, Award> Compute(IEnumerable<Candidate> players, bool ranked = false)
     {
         var eligible = players.Where(p => p.Eligible).ToList();
         var leads = eligible.ToDictionary(p => p.PlayerId, _ => new List<Category>());
@@ -69,7 +74,7 @@ public static class MatchGold
             foreach (var p in team.Where(p => p.Values.GetValueOrDefault(category) == best)) leads[p.PlayerId].Add(category);
         }
         return eligible.ToDictionary(p => p.PlayerId,
-            p => new Award(Participation(p.PlayedSeconds), p.Winner ? WinBonus : 0, leads[p.PlayerId]));
+            p => new Award(Participation(p.PlayedSeconds), p.Winner ? WinBonus : 0, leads[p.PlayerId], ranked));
     }
 
     /// <summary>Writes the breakdown into a player's end-match stats; a missing award shows as zero Gold.</summary>
@@ -78,6 +83,8 @@ public static class MatchGold
         stats[PlayerMatchStatType.GoldEarned] = award?.Total ?? 0;
         stats[PlayerMatchStatType.GoldParticipation] = award?.Participation ?? 0;
         stats[PlayerMatchStatType.GoldVictory] = award?.Victory ?? 0;
+        // Only ranked rows carry the line, so casual end-match stats stay exactly as before.
+        if (award?.RankedRound == true) stats[PlayerMatchStatType.GoldRanked] = award.Ranked;
         foreach (var (category, type) in LeaderStat)
             stats[type] = award?.Leads.Contains(category) == true ? LeaderBonus : 0;
     }

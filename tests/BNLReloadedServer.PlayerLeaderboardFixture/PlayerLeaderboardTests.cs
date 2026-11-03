@@ -68,6 +68,7 @@ public static class PlayerLeaderboardTests
     {
         var gate = typeof(BNLReloadedServer.ControlPanel.ControlPanelServer).GetMethod("IsPublicReadRequest", System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.NonPublic)!;
         Check((bool)gate.Invoke(null, ["GET", "/api/leaderboards/players"])!, "stat leaderboards are readable without an admin session");
+        Check((bool)gate.Invoke(null, ["GET", "/api/league/standings"])!, "paged league standings are readable without an admin session");
         Check(!(bool)gate.Invoke(null, ["POST", "/api/leaderboards/players"])!, "stat leaderboards accept no public writes");
 
         var path = Path.Combine(Path.GetTempPath(), "bnl-leaderboards-" + Guid.NewGuid() + ".db");
@@ -95,6 +96,9 @@ public static class PlayerLeaderboardTests
             Check(kills.Rows.All(r => r.PlayerId != 3), "19 counted rounds do not qualify for any board");
             Check(kills.Rows.Select(r => (r.PlayerId, r.Value)).SequenceEqual([(1u, 2.6), (2u, 2d), (7u, 2d)]), "kills rank the average per counted match, highest first");
             Check(kills.Rows.Select(r => r.Rank).SequenceEqual([1, 2, 2]), "equal values share a rank");
+            var page = kills.Page(1, 1);
+            Check(page.Offset == 1 && page.Players == kills.Players && page.Rows.Single().PlayerId == 2 && page.Rows.Single().Rank == 2, "a page keeps whole-board ranks and the ranked total");
+            Check(kills.Page(5, 100).Rows.Count == 0 && kills.Page(0, 100).Rows.Count == 3, "pages past the end are empty; the first page is the whole small board");
             Check(kills.Rows[0].Matches == 25 && kills.MinMatches == Min, "rows carry counted matches and the board its minimum");
             Check(kills.Rows[0].Nickname == "Atlas" && kills.Rows[1].Nickname == "Nova", "current account names win over archived nicknames");
 

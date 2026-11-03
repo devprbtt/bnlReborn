@@ -17,7 +17,11 @@ Check(MatchGold.Participation(40*60)==400 && MatchGold.Participation(75*60)==400
 Check(MatchGold.Participation(59)==9 && MatchGold.Participation(0)==0 && MatchGold.Participation(-5)==0,"partial minutes are pro-rata, rounded down; never negative");
 var basic=MatchGold.Compute([P(1,TeamType.Team1,15*60,win:true),P(2,TeamType.Team2,15*60)]);
 Check(basic[1].Total==200 && basic[2].Total==150,"15-minute win 200, loss 150");
-Check(MatchGold.MaxTotal==520,"most a match can pay is 400 + 50 + 7 x 10");
+Check(MatchGold.MaxCasualTotal==520 && MatchGold.MaxTotal==780,"most a casual match pays is 400 + 50 + 7 x 10; ranked adds 50%");
+var ranked=MatchGold.Compute([P(1,TeamType.Team1,15*60,win:true),P(2,TeamType.Team2,15*60)],ranked:true);
+Check(ranked[1].Ranked==100 && ranked[1].Total==300 && ranked[2].Ranked==75 && ranked[2].Total==225 && basic[1].Ranked==0,"ranked rounds pay 50% more: 15-minute win 300, loss 225");
+var rankedStats=new Dictionary<PlayerMatchStatType,int>();MatchGold.Write(ranked[1],rankedStats);
+Check(rankedStats[PlayerMatchStatType.GoldEarned]==300 && rankedStats[PlayerMatchStatType.GoldRanked]==100 && MatchGold.Earned(Result(5,780))==780,"ranked bonus travels as its own stat line and is creditable");
 
 // Stat leaders are per team; ties share; zero never qualifies; AFK players neither earn nor block a lead.
 var all=Enum.GetValues<Category>().Select(c=>(c,5.0)).ToArray();
@@ -67,7 +71,7 @@ EndMatchResults Result(uint id,int? gold,string instance="gold-match",bool trial
         PlayersData=[new EndMatchPlayerData{PlayerId=id,Stats=new EndMatchPlayerStats{Stats=s}},new EndMatchPlayerData{PlayerId=id+1,Stats=new EndMatchPlayerStats{Stats=new(){[PlayerMatchStatType.GoldEarned]=400}}}]}};}
 Check(MatchGold.Earned(Result(5,215))==215,"master reads the player's own Gold row");
 Check(MatchGold.Earned(Result(5,null))==0,"no Gold row (custom game, old region) pays nothing");
-Check(MatchGold.Earned(Result(5,521))==0 && MatchGold.Earned(Result(5,-1))==0,"impossible payouts are rejected");
+Check(MatchGold.Earned(Result(5,781))==0 && MatchGold.Earned(Result(5,-1))==0,"impossible payouts are rejected");
 Check(MatchGold.Earned(Result(5,200,trial:true))==0,"time trials never pay match Gold");
 
 // Released clients display RewardCurrency x (1 + bonus fractions), rounding each line.

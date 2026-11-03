@@ -115,9 +115,17 @@ public partial class Unit
         }
     }
 
+    // Life steal heals at most once per 100 ms, so multi-hit shots (pellets, beams, splash) cannot stack it.
+    public const long LifeStealCooldownMilliseconds = 100;
+    private long _lifeStealReadyAt = long.MinValue;
+    internal static Func<long> LifeStealClock = () => Environment.TickCount64;
+
     // Count only health actually restored, including the max-health clamp.
     public float RestoreLifeSteal(float damage)
     {
+        var now = LifeStealClock();
+        if (now < _lifeStealReadyAt) return 0;
+        _lifeStealReadyAt = now + LifeStealCooldownMilliseconds;
         var gained = AddHealth(this.LifeStealAmount(damage));
         if (gained > 0) Healed(gained, GetSelfSource(), this);
         return gained;

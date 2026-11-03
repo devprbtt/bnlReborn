@@ -27,7 +27,12 @@ public enum PlayerLeaderboardStat
 public sealed record PlayerLeaderboardRow(int Rank, uint PlayerId, string Nickname, double Value, long Matches);
 
 public sealed record PlayerLeaderboard(int Version, string Stat, string Period, long UpdatedAt, int MinMatches,
-    long Players, List<PlayerLeaderboardRow> Rows);
+    long Players, List<PlayerLeaderboardRow> Rows, int Offset = 0)
+{
+    /// <summary>Rows [offset, offset + limit) of a fully ranked board; ranks stay those of the whole board.</summary>
+    public PlayerLeaderboard Page(int offset, int limit) =>
+        this with { Offset = offset, Rows = Rows.Skip(offset).Take(limit).ToList() };
+}
 
 /// <summary>
 /// Player stat leaderboards over the match archive. Rounds use the profile eligibility rule
@@ -42,6 +47,8 @@ public sealed record PlayerLeaderboard(int Version, string Stat, string Period, 
 public static class PlayerStatLeaderboards
 {
     public const int Limit = 100;
+    // Largest page a client may ask for; boards themselves rank every eligible player.
+    public const int MaxPage = 200;
     public const int MinMatchesPlayed = 20;
     // Kept for callers that name the per-stat thresholds; every board now uses MinMatchesPlayed.
     public const int MinDpsMatches = MinMatchesPlayed;
@@ -73,15 +80,15 @@ public static class PlayerStatLeaderboards
     /// <param name="modeKeys">Game-mode key hashes that count (ranked and casual).</param>
     /// <param name="casualModeKey">The casual mode's key hash; its rounds qualify a player for the casual MMR board.</param>
     public static PlayerLeaderboard Read(SQLiteConnection db, PlayerLeaderboardStat stat, bool recentOnly, long nowMs,
-        IReadOnlyCollection<long> modeKeys, long? casualModeKey = null)
+        IReadOnlyCollection<long> modeKeys, long? casualModeKey = null, int limit = Limit)
     {
-        return ReadAll(db, recentOnly, nowMs, modeKeys, onlyStat: stat, casualModeKey: casualModeKey)[stat];
+        return ReadAll(db, recentOnly, nowMs, modeKeys, onlyStat: stat, casualModeKey: casualModeKey, limit: limit)[stat];
     }
 
     // Aggregate the archive once for the complete trophy reconciliation. Include every tied leader beyond top 100.
     public static Dictionary<PlayerLeaderboardStat, PlayerLeaderboard> ReadAll(SQLiteConnection db, bool recentOnly,
         long nowMs, IReadOnlyCollection<long> modeKeys, bool includeAllLeaders = false, PlayerLeaderboardStat? onlyStat = null,
-        long? casualModeKey = null)
+        long? casualModeKey = null, int limit = Limit)
     {
         var after = recentOnly ? nowMs - RecentDays * 86_400_000L : long.MinValue;
         var matches = db.Table<ArchivedMatchRecord>().ToList()
@@ -122,7 +129,7 @@ public static class PlayerStatLeaderboards
                 .OrderByDescending(r => r.Value).ThenBy(r => r.Matches).ThenBy(r => r.Id)
                 .ToList();
             var rows = new List<PlayerLeaderboardRow>();
-            for (int i = 0; i < ranked.Count && (rows.Count < Limit || (includeAllLeaders && ranked[i].Value == ranked[0].Value)); i++)
+            for (int i = 0; i < ranked.Count && (rows.Count < limit || (includeAllLeaders && ranked[i].Value == ranked[0].Value)); i++)
             {
                 // Equal values share a rank (1, 2, 2, 4).
                 int rank = i > 0 && ranked[i].Value == ranked[i - 1].Value ? rows[^1].Rank : i + 1;

@@ -395,9 +395,14 @@ public class GameLobby : Updater
         else SendLobbyUpdate();
     }
 
+    // Owner decision 2026-11-02: casual matchmaking has no hero bans; the lobby goes straight to picking.
+    // The ban ballot is kept intact behind this switch (the casual draft fixture still exercises it).
+    public static bool CasualHeroBansEnabled { get; set; }
+
     private bool AdvanceCasualBans()
     {
         if (_casualDraft == null || _casualDraft.Phase >= 3) return false;
+        if (!CasualHeroBansEnabled) { _casualDraft.Finish(); return false; }
         if (_casualDraft.Voting)
         {
             var banned = _casualDraft.Winner(Random.Shared);

@@ -64,6 +64,21 @@ for (int seed = 0; seed < 100; seed++)
 }
 Check(orders.Count > 90 && firsts.Count == 10, "every seat can pick first");
 
+// Bans are off in live casual matchmaking: the first wait timer goes straight to hero selection.
+{
+    var roster = Enumerable.Range(1, 6).Select(i => new RankedSnakeDraft.Player((uint)i, i <= 3 ? TeamType.Team1 : TeamType.Team2, i)).ToArray();
+    var lobby = new GameLobby(RecordingLobby.Create([]), DispatchProxy.Create<IGameInstance, GameProxy>(), "casual-no-bans", Key.None, mode.Key, []);
+    Set(lobby, "_playerDatabase", FixturePlayers.Create(roster.ToDictionary(p => p.Id, _ => heroes[0].Key)));
+    lobby.InitializeDraftRoster(roster);
+    foreach (var p in roster) lobby.AddPlayer(p.Id, p.Team, null);
+    var data = (LobbyData)Field(lobby, "<LobbyData>k__BackingField")!;
+    data.Timer.TimerType = LobbyTimerType.Wait;
+    Expire(lobby, "OnWaitTimerElapsed");
+    Check(!GameLobby.CasualHeroBansEnabled && lobby.BannedHeroes.Count == 0 && data.Timer.TimerType == LobbyTimerType.Selection &&
+        ((CasualDraft)Field(lobby, "_casualDraft")!).Phase == 3, "casual skips the ban ballot by default and goes to picking");
+}
+GameLobby.CasualHeroBansEnabled = true;
+
 var recorded = new List<CasualHeroBanRecord>();
 CasualHeroBans.Recorder = recorded.Add;
 foreach (int size in new[] { 3, 4, 5 })

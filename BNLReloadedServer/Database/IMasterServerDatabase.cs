@@ -34,7 +34,7 @@ public interface IMasterServerDatabase
     public Task<ArchivedMatchDetail?> GetCompletedMatch(string matchId);
     public Task<LifetimeProfileStats> GetLifetimeProfileStats(uint playerId);
     public Task<CasualHeroBanSummary> GetCasualHeroBans(long since);
-    public Task<PlayerLeaderboard> GetPlayerLeaderboard(PlayerLeaderboardStat stat, bool recentOnly);
+    public Task<PlayerLeaderboard> GetPlayerLeaderboard(PlayerLeaderboardStat stat, bool recentOnly, int offset = 0, int limit = PlayerStatLeaderboards.Limit);
     public Task<T> WithTrophies<T>(Func<SQLite.SQLiteConnection, T> action);
     public Task<bool> SetNewRatings(List<uint> winners, List<uint> losers, HashSet<uint> excluded, bool ranked = false);
     public Task<LeagueSeasonView> GetLeagueSeason();
@@ -47,6 +47,7 @@ public interface IMasterServerDatabase
     public Task<List<SearchResult>> GetSearchResults(List<uint> playerIds);
     public Task<List<SearchResult>> GetSearchResults(List<ulong> steamIds);
     public Task<List<LeagueLeaderboardRecord>> GetLeaderboard();
+    public Task<MasterServerDatabase.LeagueStandingsPage> GetLeagueStandings(int offset, int limit);
     public Task<Dictionary<Key, List<TtLeaderboardRecord>>> GetTimeTrialLeaderboard();
     public Task<List<PlayerData>> GetAllPlayersAsync();
     public Task<bool> UpdatePlayerAsync(uint playerId, PlayerData updated);
