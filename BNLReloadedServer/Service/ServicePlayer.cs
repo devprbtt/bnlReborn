@@ -473,7 +473,15 @@ public class ServicePlayer(ISender sender, IServiceScene serviceScene, IServiceT
     {
         var loadout = LobbyLoadout.ReadRecord(reader);
         if (!sender.AssociatedPlayerId.HasValue) return;
-        _playerDatabase.UpdateLoadout(sender.AssociatedPlayerId.Value, loadout.HeroKey, loadout);
+        var playerId = sender.AssociatedPlayerId.Value;
+        // The client only hides other heroes' perks and devices; a loadout saved while the hero menu was
+        // out of sync with the server could carry them, so it is checked here before it is stored.
+        if (loadout.HeroKey.GetCard<CardUnit>()?.Data is not UnitDataPlayer || !PlayerInventory.Owns(playerId, loadout.HeroKey)) return;
+        var removed = LoadoutRules.Sanitize(loadout.HeroKey, loadout.Devices, loadout.Perks, playerId);
+        if (removed.Count > 0)
+            Log.Warn(LogCat.Player, $"Player {playerId} saved a {loadout.HeroKey.GetCard<CardUnit>()?.Id} loadout with items that hero cannot use: {string.Join(' ', removed.Select(k => k.GetCard<Card>()?.Id))}");
+        loadout.SkinKey = PlayerInventory.SafeSkin(playerId, loadout.HeroKey, loadout.SkinKey);
+        _playerDatabase.UpdateLoadout(playerId, loadout.HeroKey, loadout);
     }
 
     public void SendGetAvailableRegions(ushort rpcId, List<string>? regions, string? currentRegion, bool? remember, string? error = null)

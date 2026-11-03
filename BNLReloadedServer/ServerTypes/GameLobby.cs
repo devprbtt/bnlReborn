@@ -257,7 +257,7 @@ public class GameLobby : Updater
             UpdatePerks(player, heroLoadout.Perks);
         }
         player.SkinKey = heroLoadout.SkinKey;
-        ClassPerkCatalogue.TrimDevices(player.Hero, player.Perks, player.Devices);
+        LoadoutRules.Sanitize(player.Hero, player.Devices, player.Perks, playerId);
 
         SendLobbyUpdate(players: LobbyData.Players.Values.ToList());
     }
@@ -460,8 +460,8 @@ public class GameLobby : Updater
     {
         if (!LobbyData.Players.TryGetValue(playerId, out var player) || !CanEditLoadout(player) || player.Devices == null) return;
         if (slot < 1 || slot > ClassPerkCatalogue.DeviceSlots(player.Hero, player.Perks) ||
-            deviceKey is { } selectedDevice && selectedDevice.GetCard<CardDevice>() == null ||
-            slot == 1 && (deviceKey == null || !CatalogueHelper.IsHeroSpecialDevice(player.Hero, deviceKey.Value)))
+            slot == 1 && (deviceKey == null || !CatalogueHelper.IsHeroSpecialDevice(player.Hero, deviceKey.Value)) ||
+            slot > 1 && deviceKey is { } selectedDevice && !LoadoutRules.CanUseDevice(player.Hero, selectedDevice, playerId))
             return;
         if (deviceKey != null)
         {
@@ -517,11 +517,8 @@ public class GameLobby : Updater
     {
         if (!LobbyData.Players.TryGetValue(playerId, out var player) || !CanEditLoadout(player) || player.Perks == null) return;
         var perkCard = Databases.Catalogue.GetCard<CardPerk>(perkKey);
-        if (perkCard == null) return;
-        // A class perk is chosen per hero and only from that hero's class.
-        if (perkCard.SlotType == PerkSlotType.Class &&
-            (ClassPerkCatalogue.ClassOf(perkCard.Id) is not { } perkClass || perkClass != ClassPerkCatalogue.HeroClass(player.Hero)))
-            return;
+        // Hero perks belong to one hero and class perks to one class.
+        if (perkCard == null || !LoadoutRules.CanUsePerk(player.Hero, perkKey, playerId)) return;
         var replacePerk = player.Perks.Select(k => Databases.Catalogue.GetCard<CardPerk>(k)).FirstOrDefault(perk => perk?.SlotType == perkCard.SlotType);
         if (replacePerk == null)
         {

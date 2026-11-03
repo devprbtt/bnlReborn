@@ -492,9 +492,23 @@ public partial class GameInstance : IGameInstance
         }
     }
 
-    public ChatRoom? GetChatRoom(RoomId roomId)
+    /// <summary>
+    /// The match room this player may post to. The room id comes from the client, so a modified client could
+    /// name the other team's room or, as a spectator, either team's. Players post to their own team and to
+    /// all chat; spectators only to all chat, and only in custom games (public matches are read-only to them).
+    /// </summary>
+    public ChatRoom? GetChatRoom(uint playerId, RoomId roomId)
     {
-        return ChatRooms[roomId];
+        var room = ChatRooms[roomId];
+        if (room == null) return null;
+        if (GameInitiator.IsPlayerSpectator(playerId))
+            return GameInitiator is CustomGamePlayerGroup && room == ChatRooms.BothTeamsRoom ? room : null;
+        if (room == ChatRooms.BothTeamsRoom) return room;
+        var team = GameInitiator.GetTeamForPlayer(playerId);
+        if (team == TeamType.Team1 && room == ChatRooms.Team1Room || team == TeamType.Team2 && room == ChatRooms.Team2Room)
+            return room;
+        Log.Warn(LogCat.Player, $"Player {playerId} tried to post to another team's chat in {GameInstanceId}");
+        return null;
     }
 
     public Key GetGameMode() => GameInitiator.GetGameMode();
@@ -638,6 +652,8 @@ public partial class GameInstance : IGameInstance
             var lobbyData = Lobby.GetPlayerLobbyState(playerId);
             if (lobbyData != null)
             {
+                // Last check before the loadout reaches the match and is stored.
+                LoadoutRules.Sanitize(lobbyData.Hero, lobbyData.Devices, lobbyData.Perks, playerId);
                 playerDatabase.UpdateLastPlayedHero(playerId, lobbyData.Hero);
                 playerDatabase.UpdateLoadout(playerId, lobbyData.Hero, new LobbyLoadout
                 {

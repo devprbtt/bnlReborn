@@ -30,7 +30,7 @@ public interface IGameInstance
     public void RegisterServices(Guid sessionId, Dictionary<ServiceId, IService> services);
     public void RemoveService(Guid sessionId);
     public void CreateLobby(Key gameModeKey, MapInfo? mapInfo);
-    public ChatRoom? GetChatRoom(RoomId roomId);
+    public ChatRoom? GetChatRoom(uint playerId, RoomId roomId);
     public Key GetGameMode();
     public bool IsPlayerSpectator(uint playerId);
     public bool NeedsBackfill();

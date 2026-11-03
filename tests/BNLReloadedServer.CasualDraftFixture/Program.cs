@@ -27,7 +27,11 @@ var heroes = Enumerable.Range(0, 21).Select(i => new CardUnit { Id = "casual_fix
     Data = new UnitDataPlayer { Class = CasualDraft.Classes[i / 7] }, Scope = ScopeType.Public }).ToArray();
 var testDevice = new CardDevice {Id="fixture_loadout_device"};
 var testPerk = new CardPerk {Id="fixture_loadout_perk",SlotType=PerkSlotType.Offensive};
-catalogue.Replicate(new Card[] { mode, ranked, custom, global, testDevice, testPerk }.Concat(heroes).ToList());
+// Every class may carry the test device, as the live hero_class cards list their devices.
+var classCards = new[] { "hero_class_skills", "hero_class_brawn", "hero_class_brains" }
+    .Select(id => new CardHeroClass { Id = id }).ToArray();
+catalogue.Replicate(new Card[] { mode, ranked, custom, global, testDevice, testPerk }.Concat(heroes).Concat(classCards).ToList());
+foreach (var classCard in classCards) classCard.AvailableDevices = [testDevice.Key];
 global.AvailableHeroes = heroes.Select(h => h.Key).ToList();
 Check(mode.LobbyMode is LobbyModeDraftPick { SelectionTime: 20, WaitTime: 10 } && mode.HeroLimit == null, "casual registration");
 Check(ranked.LobbyMode is LobbyModeDraftPick { SelectionTime: 42 } && custom.LobbyMode is LobbyModeFreePick, "other modes unchanged");

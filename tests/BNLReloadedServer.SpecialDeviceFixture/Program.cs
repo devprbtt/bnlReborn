@@ -95,7 +95,7 @@ Check(!lobbyData.Players[26].Devices!.ContainsKey(7) && updates.Count == 1,
     "live lobby rejects out-of-range device slots");
 
 // Brains III grants device slot 7 only while it is the selected class perk.
-var brainsClass = new CardHeroClass { Id = "fixture_brains_class", Type = HeroClassType.Brains };
+var brainsClass = new CardHeroClass { Id = "fixture_brains_class", Type = HeroClassType.Brains, AvailableDevices = [bricks] };
 var brains1 = new CardPerk { Id = ClassPerkCatalogue.BrainsId, SlotType = PerkSlotType.Class, ClassPerk = new ClassPerkBalance() };
 var brains2 = new CardPerk { Id = ClassPerkCatalogue.Brains2Id, SlotType = PerkSlotType.Class, ClassPerk = new ClassPerkBalance() };
 var brains3 = new CardPerk { Id = ClassPerkCatalogue.Brains3Id, SlotType = PerkSlotType.Class, ClassPerk = new ClassPerkBalance() };

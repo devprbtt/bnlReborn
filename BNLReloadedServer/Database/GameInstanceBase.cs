@@ -29,7 +29,7 @@ public abstract class GameInstanceBase : IGameInstance
     public virtual void RegisterServices(Guid sessionId, Dictionary<ServiceId, IService> services) { }
     public virtual void RemoveService(Guid sessionId) { }
     public virtual void CreateLobby(Key gameModeKey, MapInfo? mapInfo) { }
-    public virtual ChatRoom? GetChatRoom(RoomId roomId) => null;
+    public virtual ChatRoom? GetChatRoom(uint playerId, RoomId roomId) => null;
     public virtual Key GetGameMode() => Key.None;
     public virtual bool IsPlayerSpectator(uint playerId) => false;
     public virtual bool NeedsBackfill() => false;

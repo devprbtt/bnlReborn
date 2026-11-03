@@ -341,12 +341,14 @@ public class PlayerDatabase : IPlayerDatabase
         }
 
         var devices = loadout.Devices?.ToDictionary();
-        CatalogueHelper.RepairHeroSpecialDevice(heroKey, devices, out _, out _);
+        var perks = loadout.Perks?.ToList();
+        // Loadouts stored before the server checked them may hold another hero's perks or devices.
+        LoadoutRules.Sanitize(heroKey, devices, perks, playerId);
         return new LobbyLoadout
         {
-            HeroKey = loadout.HeroKey,
+            HeroKey = heroKey,
             Devices = devices,
-            Perks = loadout.Perks?.ToList(),
+            Perks = perks,
             SkinKey = PlayerInventory.SafeSkin(playerId, heroKey, loadout.SkinKey)
         };
     }

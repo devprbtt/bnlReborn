@@ -1116,7 +1116,7 @@ public partial class RegionServerDatabase(AsyncTaskTcpServer server, AsyncTaskTc
         if (!UserConnected(playerId, out _)) return null;
         return roomId.Type switch
         {
-            RoomIdType.Team => GetGameInstance(playerId)?.GetChatRoom(roomId),
+            RoomIdType.Team => GetGameInstance(playerId)?.GetChatRoom(playerId, roomId),
             RoomIdType.Squad => GetSquad(playerId, out var squad)
                 ? squad.ChatRoom.RoomId.Equals(roomId)
                     ? squad.ChatRoom
