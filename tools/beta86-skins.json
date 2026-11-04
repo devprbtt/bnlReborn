@@ -1,0 +1,178 @@
+[
+  {
+    "id": "skin_ai3d_ninja_royal",
+    "hero": "unit_hero_ninja",
+    "name": "Royal Shinobi",
+    "baseSkin": "skin_ninja_s2",
+    "bundle": "custom_skins_beta86",
+    "fpsBundle": "custom_skins_beta86",
+    "unitAddress": "ai3d/retextures15/skin_ai3d_ninja_royal/unit",
+    "playerAddress": "ai3d/retextures15/skin_ai3d_ninja_royal/player",
+    "portrait": "portrait_skin_ai3d_ninja_royal_ai"
+  },
+  {
+    "id": "skin_ai3d_astro_lunar",
+    "hero": "unit_hero_astro",
+    "name": "Lunar Explorer",
+    "baseSkin": "skin_astro_s1",
+    "bundle": "custom_skins_beta86",
+    "fpsBundle": "custom_skins_beta86",
+    "unitAddress": "ai3d/retextures15/skin_ai3d_astro_lunar/unit",
+    "playerAddress": "ai3d/retextures15/skin_ai3d_astro_lunar/player",
+    "portrait": "portrait_skin_ai3d_astro_lunar_ai"
+  },
+  {
+    "id": "skin_ai3d_kreepy_deadlights",
+    "hero": "unit_hero_kreepy",
+    "name": "Deadlights Clown",
+    "baseSkin": "skin_kreepy_s1",
+    "bundle": "custom_skins_beta86",
+    "fpsBundle": "custom_skins_beta86",
+    "unitAddress": "ai3d/retextures15/skin_ai3d_kreepy_deadlights/unit",
+    "playerAddress": "ai3d/retextures15/skin_ai3d_kreepy_deadlights/player",
+    "portrait": "portrait_skin_ai3d_kreepy_deadlights_ai"
+  },
+  {
+    "id": "skin_ai3d_kira_punk",
+    "hero": "unit_hero_kira",
+    "name": "Punk Riot",
+    "baseSkin": "skin_kira_s4",
+    "bundle": "custom_skins_beta86",
+    "fpsBundle": "custom_skins_beta86",
+    "unitAddress": "ai3d/retextures15/skin_ai3d_kira_punk/unit",
+    "playerAddress": "ai3d/retextures15/skin_ai3d_kira_punk/player",
+    "portrait": "portrait_skin_ai3d_kira_punk_ai"
+  },
+  {
+    "id": "skin_ai3d_hunter_hitman",
+    "hero": "unit_hero_hunter",
+    "name": "Silent Contract",
+    "baseSkin": "skin_hunter_s3",
+    "bundle": "custom_skins_beta86",
+    "fpsBundle": "custom_skins_beta86",
+    "unitAddress": "ai3d/retextures15/skin_ai3d_hunter_hitman/unit",
+    "playerAddress": "ai3d/retextures15/skin_ai3d_hunter_hitman/player",
+    "portrait": "portrait_skin_ai3d_hunter_hitman_ai"
+  },
+  {
+    "id": "skin_ai3d_sarge_stone_uncle_sam",
+    "hero": "unit_hero_sarge_stone",
+    "name": "Uncle Sarge",
+    "baseSkin": "skin_sarge_stone_s3",
+    "bundle": "custom_skins_beta86",
+    "fpsBundle": "custom_skins_beta86",
+    "unitAddress": "ai3d/retextures15/skin_ai3d_sarge_stone_uncle_sam/unit",
+    "playerAddress": "ai3d/retextures15/skin_ai3d_sarge_stone_uncle_sam/player",
+    "portrait": "portrait_skin_ai3d_sarge_stone_uncle_sam_ai"
+  },
+  {
+    "id": "skin_ai3d_cogwheel_prime",
+    "hero": "unit_hero_cogwheel",
+    "name": "Prime Commander",
+    "baseSkin": "skin_cogwheel_s1",
+    "bundle": "custom_skins_beta86",
+    "fpsBundle": "custom_skins_beta86",
+    "unitAddress": "ai3d/retextures15/skin_ai3d_cogwheel_prime/unit",
+    "playerAddress": "ai3d/retextures15/skin_ai3d_cogwheel_prime/player",
+    "portrait": "portrait_skin_ai3d_cogwheel_prime_ai"
+  },
+  {
+    "id": "skin_ai3d_roly_gold",
+    "hero": "unit_hero_roly",
+    "name": "Solid Gold",
+    "baseSkin": "skin_roly_s1",
+    "bundle": "custom_skins_beta86",
+    "fpsBundle": "custom_skins_beta86",
+    "unitAddress": "ai3d/retextures15/skin_ai3d_roly_gold/unit",
+    "playerAddress": "ai3d/retextures15/skin_ai3d_roly_gold/player",
+    "portrait": "portrait_skin_ai3d_roly_gold_ai"
+  },
+  {
+    "id": "skin_ai3d_boxer_luchador",
+    "hero": "unit_hero_boxer",
+    "name": "El Campeon",
+    "baseSkin": "skin_boxer_s1",
+    "bundle": "custom_skins_beta86",
+    "fpsBundle": "custom_skins_beta86",
+    "unitAddress": "ai3d/retextures15/skin_ai3d_boxer_luchador/unit",
+    "playerAddress": "ai3d/retextures15/skin_ai3d_boxer_luchador/player",
+    "portrait": "portrait_skin_ai3d_boxer_luchador_ai"
+  },
+  {
+    "id": "skin_ai3d_abe_bear",
+    "hero": "unit_hero_abe",
+    "name": "Brown Bear",
+    "baseSkin": "skin_abe_s1",
+    "bundle": "custom_skins_beta86",
+    "fpsBundle": "custom_skins_beta86",
+    "unitAddress": "ai3d/retextures15/skin_ai3d_abe_bear/unit",
+    "playerAddress": "ai3d/retextures15/skin_ai3d_abe_bear/player",
+    "portrait": "portrait_skin_ai3d_abe_bear_ai"
+  },
+  {
+    "id": "skin_ai3d_engineer_gala",
+    "hero": "unit_hero_engineer",
+    "name": "Black Tie Tony",
+    "baseSkin": "skin_engineer_s1",
+    "bundle": "custom_skins_beta86",
+    "fpsBundle": "custom_skins_beta86",
+    "unitAddress": "ai3d/retextures15/skin_ai3d_engineer_gala/unit",
+    "playerAddress": "ai3d/retextures15/skin_ai3d_engineer_gala/player",
+    "portrait": "portrait_skin_ai3d_engineer_gala_ai"
+  },
+  {
+    "id": "skin_ai3d_magnus_steampunk",
+    "hero": "unit_hero_magnus",
+    "name": "Clockwork Vander",
+    "baseSkin": "skin_magnus_s1",
+    "bundle": "custom_skins_beta86",
+    "fpsBundle": "custom_skins_beta86",
+    "unitAddress": "ai3d/retextures15/skin_ai3d_magnus_steampunk/unit",
+    "playerAddress": "ai3d/retextures15/skin_ai3d_magnus_steampunk/player",
+    "portrait": "portrait_skin_ai3d_magnus_steampunk_ai"
+  },
+  {
+    "id": "skin_ai3d_djinn_navi",
+    "hero": "unit_hero_djinn",
+    "name": "Forest Spirit",
+    "baseSkin": "skin_djinn_s1",
+    "bundle": "custom_skins_beta86",
+    "fpsBundle": "custom_skins_beta86",
+    "unitAddress": "ai3d/retextures15/skin_ai3d_djinn_navi/unit",
+    "playerAddress": "ai3d/retextures15/skin_ai3d_djinn_navi/player",
+    "portrait": "portrait_skin_ai3d_djinn_navi_ai"
+  },
+  {
+    "id": "skin_ai3d_doc_eliza_gala",
+    "hero": "unit_hero_doc_eliza",
+    "name": "Gala Eliza",
+    "baseSkin": "skin_doc_eliza_s1",
+    "bundle": "custom_skins_beta86",
+    "fpsBundle": "custom_skins_beta86",
+    "unitAddress": "ai3d/retextures15/skin_ai3d_doc_eliza_gala/unit",
+    "playerAddress": "ai3d/retextures15/skin_ai3d_doc_eliza_gala/player",
+    "portrait": "portrait_skin_ai3d_doc_eliza_gala_ai"
+  },
+  {
+    "id": "skin_ai3d_trondson_storm",
+    "hero": "unit_hero_trondson",
+    "name": "Storm Engineer",
+    "baseSkin": "skin_trondson_s1",
+    "bundle": "custom_skins_beta86",
+    "fpsBundle": "custom_skins_beta86",
+    "unitAddress": "ai3d/retextures15/skin_ai3d_trondson_storm/unit",
+    "playerAddress": "ai3d/retextures15/skin_ai3d_trondson_storm/player",
+    "portrait": "portrait_skin_ai3d_trondson_storm_ai"
+  },
+  {
+    "id": "skin_ai3d_trondson_christmas_elf",
+    "hero": "unit_hero_trondson",
+    "name": "Christmas Elf",
+    "baseSkin": "skin_trondson_s1",
+    "bundle": "custom_skins_beta86",
+    "fpsBundle": "custom_skins_beta86",
+    "unitAddress": "Prefabs/Units/AI3D_skin_ai3d_trondson_christmas_elf",
+    "playerAddress": "ai3d/candy_staff_player",
+    "portrait": "portrait_trondson_elf_dev"
+  }
+]
