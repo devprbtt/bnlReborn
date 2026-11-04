@@ -12,6 +12,9 @@ refuses any other difference, keeps a private rollback snapshot and reads every 
 skin wears one per weapon (server message 54), so Blackout keeps its id (owners keep it) as Blackout Rifle, and the
 revolver and bat are their own skins.
 --print prints the cards for offline comparison.
+--create-only creates the absent documents and leaves every existing one as it is (2026-11-04: the beta skin unlock
+set every skin card public, so existing cards differ from the planned private scope; new derived cards are created
+private, their permanent state, and are owned through their public source skins meanwhile).
 """
 import base64, json, sys, time, urllib.error, urllib.request
 from pathlib import Path
@@ -210,6 +213,8 @@ listed = json.dumps(shop_logic or {})
 assert not any(k in listed for k in planned), "a weapon skin is listed in shop_logic; released clients would show it"
 before = {n: fetch(n) for n in planned}
 changed = sorted(n for n, d in before.items() if d is not None and body(d) != planned[n])
+create_only = "--create-only" in sys.argv
+if create_only: changed = []
 conflicts = [n for n in changed if n not in UPDATE]
 assert not conflicts, "documents already exist with different content: " + ", ".join(conflicts)
 create = sorted(n for n, d in before.items() if d is None)
@@ -227,7 +232,7 @@ for name in sorted(create, key=lambda n: n.startswith("shop_item_")):
 for name in changed:
     request(name, dict(planned[name], _rev=before[name]["_rev"]))
 after = {n: request(n) for n in planned}
-for name, doc in planned.items():
-    assert body(after[name]) == doc, "readback differs for " + name
+for name in create + changed:   # --create-only leaves existing (beta-public) cards unread-back
+    assert body(after[name]) == planned[name], "readback differs for " + name
 assert all(fetch(h) == doc for h, doc in heroes.items()), "hero changed"
 print(json.dumps({"backup": str(backup), "revisions": {n: after[n]["_rev"] for n in sorted(after)}}), flush=True)
