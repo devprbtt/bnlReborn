@@ -67,6 +67,7 @@ public static class WeaponSkinSelections
         ["skin_weapon_engineer_spaced_out_drill"] = "skin_engineer_s3",
         ["skin_weapon_engineer_spaced_out_rivet_gun"] = "skin_engineer_s3",
         ["skin_weapon_engineer_spaced_out_caulk_gun"] = "skin_engineer_s3",
+        ["skin_weapon_engineer_winter_ops_spas12"] = "skin_engineer_winter_ops",
         ["skin_weapon_hunter_machete"] = "skin_hunter_s1",
         ["skin_weapon_hunter_nellie"] = "skin_hunter_s1",
         ["skin_weapon_hunter_revolver"] = "skin_hunter_s1",

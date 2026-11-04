@@ -62,6 +62,7 @@ DERIVED = [
     ("engineer_spaced_out_drill", "unit_hero_engineer", "Spaced Out Drill"),
     ("engineer_spaced_out_rivet_gun", "unit_hero_engineer", "Spaced Out Rivet Gun"),
     ("engineer_spaced_out_caulk_gun", "unit_hero_engineer", "Spaced Out Caulk Gun"),
+    ("engineer_winter_ops_spas12", "unit_hero_engineer", "Winter Ops SPAS-12"),
     ("hunter_machete", "unit_hero_hunter", "Machete"),
     ("hunter_nellie", "unit_hero_hunter", "Nellie"),
     ("hunter_revolver", "unit_hero_hunter", "Revolver"),

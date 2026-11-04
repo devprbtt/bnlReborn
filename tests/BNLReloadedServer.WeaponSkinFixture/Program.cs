@@ -54,8 +54,8 @@ try {
     Check(WeaponSkinSelections.Validate(other,K("skin_hunter_s1"),K("skin_weapon_sarge_stone_tommy_gun"))==WeaponSkinChange.WrongHero,"a derived weapon stays on its own hero");
     // Custom skins (2026-11-04): Winter Ops Sarge's M249 on his other skins, owned with the (public) Winter Ops skin.
     Check(WeaponSkinSelections.Validate(other,K("skin_sarge_stone_s1"),K("skin_weapon_sarge_stone_winter_ops_m249"))==WeaponSkinChange.Set,"a custom skin's own weapon follows that skin");
-    Check(WeaponSkinSelections.Derived.Count==111 && WeaponSkinSelections.Derived.All(d=>d.Key.StartsWith(WeaponSkinSelections.Prefix) && !d.Value.StartsWith(WeaponSkinSelections.Prefix)),
-        "every derived weapon skin names a character skin (111, as the client table)");
+    Check(WeaponSkinSelections.Derived.Count==112 && WeaponSkinSelections.Derived.All(d=>d.Key.StartsWith(WeaponSkinSelections.Prefix) && !d.Value.StartsWith(WeaponSkinSelections.Prefix)),
+        "every derived weapon skin names a character skin (112, as the client table)");
     // Skins put on sale stay with the accounts that had them while public: one grant each, once.
     var salePath=Path.Combine(Path.GetTempPath(),"bnl-sale-skins-"+Guid.NewGuid().ToString("N")+".db");
     using(var sale=new SQLiteConnection(salePath))
