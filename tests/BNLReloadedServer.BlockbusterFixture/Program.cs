@@ -30,4 +30,23 @@ Check(Make("fixture_pickup",new UnitDataPickup(),60).BlockbusterBreakDeadline==n
 Check(Make("fixture_resource",new UnitDataCommon(),60,false).BlockbusterBreakDeadline==null,"resource drops excluded");
 var bomb=Make("fixture_bomb",new UnitDataBomb(),60);
 Check(bomb.BlockbusterBreakDeadline==null,"bomb fuse remains separate");
-Console.WriteLine("Blockbuster deadline suite passed.");
+Unit Falling(string id,UnitData data) {
+    var card=new CardUnit {Id=id,Data=data,Lifetime=60,Labels=[UnitLabel.SupplyBlockbuster],Movement=new UnitMovementFalling()};
+    db.Replicate(db.All.Append(card).ToList());
+    var unit=new Unit(2,new UnitInit {Key=card.Key,Team=TeamType.Neutral,Controlled=true},updater);
+    unit.UpdateData(new UnitUpdate {MovementActive=true});
+    return unit;
+}
+var dropping=Falling("fixture_dropping",new UnitDataCommon());
+Check(dropping.GetUpdateData().MovementActive==null,"falling drop snapshot unchanged before landing");
+dropping.IsFirstLand=false;
+var landed=dropping.GetUpdateData();
+Check(landed.MovementActive==false,"landed drop snapshot reports no movement");
+using var landedStream=new MemoryStream();
+landed.Write(new BinaryWriter(landedStream)); landedStream.Position=0;
+var landedReceived=new UnitUpdate(); landedReceived.Read(new BinaryReader(landedStream));
+Check(landedReceived.MovementActive==false,"landed movement state round trips");
+Check(landedReceived.BombTimeoutEnd==landed.BombTimeoutEnd,"landed snapshot keeps break deadline");
+var still=Make("fixture_static",new UnitDataCommon(),60); still.IsFirstLand=false;
+Check(still.GetUpdateData().MovementActive==null,"units without falling movement unchanged");
+Console.WriteLine("Blockbuster deadline and landing suite passed.");

@@ -1205,6 +1205,12 @@ public partial class Unit
             newUpdate.MovementActive = _isCommonMovementActive;
         }
 
+        // Joiners never receive the one-shot UnitCommonLand broadcast, and the player-only movement state above left a
+        // landed supply drop without one: their client kept its sky beam until the Blockbuster broke. Landed units read
+        // as not moving, which retires the beam, parachute and fall audio without replaying the impact.
+        if (UnitCard?.Data is not UnitDataPlayer && UnitCard?.Movement is not (null or UnitMovementStatic) && !IsFirstLand)
+            newUpdate.MovementActive = false;
+
         if (UnitCard?.Data is UnitDataTurret)
         {
             newUpdate.TurretTargetId = TurretTargetId;
