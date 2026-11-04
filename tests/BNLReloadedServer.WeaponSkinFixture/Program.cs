@@ -21,6 +21,8 @@ try {
         new CardSkin{Id="skin_sarge_stone_s1",HeroKey=sarge},new CardSkin{Id="skin_sarge_stone_s3",HeroKey=sarge},
         new CardSkin{Id="skin_weapon_sarge_stone_m60",HeroKey=sarge,Scope=ScopeType.Private},
         new CardSkin{Id="skin_weapon_sarge_stone_tommy_gun",HeroKey=sarge,Scope=ScopeType.Private},
+        new CardSkin{Id="skin_sarge_stone_winter_ops",HeroKey=sarge},
+        new CardSkin{Id="skin_weapon_sarge_stone_winter_ops_m249",HeroKey=sarge,Scope=ScopeType.Private},
         // New in the shop: is_new, on sale, priced and selling a private card. Not new: Blackout's (no is_new), a public skin's.
         new CardShopItem{Id="shop_item_skin_weapon_hunter_ice_rifle",IsNew=true,AvailableInShop=true,PriceVirtual=2000,Items=[new Key("skin_weapon_hunter_ice_rifle")]},
         new CardShopItem{Id="shop_item_skin_weapon_hunter_blackout",IsNew=false,AvailableInShop=true,PriceVirtual=2000,Items=[new Key("skin_weapon_hunter_blackout")]},
@@ -50,8 +52,10 @@ try {
     Check(WeaponSkinSelections.Validate(other,K("skin_sarge_stone_s1"),K("skin_weapon_sarge_stone_tommy_gun"))==WeaponSkinChange.Set
         && WeaponSkinSelections.Validate(other,K("skin_sarge_stone_s3"),K("skin_weapon_sarge_stone_m60"))==WeaponSkinChange.Set,"another hero's derived weapons follow their public skins");
     Check(WeaponSkinSelections.Validate(other,K("skin_hunter_s1"),K("skin_weapon_sarge_stone_tommy_gun"))==WeaponSkinChange.WrongHero,"a derived weapon stays on its own hero");
-    Check(WeaponSkinSelections.Derived.Count==52 && WeaponSkinSelections.Derived.All(d=>d.Key.StartsWith(WeaponSkinSelections.Prefix) && !d.Value.StartsWith(WeaponSkinSelections.Prefix)),
-        "every derived weapon skin names a character skin (52, as the client table)");
+    // Custom skins (2026-11-04): Winter Ops Sarge's M249 on his other skins, owned with the (public) Winter Ops skin.
+    Check(WeaponSkinSelections.Validate(other,K("skin_sarge_stone_s1"),K("skin_weapon_sarge_stone_winter_ops_m249"))==WeaponSkinChange.Set,"a custom skin's own weapon follows that skin");
+    Check(WeaponSkinSelections.Derived.Count==113 && WeaponSkinSelections.Derived.All(d=>d.Key.StartsWith(WeaponSkinSelections.Prefix) && !d.Value.StartsWith(WeaponSkinSelections.Prefix)),
+        "every derived weapon skin names a character skin (113, as the client table)");
     // Skins put on sale stay with the accounts that had them while public: one grant each, once.
     var salePath=Path.Combine(Path.GetTempPath(),"bnl-sale-skins-"+Guid.NewGuid().ToString("N")+".db");
     using(var sale=new SQLiteConnection(salePath))
