@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using BNLReloadedServer.Database;
 
 namespace BNLReloadedServer.BaseTypes;
 
@@ -14,12 +15,20 @@ public partial class Unit
     {
         if (effectKey == GenieHealingAura && effect is InstEffectHeal)
         {
-            targets = targets.Distinct().Where(target => !target.IsDead &&
+            // Station regen owns this healing group while present. Keep orb cadence
+            // untouched while suppressed, so leaving the station can resume healing.
+            targets = targets.Distinct().Where(target => !target.IsDead && !target.HasHealthStationRegen() &&
                 target.AcceptGenieOrbHeal(Id, interval, timestamp)).ToArray();
         }
         var impact = CreateImpactData().AsPeriodicEffect();
         _updater.OnApplyInstEffect(GetSelfSource(impact), targets, effect, impact);
     }
+
+    private bool HasHealthStationRegen() =>
+        ActiveEffects.Any(effect => effect.Key == CatalogueHelper.GenericRegenKey) &&
+        _effectSources.TryGetValue(CatalogueHelper.GenericRegenKey, out var sources) &&
+        sources.Any(source => source is UnitSource { Unit.UnitCard.Labels: { } labels } &&
+                              labels.Contains(UnitLabel.HealthSupply));
 
     private bool AcceptGenieOrbHeal(uint orbId, float interval, long timestamp)
     {
