@@ -44,7 +44,8 @@ public class ServiceMatchmaker(ISender sender) : IServiceMatchmaker
         MessageSetCustomGameTeamCombat = 31,
         MessageSetCustomGameTeamOption = 32,
         MessageSetCustomTestDummies = 33,
-        MessageSpawnCustomTestDummy = 34
+        MessageSpawnCustomTestDummy = 34,
+        MessageStartTimeTrialCourse = 35
     }
 
     private readonly IRegionServerDatabase _serverDatabase = Databases.RegionServerDatabase;
@@ -285,6 +286,19 @@ public class ServiceMatchmaker(ISender sender) : IServiceMatchmaker
             _serverDatabase.RestartTimeTrialGame(sender.AssociatedPlayerId.Value);
     }
 
+    private void ReceiveStartTimeTrialCourse(BinaryReader reader)
+    {
+        var rpcId = reader.ReadUInt16();
+        var map = Key.ReadRecord(reader);
+        bool started = sender.AssociatedPlayerId is { } playerId && _serverDatabase.StartTimeTrialCourse(playerId, map, this);
+        using var writer = CreateWriter();
+        writer.Write((byte)ServiceMatchmakerId.MessageStartTimeTrialCourse);
+        writer.Write(rpcId);
+        writer.Write((byte)0);
+        writer.Write(started);
+        sender.Send(writer);
+    }
+
     public void SendUpdateCustomGame(CustomGameUpdate update)
     {
         using var writer = CreateWriter();
@@ -443,6 +457,9 @@ public class ServiceMatchmaker(ISender sender) : IServiceMatchmaker
                 break;
             case ServiceMatchmakerId.MessageRestartTimeTrial:
                 ReceiveRestartTimeTrial(reader);
+                break;
+            case ServiceMatchmakerId.MessageStartTimeTrialCourse:
+                ReceiveStartTimeTrialCourse(reader);
                 break;
             case ServiceMatchmakerId.MessageRegisterCustomGame:
                 ReceiveRegisterCustomGame(reader);

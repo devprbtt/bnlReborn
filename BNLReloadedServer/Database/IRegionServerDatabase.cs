@@ -50,6 +50,7 @@ public interface IRegionServerDatabase
     public bool StartCustomGame(uint playerId, string? signedMap);
     public bool StartMapEditorGame(uint playerId, MapData map, Key heroKey, TeamType team);
     public bool StartTimeTrialGame(uint playerId);
+    public bool StartTimeTrialCourse(uint playerId, Key map, IServiceMatchmaker service) => false;
     public bool RestartTimeTrialGame(uint playerId);
     public bool StartGameFromMatchmaker(CardGameMode gameMode, List<PlayerQueueData> team1, List<PlayerQueueData> team2,
         int? playersPerTeam = null);

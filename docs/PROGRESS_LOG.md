@@ -147,3 +147,9 @@ Beta.83 exposed a client contract violation: RebornShopBlocks enumerates every U
 Validation: 35 debug-dummy checks, 463 casual-draft checks, TeamFeatures/Auth/Accounting fixtures, warning-as-error Release build/publish and vulnerability audit passed. The actual Unity Catalogue UI consumed the server-exported binary dummy/class cards and passed 24 shop checks: opens, all 15 heroes, block browser, details and return navigation. No new UI exceptions.
 
 Deployed server revision 6535d79a0d41c07723f92310d6cb86284df9385e; guarded health gate and live DLL hash verified. Zero active matches at restart. Server rollback snapshot: /root/config-backups/bnl-server-hotfix-20261027T153704Z. Existing beta.83 clients load the fix on restart; no replacement client feed.
+
+## 2026-11-07 - Time Assault map selection
+
+Added selected-course Matchmaker RPC 35 while preserving the legacy featured-course request 17. TimeAssaultCourses validates an unambiguous configured course, hero and TimeTrial map card/payload before queue removal. Solo launch rejects disconnected users, squad members and active-instance replacement. Restart uses the current instance MapInfoCard and validates before teardown; in-flight/loading restarts and removed courses leave current state intact. No catalogue migration: all six current maps already have course definitions.
+
+Release warning-as-error compilation and self-contained linux-x64 publish passed. TimeAssaultFixture passes 48 checks using the local PTR catalogue and actual six map payloads, including course-specific hero/devices/goals/objectives, unknown/duplicate rejection, selected-map RPC and boolean reply, region launch guards and restart guard/teardown boundary. No live zone creation or live multiplayer playthrough in the fixture. Deployment not performed; server must precede the matching client. docs/TIME_ASSAULT_COURSES.md contains the protocol/deployment contract. Independent of the pending casual free-pick branch.
