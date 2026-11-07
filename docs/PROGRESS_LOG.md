@@ -159,3 +159,7 @@ Release warning-as-error compilation and self-contained linux-x64 publish passed
 Capability 14 adds bidirectional zone message 114 with a per-connection 64-bit challenge. Send the challenge after the complete TA snapshot, hold countdown start until its matching response, and reject stale, duplicate, pre-snapshot or replaced-connection acknowledgements. Load timeout cannot start a TA before readiness. TA player creation/state is sent during loading so the client can finish presentation before acknowledging. Legacy clients retain their existing handshake; matching new client is required for the final presentation guarantee.
 
 Validation: 65 TimeAssaultFixture checks pass, including the actual start guard, token acceptance and wire encoding. This is not a live end-to-end course playthrough. Deployment remains separate from the pushed changes.
+
+## 2026-11-07 - Completion/leaderboard value parity regression
+
+Added six fractional/boundary samples through actual MasterServerDatabase.ApplyTimeTrialResult, saved TimeTrialData byte serialization, completion-result wire serialization and leaderboard-record wire serialization. The values retain identical float bits; slower subsequent finishes retain the prior best. Exported payload pairs are read by Unity to verify finish-screen and leaderboard formatting parity. Server fixture now passes 77 checks. Runtime behavior is unchanged by this validation-only follow-up.

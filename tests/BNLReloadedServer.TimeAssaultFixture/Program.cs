@@ -106,6 +106,27 @@ Token(456);Check(!Ack(connection,123)&&!Ready(),"new load rejects prior readines
 Token(null);Check(Ready(),"legacy ready clients retain native handshake");
 var zoneService=new ServiceZone(sender);zoneService.SendTimeAssaultReady(0x123456789ABCDEF0UL);
 using(var reply=new BinaryReader(new MemoryStream(sender.Last!))){Check(reply.ReadByte()==(byte)ServiceId.ServiceZone && reply.ReadByte()==114 && reply.ReadUInt64()==0x123456789ABCDEF0UL && reply.BaseStream.Position==reply.BaseStream.Length,"readiness challenge wire contract");}
+using(var parityWriter=new BinaryWriter(File.Create(Path.Combine(args[1],"completion-parity.bin"))))
+{
+    var samples=new[]{145.25f,12.1f,.005f,59.9996f,60f,3600.125f};
+    parityWriter.Write(samples.Length);
+    foreach(var seconds in samples)
+    {
+        var player=new PlayerData();
+        var result=new TimeTrialResultData{ResultTime=seconds,BestResultTime=seconds};
+        typeof(MasterServerDatabase).GetMethod("ApplyTimeTrialResult",BindingFlags.Static|BindingFlags.NonPublic)!.Invoke(null,[player,courses[0].Map,result]);
+        var saved=TimeTrialData.ReadByteRecord(TimeTrialData.WriteByteRecord(player.TimeTrial));
+        var board=new TtLeaderboardRecord{PlayerId=7,PlayerName="Parity runner",ResultSeconds=saved.BestResultTime![courses[0].Map]};
+        using var wire=new MemoryStream();using var writer=new BinaryWriter(wire);
+        result.Write(writer);board.Write(writer);wire.Position=0;
+        using var reader=new BinaryReader(wire);
+        var finish=TimeTrialResultData.ReadRecord(reader);var leaderboard=TtLeaderboardRecord.ReadRecord(reader);
+        Check(BitConverter.SingleToInt32Bits(finish.ResultTime)==BitConverter.SingleToInt32Bits(leaderboard.ResultSeconds),"completion and persisted leaderboard retain identical float bits: "+seconds);
+        result.Write(parityWriter);board.Write(parityWriter);
+        typeof(MasterServerDatabase).GetMethod("ApplyTimeTrialResult",BindingFlags.Static|BindingFlags.NonPublic)!.Invoke(null,[player,courses[0].Map,new TimeTrialResultData{ResultTime=seconds+10,BestResultTime=seconds}]);
+        Check(player.TimeTrial.BestResultTime![courses[0].Map]==seconds,"slower finish preserves best leaderboard time: "+seconds);
+    }
+}
 Console.WriteLine($"Time Assault fixture passed: {checks} checks.");
 File.WriteAllText(Path.Combine(args[1],"server-validation.txt"),$"PASS {checks} checks; all {courses.Count} actual map payloads load; course selection/loadout/objectives/rewards preserved; request/reply round trip.\n");
 public class RegionProxy:DispatchProxy{
