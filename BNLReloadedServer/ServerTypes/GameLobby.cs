@@ -37,7 +37,8 @@ public class GameLobby : Updater
         _gameInstance = gameInstance;
         LobbyData = new LobbyData();
         var gameCard = Databases.Catalogue.GetCard<CardGameMode>(gameModeKey);
-        if (gameCard?.Id == "game_mode_friendly" && randomHeroes == null) _casualDraft = new CasualDraft();
+        if (gameCard?.Id == "game_mode_friendly" && gameCard.LobbyMode is LobbyModeDraftPick && randomHeroes == null)
+            _casualDraft = new CasualDraft();
         var timer = gameCard?.LobbyMode switch
         {
             LobbyModeFreePick lobbyFree => new LobbyTimer

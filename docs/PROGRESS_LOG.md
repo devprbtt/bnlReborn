@@ -147,3 +147,9 @@ Beta.83 exposed a client contract violation: RebornShopBlocks enumerates every U
 Validation: 35 debug-dummy checks, 463 casual-draft checks, TeamFeatures/Auth/Accounting fixtures, warning-as-error Release build/publish and vulnerability audit passed. The actual Unity Catalogue UI consumed the server-exported binary dummy/class cards and passed 24 shop checks: opens, all 15 heroes, block browser, details and return navigation. No new UI exceptions.
 
 Deployed server revision 6535d79a0d41c07723f92310d6cb86284df9385e; guarded health gate and live DLL hash verified. Zero active matches at restart. Server rollback snapshot: /root/config-backups/bnl-server-hotfix-20261027T153704Z. Existing beta.83 clients load the fix on restart; no replacement client feed.
+
+## 2026-11-07 - Prepare server-only casual free pick
+
+Changed game_mode_friendly registration to FreePick (60s selection, 5s prestart, 60s requeue) and gated casual draft state on an actual DraftPick mode. Players choose simultaneously; duplicate heroes remain allowed and draft class minimums are removed. Ranked unchanged. Full and incremental catalogue registration share this normalization; no client/CDB migration needed.
+
+Validated Release build and self-contained linux-x64 publish with warnings as errors; CasualDraftFixture 767 checks (33 new free-pick checks plus retained dormant draft coverage); PublicQueueRulesFixture 64; BackfillReentryFixture 13; RandomHeroesFixture 4018; MapVoteFixture 19 using the local PTR catalogue export. RandomHeroesFixture emits its pre-existing CS9216 Lock-cast warning; server build/publish have zero warnings. Initial test setup failures were corrected (drain queued prestart action before synthetic backfill; test single-card normalization without invoking production minimum-catalogue-size guard). No live service changes or multiplayer acceptance test. Deployment/rollback and player note: docs/CASUAL_FREE_PICK.md.
