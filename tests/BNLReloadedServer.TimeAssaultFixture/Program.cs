@@ -76,6 +76,36 @@ foreach(var course in courses.Skip(1))
     try { actual.RestartTimeTrialGame(7);throw new Exception("Expected isolated teardown boundary"); }
     catch(StopBeforeZoneCreation) { Check(instance.Left==1 && infoType.GetProperty("GameInstanceId")!.GetValue(info)==null,"valid restart resolves non-featured course before teardown"); }
 }
+// The actual start guard and nonce acceptance, without sockets or a live zone.
+var game=(GameInstance)RuntimeHelpers.GetUninitializedObject(typeof(GameInstance));
+var connectionType=typeof(GameInstance).GetNestedType("MatchConnectionInfo",BindingFlags.NonPublic)!;
+var connection=Activator.CreateInstance(connectionType,Guid.NewGuid(),Guid.NewGuid(),TeamType.Team1,null)!;
+var roster=Activator.CreateInstance(typeof(ConcurrentDictionary<,>).MakeGenericType(typeof(uint),connectionType))!;
+typeof(GameInstance).GetField("_connectedUsers",fields)!.SetValue(game,roster);
+typeof(GameInstance).GetProperty("MapData",fields)!.SetValue(game,new MapData{Match=BNLReloadedServer.BaseTypes.MatchType.TimeTrial});
+bool Ready()=>(bool)typeof(GameInstance).GetMethod("AllPlayersLoaded",fields)!.Invoke(game,null)!;
+bool Ack(object conn,ulong token)=>(bool)typeof(GameInstance).GetMethod("AcceptTimeAssaultReady",fields)!.Invoke(game,[7u,conn,token])!;
+void Stage(BNLReloadedServer.ServerTypes.ZoneLoadStage stage)=>connectionType.GetProperty("LoadStage")!.SetValue(connection,stage);
+void Token(ulong? token)=>connectionType.GetProperty("TimeAssaultReadyToken")!.SetValue(connection,token);
+void CannotForceStart(string why){typeof(GameInstance).GetMethod("BeginGame",fields)!.Invoke(game,null);Check(!game.IsStarted,why);}
+Check(!Ready(),"empty instance cannot start");CannotForceStart("timeout cannot start empty TA");
+roster.GetType().GetMethod("TryAdd")!.Invoke(roster,[7u,connection]);
+foreach(var stage in new[]{BNLReloadedServer.ServerTypes.ZoneLoadStage.None,BNLReloadedServer.ServerTypes.ZoneLoadStage.InitZone,BNLReloadedServer.ServerTypes.ZoneLoadStage.LoadZone}){
+ Stage(stage);Token(123);Check(!Ready()&&!Ack(connection,123),"no start/ack before snapshot delivery: "+stage);CannotForceStart("timeout cannot bypass loading: "+stage);
+}
+Stage(BNLReloadedServer.ServerTypes.ZoneLoadStage.Finished);Token(123);
+Check(!Ready(),"snapshot delivered does not start TA before client presentation");CannotForceStart("timeout cannot bypass final client acknowledgement");
+Check(!Ack(connection,999)&&!Ready(),"stale/forged token cannot release countdown");
+var oldConnection=Activator.CreateInstance(connectionType,Guid.NewGuid(),Guid.NewGuid(),TeamType.Team1,null)!;
+connectionType.GetProperty("LoadStage")!.SetValue(oldConnection,BNLReloadedServer.ServerTypes.ZoneLoadStage.Finished);
+connectionType.GetProperty("TimeAssaultReadyToken")!.SetValue(oldConnection,123UL);
+Check(!Ack(oldConnection,123)&&!Ready(),"replaced connection cannot release countdown");
+Check(Ack(connection,123)&&Ready(),"matching final readiness releases countdown");
+Check(!Ack(connection,123),"duplicate readiness is ignored");
+Token(456);Check(!Ack(connection,123)&&!Ready(),"new load rejects prior readiness token");
+Token(null);Check(Ready(),"legacy ready clients retain native handshake");
+var zoneService=new ServiceZone(sender);zoneService.SendTimeAssaultReady(0x123456789ABCDEF0UL);
+using(var reply=new BinaryReader(new MemoryStream(sender.Last!))){Check(reply.ReadByte()==(byte)ServiceId.ServiceZone && reply.ReadByte()==114 && reply.ReadUInt64()==0x123456789ABCDEF0UL && reply.BaseStream.Position==reply.BaseStream.Length,"readiness challenge wire contract");}
 Console.WriteLine($"Time Assault fixture passed: {checks} checks.");
 File.WriteAllText(Path.Combine(args[1],"server-validation.txt"),$"PASS {checks} checks; all {courses.Count} actual map payloads load; course selection/loadout/objectives/rewards preserved; request/reply round trip.\n");
 public class RegionProxy:DispatchProxy{

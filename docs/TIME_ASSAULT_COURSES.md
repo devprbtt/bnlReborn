@@ -17,3 +17,9 @@ dotnet run --project tests/BNLReloadedServer.TimeAssaultFixture -c Release -- <c
 ```
 
 Player-facing note: Choose any available Time Assault course from the Play menu. Each course keeps its own hero, loadout, objectives and records. Restart retries your chosen course instead of returning to the featured map.
+
+### Completion timing and final client readiness
+
+The matching client advertises capability 14. Server sends zone message 114 plus a fresh UInt64 token after sending the TA snapshot; client returns that token only after its loader is done, its local player and HUD exist, and the loading screen is gone. The server holds the prestart countdown until acceptance. Stale, duplicate and replaced-connection tokens are ignored; timeout does not bypass readiness. TA player creation is included during loading to avoid a circular wait. Legacy clients preserve their native handshake and do not gain this final presentation guarantee without updating.
+
+Completion displays use rounded milliseconds with insignificant trailing zeros removed (02:25.25, 00:12.1, 00:00.005). Stored server result floats and leaderboard ordering remain unmodified. 65 server fixture checks cover course behavior and readiness guards; live client/server playthrough remains pending.

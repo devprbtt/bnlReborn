@@ -58,3 +58,7 @@ Use an optional LobbyUpdate JSON snapshot at bit 9 and lobby request 20 for phas
 ## 2026-11-07 - Explicit Time Assault course key
 
 Keep global_logic.time_trial.courses as the authoritative course catalogue. Add a distinct selected-map RPC with a start-result reply, leaving the old featured-course request wire format intact. Do not mutate global course ordering per player. Resolve restarts from the running instance map and validate the replacement before releasing that instance. Reuse existing per-map goals/rewards/leaderboards and fixed hero/device loadouts. Deploy server support before exposing the picker in a client release.
+
+## Time Assault presentation readiness
+
+Use negotiated capability 14 and zone message 114 to acknowledge a completed TA snapshot only after the client loader, local player, HUD and loading overlay are ready. A fresh random challenge belongs to each connection/load; matching it releases the existing prestart countdown. Do not use a fixed loading delay or allow the lobby timeout to bypass this TA guard. Old clients keep their existing handshake, and other modes retain their normal loading behavior.
