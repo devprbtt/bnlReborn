@@ -24,6 +24,8 @@ using(var writer=new BinaryWriter(File.Create(Path.Combine(args[1],"time-trial-l
 using(var writer=new BinaryWriter(File.Create(Path.Combine(args[1],"time-trial-cards.bin"))))
 {
     var keys=courses.SelectMany(c=>new[]{c.Map,c.Hero}).ToHashSet();
+    foreach(var course in courses)
+        if(course.Hero.GetCard<CardUnit>()?.Data is UnitDataPlayer hero && hero.Skins is {Count:>0})keys.Add(hero.Skins[0]);
     var selectedCards=cards.Where(c=>keys.Contains(c.Key)).ToArray();writer.Write(selectedCards.Length);
     foreach(var card in selectedCards)Card.WriteVariant(writer,card);
 }

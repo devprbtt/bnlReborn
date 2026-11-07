@@ -163,3 +163,7 @@ Validation: 65 TimeAssaultFixture checks pass, including the actual start guard,
 ## 2026-11-07 - Completion/leaderboard value parity regression
 
 Added six fractional/boundary samples through actual MasterServerDatabase.ApplyTimeTrialResult, saved TimeTrialData byte serialization, completion-result wire serialization and leaderboard-record wire serialization. The values retain identical float bits; slower subsequent finishes retain the prior best. Exported payload pairs are read by Unity to verify finish-screen and leaderboard formatting parity. Server fixture now passes 77 checks. Runtime behavior is unchanged by this validation-only follow-up.
+
+## 2026-11-07 - Native TA picker review data
+
+Export each course hero's default skin card with the existing offline review fixtures so the native map selector can show the correct existing hero portrait when a course has no thumbnail. This changes test data only; server gameplay is unchanged. All 77 server checks pass.
