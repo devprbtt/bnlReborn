@@ -69,7 +69,9 @@ public static class MmrLedger
             {
                 var previous=db.Table<MmrSettlement>().Where(s=>s.PlayerId==a.PlayerId && s.Abandoned).ToList()
                     .Count(s=>s.MatchId!=match.MatchId && s.EndedAt>(long)match.EndedAt-86400000);
-                var until=Math.Max(now,(long)match.EndedAt)+MmrQueueGuard.CooldownMinutes(previous)*60000L;
+                var departed=PersonalMmr.AbandonedAt(match,player)
+                    ?? throw new InvalidOperationException("Abandoned award is missing its departure time");
+                var until=checked((long)departed)+MmrQueueGuard.CooldownMinutes(previous)*60000L;
                 var ban=db.Find<MmrQueuePenalty>(a.PlayerId);
                 db.InsertOrReplace(new MmrQueuePenalty {PlayerId=a.PlayerId,Until=Math.Max(until,ban?.Until??0)});
             }
