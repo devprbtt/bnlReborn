@@ -68,7 +68,7 @@ public partial class GameZone
         if ((reason == "Demolition boost assist" && target != null) || reason is "Jinx" or "Cage affected" or "EMP affected" or "Avalanche affected" or "Ally boosted" or "Reload boost" or "Enemy frightened")
             if (target == null || !ledger.Ready(id, reason + ":" + target, _scoreClock.Elapsed.TotalSeconds, rules.HeroEffectCooldown)) return;
         int points = reason switch {
-            "Mine affected" => rules.MineAffected,
+            "Fire trap explosion" => rules.FireTrapExplosion, "Mine affected" => rules.MineAffected,
             "Glue affected" => rules.GlueAffected, "Bush affected" => rules.BushAffected,
             "Build boost assist" => rules.TonyBuildAssist, "Demolition boost assist" => rules.TrondsonDemolitionAssist,
             "Lamp pickup" => rules.GenieLampPickup, "Jinx" => rules.GenieJinx, "Cage affected" => rules.VanderCage,
@@ -96,6 +96,9 @@ public partial class GameZone
         string origin = Unit.ScoreSourceId(impact.SourceKey);
         if (DeviceScoreReason(origin) == null && attacker != player) origin = Unit.ScoreSourceId(attacker?.Key);
         string? deviceReason = DeviceScoreReason(origin);
+        if (deviceReason == "Fire trap affected" && !impact.PeriodicEffect &&
+            Unit.ScoreCardFamily(origin, "unit_device_generic_fire_trap"))
+            deviceReason = "Fire trap explosion";
         if (deviceReason != null && (target.PlayerId != null ||
             deviceReason == "Bomb affected" && IsScoreDevice(target.UnitCard) && target.UnitCard?.IsObjective != true && !ExcludedDestroyScore(target.UnitCard?.Id)))
             AwardAction(player, deviceReason, deviceReason is "Fire trap affected" or "Turret damage" or "Beacon damage" or "Miasma damage" or "Torpedo damage" or "Lamp gas damage" ? damage : 1, target.GetMidpoint(), target.Id);

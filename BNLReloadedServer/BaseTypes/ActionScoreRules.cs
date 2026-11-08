@@ -30,6 +30,7 @@ public sealed class ActionScoreRules
     public int KreepyBoxHit { get; set; } = 5;
     public int TurretDamagePoints { get; set; } = 5;
     public int MineAffected { get; set; } = 10;
+    public int FireTrapExplosion { get; set; } = 5;
     public float FireTrapDamageChunk { get; set; } = 50;
     // Points per damage chunk, not per burn tick.
     public int FireTrapAffected { get; set; } = 5;

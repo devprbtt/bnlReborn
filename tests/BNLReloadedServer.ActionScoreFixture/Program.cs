@@ -398,28 +398,35 @@ for(int i=0;i<trapBlocks.Length;i++)
  otherVictim.AddEffects([new ConstEffectInfo(trapEffects[i].Key)],source.Team,noOwner);
  Check(actual.Total(1)==before+reward,"unowned environmental traps do not score");
 }
-// Fire trap score depends on damage, not tick frequency or target count.
+// Explosion is a fixed hit award; only burn and ground-fire damage enter the bank.
 var fireLedger = new ActionScoreLedger(rules); Set("_actionScores",fireLedger);
 var fireTrap=Make(heroTarget++,trapCards[1],TeamType.Team1);fireTrap.OwnerPlayerId=1;
 var fireVictim=Make(heroTarget++,playerCard,TeamType.Team2,heroTarget);
 var fireImpact=fireTrap.CreateImpactData();
+var burnImpact=(ImpactData)typeof(ImpactData).GetMethod("AsPeriodicEffect",BindingFlags.Instance|BindingFlags.NonPublic)!.Invoke(fireImpact,null)!;
 Call("ScoreDamage",fireVictim,35f,fireImpact,a,fireTrap);
-Check(fireLedger.Total(1)==0,"fire explosion banks damage below 50 HP");
-for(int tick=0;tick<25;tick++)Call("ScoreDamage",fireVictim,.6f,(ImpactData)typeof(ImpactData).GetMethod("AsPeriodicEffect",BindingFlags.Instance|BindingFlags.NonPublic)!.Invoke(fireImpact,null)!,a,fireTrap);
-Check(fireLedger.Total(1)==5,"35 HP explosion plus 15 HP full burn earns five points, not 130");
-for(int tick=0;tick<25;tick++)Call("ScoreDamage",fireVictim,.6f,(ImpactData)typeof(ImpactData).GetMethod("AsPeriodicEffect",BindingFlags.Instance|BindingFlags.NonPublic)!.Invoke(fireImpact,null)!,a,fireTrap);
-Check(fireLedger.Total(1)==5,"another burn banks its remainder without tick payouts");
-Call("ScoreDamage",fireVictim,35f,fireImpact,a,fireTrap);
-Check(fireLedger.Total(1)==10,"fire damage remainder carries between burns");
-foreach(float amount in new[]{0f,-1f,float.NaN,float.PositiveInfinity})Call("ScoreDamage",fireVictim,amount,fireImpact,a,fireTrap);
-Call("ScoreDamage",ally,100f,fireImpact,a,fireTrap);
-Call("ScoreDamage",a,100f,fireImpact,a,fireTrap);
-Call("ScoreDamage",fireVictim,100f,fireImpact,null,fireTrap);
-Check(fireLedger.Total(1)==10,"invalid friendly self and ownerless fire damage earn nothing");
+Check(fireLedger.Total(1)==5,"explosion immediately awards five points");
+for(int tick=0;tick<25;tick++)Call("ScoreDamage",fireVictim,.6f,burnImpact,a,fireTrap);
+Check(fireLedger.Total(1)==5,"full 15 HP burn banks damage without re-awarding the explosion");
+var groundImpact=new ImpactData{SourceKey=trapBlocks[2].Key};
+Call("ScoreDamage",fireVictim,35f,groundImpact,a,a);
+Check(fireLedger.Total(1)==10,"ground fire and burn share 50 HP bank excluding explosion damage");
+Call("ScoreDamage",fireVictim,1f,fireImpact,a,fireTrap);
+Call("ScoreDamage",fireVictim,100f,fireImpact,a,fireTrap);
+Check(fireLedger.Total(1)==20,"explosion payout is fixed regardless of actual damage amount");
+foreach(var invalidImpact in new[]{fireImpact,burnImpact,groundImpact}) {
+ foreach(float amount in new[]{0f,-1f,float.NaN,float.PositiveInfinity})Call("ScoreDamage",fireVictim,amount,invalidImpact,a,fireTrap);
+ Call("ScoreDamage",ally,100f,invalidImpact,a,fireTrap);
+ Call("ScoreDamage",a,100f,invalidImpact,a,fireTrap);
+ Call("ScoreDamage",fireVictim,100f,invalidImpact,null,fireTrap);
+}
+Check(fireLedger.Total(1)==20,"invalid friendly self and ownerless fire events earn nothing");
 var fireOther=Make(heroTarget++,playerCard,TeamType.Team2,heroTarget);
-Call("ScoreDamage",fireVictim,20f,fireImpact,a,fireTrap);
-Call("ScoreDamage",fireOther,30f,fireImpact,a,fireTrap);
-Check(fireLedger.Total(1)==15,"fire damage pools across enemy targets without duplication");
+Call("ScoreDamage",fireOther,10f,fireImpact,a,fireTrap);
+Check(fireLedger.Total(1)==25,"explosion pays separately for another enemy hit");
+Call("ScoreDamage",fireVictim,20f,burnImpact,a,fireTrap);
+Call("ScoreDamage",fireOther,30f,burnImpact,a,fireTrap);
+Check(fireLedger.Total(1)==30,"burn damage pools across targets without duplicate generic credit");
 var splitFire=new ActionScoreLedger(rules);var lumpFire=new ActionScoreLedger(rules);
 for(int tick=0;tick<100;tick++)splitFire.AccumulateChunks(1,"Fire trap affected",1,rules.FireTrapDamageChunk,rules.FireTrapAffected,false);
 lumpFire.AccumulateChunks(1,"Fire trap affected",100,rules.FireTrapDamageChunk,rules.FireTrapAffected,false);
