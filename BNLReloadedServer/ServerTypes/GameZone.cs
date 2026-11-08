@@ -401,7 +401,7 @@ public partial class GameZone : Updater
         if (playerUnit == null) return;
         playerUnit.ZoneService = savedService;
 
-        if (_gameLoop is null)
+        if (_gameLoop is null && _zoneData.MatchCard.Data?.Type != MatchType.TimeTrial)
         {
             _updateOnStart.Add((playerUnit.Id, playerUnit.GetUpdateData(), () => playerUnit.ZoneService));
         }

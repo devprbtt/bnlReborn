@@ -1,4 +1,4 @@
-﻿using System.Numerics;
+using System.Numerics;
 using BNLReloadedServer.BaseTypes;
 using BNLReloadedServer.Database;
 using BNLReloadedServer.ProtocolHelpers;
@@ -122,7 +122,8 @@ public partial class ServiceZone(ISender sender, Func<System.Net.IPAddress?>? pe
         MessageAimLook = 108,
         MessageAssistLead = 109,
         MessageReplayControl = 110,
-        MessageFarmPing = 112
+        MessageFarmPing = 112,
+        MessageTimeAssaultReady = 114
     }
 
     private IRegionServerDatabase ServerDatabase => Databases.RegionServerDatabase;
@@ -133,7 +134,8 @@ public partial class ServiceZone(ISender sender, Func<System.Net.IPAddress?>? pe
     // 6: high-rate look stream with aim state, relayed to spectators.
     // 7: Skill II (Accomplice) players are told which enemy heroes they currently lead on damage.
     // 12 is the client's in-place replay rewind (replay rewinds rebuild state in the loaded scene); 13 adds clan emblems.
-    private const int TeamPingProtocolVersion = 13;
+    private const int TeamPingProtocolVersion = 14;
+    public bool SupportsTimeAssaultReady { get; private set; }
     private bool _supportsReplayControls;
     private bool _supportsReplaySeekAck;
     private bool _supportsReplayPresentationReady;
@@ -179,6 +181,7 @@ public partial class ServiceZone(ISender sender, Func<System.Net.IPAddress?>? pe
             if (magic == TeamPingCapabilityMagic && version >= TeamPingMinimumProtocolVersion)
             {
                 SupportsTeamPing = true;
+                SupportsTimeAssaultReady = version >= 14;
                 SupportsFarmPing = version >= 9;
                 SupportsHeroEmote = version >= 2;
                 SupportsBuildPreview = version >= 3;
@@ -202,6 +205,14 @@ public partial class ServiceZone(ISender sender, Func<System.Net.IPAddress?>? pe
                     _supportsReplayInPlaceRewind);
             GameInstance?.PlayerZoneReady(sender.AssociatedPlayerId.Value);
         }
+    }
+
+    public void SendTimeAssaultReady(ulong token)
+    {
+        using var writer = CreateWriter();
+        writer.Write((byte)ServiceZoneId.MessageTimeAssaultReady);
+        writer.Write(token);
+        sender.Send(writer);
     }
 
     public void SendTeamPingCapability(int version)
@@ -1374,6 +1385,11 @@ public partial class ServiceZone(ISender sender, Func<System.Net.IPAddress?>? pe
         {
             case ServiceZoneId.MessageZoneReady:
                 ReceiveZoneReady(reader);
+                break;
+            case ServiceZoneId.MessageTimeAssaultReady:
+                var token = reader.ReadUInt64();
+                if (SupportsTimeAssaultReady && sender.AssociatedPlayerId is {} playerId && GameInstance is GameInstance instance)
+                    instance.PlayerTimeAssaultReady(playerId, token);
                 break;
             case ServiceZoneId.MessageZoneLeave:
                 ReceiveZoneLeave(reader);

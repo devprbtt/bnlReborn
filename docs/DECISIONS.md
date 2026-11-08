@@ -54,3 +54,11 @@ Persist integer Gold/Platinum balances on Users, initialized to zero, and use a 
 Use the existing server lobby queue and timers for casual bans and snake picks, with an explicit phase number in every vote. Reserve the accepted roster before loading, count one final vote per authenticated member, and reject stale/late inputs. Keep class minimums per team for initial 4v4/5v5 rosters; do not infer size from the four-player catalogue card because automatic casual can be 5v5. Preserve vacancy capacity during backfill. Require a complete feasible lineup for both teams before accepting any hero or exposing a ban candidate; public pools use class-capacity allocation and restricted inventories use exact ownership search. Keep ranked/clan draft ordering unchanged.
 
 Use an optional LobbyUpdate JSON snapshot at bit 9 and lobby request 20 for phase-scoped ban votes, with coordinated client/server publication. Reconnects use the normal full lobby snapshot rather than reconstructing client state. Author UI adapters under compatibility/runtime-session and install through tools/Install-CasualDraft.ps1 with staged copies and hashes. No production deployment is part of this implementation request.
+
+## 2026-11-07 - Explicit Time Assault course key
+
+Keep global_logic.time_trial.courses as the authoritative course catalogue. Add a distinct selected-map RPC with a start-result reply, leaving the old featured-course request wire format intact. Do not mutate global course ordering per player. Resolve restarts from the running instance map and validate the replacement before releasing that instance. Reuse existing per-map goals/rewards/leaderboards and fixed hero/device loadouts. Deploy server support before exposing the picker in a client release.
+
+## Time Assault presentation readiness
+
+Use negotiated capability 14 and zone message 114 to acknowledge a completed TA snapshot only after the client loader, local player, HUD and loading overlay are ready. A fresh random challenge belongs to each connection/load; matching it releases the existing prestart countdown. Do not use a fixed loading delay or allow the lobby timeout to bypass this TA guard. Old clients keep their existing handshake, and other modes retain their normal loading behavior.

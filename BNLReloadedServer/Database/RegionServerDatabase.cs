@@ -998,7 +998,17 @@ public partial class RegionServerDatabase(AsyncTaskTcpServer server, AsyncTaskTc
     {
         if (!UserConnected(playerId, out var playerInfo)) return false;
         if (playerInfo.GameInstanceId != null) return false;
-        return StartTimeTrialGame(playerId, playerInfo, false);
+        if (!TimeAssaultCourses.TryLoad(null, out var course, out var map)) return false;
+        return StartTimeTrialGame(playerId, playerInfo, false, course!, map!);
+    }
+
+    public bool StartTimeTrialCourse(uint playerId, Key mapKey, IServiceMatchmaker service)
+    {
+        if (!UserConnected(playerId, out var playerInfo) || playerInfo.GameInstanceId != null || playerInfo.SquadId != null) return false;
+        if (!TimeAssaultCourses.TryLoad(mapKey, out var course, out var map)) return false;
+        // Validate before changing queue state; a forged or unavailable course leaves the player where they were.
+        LeaveQueue(playerId, service);
+        return StartTimeTrialGame(playerId, playerInfo, false, course!, map!);
     }
 
     public bool RestartTimeTrialGame(uint playerId)
@@ -1010,22 +1020,19 @@ public partial class RegionServerDatabase(AsyncTaskTcpServer server, AsyncTaskTc
         // loading is a restart already in flight — dropping those is what keeps one keypress from
         // spawning a zone per frame.
         if (!instance.IsStarted) return false;
+        if (instance.GetMapInfo() is not MapInfoCard currentMap ||
+            !TimeAssaultCourses.TryLoad(currentMap.MapKey, out var course, out var map)) return false;
 
         // Dropping the instance id first keeps the teardown from pushing the player back to the
         // main menu: the restarted zone replaces the old one directly.
         playerInfo.GameInstanceId = null;
         instance.PlayerLeftInstance(playerId, KickReason.MatchQuit);
 
-        return StartTimeTrialGame(playerId, playerInfo, true);
+        return StartTimeTrialGame(playerId, playerInfo, true, course!, map!);
     }
 
-    private bool StartTimeTrialGame(uint playerId, ConnectionInfo playerInfo, bool restart)
+    private bool StartTimeTrialGame(uint playerId, ConnectionInfo playerInfo, bool restart, TimeTrialCourse course, MapData map)
     {
-        var course = CatalogueHelper.GlobalLogic.TimeTrial?.Courses?.FirstOrDefault();
-        if (course == null) return false;
-        var map = Databases.MapDatabase.LoadMapData(course.Map);
-        if (map == null) return false;
-
         var initiator = new DummyGameInitiator(CatalogueHelper.ModeTimeTrial, map, TeamType.Team1, false);
         var gameInstance = new GameInstance(matchServer, server, Guid.NewGuid().ToString(), initiator);
         initiator.GameInstanceId = gameInstance.GameInstanceId;

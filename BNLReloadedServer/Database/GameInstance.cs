@@ -9,6 +9,7 @@ using BNLReloadedServer.Logging;
 using Moserware.Skills;
 using NetCoreServer;
 using Timer = System.Timers.Timer;
+using MatchType = BNLReloadedServer.BaseTypes.MatchType;
 
 namespace BNLReloadedServer.Database;
 
@@ -22,6 +23,7 @@ public partial class GameInstance : IGameInstance
         public Guid RegionGuid { get; set; } = regionGuid;
         public TeamType Team { get; } = team;
         public ZoneLoadStage LoadStage { get; set; } = ZoneLoadStage.None;
+        public ulong? TimeAssaultReadyToken { get; set; }
         public ulong? SquadId { get; } = squadId;
     }
 
@@ -555,6 +557,7 @@ public partial class GameInstance : IGameInstance
     {
         if (!_connectedUsers.TryGetValue(playerId, out var player)) return;
         player.LoadStage = ZoneLoadStage.InitZone;
+        player.TimeAssaultReadyToken = null;
         UploadZoneData(playerId, player);
     }
 
@@ -621,15 +624,20 @@ public partial class GameInstance : IGameInstance
         }
     }
 
+    private bool AllPlayersLoaded() => !_connectedUsers.IsEmpty &&
+        _connectedUsers.Values.All(user => user.LoadStage == ZoneLoadStage.Finished && !user.TimeAssaultReadyToken.HasValue);
+
     private bool TryBeginGame()
     {
-        if (_connectedUsers.Values.Any(user => user.LoadStage != ZoneLoadStage.Finished)) return false;
+        if (!AllPlayersLoaded()) return false;
         BeginGame();
         return true;
     }
 
     private void BeginGame()
     {
+        if (IsStarted || _connectedUsers.Values.Any(user => user.TimeAssaultReadyToken.HasValue)) return;
+        if (MapData?.Match == MatchType.TimeTrial && !AllPlayersLoaded()) return;
         Zone?.BeginBuildPhase();
         Lobby?.StartGame();
         StartedAt = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
@@ -759,6 +767,11 @@ public partial class GameInstance : IGameInstance
                     Zone?.SendLoadZone(new ServiceZone(tempBufferedSender), zoneService, playerId);
                     tempBufferedSender.UseBuffer(tempSessionSender.Send);
                     player.LoadStage = ZoneLoadStage.Finished;
+                    if (!IsStarted && MapData?.Match == MatchType.TimeTrial && zoneService is ServiceZone { SupportsTimeAssaultReady: true } readyService)
+                    {
+                        player.TimeAssaultReadyToken = BitConverter.ToUInt64(System.Security.Cryptography.RandomNumberGenerator.GetBytes(8));
+                        readyService.SendTimeAssaultReady(player.TimeAssaultReadyToken.Value);
+                    }
                     _zoneSender.Subscribe(playerGuid);
                     if (IsStarted)
                     {
@@ -782,6 +795,23 @@ public partial class GameInstance : IGameInstance
             default:
                 break;
         }
+    }
+
+    public void PlayerTimeAssaultReady(uint playerId, ulong token)
+    {
+        if (!_connectedUsers.TryGetValue(playerId, out var player)) return;
+        Zone?.EnqueueAction(() =>
+        {
+            if (AcceptTimeAssaultReady(playerId, player, token)) TryBeginGame();
+        });
+    }
+
+    private bool AcceptTimeAssaultReady(uint playerId, MatchConnectionInfo player, ulong token)
+    {
+        if (!IsCurrentConnection(playerId, player) || IsStarted || MapData?.Match != MatchType.TimeTrial ||
+            player.LoadStage != ZoneLoadStage.Finished || player.TimeAssaultReadyToken != token) return false;
+        player.TimeAssaultReadyToken = null;
+        return true;
     }
 
     public void UnitMoved(uint unitId, ulong moveTime, ZoneTransform transform) =>

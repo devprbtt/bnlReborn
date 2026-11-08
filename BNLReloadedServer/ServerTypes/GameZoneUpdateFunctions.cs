@@ -62,7 +62,7 @@ public partial class GameZone
             else
             {
                 unitInit.Controlled = true;
-                if (_gameLoop is null && unit.PlayerId != null)
+                if (_gameLoop is null && unit.PlayerId != null && _zoneData.MatchCard.Data?.Type != MatchType.TimeTrial)
                 {
                     _createOnStart.Add((unit.Id, unitInit, () => unit.ZoneService));
                 }
