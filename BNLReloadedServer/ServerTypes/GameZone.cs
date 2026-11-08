@@ -2866,48 +2866,53 @@ public partial class GameZone : Updater
 
     private void OnSupplyTimerElapsed(object? sender, ElapsedEventArgs e)
     {
-        if (_supplyTimer == null || _zoneData.MatchCard.SupplyLogic is null)
+        // StartTimer is one-shot. Only the zone queue may inspect units, publish the
+        // next drop, or advance the sequence. Timer callbacks otherwise race unit
+        // creation/removal, and System.Timers silently swallows their exceptions.
+        if (sender is Timer timer && !EnqueueAction(() => AdvanceSupplyDrop(timer)))
+            timer.Dispose();
+    }
+
+    private void AdvanceSupplyDrop(Timer timer)
+    {
+        if (!ReferenceEquals(timer, _supplyTimer)) return;
+        if (HasEnded || _zoneData.MatchCard.SupplyLogic is null)
         {
+            timer.Dispose();
+            _supplyTimer = null;
             return;
         }
 
-        _supplyTimer.Stop();
         try
         {
             var supplyDrop = _zoneData.SupplyInfo.NextSupplyDrop;
             var position = _zoneData.SupplyInfo.Position;
-            if (supplyDrop is null || position is null ||
-                EnqueueAction(() => CreateSupplyUnit(supplyDrop.Value, position.Value)))
+            if (supplyDrop.HasValue && position.HasValue)
+                CreateSupplyUnit(supplyDrop.Value, position.Value);
+
+            _supplyTimes++;
+            var sequence = ConquestSupplies(_zoneData.MatchCard.SupplyLogic.Sequence);
+            SupplySequenceItem? next = null;
+            if (sequence is { Count: > 0 } && _supplyTimes < sequence.Count)
+                next = sequence[_supplyTimes];
+            else if (ConquestSupplies(_zoneData.MatchCard.SupplyLogic.RepeatSequence) is { Count: > 0 } repeat)
+                next = repeat[(_supplyTimes - (sequence?.Count ?? 0)) % repeat.Count];
+
+            if (next is null)
             {
-                _supplyTimes++;
-                if (ConquestSupplies(_zoneData.MatchCard.SupplyLogic.Sequence) is { Count: > 0 } sequence &&
-                    _supplyTimes < sequence.Count)
-                {
-                    _zoneData.UpdateSupplyTime(sequence[_supplyTimes], GetSupplyPosition(sequence[_supplyTimes]));
-                    _supplyTimer.Interval = TimeSpan.FromSeconds(sequence[_supplyTimes].Seconds).TotalMilliseconds;
-                    _supplyTimer.Start();
-                }
-                else if (ConquestSupplies(_zoneData.MatchCard.SupplyLogic.RepeatSequence) is { Count: > 0 } repeatSequence)
-                {
-                    var repIndex = (_supplyTimes - (ConquestSupplies(_zoneData.MatchCard.SupplyLogic.Sequence)?.Count ?? 0)) % repeatSequence.Count;
-                    _zoneData.UpdateSupplyTime(repeatSequence[repIndex], GetSupplyPosition(repeatSequence[repIndex]));
-                    _supplyTimer.Interval = TimeSpan.FromSeconds(repeatSequence[repIndex].Seconds).TotalMilliseconds;
-                    _supplyTimer.Start();
-                }
-            }
-            else
-            {
-                _supplyTimer.Dispose();
+                timer.Dispose();
                 _supplyTimer = null;
+                return;
             }
+
+            _zoneData.UpdateSupplyTime(next, GetSupplyPosition(next));
+            timer.Interval = Math.Max(1, TimeSpan.FromSeconds(next.Seconds).TotalMilliseconds);
+            timer.Start();
         }
         catch (ObjectDisposedException)
         {
-            if (_supplyTimer != null)
-            {
-                _supplyTimer.Dispose();
-                _supplyTimer = null;
-            }
+            timer.Dispose();
+            _supplyTimer = null;
         }
     }
 }
