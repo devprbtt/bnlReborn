@@ -33,7 +33,7 @@ var classCards = new[] { "hero_class_skills", "hero_class_brawn", "hero_class_br
 catalogue.Replicate(new Card[] { mode, ranked, custom, global, testDevice, testPerk }.Concat(heroes).Concat(classCards).ToList());
 foreach (var classCard in classCards) classCard.AvailableDevices = [testDevice.Key];
 global.AvailableHeroes = heroes.Select(h => h.Key).ToList();
-Check(mode.LobbyMode is LobbyModeDraftPick { SelectionTime: 20, WaitTime: 10 } && mode.HeroLimit == null, "casual registration");
+Check(mode.LobbyMode is LobbyModeFreePick { SelectionTime: 60, PrestartTime: 5, ReconnectSelectionTime: 60 } && mode.HeroLimit == null, "casual free-pick registration");
 Check(ranked.LobbyMode is LobbyModeDraftPick { SelectionTime: 42 } && custom.LobbyMode is LobbyModeFreePick, "other modes unchanged");
 
 var ballot = new CasualDraft();
@@ -68,7 +68,72 @@ for (int seed = 0; seed < 100; seed++)
 }
 Check(orders.Count > 90 && firsts.Count == 10, "every seat can pick first");
 
-// Bans are off in live casual matchmaking: the first wait timer goes straight to hero selection.
+// Live casual uses the existing free-pick wire contract, with no draft extension or turn gating.
+foreach (int size in new[] { 3, 4, 5 })
+{
+    var roster = entrants.Take(size).Concat(entrants.Skip(5).Take(size)).ToArray();
+    var sent = new List<LobbyUpdate>();
+    var last = roster.ToDictionary(p => p.Id, _ => heroes[0].Key); last[99] = heroes[0].Key;
+    var lobby = new GameLobby(RecordingLobby.Create(sent), DispatchProxy.Create<IGameInstance, GameProxy>(), "casual-free", Key.None, mode.Key, []);
+    Set(lobby, "_playerDatabase", FixturePlayers.Create(last));
+    var data = (LobbyData)Field(lobby, "<LobbyData>k__BackingField")!;
+    try
+    {
+        lobby.InitializeDraftRoster(roster);
+        foreach (var p in roster) lobby.AddPlayer(p.Id, p.Team, null);
+        Check(data.Timer.TimerType == LobbyTimerType.Selection && data.Timer.EndTime - data.Timer.StartTime is >= 60000 and <= 60010, "casual starts shared selection immediately");
+        Check(Field(lobby, "_casualDraft") == null && Field(lobby, "_draftOrder") == null, "casual creates no draft or turn order");
+        Check(data.Players.Values.All(p => p.CanLoadout && !p.Ready && p.Hero == heroes[0].Key), "every casual player starts with editable last-played hero");
+        foreach (var p in roster.Reverse()) lobby.SwapHero(p.Id, heroes[1].Key);
+        Check(data.Players.Values.All(p => p.Hero == heroes[1].Key), "all seats may choose the same hero without turns or class minimums");
+        Check(sent.All(u => u.CasualDraft == null) && lobby.GetLobbyUpdate(1).CasualDraft == null, "broadcast and reconnect omit draft UI state");
+        var mapA = new Key("free_map_a"); var mapB = new Key("free_map_b");
+        data.Maps.Add(new LobbyMapData {Info=new MapInfoCard{MapKey=mapA},PlayerVotes=[]});
+        data.Maps.Add(new LobbyMapData {Info=new MapInfoCard{MapKey=mapB},PlayerVotes=[]});
+        lobby.VoteForMap(1, mapA); lobby.VoteForMap(1, mapB);
+        Check(data.Maps[0].PlayerVotes!.Count == 0 && data.Maps[1].PlayerVotes!.SequenceEqual(new uint[]{1}), "free pick preserves changeable map votes");
+        lobby.PlayerReady(roster.Last().Id);
+        Check(data.Timer.TimerType == LobbyTimerType.Selection && data.Players[roster.Last().Id].Ready, "any seat can lock without ending other selections");
+        foreach (var p in roster.SkipLast(1)) lobby.PlayerReady(p.Id);
+        Check(data.Timer.TimerType == LobbyTimerType.Start && data.Timer.EndTime - data.Timer.StartTime is >= 5000 and <= 5010, "all ready advances to five-second prestart");
+        var drained = new TaskCompletionSource();
+        lobby.EnqueueAction(() => drained.SetResult());
+        await drained.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        StopTimer(lobby);
+        data.Timer.TimerType = LobbyTimerType.Requeue;
+        lobby.AddPlayer(99, TeamType.Team1, null);
+        var backfill = lobby.GetLobbyUpdate(99);
+        Check(backfill.Timer!.TimerType == LobbyTimerType.Requeue && backfill.Timer.EndTime - backfill.Timer.StartTime is >= 60000 and <= 60010 &&
+            lobby.GetPlayerLobbyState(99) is { CanLoadout: true, Ready: false } && backfill.CasualDraft == null, "backfill retains independent free selection and no draft overlay");
+        lobby.SwapHero(99, heroes[1].Key);
+        Check(lobby.GetPlayerLobbyState(99)!.Hero == heroes[1].Key, "backfill may select a duplicate hero");
+    }
+    finally { StopTimer(lobby); lobby.Stop(); }
+}
+using (var stream = new MemoryStream())
+{
+    LobbyMode.WriteVariant(new BinaryWriter(stream), mode.LobbyMode!);
+    stream.Position = 0;
+    Check(LobbyMode.ReadVariant(new BinaryReader(stream)) is LobbyModeFreePick { SelectionTime: 60, PrestartTime: 5, ReconnectSelectionTime: 60 } &&
+        stream.Position == stream.Length, "free-pick configuration uses the existing client wire format");
+}
+// A stale CDB draft card must also normalize when hot-reloaded after deployment.
+var staleMode = new CardGameMode { Id = mode.Id, Ranking = GameRankingType.Friendly,
+    LobbyMode = new LobbyModeDraftPick(), HeroLimit = new LobbyHeroLimit { Limit = 1 } };
+RankedDraftRegistration.Register([staleMode]); // Same normalization called by ServerCatalogue.UpdateCard.
+Check(staleMode.LobbyMode is LobbyModeFreePick { SelectionTime: 60 } && staleMode.HeroLimit == null, "single-card registration preserves casual free pick");
+{
+    var lobby = new GameLobby(RecordingLobby.Create([]), DispatchProxy.Create<IGameInstance, GameProxy>(), "casual-timeout", Key.None, mode.Key, []);
+    Set(lobby, "_playerDatabase", FixturePlayers.Create(new Dictionary<uint, Key> { [1] = heroes[0].Key }));
+    lobby.AddPlayer(1, TeamType.Team1, null);
+    Expire(lobby, "OnSelectionTimerElapsed");
+    Check(lobby.GetLobbyUpdate(1).Timer!.TimerType == LobbyTimerType.Start && lobby.GetLobbyUpdate(1).CasualDraft == null,
+        "shared selection timeout advances without creating a turn");
+    StopTimer(lobby); lobby.Stop();
+}
+// Keep the dormant draft regression suite available without enabling draft in production registration.
+mode.LobbyMode = new LobbyModeDraftPick { WaitTime = 10, SelectionTime = 20, PrestartTime = 5, ReconnectSelectionTime = 60 };
+// When explicitly configured as a draft, bans remain off by default.
 {
     var roster = Enumerable.Range(1, 6).Select(i => new RankedSnakeDraft.Player((uint)i, i <= 3 ? TeamType.Team1 : TeamType.Team2, i)).ToArray();
     var lobby = new GameLobby(RecordingLobby.Create([]), DispatchProxy.Create<IGameInstance, GameProxy>(), "casual-no-bans", Key.None, mode.Key, []);

@@ -62,3 +62,6 @@ Keep global_logic.time_trial.courses as the authoritative course catalogue. Add 
 ## Time Assault presentation readiness
 
 Use negotiated capability 14 and zone message 114 to acknowledge a completed TA snapshot only after the client loader, local player, HUD and loading overlay are ready. A fresh random challenge belongs to each connection/load; matching it releases the existing prestart countdown. Do not use a fixed loading delay or allow the lobby timeout to bypass this TA guard. Old clients keep their existing handshake, and other modes retain their normal loading behavior.
+## 2026-11-07 - Casual uses existing FreePick protocol
+
+Normalize the casual card to FreePick at catalogue registration instead of bypassing selected draft timers. This keeps server selection permissions and the existing client UI in agreement, including reconnect/backfill. Only initialize casual draft state for a DraftPick card. Keep the dormant draft implementation/tests available, but do not activate it for production casual registration. Ranked remains unchanged. Deploy through a server release/restart after draining matches; no client update or persistent catalogue edit required.

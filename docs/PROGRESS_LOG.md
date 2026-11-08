@@ -167,3 +167,8 @@ Added six fractional/boundary samples through actual MasterServerDatabase.ApplyT
 ## 2026-11-07 - Native TA picker review data
 
 Export each course hero's default skin card with the existing offline review fixtures so the native map selector can show the correct existing hero portrait when a course has no thumbnail. This changes test data only; server gameplay is unchanged. All 77 server checks pass.
+## 2026-11-07 - Prepare server-only casual free pick
+
+Changed game_mode_friendly registration to FreePick (60s selection, 5s prestart, 60s requeue) and gated casual draft state on an actual DraftPick mode. Players choose simultaneously; duplicate heroes remain allowed and draft class minimums are removed. Ranked unchanged. Full and incremental catalogue registration share this normalization; no client/CDB migration needed.
+
+Validated Release build and self-contained linux-x64 publish with warnings as errors; CasualDraftFixture 767 checks (33 new free-pick checks plus retained dormant draft coverage); PublicQueueRulesFixture 64; BackfillReentryFixture 13; RandomHeroesFixture 4018; MapVoteFixture 19 using the local PTR catalogue export. RandomHeroesFixture emits its pre-existing CS9216 Lock-cast warning; server build/publish have zero warnings. Initial test setup failures were corrected (drain queued prestart action before synthetic backfill; test single-card normalization without invoking production minimum-catalogue-size guard). No live service changes or multiplayer acceptance test. Deployment/rollback and player note: docs/CASUAL_FREE_PICK.md.
