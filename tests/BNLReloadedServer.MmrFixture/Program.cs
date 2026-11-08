@@ -139,6 +139,7 @@ try
         foreach(var p in shortage.Players)db.Insert(new PlayerRecord{PlayerId=p.PlayerId,RatingMean=25,RatingDeviation=3});
         db.RunInTransaction(()=>MmrLedger.Apply(db,shortage,2300000));
         var mean=db.Find<PlayerRecord>(1u).RatingMean;var ban=db.Find<MmrQueuePenalty>(1u).Until;
+        Check(ban==1900000,"long match fully consumes five-minute leave cooldown");
         db.RunInTransaction(()=>MmrLedger.Apply(db,shortage,2400000));
         Check(db.Table<MmrSettlement>().Count()==8&&db.Find<PlayerRecord>(1u).RatingMean==mean&&db.Find<MmrQueuePenalty>(1u).Until==ban,"retry exactly once ratings and cooldown");
         var rollback=Match();rollback.StartedAt=3000000;rollback.ActiveStartedAt=3000000;rollback.EndedAt=4200000;
@@ -146,8 +147,44 @@ try
         try {db.RunInTransaction(()=>{MmrLedger.Apply(db,rollback,4300000);throw new Exception("rollback");});}catch(Exception ex)when(ex.Message=="rollback"){}
         Check(db.Table<MmrSettlement>().Count()==8&&db.Find<PlayerRecord>(1u).RatingMean==mean,"ratings ledger and cooldown roll back together");
     }
-    using(var db=new SQLiteConnection(path))Check(db.Find<MmrQueuePenalty>(1u)!=null&&db.Table<MmrSettlement>().Count()==8,"penalty and ledger survive reopening");
+    using(var db=new SQLiteConnection(path))Check(db.Find<MmrQueuePenalty>(1u)?.Until==1900000&&db.Table<MmrSettlement>().Count()==8,"penalty and ledger survive reopening");
 }finally{File.Delete(path);}
+// Settlement can happen long after departure; it must never restart the cooldown.
+foreach(var reason in new[]{MatchLeaveKind.Quit,MatchLeaveKind.Inactivity,MatchLeaveKind.Disconnect})
+foreach(ulong left in new ulong[]{1500000,2100000})
+foreach(long settled in new long[]{2200000,9000000})
+{
+    using var db=new SQLiteConnection(":memory:");
+    MmrLedger.CreateTables(db);db.CreateTable<PlayerRecord>();db.CreateTable<ArchivedMatchRecord>();
+    var m=Match();m.Players[0].Presences[0].LeftAt=left;m.Players[0].Presences[0].LeaveKind=reason;
+    foreach(var p in m.Players)db.Insert(new PlayerRecord{PlayerId=p.PlayerId,RatingMean=25,RatingDeviation=3});
+    MmrLedger.Apply(db,m,settled);
+    var until=db.Find<MmrQueuePenalty>(1u).Until;
+    Check(until==(long)left+300000,"cooldown starts at departure regardless of settlement delay or leave kind");
+    MmrQueueGuard.Reserve(1,m.MatchId);MmrQueueGuard.Ban(1,until);
+    Check(MmrQueueGuard.Blocked(1,9000000),"unfinished match remains locked after cooldown elapses");
+    MmrQueueGuard.Release(1,m.MatchId);
+    Check(MmrQueueGuard.Blocked(1,(long)m.EndedAt)==(until>(long)m.EndedAt),"only unserved cooldown remains after match completion");
+    MmrLedger.Apply(db,m,10000000);
+    Check(db.Find<MmrQueuePenalty>(1u).Until==until,"delayed duplicate result cannot restart cooldown");
+}
+Check(PersonalMmr.AbandonedAt(repeated,repeated.Players[0])==1600000,"repeated disconnect cooldown begins at departure that exhausts grace");
+Check(PersonalMmr.AbandonedAt(returnedLoss,returnedLoss.Players[0])==null,"timely reconnect has no cooldown timestamp");
+using(var db=new SQLiteConnection(":memory:"))
+{
+    MmrLedger.CreateTables(db);db.CreateTable<PlayerRecord>();db.CreateTable<ArchivedMatchRecord>();
+    var m=Match();m.Players[0].Presences[0].LeftAt=2100000;m.Players[0].Presences[0].LeaveKind=MatchLeaveKind.Quit;
+    foreach(var p in m.Players)db.Insert(new PlayerRecord{PlayerId=p.PlayerId,RatingMean=25,RatingDeviation=3});
+    db.Insert(new MmrSettlement{Id="prior/1",MatchId="prior",PlayerId=1,EndedAt=900000,Abandoned=true});
+    MmrLedger.Apply(db,m,2200000);
+    Check(db.Find<MmrQueuePenalty>(1u).Until==3000000,"second abandonment retains fifteen-minute escalation from departure");
+    var next=Match();next.StartedAt=3000000;next.ActiveStartedAt=3000000;next.EndedAt=4200000;
+    foreach(var p in next.Players){p.Presences[0].JoinedAt=3000000;p.Presences[0].LeftAt=4200000;}
+    next.Players[0].Presences[0].LeftAt=3100000;next.Players[0].Presences[0].LeaveKind=MatchLeaveKind.Quit;
+    db.InsertOrReplace(new MmrQueuePenalty{PlayerId=1,Until=10000000});
+    MmrLedger.Apply(db,next,4200000);
+    Check(db.Find<MmrQueuePenalty>(1u).Until==10000000,"settlement never shortens an existing longer penalty");
+}
 Check(MmrQueueGuard.CooldownMinutes(0)==5&&MmrQueueGuard.CooldownMinutes(1)==15&&MmrQueueGuard.CooldownMinutes(2)==60,"repeat abandonment escalates");
 MmrQueueGuard.Reserve(100,"one");MmrQueueGuard.Release(100,"other");Check(MmrQueueGuard.Blocked(100,0),"wrong match cannot clear pending lock");
 MmrQueueGuard.Release(100,"one");MmrQueueGuard.Ban(100,100);Check(MmrQueueGuard.Blocked(100,99)&&!MmrQueueGuard.Blocked(100,100),"cooldown exact expiry");

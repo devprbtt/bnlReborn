@@ -46,7 +46,10 @@ public static class PersonalMmr
     public static bool Public(Key mode) => mode == new Key("game_mode_friendly") || mode == new Key("game_mode_ranked");
     public static bool Original(CompletedMatchPlayer p) => p.WasInitial || p.Presences.Any(s => s.JoinKind == MatchJoinKind.Initial);
     public static TeamType Team(CompletedMatchPlayer p) => p.Presences.First().Team;
-    public static bool Abandoned(CompletedMatchRecord m, CompletedMatchPlayer p)
+    public static bool Abandoned(CompletedMatchRecord m, CompletedMatchPlayer p) => AbandonedAt(m, p).HasValue;
+
+    // The departure that qualifies as abandonment starts the cooldown, not result settlement.
+    public static ulong? AbandonedAt(CompletedMatchRecord m, CompletedMatchPlayer p)
     {
         var segments = p.Presences.OrderBy(s => s.JoinedAt).ToArray();
         ulong disconnected = 0;
@@ -54,15 +57,15 @@ public static class PersonalMmr
         {
             var s = segments[i];
             if (s.LeftAt is not { } left || left >= m.EndedAt) continue;
-            if (s.LeaveKind is MatchLeaveKind.Quit or MatchLeaveKind.Inactivity) return true;
+            if (s.LeaveKind is MatchLeaveKind.Quit or MatchLeaveKind.Inactivity) return left;
             if (s.LeaveKind == MatchLeaveKind.Disconnect)
             {
-                if (i + 1 == segments.Length) return true;
+                if (i + 1 == segments.Length) return left;
                 disconnected += segments[i + 1].JoinedAt > left ? segments[i + 1].JoinedAt-left : 0;
-                if(disconnected > ReturnSeconds * 1000) return true;
+                if(disconnected > ReturnSeconds * 1000) return left;
             }
         }
-        return false;
+        return null;
     }
 
     public static double Seconds(CompletedMatchRecord m, CompletedMatchPlayer p)
