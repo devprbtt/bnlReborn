@@ -450,6 +450,8 @@ public class MasterServerDatabase : IMasterServerDatabase
             await _playerDb.ExecuteAsync("ALTER TABLE MatchPlayers ADD COLUMN raw_stats BLOB");
         if (!playerColumns.Any(column => column.Name.Equals("accolades", StringComparison.OrdinalIgnoreCase)))
             await _playerDb.ExecuteAsync("ALTER TABLE MatchPlayers ADD COLUMN accolades BLOB");
+        if (!playerColumns.Any(column => column.Name.Equals("score_breakdown", StringComparison.OrdinalIgnoreCase)))
+            await _playerDb.ExecuteAsync("ALTER TABLE MatchPlayers ADD COLUMN score_breakdown TEXT");
         var presenceColumns = await _playerDb.QueryAsync<SchemaColumn>("PRAGMA table_info(MatchPresences)");
         if (!presenceColumns.Any(column => column.Name.Equals("team_slot", StringComparison.OrdinalIgnoreCase)))
             await _playerDb.ExecuteAsync("ALTER TABLE MatchPresences ADD COLUMN team_slot INTEGER NOT NULL DEFAULT 0");
@@ -563,6 +565,7 @@ public class MasterServerDatabase : IMasterServerDatabase
                         RatingDeviationDelta = player.RatingDeviationDelta,
                         TotalScore = player.TotalScore,
                         Stats = statStream.ToArray(),
+                        ScoreBreakdown = player.ScoreBreakdown == null ? null : System.Text.Json.JsonSerializer.Serialize(player.ScoreBreakdown),
                         RawStats = rawStatStream.ToArray(),
                         Accolades = ArchivedAccolades.Write(player.Accolades, player.BestStreak)
                     });

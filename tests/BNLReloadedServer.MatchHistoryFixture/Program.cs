@@ -26,7 +26,8 @@ var db=new SQLiteAsyncConnection(path);
 try
 {
     await db.CreateTableAsync<ArchivedMatchRecord>();await db.CreateTableAsync<ArchivedMatchPlayerRecord>();
-    await db.InsertAsync(archive);await db.InsertAsync(new ArchivedMatchPlayerRecord{MatchId=archive.Id,PlayerId=21});
+    await db.InsertAsync(archive);await db.InsertAsync(new ArchivedMatchPlayerRecord{MatchId=archive.Id,PlayerId=21,ScoreBreakdown="{\"Kill\":75,\"Objective bonus\":20}"});
+    Check((await db.Table<ArchivedMatchPlayerRecord>().FirstAsync()).ScoreBreakdown=="{\"Kill\":75,\"Objective bonus\":20}","breakdown survives SQLite archive storage");
     var row=History();await MatchHistoryArchiveLinker.ResolveAsync(db,21,[row]);
     Check(Encoding.UTF8.GetString(row.MatchId!)==archive.Id,"database join returns exact stable ID for participant");
     Check(row.Kill==7&&row.Death==6&&row.Assist==11&&row.MatchEndTime==1792946376554&&row.MatchSeconds==697.125f,"compatibility repair preserves all summary values");

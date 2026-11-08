@@ -1797,7 +1797,7 @@ public partial class GameZone : Updater
         // A repeated callback must never award rewards, append history, or add stats again.
         if (Interlocked.CompareExchange(ref _matchResultsFinalized, 1, 0) != 0) return;
 
-        _unbufferedZone.SendUpdateZone(new ZoneUpdate { ActionScoresJson = ActionScores.Snapshot(false) });
+        _unbufferedZone.SendUpdateZone(new ZoneUpdate { ActionScoresJson = ActionScores.Snapshot(false, includeBreakdown: true) });
         _actionScores!.Published();
         _unbufferedZone.SendEndMatch(winner);
         var matchStats = new List<EndMatchPlayerData>();
@@ -2128,6 +2128,7 @@ public partial class GameZone : Updater
     private List<CompletedMatchPlayer> CompleteRatingParticipants(DateTimeOffset endedAt, TeamType winner)
     {
         var players = _matchParticipation.Complete(endedAt);
+        foreach(var player in players) player.ScoreBreakdown = ActionScores.Breakdown(player.PlayerId);
         if(UsesPersonalMmr)
             foreach(var p in players) p.IsWinner = winner != TeamType.Neutral && p.Presences.LastOrDefault()?.Team == winner;
         return players;

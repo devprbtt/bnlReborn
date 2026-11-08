@@ -662,6 +662,27 @@ Call("ScoreDamage",ally,500f,new ImpactData(),a,a);Check(actionLedger.Total(1)==
 Fresh();Call("ScoreDamage",enemy,100f,new ImpactData(),a,device);
 using(var doc=JsonDocument.Parse(actionLedger.Snapshot(false))){var awards=doc.RootElement.GetProperty("awards");
  Check(awards.EnumerateArray().All(x=>x.GetProperty("reason").GetString()!="Damage dealt"),"device-credited damage stays Device damage, never Damage dealt");}
+// Cumulative breakdown survives notification pruning and catch-up baselines.
+var breakdownLedger=new ActionScoreLedger(rules);
+for(int i=0;i<300;i++)breakdownLedger.Grant(88,"Kill",75,false);
+breakdownLedger.Published();breakdownLedger.Grant(88,"Fire trap explosion",10,true);
+var breakdown=breakdownLedger.Breakdown(88);
+Check(breakdown.Values.Sum()==breakdownLedger.Total(88) && breakdown["Kill"]==22500 && breakdown["Objective bonus"]==2,"breakdown retains all awards after pruning and publish");
+breakdown.Clear();Check(breakdownLedger.Breakdown(88).Count==3,"breakdown copies cannot mutate ledger");
+using(var snapshot=JsonDocument.Parse(breakdownLedger.Snapshot(true))) {
+ var player=snapshot.RootElement.GetProperty("players")[0];
+ Check(player.GetProperty("reasons").EnumerateArray().Sum(p=>p.GetProperty("points").GetInt32())==player.GetProperty("total").GetInt32(),"baseline breakdown reconciles without replaying awards");
+}
+foreach(int version in new[]{0,2}) {
+ var match=new CompletedMatchRecord{MatchId="breakdown",RatingVersion=version,Players=[new CompletedMatchPlayer{PlayerId=88,TotalScore=breakdownLedger.Total(88),ScoreBreakdown=breakdownLedger.Breakdown(88)},new CompletedMatchPlayer{PlayerId=89}]};
+ using var stream=new MemoryStream();using var writer=new BinaryWriter(stream,System.Text.Encoding.UTF8,true);match.Write(writer);writer.Flush();stream.Position=0;
+ var read=CompletedMatchRecord.ReadRecord(new BinaryReader(stream));
+ Check(read.Players[0].ScoreBreakdown!.Values.Sum()==read.Players[0].TotalScore && read.Players[1].ScoreBreakdown==null,"score archive roundtrip with rating version "+version);
+}
+using(var finalSnapshot=JsonDocument.Parse(breakdownLedger.Snapshot(false,true)))
+ Check(finalSnapshot.RootElement.GetProperty("players")[0].GetProperty("reasons").GetArrayLength()==3,"final results include full breakdown");
+using(var regularSnapshot=JsonDocument.Parse(breakdownLedger.Snapshot(false)))
+ Check(regularSnapshot.RootElement.GetProperty("players")[0].GetProperty("reasons").ValueKind==JsonValueKind.Null,"routine award updates do not resend full breakdowns");
 Console.WriteLine($"PASS action scoring: {checks} checks");
 public class EmptyInitiator : DispatchProxy
 {

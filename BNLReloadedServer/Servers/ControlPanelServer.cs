@@ -563,6 +563,7 @@ public sealed class ControlPanelServer : IDisposable
                 rating_deviation_delta = player.RatingDeviationDelta,
                 total_score = player.TotalScore,
                 stats = ReadStats(player.Stats).ToDictionary(pair => pair.Key.ToString(), pair => pair.Value),
+                score_breakdown = player.ScoreBreakdown == null ? null : System.Text.Json.JsonSerializer.Deserialize<Dictionary<string,int>>(player.ScoreBreakdown),
                 raw_stats = ReadRawStats(player.RawStats).ToDictionary(pair => pair.Key.ToString(), pair => pair.Value),
                 device_stats = detail.PlayerDevices.Where(row => row.PlayerId == player.PlayerId).Select(row => new
                 {

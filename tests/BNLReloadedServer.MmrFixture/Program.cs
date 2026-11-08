@@ -127,7 +127,7 @@ Check(Math.Abs(Calc(partial)[1].Base-completeWeight)>1e-5,"installed TrueSkill a
 Check(MmrReferenceTrainer.Build([normal],3000000).Count==0,"trainer refuses sparse reference cohort");
 var unknown=Match();unknown.Winner=TeamType.Neutral;unknown.EndReason=MatchEndReason.Unknown;unknown.Players[0].Presences[0].LeftAt=2000000;unknown.Players[0].Presences[0].LeaveKind=MatchLeaveKind.Quit;
 Check(Calc(unknown).All(a=>a.Delta==0&&!a.Abandoned),"server-invalid outcome cannot punish players");
-var oldWire=MmrLedger.Encode(normal);var legacyLength=oldWire.Length-(1+4+1+8+1+1+1+normal.Players.Count*5);
+var oldWire=MmrLedger.Encode(normal);var legacyLength=oldWire.Length-2-(1+4+1+8+1+1+1+normal.Players.Count*5);
 using(var reader=new BinaryReader(new MemoryStream(oldWire[..legacyLength])))
     Check(CompletedMatchRecord.ReadRecord(reader).RatingVersion==0,"legacy archive trailer absence never opts into new awards");
 var path=Path.Combine(Path.GetTempPath(),"bnl-mmr-"+Guid.NewGuid()+".db");

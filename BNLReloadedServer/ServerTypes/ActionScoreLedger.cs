@@ -14,6 +14,8 @@ public sealed class ActionScoreLedger(ActionScoreRules rules)
     private readonly Dictionary<(uint, string, bool), double> fractions = [];
     private readonly Dictionary<(uint, string), double> cooldowns = [];
     private readonly Queue<Award> events = new();
+    private readonly Dictionary<uint, Dictionary<string,int>> reasons = [];
+    public Dictionary<string,int> Breakdown(uint player) => reasons.TryGetValue(player,out var values) ? new(values) : [];
     private long sequence;
     public string MatchId { get; } = Guid.NewGuid().ToString("N");
     public bool Dirty { get; private set; }
@@ -74,13 +76,15 @@ public sealed class ActionScoreLedger(ActionScoreRules rules)
             if (!heroTotals.TryGetValue(player, out var byHero)) heroTotals[player] = byHero = [];
             byHero[hero] = byHero.GetValueOrDefault(hero) + granted;
         }
+        if (!reasons.TryGetValue(player,out var breakdown)) reasons[player] = breakdown = [];
+        breakdown[reason] = breakdown.GetValueOrDefault(reason) + granted;
         events.Enqueue(new Award(++sequence, player, reason, granted));
         while (events.Count > 256) events.Dequeue();
         Dirty = true;
     }
-    public string Snapshot(bool baseline) => JsonSerializer.Serialize(new {
+    public string Snapshot(bool baseline, bool includeBreakdown = false) => JsonSerializer.Serialize(new {
         match = MatchId, baseline, sequence,
-        players = totals.Select(p => new { player = p.Key, total = p.Value }).ToArray(),
+        players = totals.Select(p => new { player = p.Key, total = p.Value, reasons = baseline || includeBreakdown ? Breakdown(p.Key).Select(r => new { reason = r.Key, points = r.Value }).ToArray() : null }).ToArray(),
         awards = baseline ? Array.Empty<Award>() : events.ToArray()
     });
     // Zone updates use the reliable ordered service; retain only unpublished awards.

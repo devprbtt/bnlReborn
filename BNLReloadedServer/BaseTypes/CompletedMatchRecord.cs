@@ -49,6 +49,7 @@ public sealed class CompletedMatchPlayer
     public Dictionary<KillAccolade, int>? Accolades { get; set; }
     public int BestStreak { get; set; }
     public double? EffectiveAllyHealing { get; set; }
+    public Dictionary<string,int>? ScoreBreakdown { get; set; }
     public int TotalScore { get; set; }
     public List<CompletedMatchPresence> Presences { get; set; } = [];
 }
@@ -152,7 +153,7 @@ public sealed class CompletedMatchRecord
             w.Write(player.BestStreak);
             w.WriteMap(player.Accolades!, w.WriteByteEnum, w.Write);
         });
-        if (RatingVersion > 0)
+        // Always write the optional rating block before the score trailer, including version zero.
         {
             writer.Write((byte)2); // personal MMR trailer, separate from accolades
             writer.Write(RatingVersion);
@@ -162,6 +163,10 @@ public sealed class CompletedMatchRecord
             if (MatchType.HasValue) writer.Write((byte)MatchType.Value);
             writer.WriteList(Players, (w,p) => { w.Write(p.PlayerId); w.Write(p.EffectiveAllyHealing.HasValue); if(p.EffectiveAllyHealing.HasValue) w.Write(p.EffectiveAllyHealing.Value); });
         }
+        writer.Write((byte)3); // cumulative action-score reasons, optional archive tail
+        writer.WriteList(Players.Where(p => p.ScoreBreakdown != null).ToList(), (w,p) => {
+            w.Write(p.PlayerId); w.WriteMap(p.ScoreBreakdown!, w.Write, w.Write);
+        });
     }
 
     public static CompletedMatchRecord ReadRecord(BinaryReader reader)
@@ -269,6 +274,10 @@ public sealed class CompletedMatchRecord
             foreach(var entry in reader.ReadList<(uint id,double? heal),List<(uint id,double? heal)>>(() => (reader.ReadUInt32(),reader.ReadBoolean()?reader.ReadDouble():null)))
                 if(result.Players.FirstOrDefault(p=>p.PlayerId==entry.id) is {} p) p.EffectiveAllyHealing=entry.heal;
         }
+        if (reader.BaseStream.Position < reader.BaseStream.Length && reader.ReadByte() == 3)
+            foreach(var entry in reader.ReadList<(uint id,Dictionary<string,int> reasons),List<(uint id,Dictionary<string,int> reasons)>>(
+                () => (reader.ReadUInt32(),reader.ReadMap<string,int,Dictionary<string,int>>(reader.ReadString,reader.ReadInt32))))
+                if(result.Players.FirstOrDefault(p=>p.PlayerId==entry.id) is {} p) p.ScoreBreakdown=entry.reasons;
         return result;
     }
 }
