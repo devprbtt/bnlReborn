@@ -2209,6 +2209,9 @@ public partial class GameZone : Updater
         var newInsideBlocks = newMapBlocks.Where(b =>
             MapBinary.ContainsBlock(b) && MapBinary[b].Card.Special is BlockSpecialInsideEffect &&
             MapBinary.GetIsActuallyInside(unit, b)).ToList();
+        ScoreFireEntries(unit, newInsideBlocks
+            .Where(b => Unit.ScoreCardFamily(MapBinary[b].Card.Id ?? "", "block_fire_from_fire_trap"))
+            .Select(b => MapBinary.OwnedBlocks.GetValueOrDefault(b)).OfType<Unit>());
         var exitingBlocks = unit.OverlappingMapBlocks.Except(newInsideBlocks);
         unit.UpdateMapBlocks(newMapBlocks);
 

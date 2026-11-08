@@ -366,7 +366,7 @@ foreach(var trapCard in trapCards)
  var trap=Make(heroTarget++,trapCard,TeamType.Team1);trap.OwnerPlayerId=1;
  var victim=Make(heroTarget++,playerCard,TeamType.Team2,heroTarget);
  float hitDamage=trapCard.Id!.Contains("landmine")?1f:rules.FireTrapDamageChunk;
- int reward=trapCard.Id!.Contains("landmine")?rules.MineAffected:rules.FireTrapAffected;
+ int reward=trapCard.Id!.Contains("landmine")?rules.MineAffected:rules.FireTrapExplosion;
  int before=actual.Total(1);var impact=trap.CreateImpactData();
  Call("ScoreDamage",victim,0f,impact,a,trap);Call("ScoreDamage",ally,10f,impact,a,trap);
  Check(actual.Total(1)==before,"zero and friendly trap damage do not score");
@@ -399,34 +399,49 @@ for(int i=0;i<trapBlocks.Length;i++)
  Check(actual.Total(1)==before+reward,"unowned environmental traps do not score");
 }
 // Explosion is a fixed hit award; only burn and ground-fire damage enter the bank.
+Set("_fireEntryOwners",new Dictionary<uint,HashSet<uint>>());
 var fireLedger = new ActionScoreLedger(rules); Set("_actionScores",fireLedger);
 var fireTrap=Make(heroTarget++,trapCards[1],TeamType.Team1);fireTrap.OwnerPlayerId=1;
 var fireVictim=Make(heroTarget++,playerCard,TeamType.Team2,heroTarget);
 var fireImpact=fireTrap.CreateImpactData();
 var burnImpact=(ImpactData)typeof(ImpactData).GetMethod("AsPeriodicEffect",BindingFlags.Instance|BindingFlags.NonPublic)!.Invoke(fireImpact,null)!;
 Call("ScoreDamage",fireVictim,35f,fireImpact,a,fireTrap);
-Check(fireLedger.Total(1)==5,"explosion immediately awards five points");
+Check(fireLedger.Total(1)==10,"explosion immediately awards ten points");
 for(int tick=0;tick<25;tick++)Call("ScoreDamage",fireVictim,.6f,burnImpact,a,fireTrap);
-Check(fireLedger.Total(1)==5,"full 15 HP burn banks damage without re-awarding the explosion");
+Check(fireLedger.Total(1)==10,"full 15 HP burn banks damage without re-awarding the explosion");
 var groundImpact=new ImpactData{SourceKey=trapBlocks[2].Key};
 Call("ScoreDamage",fireVictim,35f,groundImpact,a,a);
-Check(fireLedger.Total(1)==10,"ground fire and burn share 50 HP bank excluding explosion damage");
+Check(fireLedger.Total(1)==15,"ground fire and burn share 50 HP bank excluding explosion damage");
 Call("ScoreDamage",fireVictim,1f,fireImpact,a,fireTrap);
 Call("ScoreDamage",fireVictim,100f,fireImpact,a,fireTrap);
-Check(fireLedger.Total(1)==20,"explosion payout is fixed regardless of actual damage amount");
+Check(fireLedger.Total(1)==35,"explosion payout is fixed regardless of actual damage amount");
 foreach(var invalidImpact in new[]{fireImpact,burnImpact,groundImpact}) {
  foreach(float amount in new[]{0f,-1f,float.NaN,float.PositiveInfinity})Call("ScoreDamage",fireVictim,amount,invalidImpact,a,fireTrap);
  Call("ScoreDamage",ally,100f,invalidImpact,a,fireTrap);
  Call("ScoreDamage",a,100f,invalidImpact,a,fireTrap);
  Call("ScoreDamage",fireVictim,100f,invalidImpact,null,fireTrap);
 }
-Check(fireLedger.Total(1)==20,"invalid friendly self and ownerless fire events earn nothing");
+Check(fireLedger.Total(1)==35,"invalid friendly self and ownerless fire events earn nothing");
 var fireOther=Make(heroTarget++,playerCard,TeamType.Team2,heroTarget);
 Call("ScoreDamage",fireOther,10f,fireImpact,a,fireTrap);
-Check(fireLedger.Total(1)==25,"explosion pays separately for another enemy hit");
+Check(fireLedger.Total(1)==45,"explosion pays separately for another enemy hit");
 Call("ScoreDamage",fireVictim,20f,burnImpact,a,fireTrap);
 Call("ScoreDamage",fireOther,30f,burnImpact,a,fireTrap);
-Check(fireLedger.Total(1)==30,"burn damage pools across targets without duplicate generic credit");
+Check(fireLedger.Total(1)==50,"burn damage pools across targets without duplicate generic credit");
+Call("ScoreFireEntries",fireVictim,new Unit[]{a,a});
+Check(fireLedger.Total(1)==60,"fire entry pays ten once across overlapping blocks from one owner");
+Call("ScoreFireEntries",fireVictim,new Unit[]{a});
+Check(fireLedger.Total(1)==60,"remaining in fire or crossing adjacent same-owner blocks does not repay entry");
+Call("ScoreFireEntries",fireOther,new Unit[]{a});
+Check(fireLedger.Total(1)==70,"another enemy independently earns an entry award");
+Call("ScoreFireEntries",fireVictim,Array.Empty<Unit>());
+Call("ScoreFireEntries",fireVictim,new Unit[]{a});
+Check(fireLedger.Total(1)==80,"leaving all fire and reentering earns a new entry award");
+Call("ScoreFireEntries",ally,new Unit[]{a});
+Call("ScoreFireEntries",a,new Unit[]{a});
+Check(fireLedger.Total(1)==80,"friendly and self fire entry cannot score");
+fireVictim.IsDead=true;Call("ScoreFireEntries",fireVictim,new Unit[]{a});fireVictim.IsDead=false;
+Check(fireLedger.Total(1)==80,"dead targets cannot earn entry credit");
 var splitFire=new ActionScoreLedger(rules);var lumpFire=new ActionScoreLedger(rules);
 for(int tick=0;tick<100;tick++)splitFire.AccumulateChunks(1,"Fire trap affected",1,rules.FireTrapDamageChunk,rules.FireTrapAffected,false);
 lumpFire.AccumulateChunks(1,"Fire trap affected",100,rules.FireTrapDamageChunk,rules.FireTrapAffected,false);

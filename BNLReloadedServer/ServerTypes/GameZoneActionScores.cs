@@ -68,7 +68,7 @@ public partial class GameZone
         if ((reason == "Demolition boost assist" && target != null) || reason is "Jinx" or "Cage affected" or "EMP affected" or "Avalanche affected" or "Ally boosted" or "Reload boost" or "Enemy frightened")
             if (target == null || !ledger.Ready(id, reason + ":" + target, _scoreClock.Elapsed.TotalSeconds, rules.HeroEffectCooldown)) return;
         int points = reason switch {
-            "Fire trap explosion" => rules.FireTrapExplosion, "Mine affected" => rules.MineAffected,
+            "Fire trap entry" => rules.FireTrapEntry, "Fire trap explosion" => rules.FireTrapExplosion, "Mine affected" => rules.MineAffected,
             "Glue affected" => rules.GlueAffected, "Bush affected" => rules.BushAffected,
             "Build boost assist" => rules.TonyBuildAssist, "Demolition boost assist" => rules.TrondsonDemolitionAssist,
             "Lamp pickup" => rules.GenieLampPickup, "Jinx" => rules.GenieJinx, "Cage affected" => rules.VanderCage,

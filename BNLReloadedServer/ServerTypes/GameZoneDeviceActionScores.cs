@@ -29,6 +29,22 @@ public partial class GameZone
         return null;
     }
 
+    // Treat touching adjacent fire blocks from the same owner as one continuous exposure.
+    private readonly Dictionary<uint, HashSet<uint>> _fireEntryOwners = [];
+    private void ScoreFireEntries(Unit target, IEnumerable<Unit> owners)
+    {
+        var previous = _fireEntryOwners.GetValueOrDefault(target.Id) ?? [];
+        var current = new HashSet<uint>();
+        if (CanScore && target.PlayerId != null && target.IsActive && !target.IsDead && target.Team != TeamType.Neutral)
+            foreach (var owner in owners)
+                if ((owner.PlayerId ?? owner.OwnerPlayerId) is { } ownerId &&
+                    GetPlayerFromPlayerId(ownerId) is { } player && player.Team != TeamType.Neutral && AreOpponents(target, player) && current.Add(ownerId) &&
+                    !previous.Contains(ownerId) && target.GetBuff(BuffType.Invulnerability) <= 0)
+                    AwardAction(player, "Fire trap entry", 1, target.GetMidpoint(), target.Id);
+        if (current.Count == 0) _fireEntryOwners.Remove(target.Id);
+        else _fireEntryOwners[target.Id] = current;
+    }
+
     private void ScoreDeviceUse(Unit device, Unit ally, string reason)
     {
         if (!CanScore || ally.PlayerId is not { } recipient || !ally.IsActive || ally.IsDead ||

@@ -20,7 +20,8 @@ Placement and construction-boost assists award zero points, including near objec
 | Roly barrel/goo damages or newly slows enemy | 10 | No repeat cooldown; refreshing an unchanged slow is not a new slow |
 | Bear trap / mine damages enemy hero | 10 | No repeat cooldown |
 | Caltrops / bush damages enemy hero | 5 | No repeat cooldown; damage and its status application are not both paid |
-| Fire trap explosion damages enemy hero | 5 | Fixed per enemy damaged; no additional damage-bank credit |
+| Fire trap explosion damages enemy hero | 10 | Fixed per enemy damaged; no additional damage-bank credit |
+| Enemy enters leftover fire | 10 | Once per continuous exposure per owner; adjacent blocks do not repeat; full exit and reentry can score again |
 | Fire trap burn / floor fire damages enemy hero | 5 per 50 actual damage | Shared owner damage bank; remainder retained across targets |
 | Glue applies slow to enemy hero | 5 | No repeat cooldown; unchanged effect refresh does not score again |
 | Enemy triggers fake block | 10 | Actual entry trigger; lingering is not another trigger; block normally destroys itself |
@@ -38,8 +39,6 @@ Validation: 278 action-score checks, HealAttribution 22, BrawnRally 47, GenieOrb
 
 ## Fire-trap rebalance (prepared, not deployed)
 
-`fire_trap_explosion` defaults to 5 points per enemy actually damaged by the explosion. Periodic damage never receives this fixed award. Explosion damage is excluded from the burn bank.
+`fire_trap_explosion` and `fire_trap_entry` default to 10 points. Explosion requires actual enemy damage. Entry requires an active, living, non-invulnerable enemy entering owned leftover fire; no self/friendly/unowned credit. Adjacent fire blocks from one owner share continuous exposure. Leaving all that owner's fire clears exposure; reentry can score again. An enemy hit by the explosion and then entering its leftover fire can earn both rewards. Entry uses the ordinary objective bonus: 12 points near an objective.
 
-`fire_trap_affected` specifies points per `fire_trap_damage_chunk` (default 5 per 50 HP) for lingering burn and ground fire. Missing fields use defaults. Remainders carry across targets. A 35 HP explosion plus 15 HP burn pays 5 immediately and banks 15 HP; the normal objective bonus raises the immediate award to 6 when eligible. Damage, duration, kills and assists are unchanged. No duplicate generic damage rewards.
-
-Validation: ActionScoreFixture and warnings-as-errors Release build passed; see project progress log for current count.
+`fire_trap_affected` remains 5 per `fire_trap_damage_chunk` of 50 HP, for burn/ground-fire damage only. Explosion damage is not banked. Remainders carry across targets. No damage, duration, kill or assist changes.

@@ -1,7 +1,8 @@
 {
   "action_scores": {
     "mine_affected": 10,
-    "fire_trap_explosion": 5,
+    "fire_trap_explosion": 10,
+    "fire_trap_entry": 10,
     "fire_trap_affected": 5,
     "fire_trap_damage_chunk": 50,
     "glue_affected": 5,
