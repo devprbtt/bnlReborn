@@ -30,6 +30,8 @@ public sealed class ActionScoreRules
     public int KreepyBoxHit { get; set; } = 5;
     public int TurretDamagePoints { get; set; } = 5;
     public int MineAffected { get; set; } = 10;
+    public float FireTrapDamageChunk { get; set; } = 50;
+    // Points per damage chunk, not per burn tick.
     public int FireTrapAffected { get; set; } = 5;
     public int GlueAffected { get; set; } = 5;
     public int BushAffected { get; set; } = 5;
@@ -102,7 +104,7 @@ public sealed class ActionScoreRules
             var value = Convert.ToDouble(p.GetValue(this));
             if (!double.IsFinite(value) || value < 0 || value > 100000) throw new InvalidDataException("Invalid action score setting: " + p.Name);
         }
-        if (HeroDeviceDamageChunk <= 0 || TurretDamageChunk <= 0 || HeroDamageChunk <= 0 || PortalCooldown < 60 || DeviceHitCooldown <= 0 || SpotCooldown <= 0 || RadarCooldown <= 0 || AmmoCooldown <= 0)
+        if (FireTrapDamageChunk <= 0 || HeroDeviceDamageChunk <= 0 || TurretDamageChunk <= 0 || HeroDamageChunk <= 0 || PortalCooldown < 60 || DeviceHitCooldown <= 0 || SpotCooldown <= 0 || RadarCooldown <= 0 || AmmoCooldown <= 0)
             throw new InvalidDataException("Invalid device action threshold or repeat interval");
         if (FirstKill <= Kill || DoubleKill <= FirstKill || MultiKill <= DoubleKill || UltraKill <= MultiKill || Fantastic <= UltraKill || Unbelievable <= Fantastic)
             throw new InvalidDataException("Kill accolade scores must increase above the regular kill value");

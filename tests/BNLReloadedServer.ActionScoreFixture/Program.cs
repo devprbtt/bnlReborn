@@ -365,16 +365,17 @@ foreach(var trapCard in trapCards)
 {
  var trap=Make(heroTarget++,trapCard,TeamType.Team1);trap.OwnerPlayerId=1;
  var victim=Make(heroTarget++,playerCard,TeamType.Team2,heroTarget);
+ float hitDamage=trapCard.Id!.Contains("landmine")?1f:rules.FireTrapDamageChunk;
  int reward=trapCard.Id!.Contains("landmine")?rules.MineAffected:rules.FireTrapAffected;
  int before=actual.Total(1);var impact=trap.CreateImpactData();
  Call("ScoreDamage",victim,0f,impact,a,trap);Call("ScoreDamage",ally,10f,impact,a,trap);
  Check(actual.Total(1)==before,"zero and friendly trap damage do not score");
- Call("ScoreDamage",victim,1f,impact,a,trap);
+ Call("ScoreDamage",victim,hitDamage,impact,a,trap);
  Check(actual.Total(1)==before+reward,"actual trap damage credits owner: "+trapCard.Id);
- Call("ScoreDamage",victim,1f,impact,a,trap);
+ Call("ScoreDamage",victim,hitDamage,impact,a,trap);
  Check(actual.Total(1)==before+2*reward,"each repeated trap hit scores without cooldown");
  var secondVictim=Make(heroTarget++,playerCard,TeamType.Team2,heroTarget);
- Call("ScoreDamage",secondVictim,1f,impact,a,trap);
+ Call("ScoreDamage",secondVictim,hitDamage,impact,a,trap);
  Check(actual.Total(1)==before+3*reward,"another enemy can earn independent trap points");
 }
 for(int i=0;i<trapBlocks.Length;i++)
@@ -388,7 +389,7 @@ for(int i=0;i<trapBlocks.Length;i++)
  victim.AddEffects([new ConstEffectInfo(trapEffects[i].Key)],source.Team,source);
  Check(actual.Total(1)==before+(i==0?reward:0),"only non-damaging glue effect credits builder: "+trapBlocks[i].Id);
  victim.AddEffects([new ConstEffectInfo(trapEffects[i].Key)],source.Team,source);
- if(i>0) Call("ScoreDamage",victim,1f,source.Impact,a,a);
+ if(i>0) Call("ScoreDamage",victim,i==2?rules.FireTrapDamageChunk:1f,source.Impact,a,a);
  Check(actual.Total(1)==before+reward,"effect refresh does not duplicate real trap damage");
  ally.AddEffects([new ConstEffectInfo(trapEffects[i].Key)],source.Team,source);
  Check(actual.Total(1)==before+reward,"friendly block effect never scores");
@@ -397,6 +398,37 @@ for(int i=0;i<trapBlocks.Length;i++)
  otherVictim.AddEffects([new ConstEffectInfo(trapEffects[i].Key)],source.Team,noOwner);
  Check(actual.Total(1)==before+reward,"unowned environmental traps do not score");
 }
+// Fire trap score depends on damage, not tick frequency or target count.
+var fireLedger = new ActionScoreLedger(rules); Set("_actionScores",fireLedger);
+var fireTrap=Make(heroTarget++,trapCards[1],TeamType.Team1);fireTrap.OwnerPlayerId=1;
+var fireVictim=Make(heroTarget++,playerCard,TeamType.Team2,heroTarget);
+var fireImpact=fireTrap.CreateImpactData();
+Call("ScoreDamage",fireVictim,35f,fireImpact,a,fireTrap);
+Check(fireLedger.Total(1)==0,"fire explosion banks damage below 50 HP");
+for(int tick=0;tick<25;tick++)Call("ScoreDamage",fireVictim,.6f,(ImpactData)typeof(ImpactData).GetMethod("AsPeriodicEffect",BindingFlags.Instance|BindingFlags.NonPublic)!.Invoke(fireImpact,null)!,a,fireTrap);
+Check(fireLedger.Total(1)==5,"35 HP explosion plus 15 HP full burn earns five points, not 130");
+for(int tick=0;tick<25;tick++)Call("ScoreDamage",fireVictim,.6f,(ImpactData)typeof(ImpactData).GetMethod("AsPeriodicEffect",BindingFlags.Instance|BindingFlags.NonPublic)!.Invoke(fireImpact,null)!,a,fireTrap);
+Check(fireLedger.Total(1)==5,"another burn banks its remainder without tick payouts");
+Call("ScoreDamage",fireVictim,35f,fireImpact,a,fireTrap);
+Check(fireLedger.Total(1)==10,"fire damage remainder carries between burns");
+foreach(float amount in new[]{0f,-1f,float.NaN,float.PositiveInfinity})Call("ScoreDamage",fireVictim,amount,fireImpact,a,fireTrap);
+Call("ScoreDamage",ally,100f,fireImpact,a,fireTrap);
+Call("ScoreDamage",a,100f,fireImpact,a,fireTrap);
+Call("ScoreDamage",fireVictim,100f,fireImpact,null,fireTrap);
+Check(fireLedger.Total(1)==10,"invalid friendly self and ownerless fire damage earn nothing");
+var fireOther=Make(heroTarget++,playerCard,TeamType.Team2,heroTarget);
+Call("ScoreDamage",fireVictim,20f,fireImpact,a,fireTrap);
+Call("ScoreDamage",fireOther,30f,fireImpact,a,fireTrap);
+Check(fireLedger.Total(1)==15,"fire damage pools across enemy targets without duplication");
+var splitFire=new ActionScoreLedger(rules);var lumpFire=new ActionScoreLedger(rules);
+for(int tick=0;tick<100;tick++)splitFire.AccumulateChunks(1,"Fire trap affected",1,rules.FireTrapDamageChunk,rules.FireTrapAffected,false);
+lumpFire.AccumulateChunks(1,"Fire trap affected",100,rules.FireTrapDamageChunk,rules.FireTrapAffected,false);
+Check(splitFire.Total(1)==10 && splitFire.Total(1)==lumpFire.Total(1),"fire payout is independent of damage tick frequency");
+var nearFire=new ActionScoreLedger(rules);nearFire.AccumulateChunks(1,"Fire trap affected",50,rules.FireTrapDamageChunk,rules.FireTrapAffected,true);
+Check(nearFire.Total(1)==6,"fire objective bonus applies to paid chunks only");
+bool invalidFireChunk=false;try{new ActionScoreRules{FireTrapDamageChunk=0}.Validate();}catch(InvalidDataException){invalidFireChunk=true;}
+Check(invalidFireChunk,"zero fire damage threshold rejected");
+Set("_actionScores",actual);
 var trapRules=new ActionScoreRules{MineAffected=21,FireTrapAffected=9,GlueAffected=8,BushAffected=7,TrapEffectCooldown=2};
 var trapRoundtrip=JsonSerializer.Deserialize<ActionScoreRules>(JsonSerializer.Serialize(trapRules,JsonHelper.DefaultSerializerSettings),JsonHelper.DefaultSerializerSettings)!;
 Check(trapRoundtrip.MineAffected==21 && trapRoundtrip.FireTrapAffected==9 && trapRoundtrip.GlueAffected==8 && trapRoundtrip.BushAffected==7 && trapRoundtrip.TrapEffectCooldown==2,"trap points and cooldown round-trip through CDB");

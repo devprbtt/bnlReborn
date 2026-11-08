@@ -2,6 +2,7 @@
   "action_scores": {
     "mine_affected": 10,
     "fire_trap_affected": 5,
+    "fire_trap_damage_chunk": 50,
     "glue_affected": 5,
     "bush_affected": 5,
     "kill": 75,

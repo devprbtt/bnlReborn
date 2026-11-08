@@ -40,6 +40,7 @@ public partial class GameZone
             case "Portal used":
                 if (target == null || !ledger.Ready(id, reason + ":" + target, _scoreClock.Elapsed.TotalSeconds, rules.PortalCooldown)) return;
                 break;
+            case "Fire trap affected": ledger.AccumulateChunks(id, reason, amount, rules.FireTrapDamageChunk, rules.FireTrapAffected, near); return;
             case "Turret damage": ledger.AccumulateChunks(id, reason, amount, rules.TurretDamageChunk, rules.TurretDamagePoints, near); return;
             case "Beacon damage": case "Miasma damage": case "Torpedo damage":
                 ledger.AccumulateChunks(id, reason, amount, rules.HeroDeviceDamageChunk, rules.HeroDeviceDamagePoints, near); return;
@@ -67,7 +68,7 @@ public partial class GameZone
         if ((reason == "Demolition boost assist" && target != null) || reason is "Jinx" or "Cage affected" or "EMP affected" or "Avalanche affected" or "Ally boosted" or "Reload boost" or "Enemy frightened")
             if (target == null || !ledger.Ready(id, reason + ":" + target, _scoreClock.Elapsed.TotalSeconds, rules.HeroEffectCooldown)) return;
         int points = reason switch {
-            "Mine affected" => rules.MineAffected, "Fire trap affected" => rules.FireTrapAffected,
+            "Mine affected" => rules.MineAffected,
             "Glue affected" => rules.GlueAffected, "Bush affected" => rules.BushAffected,
             "Build boost assist" => rules.TonyBuildAssist, "Demolition boost assist" => rules.TrondsonDemolitionAssist,
             "Lamp pickup" => rules.GenieLampPickup, "Jinx" => rules.GenieJinx, "Cage affected" => rules.VanderCage,
@@ -97,7 +98,7 @@ public partial class GameZone
         string? deviceReason = DeviceScoreReason(origin);
         if (deviceReason != null && (target.PlayerId != null ||
             deviceReason == "Bomb affected" && IsScoreDevice(target.UnitCard) && target.UnitCard?.IsObjective != true && !ExcludedDestroyScore(target.UnitCard?.Id)))
-            AwardAction(player, deviceReason, deviceReason is "Turret damage" or "Beacon damage" or "Miasma damage" or "Torpedo damage" or "Lamp gas damage" ? damage : 1, target.GetMidpoint(), target.Id);
+            AwardAction(player, deviceReason, deviceReason is "Fire trap affected" or "Turret damage" or "Beacon damage" or "Miasma damage" or "Torpedo damage" or "Lamp gas damage" ? damage : 1, target.GetMidpoint(), target.Id);
         if (target.PlayerId != null && Unit.ScoreSourceId(impact.SourceKey).StartsWith("ability_sarge_frag_grenade", StringComparison.Ordinal))
             AwardAction(player, "Grenade hit", 1, target.GetMidpoint(), target.Id);
         if (target.UnitCard?.IsObjective == true)

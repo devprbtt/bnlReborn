@@ -19,7 +19,8 @@ Placement and construction-boost assists award zero points, including near objec
 | Mortar / C4 damages enemy hero | 10 | Every confirmed hit, no repeat cooldown |
 | Roly barrel/goo damages or newly slows enemy | 10 | No repeat cooldown; refreshing an unchanged slow is not a new slow |
 | Bear trap / mine damages enemy hero | 10 | No repeat cooldown |
-| Caltrops / bush / fire trap damages enemy hero | 5 | No repeat cooldown; damage and its status application are not both paid |
+| Caltrops / bush damages enemy hero | 5 | No repeat cooldown; damage and its status application are not both paid |
+| Fire trap damages enemy hero | 5 per 50 actual damage | Explosion, lingering burn and floor fire share one owner damage bank; remainder retained across targets |
 | Glue applies slow to enemy hero | 5 | No repeat cooldown; unchanged effect refresh does not score again |
 | Enemy triggers fake block | 10 | Actual entry trigger; lingering is not another trigger; block normally destroys itself |
 | Genie lamp allied pickup | 10 | Once per pickup, no self credit |
@@ -33,3 +34,9 @@ Objective-area bonuses remain: within 12 units of a living cube or Block Buster 
 Only requested device cooldowns changed. Portal remains 60 seconds; Tiki remains one second; unrelated hero abilities retain existing repeat rules. Tiki's reveal still earns ability-spot credit separately. Legacy ammo/spawn/trap interval and flat mortar/C4 destruction fields are accepted but inert.
 
 Validation: 278 action-score checks, HealAttribution 22, BrawnRally 47, GenieOrbHealing 21, Transport 6, ClassPerksExpanded 70 and KillerAmmo ordering suite. Release build treats warnings as errors. No live multiplayer validation or deployment yet.
+
+## Fire-trap rebalance (prepared, not deployed)
+
+`fire_trap_affected` now means points per `fire_trap_damage_chunk` (default 50 HP), not per hit. Existing catalogues missing the new field use 50. Actual enemy damage only; no duplicate generic damage reward. A 35 HP explosion plus 15 HP burn earns 5 points, or 6 with the normal objective bonus on that payout. Burn alone banks 15 HP for later payouts. Damage, duration, kills and assists are unchanged.
+
+Validation: ActionScoreFixture 294 checks and Release build with warnings as errors passed.
