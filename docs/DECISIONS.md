@@ -65,3 +65,7 @@ Use negotiated capability 14 and zone message 114 to acknowledge a completed TA 
 ## 2026-11-07 - Casual uses existing FreePick protocol
 
 Normalize the casual card to FreePick at catalogue registration instead of bypassing selected draft timers. This keeps server selection permissions and the existing client UI in agreement, including reconnect/backfill. Only initialize casual draft state for a DraftPick card. Keep the dormant draft implementation/tests available, but do not activate it for production casual registration. Ranked remains unchanged. Deploy through a server release/restart after draining matches; no client update or persistent catalogue edit required.
+
+## 2026-11-09 — Retired national crates retain compatibility identities
+
+Retire country crates through the authoritative catalogue/ownership/loadout rules. Keep their legacy card and numeric block identities, but use stock crate visuals and levels, to preserve map/replay references. Preserve historical grants instead of deleting player history; they no longer convey ownership. Catalogue replication and incremental updates enforce retirement even if the source CDB still contains the old cards. No schema or gameplay-stat change; deployment deferred to the next update.

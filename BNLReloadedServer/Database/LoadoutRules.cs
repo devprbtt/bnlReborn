@@ -12,7 +12,7 @@ public static class LoadoutRules
 {
     public static bool CanUseDevice(Key hero, Key device, uint? playerId = null)
     {
-        if (device.GetCard<CardDevice>() == null || Databases.Catalogue.GetCard<CardUnit>(hero)?.Data is not UnitDataPlayer heroData)
+        if (RetiredCountryCrates.IsRetired(device) || device.GetCard<CardDevice>() == null || Databases.Catalogue.GetCard<CardUnit>(hero)?.Data is not UnitDataPlayer heroData)
             return false;
         if (playerId is { } id && !PlayerInventory.Owns(id, device)) return false;
         var bases = (heroData.SpecialDevices ?? []).Concat(heroData.Class.GetCard<CardHeroClass>()?.AvailableDevices ?? []);
@@ -45,6 +45,12 @@ public static class LoadoutRules
 
         if (devices != null)
         {
+            foreach (var (slot, key) in devices.ToList())
+                if (RetiredCountryCrates.IsRetired(key))
+                {
+                    devices[slot] = RetiredCountryCrates.Stock;
+                    removed.Add(key);
+                }
             CatalogueHelper.RepairHeroSpecialDevice(hero, devices, out _, out _);
             var maxSlot = ClassPerkCatalogue.DeviceSlots(hero, perks);
             foreach (var (slot, device) in devices.ToList())
