@@ -180,11 +180,24 @@ public static class CatalogueHelper
         var devices = GetDefaultDevices(course.Hero);
         if (course.Devices is not { Count: > 0 } courseDevices) return devices;
 
-        devices ??= new Dictionary<int, Key>();
         // Slot 1 is the hero's special device. Courses that keep it list only the five
-        // regular slots, so those start at 2; a course overriding it lists all six.
-        var slot = courseDevices.Count >= 6 ? 1 : 2;
-        foreach (var device in courseDevices.Take(6))
+        // regular slots, so those start at 2. A course that lists the special device itself
+        // (Genie: lamp + four regular devices) or six devices is the complete loadout, laid
+        // out exactly as authored; merging it with the hero defaults duplicated the lamp.
+        if (courseDevices.Count >= 6 || IsHeroSpecialDevice(course.Hero, courseDevices[0]))
+        {
+            var exact = new Dictionary<int, Key>();
+            var exactSlot = 1;
+            foreach (var device in courseDevices.Take(6))
+            {
+                exact[exactSlot++] = device;
+            }
+            return exact;
+        }
+
+        devices ??= new Dictionary<int, Key>();
+        var slot = 2;
+        foreach (var device in courseDevices.Take(5))
         {
             devices[slot++] = device;
         }

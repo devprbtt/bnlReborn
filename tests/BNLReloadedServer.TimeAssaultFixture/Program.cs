@@ -78,6 +78,20 @@ foreach(var course in courses.Skip(1))
     try { actual.RestartTimeTrialGame(7);throw new Exception("Expected isolated teardown boundary"); }
     catch(StopBeforeZoneCreation) { Check(instance.Left==1 && infoType.GetProperty("GameInstanceId")!.GetValue(info)==null,"valid restart resolves non-featured course before teardown"); }
 }
+// Course loadouts: every course gets its special device once, in slot 1, and no duplicates.
+foreach(var course in courses)
+{
+ var id=course.Map.GetCard<CardMap>()!.Id;
+ var slots=CatalogueHelper.GetCourseDevices(course)!;
+ var hero=(UnitDataPlayer)course.Hero.GetCard<CardUnit>()!.Data!;
+ Check(slots.Values.Distinct().Count()==slots.Count,"course loadout has no duplicate devices: "+id);
+ Check(slots.TryGetValue(1,out var first)&&hero.SpecialDevices!.Contains(first)&&slots.Values.Count(hero.SpecialDevices.Contains)==1,"hero device once in slot 1: "+id);
+ Check(course.Devices!.All(slots.ContainsValue),"every authored course device is equipped: "+id);
+ Check(slots.Keys.All(k=>k>=1&&k<=6),"course loadout stays within six slots: "+id);
+}
+var genie=courses.Single(c=>c.Map.GetCard<CardMap>()!.Id=="map_tt_genie");
+var genieSlots=CatalogueHelper.GetCourseDevices(genie)!;
+Check(genieSlots.Count==genie.Devices!.Count && genie.Devices.Select((d,i)=>genieSlots[i+1]==d).All(x=>x),"Genie course uses its authored five devices exactly, lamp once");
 // The actual start guard and nonce acceptance, without sockets or a live zone.
 var game=(GameInstance)RuntimeHelpers.GetUninitializedObject(typeof(GameInstance));
 var connectionType=typeof(GameInstance).GetNestedType("MatchConnectionInfo",BindingFlags.NonPublic)!;
