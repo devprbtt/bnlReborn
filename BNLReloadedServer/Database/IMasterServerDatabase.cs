@@ -32,6 +32,7 @@ public interface IMasterServerDatabase
     public Task StoreCompletedMatch(CompletedMatchRecord match);
     public Task<List<ArchivedMatchRecord>> GetCompletedMatches(int limit, long? before);
     public Task<ArchivedMatchDetail?> GetCompletedMatch(string matchId);
+    public Task<ReputationView?> GetReputation(uint playerId);
     public Task<LifetimeProfileStats> GetLifetimeProfileStats(uint playerId);
     public Task<CasualHeroBanSummary> GetCasualHeroBans(long since);
     public Task<PlayerLeaderboard> GetPlayerLeaderboard(PlayerLeaderboardStat stat, bool recentOnly, int offset = 0, int limit = PlayerStatLeaderboards.Limit);

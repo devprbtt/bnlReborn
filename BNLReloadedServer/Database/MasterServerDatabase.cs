@@ -40,6 +40,7 @@ public class MasterServerDatabase : IMasterServerDatabase
         _playerDb.CreateTableAsync<ArchivedMatchPerkRecord>().Wait();
         EnsureMatchArchiveColumns().Wait();
         _playerDb.RunInTransactionAsync(MmrLedger.CreateTables).Wait();
+        _playerDb.RunInTransactionAsync(Reputation.CreateTables).Wait();
         foreach(var ban in _playerDb.Table<MmrQueuePenalty>().ToListAsync().Result)
             MmrQueueGuard.Ban(ban.PlayerId,ban.Until);
         _playerDb.ExecuteAsync("CREATE INDEX IF NOT EXISTS IX_MatchPlayers_Player ON MatchPlayers(player_id)").Wait();
@@ -508,6 +509,7 @@ public class MasterServerDatabase : IMasterServerDatabase
 
             await _playerDb.RunInTransactionAsync(db =>
             {
+                Reputation.Apply(db, match);
                 MmrLedger.Apply(db, match, DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(), MmrReferenceFile.ForMatch(db,match));
                 // A region can retransmit after losing its master connection. Replacing the complete
                 // aggregate makes the operation idempotent without leaving stale child rows behind.
@@ -627,6 +629,15 @@ public class MasterServerDatabase : IMasterServerDatabase
         await _playerDb.RunInTransactionAsync(db=> { LeagueSeasons.Refresh(db); db.Delete<MmrInbox>(match.MatchId); });
         foreach(var ban in penalties) MmrQueueGuard.Ban(ban.PlayerId,ban.Until);
         foreach(var id in ids) MmrQueueGuard.Release(id,match.MatchId);
+    }
+
+    public async Task<ReputationView?> GetReputation(uint playerId)
+    {
+        ReputationView? result = null;
+        await _playerDb.RunInTransactionAsync(db => {
+            if (db.Find<PlayerRecord>(playerId) != null) result = Reputation.Read(db, playerId);
+        });
+        return result;
     }
 
     public async Task<LifetimeProfileStats> GetLifetimeProfileStats(uint playerId)

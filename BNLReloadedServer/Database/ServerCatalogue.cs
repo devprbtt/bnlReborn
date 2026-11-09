@@ -53,6 +53,8 @@ public class ServerCatalogue : Catalogue
             var tempDict = new Dictionary<Key, Card>(KeyEqualityComparer.Instance);
             foreach (var card in cards)
             {
+                RetiredCountryCrates.Apply(card, cards);
+                RetiredHeroSkins.Apply(card);
                 StaticMapWeather.Apply(card);
                 if (card is CardPerk perk) ClassPerkCatalogue.Validate(perk);
                 if (card is CardGlobalLogic global) global.ActionScores?.Validate();
@@ -78,6 +80,8 @@ public class ServerCatalogue : Catalogue
         {
             card.Key = Key(card.Id);
             var cards = _db.Values.Where(existing => existing.Id != card.Id).Append(card).ToList();
+            RetiredCountryCrates.Apply(card, cards);
+            RetiredHeroSkins.Apply(card);
             ValidateIncrementalChange(cards);
 
             var tempDict = new Dictionary<Key, Card>(_db, KeyEqualityComparer.Instance)

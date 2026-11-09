@@ -256,6 +256,24 @@ public sealed class ControlPanelServer : IDisposable
                 return;
             }
 
+            if (method == "GET" && path.StartsWith("/api/reputation/", StringComparison.Ordinal))
+            {
+                ctx.Response.Headers["Cache-Control"] = "no-store";
+                if (!uint.TryParse(path["/api/reputation/".Length..], out var reputationPlayer))
+                {
+                    ctx.Response.StatusCode = 400;
+                    await WriteJson(ctx, new { error = "Invalid player ID" });
+                }
+                else if (await Databases.MasterServerDatabase.GetReputation(reputationPlayer) is { } reputation)
+                    await WriteJson(ctx, reputation);
+                else
+                {
+                    ctx.Response.StatusCode = 404;
+                    await WriteJson(ctx, new { error = "Player not found" });
+                }
+                return;
+            }
+
             if (method == "GET" && path.StartsWith("/api/profile-stats/"))
             {
                 if (!uint.TryParse(path["/api/profile-stats/".Length..], out var statsPlayerId))
@@ -918,6 +936,7 @@ public sealed class ControlPanelServer : IDisposable
          path == "/api/players" ||
          IsPublicPlayerDetailPath(path) ||
          path.StartsWith("/api/profile-stats/", StringComparison.Ordinal) ||
+         path.StartsWith("/api/reputation/", StringComparison.Ordinal) ||
          path == PlayerLeaderboardPath ||
          path == LeaguePath || path == LeagueStandingsPath || path.StartsWith(LeaguePath + "/players/", StringComparison.Ordinal) ||
          IsPublicTrophyRead(path) ||

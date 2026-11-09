@@ -1312,12 +1312,12 @@ public partial class GameZone : Updater
         _zoneData.UpdatePlayerSelectedSpawn(playerId, GetDefaultOrRandomSpawn(player.Team));
     }
 
-    public bool PlayerLeft(uint playerId, KickReason reason)
+    public bool PlayerLeft(uint playerId, KickReason reason, bool disconnected = false)
     {
         _activeHeroEmotes.Remove(playerId);
         _lastHeroEmote.Remove(playerId);
         _lastTeamPing.Remove(playerId);
-        if (!HasEnded) _matchParticipation.Leave(playerId, DateTimeOffset.Now, reason switch
+        if (!HasEnded) _matchParticipation.Leave(playerId, DateTimeOffset.Now, disconnected ? MatchLeaveKind.Disconnect : reason switch
         {
             KickReason.MatchInactivity => MatchLeaveKind.Inactivity,
             KickReason.MatchQuit => MatchLeaveKind.Quit,

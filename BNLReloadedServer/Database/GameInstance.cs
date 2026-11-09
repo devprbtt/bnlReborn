@@ -15,7 +15,7 @@ namespace BNLReloadedServer.Database;
 
 public partial class GameInstance : IGameInstance
 {
-    private const int FriendlyReconnectGraceSeconds = 45;
+    private const int FriendlyReconnectGraceSeconds = Reputation.ReconnectSeconds;
 
     private class MatchConnectionInfo(Guid guid, Guid regionGuid, TeamType team, ulong? squadId)
     {
@@ -268,7 +268,7 @@ public partial class GameInstance : IGameInstance
             CancelDisconnectTimer(userId);
             if (_serverDatabase.IsUserOnline(userId)) return;
 
-            PlayerLeftInstance(userId, KickReason.MatchQuit);
+            RemovePlayer(userId, KickReason.MatchQuit, disconnected: true);
             _serverDatabase.FreeMatchmakerSlot(userId, GameInstanceId);
             _serverDatabase.RemoveOfflineUser(userId);
         };
@@ -299,7 +299,9 @@ public partial class GameInstance : IGameInstance
         _zoneSender.Unsubscribe(sessionId);
     }
 
-    public void PlayerLeftInstance(uint userId, KickReason reason)
+    public void PlayerLeftInstance(uint userId, KickReason reason) => RemovePlayer(userId, reason, false);
+
+    private void RemovePlayer(uint userId, KickReason reason, bool disconnected)
     {
         CancelDisconnectTimer(userId);
         _heroChangeDisconnects.TryRemove(userId, out _);
@@ -332,7 +334,7 @@ public partial class GameInstance : IGameInstance
             if (player?.Guid is not null)
                 _zoneSender.Unsubscribe(player.Guid);
 
-            var removedPlayer = Zone?.PlayerLeft(userId, reason) is true;
+            var removedPlayer = Zone?.PlayerLeft(userId, reason, disconnected) is true;
             if (wasSpectator)
             {
                 ChatRooms.BothTeamsRoom.SendServiceMessage(CatalogueStringHelper.OnSpectatorLeaveChat, false,

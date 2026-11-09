@@ -50,6 +50,11 @@ public static class PlayerDataSanitizer
     {
         foreach (var (heroKey, loadout) in player.HeroLoadouts.ToList())
         {
+            if (RetiredHeroSkins.IsRetired(loadout.SkinKey) && !IsMissing<CardUnit>(heroKey) && heroKey == loadout.HeroKey)
+            {
+                loadout.SkinKey = PlayerInventory.SafeSkin(player.PlayerId, heroKey, loadout.SkinKey);
+                stripped.Add($"retired skin replaced in loadout {heroKey}");
+            }
             if (IsMissing<CardUnit>(heroKey) || IsMissing<CardUnit>(loadout.HeroKey) ||
                 IsMissing<CardSkin>(loadout.SkinKey) ||
                 !PlayerInventory.CanEquipSkin(player.PlayerId, heroKey, loadout.SkinKey))
