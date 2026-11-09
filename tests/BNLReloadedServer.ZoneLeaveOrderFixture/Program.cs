@@ -48,7 +48,7 @@ foreach(var (scene,expectDetach) in new (Scene,bool)[]{(new SceneMainMenu(),true
  var game=(GameInstance)RuntimeHelpers.GetUninitializedObject(typeof(GameInstance));
  FillCollections(game);
  var zoneSender=new SessionSender(null!);var lobbySender=new SessionSender(null!);
- Field(game,"_zoneSender").SetValue(game,zoneSender);Field(game,"_lobbySender").SetValue(game,lobbySender);
+ Field(game,"_zoneSender").SetValue(game,new RecordingSender(zoneSender));Field(game,"_lobbySender").SetValue(game,lobbySender);
  Field(game,"_serverDatabase").SetValue(game,DispatchProxy.Create<IRegionServerDatabase,Stub>().With((m,a)=>null));
  Field(game,"<GameInitiator>k__BackingField").SetValue(game,DispatchProxy.Create<IGameInitiator,Stub>().With((m,a)=>null));
  var connType=typeof(GameInstance).GetNestedType("MatchConnectionInfo",BindingFlags.NonPublic)!;

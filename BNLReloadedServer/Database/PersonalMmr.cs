@@ -42,7 +42,7 @@ public static class MmrReferenceFile
 public static class PersonalMmr
 {
     public const int Version = 2;
-    public const int ReturnSeconds = 45;
+    public const int ReturnSeconds = Reputation.ReconnectSeconds;
     public static bool Public(Key mode) => mode == new Key("game_mode_friendly") || mode == new Key("game_mode_ranked");
     public static bool Original(CompletedMatchPlayer p) => p.WasInitial || p.Presences.Any(s => s.JoinKind == MatchJoinKind.Initial);
     public static TeamType Team(CompletedMatchPlayer p) => p.Presences.First().Team;

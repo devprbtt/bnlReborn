@@ -39,11 +39,11 @@ var snapshot = initiator.GetParticipantHistory();
 snapshot.Clear();
 Check(initiator.HasParticipated(initialTeam2.PlayerId), "match history snapshots cannot mutate server state");
 
-Check(GameInstance.EffectiveReconnectGraceSeconds(180, true, GameRankingType.Friendly) == 45,
+Check(GameInstance.EffectiveReconnectGraceSeconds(180, true, GameRankingType.Friendly) == 120,
     "started friendly match releases a disconnected slot after the short reconnect window");
 Check(GameInstance.EffectiveReconnectGraceSeconds(30, true, GameRankingType.Friendly) == 30,
     "friendly reconnect window never extends a shorter configured grace");
-Check(GameInstance.EffectiveReconnectGraceSeconds(180, true, GameRankingType.Ranked) == 45,
+Check(GameInstance.EffectiveReconnectGraceSeconds(180, true, GameRankingType.Ranked) == 120,
     "ranked uses the same maximum return window as personal MMR");
 Check(GameInstance.EffectiveReconnectGraceSeconds(180, false, GameRankingType.Friendly) == 180,
     "lobby reconnect grace remains unchanged");

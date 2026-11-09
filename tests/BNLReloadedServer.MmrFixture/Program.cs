@@ -38,7 +38,7 @@ foreach(var winner in new[]{TeamType.Team1,TeamType.Team2,TeamType.Neutral})
     Check(a.Delta<=normalAwards[4].Delta*1.25+1e-8,"quit never cheaper than ordinary worst full loss");
 }
 var reconnect=Match();var segment=reconnect.Players[0].Presences[0];segment.LeftAt=1500000;segment.LeaveKind=MatchLeaveKind.Disconnect;
-reconnect.Players[0].Presences.Add(new(){Sequence=1,Team=TeamType.Team1,TeamSlot=1,JoinedAt=1545000,LeftAt=reconnect.EndedAt,LeaveKind=MatchLeaveKind.MatchEnded,HeroKey=segment.HeroKey});
+reconnect.Players[0].Presences.Add(new(){Sequence=1,Team=TeamType.Team1,TeamSlot=1,JoinedAt=1620000,LeftAt=reconnect.EndedAt,LeaveKind=MatchLeaveKind.MatchEnded,HeroKey=segment.HeroKey});
 Check(!Calc(reconnect)[0].Abandoned,"return exactly at grace accepted");
 reconnect.Players[0].Presences[1].JoinedAt++;
 Check(Calc(reconnect)[0].Abandoned,"late reconnect cannot erase abandonment");
@@ -50,9 +50,9 @@ returnedLoss.Players[0].Presences.Add(new(){Sequence=1,Team=TeamType.Team1,TeamS
 var returnedAward=Calc(returnedLoss)[0];
 Check(!returnedAward.Abandoned && Math.Abs(returnedAward.Delta/returnedAward.Base-1.25)<1e-9,"reconnect cannot erase a weak-performance loss penalty");
 var repeated=Match();var rp=repeated.Players[0];rp.Presences[0].LeftAt=1500000;rp.Presences[0].LeaveKind=MatchLeaveKind.Disconnect;
-rp.Presences.Add(new(){Sequence=1,Team=TeamType.Team1,TeamSlot=1,JoinedAt=1530000,LeftAt=1600000,LeaveKind=MatchLeaveKind.Disconnect});
-rp.Presences.Add(new(){Sequence=2,Team=TeamType.Team1,TeamSlot=1,JoinedAt=1630000,LeftAt=repeated.EndedAt,LeaveKind=MatchLeaveKind.MatchEnded});
-Check(Calc(repeated)[0].Abandoned,"repeated reconnects cannot reset the total 45-second budget");
+rp.Presences.Add(new(){Sequence=1,Team=TeamType.Team1,TeamSlot=1,JoinedAt=1561000,LeftAt=1700000,LeaveKind=MatchLeaveKind.Disconnect});
+rp.Presences.Add(new(){Sequence=2,Team=TeamType.Team1,TeamSlot=1,JoinedAt=1761000,LeftAt=repeated.EndedAt,LeaveKind=MatchLeaveKind.MatchEnded});
+Check(Calc(repeated)[0].Abandoned,"repeated reconnects cannot reset the total 120-second budget");
 var end=Match();end.Players[0].Presences[0].LeaveKind=MatchLeaveKind.Disconnect;
 Check(!Calc(end)[0].Abandoned,"disconnect at/after authoritative match end exempt");
 var backfill=Match();backfill.Players[0].WasInitial=false;backfill.Players[0].WasBackfiller=true;backfill.Players[0].Presences[0].JoinKind=MatchJoinKind.Backfill;
@@ -168,7 +168,7 @@ foreach(long settled in new long[]{2200000,9000000})
     MmrLedger.Apply(db,m,10000000);
     Check(db.Find<MmrQueuePenalty>(1u).Until==until,"delayed duplicate result cannot restart cooldown");
 }
-Check(PersonalMmr.AbandonedAt(repeated,repeated.Players[0])==1600000,"repeated disconnect cooldown begins at departure that exhausts grace");
+Check(PersonalMmr.AbandonedAt(repeated,repeated.Players[0])==1700000,"repeated disconnect cooldown begins at departure that exhausts grace");
 Check(PersonalMmr.AbandonedAt(returnedLoss,returnedLoss.Players[0])==null,"timely reconnect has no cooldown timestamp");
 using(var db=new SQLiteConnection(":memory:"))
 {

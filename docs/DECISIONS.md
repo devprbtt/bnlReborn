@@ -65,3 +65,8 @@ Use negotiated capability 14 and zone message 114 to acknowledge a completed TA 
 ## 2026-11-07 - Casual uses existing FreePick protocol
 
 Normalize the casual card to FreePick at catalogue registration instead of bypassing selected draft timers. This keeps server selection permissions and the existing client UI in agreement, including reconnect/backfill. Only initialize casual draft state for a DraftPick card. Keep the dormant draft implementation/tests available, but do not activate it for production casual registration. Ranked remains unchanged. Deploy through a server release/restart after draining matches; no client update or persistent catalogue edit required.
+
+
+## 2026-11-08 - Reputation is a separate match-settled public score
+
+Use an independent transactional event ledger and startup policy epoch rather than changing skill ratings or historical matches. Publish only the score/status through an additive HTTP read endpoint, keeping the game protocol compatible with existing clients. Consecutive abandonment escalates without a calendar reset; qualifying clean completion restores one point and resets the streak. No automatic chat classification or reputation-based access restrictions in v1. The two-minute reconnect budget is shared with personal MMR's return allowance; socket expiry retains its actual disconnect classification.
