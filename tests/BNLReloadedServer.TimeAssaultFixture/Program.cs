@@ -1,3 +1,4 @@
+using System.Numerics;
 using System.Reflection;
 using System.Collections.Concurrent;
 using System.Runtime.CompilerServices;
@@ -177,8 +178,45 @@ using(var parityWriter=new BinaryWriter(File.Create(Path.Combine(args[1],"comple
         Check(player.TimeTrial.BestResultTime![courses[0].Map]==seconds,"slower finish preserves best leaderboard time: "+seconds);
     }
 }
+// Spawn position: every start/restart, respawn and recall uses the exact map spawn point. A real
+// GameZone per run, with the same initiator the region server uses for Time Assault.
+foreach(var course in courses)
+{
+ var id=course.Map.GetCard<CardMap>()!.Id;
+ TimeAssaultCourses.TryLoad(course.Map,out _,out var courseMap);
+ var spawn=courseMap!.SpawnPoints!.Single();
+ Check(spawn.Label==SpawnPointLabel.Base,"course map has a single base spawn point: "+id);
+ var expected=spawn.Position with{Y=spawn.Position.Y+0.08f};
+ var create=typeof(BNLReloadedServer.ServerTypes.GameZone).GetMethod("CreatePlayerUnit",fields)!;
+ var spawnAt=typeof(BNLReloadedServer.ServerTypes.GameZone).GetMethod("GetSpawnPosition",fields)!;
+ var radiusOf=typeof(BNLReloadedServer.ServerTypes.GameZone).GetProperty("MapSpawnRadius",fields)!;
+ var starts=new List<Vector3>();
+ // Each restart is a fresh zone, exactly as RestartTimeTrialGame builds a new instance.
+ for(var run=0;run<5;run++)
+ {
+  var lobby=new ConcurrentDictionary<uint,PlayerLobbyState>();
+  lobby[7]=new PlayerLobbyState{PlayerId=7,Team=TeamType.Team1,Hero=course.Hero,Nickname="ta",Devices=CatalogueHelper.GetCourseDevices(course)};
+  var initiator=new BNLReloadedServer.ServerTypes.DummyGameInitiator(CatalogueHelper.ModeTimeTrial,courseMap,TeamType.Team1,false){GameInstanceId="ta-spawn-"+id+"-"+run};
+  var zone=new BNLReloadedServer.ServerTypes.GameZone(Stub<IServiceZone>(),Stub<IServiceZone>(),Stub<IBuffer>(),Stub<ISender>(),courseMap,initiator,lobby,course.Map);
+  T OnZone<T>(Func<T> body){var done=new TaskCompletionSource<T>();zone.EnqueueAction(()=>{try{done.SetResult(body());}catch(Exception e){done.SetException(e);}});return done.Task.WaitAsync(TimeSpan.FromSeconds(20)).GetAwaiter().GetResult();}
+  starts.Add(OnZone(()=>((BNLReloadedServer.BaseTypes.Unit)create.Invoke(zone,[7u,Stub<IServiceZone>()])!).Transform.Position));
+  if(run==0)
+  {
+   var radius=(float)radiusOf.GetValue(zone)!;
+   Check(radius==0,"time assault uses no spawn scatter: "+id);
+   var respawns=OnZone(()=>Enumerable.Range(0,12).Select(_=>(Vector3)spawnAt.Invoke(zone,[spawn.Position,radius])!).ToList());
+   Check(respawns.All(p=>Vector3.Distance(p,expected)<0.001f),"respawn/recall position is the exact spawn point: "+id);
+  }
+  zone.Stop();
+ }
+ Check(starts.All(p=>Vector3.Distance(p,expected)<0.001f),"5 restarts all start exactly on the spawn point: "+id+" "+expected);
+}
 Console.WriteLine($"Time Assault fixture passed: {checks} checks.");
 File.WriteAllText(Path.Combine(args[1],"server-validation.txt"),$"PASS {checks} checks; all {courses.Count} actual map payloads load; course selection/loadout/objectives/rewards preserved; request/reply round trip.\n");
+static T Stub<T>() where T:class=>DispatchProxy.Create<T,NullProxy>();
+public class NullProxy:DispatchProxy{
+ protected override object? Invoke(MethodInfo? method,object?[]? args){var type=method!.ReturnType;if(type==typeof(void))return null;return type.IsValueType?Activator.CreateInstance(type):null;}
+}
 public class RegionProxy:DispatchProxy{
  public Key Map;public uint Player;public bool Started=true;
  protected override object? Invoke(MethodInfo? method,object?[]? args){if(method!.Name==nameof(IRegionServerDatabase.StartTimeTrialCourse)){Player=(uint)args![0]!;Map=(Key)args[1]!;return Started;}throw new NotSupportedException(method.Name);}

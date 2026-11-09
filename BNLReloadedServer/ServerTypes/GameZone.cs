@@ -446,7 +446,7 @@ public partial class GameZone : Updater
         var rot = Quaternion.Identity;
         if (spawnPoint != null)
         {
-            pos = GetSpawnPosition(spawnPoint.Position, 2);
+            pos = GetSpawnPosition(spawnPoint.Position, MapSpawnRadius);
             rot = Direction2dHelper.Rotation(spawnPoint.Direction);
         }
 
@@ -600,6 +600,10 @@ public partial class GameZone : Updater
 
         CatalogueFactory.CreateUnit(NewUnitId(), supplyKey, transform, TeamType.Neutral, null, _defaultUnitUpdater);
     }
+
+    // Map spawns scatter players over a 5x5 area so a team does not stack. Time Assault is solo
+    // and timed: every start, restart and respawn uses the exact spawn point so runs are comparable.
+    private float MapSpawnRadius => _zoneData.MatchCard.Data?.Type is MatchType.TimeTrial ? 0 : 2;
 
     private Vector3 GetSpawnPosition(Vector3 spawnPoint, float spawnRadius)
     {
@@ -2670,7 +2674,7 @@ public partial class GameZone : Updater
                         {
                             if (_mapSpawnPoints.TryGetValue(spawnPoint.Id, out var mapSpawnPoint))
                             {
-                                var spawnPos = GetSpawnPosition(mapSpawnPoint.Position, 2);
+                                var spawnPos = GetSpawnPosition(mapSpawnPoint.Position, MapSpawnRadius);
                                 var spawnRot = Direction2dHelper.Rotation(mapSpawnPoint.Direction);
                                 if (unit.Respawn(spawnPos, spawnRot))
                                 {
@@ -2710,7 +2714,7 @@ public partial class GameZone : Updater
                             unit.EndRecall();
                             if (_mapSpawnPoints.TryGetValue(_defaultSpawnId[(int)unit.Team], out var mapSpawnPoint))
                             {
-                                var spawnPos = GetSpawnPosition(mapSpawnPoint.Position, 2);
+                                var spawnPos = GetSpawnPosition(mapSpawnPoint.Position, MapSpawnRadius);
                                 _serviceZone.SendUnitManeuver(unit.Id, new ManeuverTeleport
                                 {
                                     Position = spawnPos
