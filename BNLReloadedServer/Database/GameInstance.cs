@@ -45,7 +45,11 @@ public partial class GameInstance : IGameInstance
 
     private GameZone? Zone { get; set; }
 
-    private readonly ConcurrentBag<Action> _preZoneActions = [];
+    // Load-stage work that arrives while the zone is still being constructed. FIFO, so a
+    // restart client's early ZoneReady still runs after its InitZone.
+    private readonly ConcurrentQueue<Action> _preZoneActions = new();
+    private readonly object _zoneAttachGate = new();
+    private bool _zoneRetired;
 
     private readonly ConcurrentDictionary<uint, MatchConnectionInfo> _connectedUsers = new();
 
@@ -377,7 +381,12 @@ public partial class GameInstance : IGameInstance
         finalZone?.Stop();
         ChatRooms.ClearRooms();
         Lobby = null;
-        Zone = null;
+        lock (_zoneAttachGate)
+        {
+            Zone = null;
+            _zoneRetired = true;
+            _preZoneActions.Clear();
+        }
         GameInitiator.ClearInstance(GameInstanceId);
         _serverDatabase.RemoveGameInstance(GameInstanceId);
     }
@@ -606,13 +615,19 @@ public partial class GameInstance : IGameInstance
             mapKey = mapInfoCard.MapKey;
         }
 
-        Zone = new GameZone(new ServiceZone(bufferedSender), new ServiceZone(_zoneSender), bufferedSender, _zoneSender,
+        var zone = new GameZone(new ServiceZone(bufferedSender), new ServiceZone(_zoneSender), bufferedSender, _zoneSender,
             MapData, GameInitiator, _zonePlayerInfo, mapKey);
-        Zone.AssistLeadSender = AssistLeadConnection;
+        zone.AssistLeadSender = AssistLeadConnection;
 
-        while (_preZoneActions.TryTake(out var action))
+        // Publish and drain under one gate: a load request racing construction is either queued
+        // before the drain or sees the zone, never neither.
+        lock (_zoneAttachGate)
         {
-            Zone.EnqueueAction(action);
+            Zone = zone;
+            while (_preZoneActions.TryDequeue(out var action))
+            {
+                zone.EnqueueAction(action);
+            }
         }
 
         if (HasLobby())
@@ -743,17 +758,12 @@ public partial class GameInstance : IGameInstance
         switch (player.LoadStage)
         {
             case ZoneLoadStage.InitZone:
-                if (Zone is null)
-                {
-                    _preZoneActions.Add(() => { if (IsCurrentConnection(playerId, player)) Zone?.SendInitializeZone(zoneService); });
-                }
-                else
-                {
-                    Zone.EnqueueAction(() => { if (IsCurrentConnection(playerId, player)) Zone.SendInitializeZone(zoneService); });
-                }
+                EnqueueZoneLoadStep(() => { if (IsCurrentConnection(playerId, player)) Zone?.SendInitializeZone(zoneService); });
                 break;
             case ZoneLoadStage.LoadZone:
-                Zone?.EnqueueAction(() =>
+                // A Time Assault restart client keeps its previous map and can report ZoneReady
+                // before this zone exists; dropping it left the course loading forever.
+                EnqueueZoneLoadStep(() =>
                 {
                     if (!IsCurrentConnection(playerId, player)) return;
                     var tempBufferedSender = new BufferSender();
@@ -794,6 +804,15 @@ public partial class GameInstance : IGameInstance
             case ZoneLoadStage.None:
             default:
                 break;
+        }
+    }
+
+    private void EnqueueZoneLoadStep(Action action)
+    {
+        lock (_zoneAttachGate)
+        {
+            if (Zone is { } zone) zone.EnqueueAction(action);
+            else if (!_zoneRetired) _preZoneActions.Enqueue(action);
         }
     }
 

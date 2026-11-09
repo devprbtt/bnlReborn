@@ -106,6 +106,40 @@ Check(Ack(connection,123)&&Ready(),"matching final readiness releases countdown"
 Check(!Ack(connection,123),"duplicate readiness is ignored");
 Token(456);Check(!Ack(connection,123)&&!Ready(),"new load rejects prior readiness token");
 Token(null);Check(Ready(),"legacy ready clients retain native handshake");
+// Restart race: the client reuses its previous map, so ZoneReady can arrive while the new zone is
+// still being constructed. Both load steps must wait for the zone, in order, instead of dropping.
+object NewLoadingInstance(out object conn, out System.Collections.IEnumerable queue)
+{
+ var g=(GameInstance)RuntimeHelpers.GetUninitializedObject(typeof(GameInstance));
+ conn=Activator.CreateInstance(connectionType,Guid.NewGuid(),Guid.NewGuid(),TeamType.Team1,null)!;
+ var users=Activator.CreateInstance(typeof(ConcurrentDictionary<,>).MakeGenericType(typeof(uint),connectionType))!;
+ users.GetType().GetMethod("TryAdd")!.Invoke(users,[7u,conn]);
+ typeof(GameInstance).GetField("_connectedUsers",fields)!.SetValue(g,users);
+ var services=new ConcurrentDictionary<Guid,Dictionary<ServiceId,IService>>();
+ services[(Guid)connectionType.GetProperty("Guid")!.GetValue(conn)!]=new Dictionary<ServiceId,IService>{[ServiceId.ServiceZone]=new ServiceZone(sender)};
+ typeof(GameInstance).GetField("_services",fields)!.SetValue(g,services);
+ var pending=new ConcurrentQueue<Action>();
+ typeof(GameInstance).GetField("_preZoneActions",fields)!.SetValue(g,pending);
+ typeof(GameInstance).GetField("_zoneAttachGate",fields)!.SetValue(g,new object());
+ queue=pending;return g;
+}
+void Upload(object g,object conn,BNLReloadedServer.ServerTypes.ZoneLoadStage stage)
+{
+ connectionType.GetProperty("LoadStage")!.SetValue(conn,stage);
+ typeof(GameInstance).GetMethod("UploadZoneData",fields)!.Invoke(g,[7u,conn]);
+}
+{
+ var loading=NewLoadingInstance(out var conn,out var queue);
+ Check(typeof(GameInstance).GetProperty("Zone",fields)!.GetValue(loading)==null,"restart race fixture: zone not constructed yet");
+ Upload(loading,conn,BNLReloadedServer.ServerTypes.ZoneLoadStage.LoadZone);
+ Check(queue.Cast<Action>().Count()==1,"early ZoneReady before zone construction is queued, not dropped");
+ Upload(loading,conn,BNLReloadedServer.ServerTypes.ZoneLoadStage.InitZone);
+ Check(queue.Cast<Action>().Count()==2 && queue is ConcurrentQueue<Action>,"pre-zone load steps keep arrival order");
+ var retired=NewLoadingInstance(out var retiredConn,out var retiredQueue);
+ typeof(GameInstance).GetField("_zoneRetired",fields)!.SetValue(retired,true);
+ Upload(retired,retiredConn,BNLReloadedServer.ServerTypes.ZoneLoadStage.LoadZone);
+ Check(!retiredQueue.Cast<Action>().Any(),"ended instance does not accumulate load steps");
+}
 var zoneService=new ServiceZone(sender);zoneService.SendTimeAssaultReady(0x123456789ABCDEF0UL);
 using(var reply=new BinaryReader(new MemoryStream(sender.Last!))){Check(reply.ReadByte()==(byte)ServiceId.ServiceZone && reply.ReadByte()==114 && reply.ReadUInt64()==0x123456789ABCDEF0UL && reply.BaseStream.Position==reply.BaseStream.Length,"readiness challenge wire contract");}
 using(var parityWriter=new BinaryWriter(File.Create(Path.Combine(args[1],"completion-parity.bin"))))
