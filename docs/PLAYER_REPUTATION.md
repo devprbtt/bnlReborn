@@ -1,3 +1,5 @@
+Deployment status: live at server revision 0b5ca1f78c7353c2c9bb30a16ddc3baf415b0ae1 since 2026-11-09 10:21 UTC; matching UI is in client beta.92.
+
 # Player reputation v1
 
 Server-owned public reputation, separate from skill rating. Every existing/new player starts at 100. No historical backfill: the first startup creates a persistent policy epoch; matches started before that epoch do not count. Deploy with the corresponding client presentation in a later release.
