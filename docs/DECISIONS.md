@@ -69,3 +69,7 @@ Normalize the casual card to FreePick at catalogue registration instead of bypas
 ## 2026-11-09 — Retired national crates retain compatibility identities
 
 Retire country crates through the authoritative catalogue/ownership/loadout rules. Keep their legacy card and numeric block identities, but use stock crate visuals and levels, to preserve map/replay references. Preserve historical grants instead of deleting player history; they no longer convey ownership. Catalogue replication and incremental updates enforce retirement even if the source CDB still contains the old cards. No schema or gameplay-stat change; deployment deferred to the next update.
+
+## 2026-11-09 — Retire hero skins without resetting loadouts
+
+For explicitly retired hero skins, preserve historical identities and grants but exclude ownership, hero selection and shop offers. Resolve equipped skins through SafeSkin and repair only SkinKey at login; avoid the generic invalid-skin path deleting a complete loadout. This policy applies to the four requested hero skins, not their separate weapon cosmetics.
