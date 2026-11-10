@@ -603,7 +603,10 @@ public partial class GameZone : Updater
 
     private Vector3 GetSpawnPosition(Vector3 spawnPoint, float spawnRadius)
     {
-        if (spawnRadius < 1) return spawnPoint with { Y = spawnPoint.Y + UnitSpawnYOffset };
+        // Solo timed courses must never gain/lose distance from random spawn scatter.
+        // Keep the authored marker and standard feet clearance on starts, restarts and recalls.
+        if (_zoneData.MatchCard.Data?.Type == MatchType.TimeTrial || spawnRadius < 1)
+            return spawnPoint with { Y = spawnPoint.Y + UnitSpawnYOffset };
 
         var spawnBlocks = (int)float.Floor(spawnRadius);
         var blockedPositions = MapBinary.GetContainedInUnits(
