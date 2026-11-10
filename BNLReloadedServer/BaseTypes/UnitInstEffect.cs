@@ -79,7 +79,9 @@ public partial class Unit
     // and Trondson's regen, each get their part).
     private void AttributeRegen(BuffType buffKey, float healAmount, float enemyDamageCredit)
     {
-        var shares = RegenShares(buffKey);
+        var shares = RegenShares(buffKey)
+            .Select(s => (s.Source, Weight: this.HealthGainAmount(s.Weight, StationHealing.IsStation(s.Source) ? 1 : 0)))
+            .ToList();
         var total = shares.Sum(s => s.Weight);
         if (total <= 0) return;
         foreach (var (source, weight) in shares)
@@ -149,7 +151,12 @@ public partial class Unit
                     break;
 
                 case (BuffType.HealthRegen, _):
-                    var healAmount = AddHealth(value * multiplier, unitUpdate, out var repairCredit);
+                    var regenShares = RegenShares(buffKey);
+                    var totalRegen = regenShares.Sum(s => s.Weight);
+                    var stationShare = totalRegen > 0
+                        ? regenShares.Where(s => StationHealing.IsStation(s.Source)).Sum(s => s.Weight) / totalRegen
+                        : 0;
+                    var healAmount = AddHealth(value * multiplier, unitUpdate, out var repairCredit, stationShare);
                     if (PlayerId is not null && value > 0)
                     {
                         SupplyLineFromRegen(buffKey);
@@ -420,13 +427,13 @@ public partial class Unit
 
     private float AddHealth(float amount, UnitUpdate update) => AddHealth(amount, update, out _);
 
-    private float AddHealth(float amount, UnitUpdate update, out float repairCredit)
+    private float AddHealth(float amount, UnitUpdate update, out float repairCredit, float stationShare = 0)
     {
         repairCredit = 0;
         var currHealth = update.Health ?? _health;
         if (amount <= 0 || UnitCard?.Health?.Health is not { } health || currHealth >= this.UnitMaxHealth(health.MaxHealth)) return 0;
 
-        var newHealth = MathF.Min(currHealth + this.HealthGainAmount(amount), this.UnitMaxHealth(health.MaxHealth));
+        var newHealth = MathF.Min(currHealth + this.HealthGainAmount(amount, stationShare), this.UnitMaxHealth(health.MaxHealth));
         update.Health = newHealth;
         repairCredit = repairDamageCredit.Consume(newHealth - currHealth, Team);
         return newHealth - currHealth;
@@ -434,10 +441,10 @@ public partial class Unit
 
     public float AddHealth(float amount) => AddHealth(amount, out _);
 
-    public float AddHealth(float amount, out float repairCredit)
+    public float AddHealth(float amount, out float repairCredit, EffectSource? source = null)
     {
         var update = new UnitUpdate();
-        var healAmount = AddHealth(amount, update, out repairCredit);
+        var healAmount = AddHealth(amount, update, out repairCredit, StationHealing.IsStation(source) ? 1 : 0);
         if (update.Health != null)
         {
             UpdateData(update);

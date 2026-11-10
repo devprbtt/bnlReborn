@@ -964,17 +964,17 @@ public partial class GameZone
                     // Practice dummies take the hero heal, so a weapon's instant heal can be tested on them.
                     if (unit.PlayerId != null || unit.IsHeroPracticeTarget)
                     {
-                        hpGain = unit.AddHealth(instEffectHeal.PlayerHeal, out repairCredit);
+                        hpGain = unit.AddHealth(instEffectHeal.PlayerHeal, out repairCredit, source);
                         unit.AddForcefield(instEffectHeal.ForcefieldAmount);
                     }
                     else if (unit.UnitCard?.IsObjective ?? false)
                     {
-                        hpGain = unit.AddHealth(instEffectHeal.ObjectiveHeal, out repairCredit);
+                        hpGain = unit.AddHealth(instEffectHeal.ObjectiveHeal, out repairCredit, source);
                         unit.AddForcefield(instEffectHeal.ForcefieldAmount);
                     }
                     else if (unit.IsHealth)
                     {
-                        hpGain = unit.AddHealth(instEffectHeal.WorldHeal, out repairCredit);
+                        hpGain = unit.AddHealth(instEffectHeal.WorldHeal, out repairCredit, source);
                         unit.AddForcefield(instEffectHeal.ForcefieldAmount);
                     }
 
