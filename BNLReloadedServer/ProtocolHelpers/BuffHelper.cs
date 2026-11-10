@@ -64,8 +64,17 @@ public static class BuffHelper
         public float LifeStealAmount(float damage) =>
           damage * Math.Max(0.0f, unit.GetBuff(BuffType.LifeSteal));
 
-        public float HealthGainAmount(float healthGain) =>
-          healthGain * Math.Max(0.0f, 1f + unit.GetBuff(BuffType.HealthGain));
+        public float HealthGainAmount(float healthGain, float stationShare = 0)
+        {
+            var general = 1f + unit.GetBuff(BuffType.HealthGain);
+            if (stationShare <= 0) return healthGain * Math.Max(0, general);
+            var stationBonus = unit.ActiveEffects.Select(e => e.Key).Distinct()
+                .Select(k => k.GetCard<CardEffect>())
+                .Where(c => c?.Id == StationHealing.FastRestockEffect)
+                .Sum(c => (c!.Effect as ConstEffectBuff)?.Buffs?.GetValueOrDefault(BuffType.HealthGain) ?? 0);
+            var share = Math.Clamp(stationShare, 0, 1);
+            return healthGain * ((1 - share) * Math.Max(0, general) + share * Math.Max(0, general + stationBonus));
+        }
 
         public float PlayerDamageAmount(float initialDamage) =>
           initialDamage * Math.Max(0.0f, 1f + unit.GetBuff(BuffType.PlayerDamage));
