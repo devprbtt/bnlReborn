@@ -1298,6 +1298,9 @@ public partial class GameZone
 
     public void ReceivedSelectSpawnPoint(uint playerId, uint? spawnId)
     {
+        // Time Assault always uses the course's default start, including legacy client requests.
+        if (_zoneData.MatchCard.Data?.Type == BaseTypes.MatchType.TimeTrial) return;
+
         if (!_playerIdToUnitId.TryGetValue(playerId, out var playerUnitId) ||
                 !_playerUnits.TryGetValue(playerUnitId, out var player) ||
                 (spawnId is not null && !_zoneData.SpawnPoints.ContainsKey(spawnId.Value)))
