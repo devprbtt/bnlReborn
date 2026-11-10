@@ -79,9 +79,9 @@ public static class PlayerDataSanitizer
             }
 
             if (loadout.Perks == null) continue;
-            var removedPerks = loadout.Perks.Where(p => IsMissing<CardPerk>(p)).ToList();
+            var removedPerks = loadout.Perks.Where(p => RetiredHeroPerks.IsRetired(p) || IsMissing<CardPerk>(p)).ToList();
             if (removedPerks.Count == 0) continue;
-            loadout.Perks.RemoveAll(p => IsMissing<CardPerk>(p));
+            loadout.Perks.RemoveAll(p => RetiredHeroPerks.IsRetired(p) || IsMissing<CardPerk>(p));
             stripped.Add($"perks [{string.Join(' ', removedPerks)}] of loadout {heroKey}");
         }
     }
