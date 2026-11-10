@@ -17,7 +17,7 @@ public static class PlayerInventory
     public static bool RequiresGrant(Card card) => card.Scope == ScopeType.Private;
 
     public static bool Owns(uint playerId, Key item) =>
-        !RetiredCountryCrates.IsRetired(item) && !RetiredHeroSkins.IsRetired(item) && item.GetCard<Card>() is { } card &&
+        !RetiredHeroPerks.IsRetired(item) && !RetiredCountryCrates.IsRetired(item) && !RetiredHeroSkins.IsRetired(item) && item.GetCard<Card>() is { } card &&
         (!RequiresGrant(card) || (Grants.TryGetValue(playerId, out var owned) && owned.Contains(item)));
 
     /// <summary>A skin is wearable when the player owns it and it belongs to that hero. No skin is always allowed.

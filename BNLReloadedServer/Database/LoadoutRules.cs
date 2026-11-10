@@ -21,7 +21,7 @@ public static class LoadoutRules
 
     public static bool CanUsePerk(Key hero, Key perk, uint? playerId = null)
     {
-        if (perk.GetCard<CardPerk>() is not { } card) return false;
+        if (RetiredHeroPerks.IsRetired(perk) || perk.GetCard<CardPerk>() is not { } card) return false;
         if (playerId is { } id && !PlayerInventory.Owns(id, perk)) return false;
         if (card.HeroDependency is { } owner ? owner != hero : card.SlotType == PerkSlotType.Hero) return false;
         return card.SlotType != PerkSlotType.Class ||
