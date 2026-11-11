@@ -54,6 +54,7 @@ public class ServerCatalogue : Catalogue
             foreach (var card in cards)
             {
                 RetiredCountryCrates.Apply(card, cards);
+                DeviceSkinPresentation.Apply(card, cards);
                 RetiredHeroSkins.Apply(card);
                 RetiredPerks.Apply(card);
                 StationHealing.ApplyDescription(card);
@@ -83,6 +84,7 @@ public class ServerCatalogue : Catalogue
             card.Key = Key(card.Id);
             var cards = _db.Values.Where(existing => existing.Id != card.Id).Append(card).ToList();
             RetiredCountryCrates.Apply(card, cards);
+            DeviceSkinPresentation.Apply(card, cards);
             RetiredHeroSkins.Apply(card);
             RetiredPerks.Apply(card);
             StationHealing.ApplyDescription(card);

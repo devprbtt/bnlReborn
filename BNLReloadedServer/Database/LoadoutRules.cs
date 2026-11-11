@@ -12,7 +12,7 @@ public static class LoadoutRules
 {
     public static bool CanUseDevice(Key hero, Key device, uint? playerId = null)
     {
-        if (RetiredCountryCrates.IsRetired(device) || device.GetCard<CardDevice>() == null || Databases.Catalogue.GetCard<CardUnit>(hero)?.Data is not UnitDataPlayer heroData)
+        if (DeviceSkinPresentation.IsRetired(device) || RetiredCountryCrates.IsRetired(device) || device.GetCard<CardDevice>() == null || Databases.Catalogue.GetCard<CardUnit>(hero)?.Data is not UnitDataPlayer heroData)
             return false;
         if (playerId is { } id && !PlayerInventory.Owns(id, device)) return false;
         var bases = (heroData.SpecialDevices ?? []).Concat(heroData.Class.GetCard<CardHeroClass>()?.AvailableDevices ?? []);
@@ -46,7 +46,12 @@ public static class LoadoutRules
         if (devices != null)
         {
             foreach (var (slot, key) in devices.ToList())
-                if (RetiredCountryCrates.IsRetired(key))
+                if (DeviceSkinPresentation.IsRetired(key))
+                {
+                    devices[slot] = DeviceSkinPresentation.StockTesla;
+                    removed.Add(key);
+                }
+                else if (RetiredCountryCrates.IsRetired(key))
                 {
                     devices[slot] = RetiredCountryCrates.Stock;
                     removed.Add(key);
