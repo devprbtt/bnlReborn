@@ -498,7 +498,8 @@ public partial class Unit
 
     private void TakeDamage(float amount, EffectSource? source, UnitUpdate update)
     {
-        if (ConquestDamageBlocked?.Invoke() == true || !IsHealth || IsDead || GetBuff(BuffType.Invulnerability) > 0) return;
+        // Periodic debuff damage must respect the same spawn immunity as direct hits.
+        if (ConquestDamageBlocked?.Invoke() == true || !IsHealth || IsDead || HasSpawnProtection || GetBuff(BuffType.Invulnerability) > 0) return;
 
         var currHealth = update.Health ?? _health;
         var newHealth = Math.Max(0.0f, currHealth - amount);
