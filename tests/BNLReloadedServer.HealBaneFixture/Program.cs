@@ -41,6 +41,12 @@ var bleed = new CardEffect
     Effect = new ConstEffectBuff { Targeting = opponents, Buffs = new() { [BuffType.Bleeding] = 5f } }
 };
 
+var protectedDots = new[] { BuffType.Bleeding, BuffType.Burning, BuffType.Poisoned }.Select(buff => new CardEffect
+{
+    Id = "fixture_spawn_protection_" + buff, Positive = false, Duration = 60,
+    Effect = new ConstEffectBuff { Targeting = opponents, Buffs = new() { [buff] = 5f } }
+}).ToArray();
+
 var gear = new CardGear { Id = "fixture_hb_gear" };
 var device = Catalogue.Key("fixture_hb_turret"); // turrets, devices and abilities stamp their own keys, not gear
 var hero = new CardUnit
@@ -51,7 +57,7 @@ var hero = new CardUnit
 var mode = new CardGameMode { Id = "game_mode_friendly" };
 var catalogue = (ServerCatalogue)Databases.Catalogue;
 catalogue.Replicate([
-    gear, hero, debuff, perk, weakDebuff, weakPerk, bleed, mode, new CardGameMode { Id = "game_mode_custom" },
+    gear, hero, debuff, perk, weakDebuff, weakPerk, bleed, .. protectedDots, mode, new CardGameMode { Id = "game_mode_custom" },
     new CardMatch { Id = "fixture_hb_match", Data = new MatchDataShieldCapture() },
     new CardBlock { Id = "fixture_air", BlockId = 0, Passable = BlockPassableType.Any, Transparent = true, LightTransparent = true, SkylightTransparent = true },
     new CardGlobalLogic { Id = "global_logic" }
@@ -124,6 +130,33 @@ OnZone(() =>
 });
 Check(Baned(other, bleed) && other.HealthPercentage < bleedHealthBefore, "the bleed debuff ticked damage");
 Check(!Baned(other, debuff), "bleed, burn and poison debuff ticks do not apply it");
+// Exercise the real periodic-buff path, including ticks large enough to kill.
+foreach (var dot in protectedDots) OnZone(() =>
+{
+    Reset(other);
+    other.SpawnProtectionTime = DateTimeOffset.Now.AddMinutes(1);
+    other.AddEffect(new ConstEffectInfo(dot.Key), attacker.Team, attacker.GetSelfSource());
+    var health = other.HealthPercentage;
+    other.ApplyBuffEffects(1f);
+    Check(other.HealthPercentage == health, dot.Id + ": ordinary tick cannot damage a protected player");
+    other.ApplyBuffEffects(100f);
+    Check(other.HealthPercentage == health && !other.IsDead && other.HasSpawnProtection,
+        dot.Id + ": lethal tick cannot damage, kill, or break spawn protection");
+    Check(Baned(other, dot) && !Baned(other, debuff), dot.Id + ": tick retains debuff without triggering on-hit effects");
+    other.SpawnProtectionTime = DateTimeOffset.Now.AddSeconds(-1);
+    other.ApplyBuffEffects(1f);
+    Check(Math.Abs(other.HealthPercentage - (health - .05f)) < .001f,
+        dot.Id + ": expiry resumes ordinary damage without accumulating blocked damage");
+    other.SpawnProtectionTime = DateTimeOffset.Now.AddMinutes(1);
+    health = other.HealthPercentage;
+    other.ApplyBuffEffects(1f);
+    Check(other.HealthPercentage == health, dot.Id + ": existing debuff is blocked when protection is granted again");
+    other.SpawnProtectionTime = null; // Same state change used by protection-breaking player actions.
+    other.ApplyBuffEffects(1f);
+    Check(Math.Abs(other.HealthPercentage - (health - .05f)) < .001f, dot.Id + ": breaking protection resumes damage");
+    Reset(other);
+    return 0;
+});
 Hit(other, device);
 Check(!Baned(other, debuff), "ability and device damage does not apply it");
 Reset(ally);
