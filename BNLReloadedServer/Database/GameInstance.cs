@@ -145,8 +145,27 @@ public partial class GameInstance : IGameInstance
         }
         if (!_services.TryGetValue(regionGuid, out var svc) ||
             !svc.TryGetValue(ServiceId.ServiceChat, out var service) || service is not IServiceChat chatService) return;
+        AddToChat(userId, playerTeam, regionGuid, chatService);
+
+        if (isNewConnection && GameInitiator.IsPlayerSpectator(userId))
+        {
+            ChatRooms.BothTeamsRoom.SendServiceMessage(CatalogueStringHelper.OnSpectatorEnterChat, false,
+                new Dictionary<string, string>
+                {
+                    { "{spectator}", Databases.PlayerDatabase.GetPlayerName(userId) }
+                });
+        }
+    }
+
+    private void AddToChat(uint userId, TeamType playerTeam, Guid regionGuid, IServiceChat chatService)
+    {
         ChatRooms.BothTeamsRoom.AddToRoom(regionGuid, chatService);
-        switch (playerTeam)
+        if (GameInitiator.IsPlayerSpectator(userId))
+        {
+            ChatRooms.Team1Room.AddToRoom(regionGuid, chatService);
+            ChatRooms.Team2Room.AddToRoom(regionGuid, chatService);
+        }
+        else switch (playerTeam)
         {
             case TeamType.Team1:
                 ChatRooms.Team1Room.AddToRoom(regionGuid, chatService);
@@ -157,15 +176,6 @@ public partial class GameInstance : IGameInstance
             case TeamType.Neutral:
             default:
                 break;
-        }
-
-        if (isNewConnection && GameInitiator.IsPlayerSpectator(userId))
-        {
-            ChatRooms.BothTeamsRoom.SendServiceMessage(CatalogueStringHelper.OnSpectatorEnterChat, false,
-                new Dictionary<string, string>
-                {
-                    { "{spectator}", Databases.PlayerDatabase.GetPlayerName(userId) }
-                });
         }
     }
 
@@ -213,18 +223,9 @@ public partial class GameInstance : IGameInstance
         if (player == null || !_services.TryGetValue(player.RegionGuid, out var svc) ||
             !svc.TryGetValue(ServiceId.ServiceChat, out var service) || service is not IServiceChat chatService) return;
         ChatRooms.BothTeamsRoom.RemoveFromRoom(player.RegionGuid, chatService);
-        switch (player.Team)
-        {
-            case TeamType.Team1:
-                ChatRooms.Team1Room.RemoveFromRoom(player.RegionGuid, chatService);
-                break;
-            case TeamType.Team2:
-                ChatRooms.Team2Room.RemoveFromRoom(player.RegionGuid, chatService);
-                break;
-            case TeamType.Neutral:
-            default:
-                break;
-        }
+        // Membership may include both teams for a spectator, including custom spectators with a team value.
+        ChatRooms.Team1Room.RemoveFromRoom(player.RegionGuid, chatService);
+        ChatRooms.Team2Room.RemoveFromRoom(player.RegionGuid, chatService);
     }
 
     public void PlayerDisconnected(uint userId) => PlayerDisconnected(userId, null);
@@ -508,14 +509,14 @@ public partial class GameInstance : IGameInstance
     /// <summary>
     /// The match room this player may post to. The room id comes from the client, so a modified client could
     /// name the other team's room or, as a spectator, either team's. Players post to their own team and to
-    /// all chat; spectators only to all chat, and only in custom games (public matches are read-only to them).
+    /// all chat; spectators may read every match room but cannot post.
     /// </summary>
     public ChatRoom? GetChatRoom(uint playerId, RoomId roomId)
     {
         var room = ChatRooms[roomId];
         if (room == null) return null;
         if (GameInitiator.IsPlayerSpectator(playerId))
-            return GameInitiator is CustomGamePlayerGroup && room == ChatRooms.BothTeamsRoom ? room : null;
+            return null; // Spectator chat is read-only in both public and custom matches.
         if (room == ChatRooms.BothTeamsRoom) return room;
         var team = GameInitiator.GetTeamForPlayer(playerId);
         if (team == TeamType.Team1 && room == ChatRooms.Team1Room || team == TeamType.Team2 && room == ChatRooms.Team2Room)
@@ -620,6 +621,7 @@ public partial class GameInstance : IGameInstance
         var zone = new GameZone(new ServiceZone(bufferedSender), new ServiceZone(_zoneSender), bufferedSender, _zoneSender,
             MapData, GameInitiator, _zonePlayerInfo, mapKey);
         zone.AssistLeadSender = AssistLeadConnection;
+        zone.SpectatorResultSender = SendSpectatorResults;
 
         // Publish and drain under one gate: a load request racing construction is either queued
         // before the drain or sees the zone, never neither.
@@ -1028,6 +1030,15 @@ public partial class GameInstance : IGameInstance
             }
             Zone.RecordAimLook(playerId, body);
         });
+
+    private void SendSpectatorResults(EndMatchData result)
+    {
+        foreach (var (id, connection) in _connectedUsers)
+            if (GameInitiator.IsPlayerSpectator(id) &&
+                _services.TryGetValue(connection.Guid, out var services) &&
+                services.GetValueOrDefault(ServiceId.ServiceZone) is IServiceZone zone)
+                zone.SendEndMatchResult(result);
+    }
 
     public static bool ShouldRelayAimLook(uint senderId, uint recipientId, bool recipientIsSpectator,
         bool recipientLoaded, bool recipientSupportsAimLook) =>

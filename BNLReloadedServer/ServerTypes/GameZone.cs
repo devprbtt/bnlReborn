@@ -1795,6 +1795,8 @@ public partial class GameZone : Updater
         };
     }
 
+    public Action<EndMatchData>? SpectatorResultSender { get; set; }
+
     private void EndGame(TeamType winner, MatchEndReason reason)
     {
         // A repeated callback must never award rewards, append history, or add stats again.
@@ -1864,6 +1866,9 @@ public partial class GameZone : Updater
         if (goldAwards != null)
             foreach (var entry in matchStats)
                 if (entry.Stats?.Stats is { } goldStats) MatchGold.Write(goldAwards.GetValueOrDefault(entry.PlayerId), goldStats);
+
+        // Observers receive scores only, with no personal reward or progression payload.
+        SpectatorResultSender?.Invoke(new EndMatchData { MatchSeconds=(float)gameLength.TotalSeconds, PlayersData=matchStats });
 
         // Send match stats
         var zoneDataGameModeCard = _zoneData.GameModeCard;
@@ -2029,7 +2034,7 @@ public partial class GameZone : Updater
             unit.Killed(unit.CreateBlankImpactData());
         }
 
-        if (_instanceId != null) Databases.RegionServerDatabase.ReturnSpectatorsToMenu(_instanceId);
+        // Keep connected spectators on the result screen until they choose to leave.
         _gameInitiator.ClearInstance(_instanceId);
 
         foreach (var player in inactivePlayers)
