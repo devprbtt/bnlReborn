@@ -1396,18 +1396,9 @@ public class MasterServerDatabase : IMasterServerDatabase
         };
     }
 
-    public async Task<List<SearchResult>> GetSearchResults(string pattern)
-    {
-        var records = await _playerDb.Table<PlayerRecord>().Where(x => x.Username.StartsWith(pattern)).ToListAsync() ?? [];
-        return records.Select(rec => new SearchResult
-        {
-            PlayerId = rec.PlayerId,
-            SteamId = rec.SteamId,
-            Nickname = rec.Username
-        }).ToList();
-    }
+    public Task<List<SearchResult>> GetSearchResults(string pattern) => PlayerNameSearch.Read(_playerDb, pattern);
 
-    /// <summary>Exact nickname match ignoring case. GetSearchResults' prefix match is case-sensitive.</summary>
+    /// <summary>Exact nickname match ignoring case; clan invitations reject ambiguous decorated names.</summary>
     public async Task<List<SearchResult>> FindPlayersByName(string name)
     {
         var exact = await _playerDb.QueryAsync<PlayerRecord>("SELECT * FROM Users WHERE username = ? COLLATE NOCASE", name);
