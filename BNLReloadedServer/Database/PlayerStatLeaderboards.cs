@@ -27,7 +27,7 @@ public enum PlayerLeaderboardStat
     PlayerLevel
 }
 
-public sealed record PlayerLeaderboardRow(int Rank, uint PlayerId, string Nickname, double Value, long Matches);
+public sealed record PlayerLeaderboardRow(int Rank, uint PlayerId, string Nickname, double Value, long Matches, string? SteamId = null, double? RatingDeviation = null);
 
 public sealed record PlayerLeaderboard(int Version, string Stat, string Period, long UpdatedAt, int MinMatches,
     long Players, List<PlayerLeaderboardRow> Rows, int Offset = 0)
@@ -125,6 +125,7 @@ public static class PlayerStatLeaderboards
         }
         // Current account names win over the name used in the last archived round.
         var records = db.Table<PlayerRecord>().ToList();
+        var identities = records.ToDictionary(p => p.PlayerId);
         var accounts = records.ToDictionary(p => p.PlayerId, p => p.Username);
         // Casual MMR in display points (the profile's casual_mmr), for accounts on the ladder with enough casual rounds.
         var casualMmr = records
@@ -153,7 +154,11 @@ public static class PlayerStatLeaderboards
                 var name = accounts.TryGetValue(ranked[i].Id, out var username) && !string.IsNullOrWhiteSpace(username)
                     ? username
                     : nicknames.GetValueOrDefault(ranked[i].Id).Name ?? string.Empty;
-                rows.Add(new PlayerLeaderboardRow(rank, ranked[i].Id, name, ranked[i].Value!.Value, ranked[i].Matches));
+                identities.TryGetValue(ranked[i].Id, out var identity);
+                double? deviation = stat==PlayerLeaderboardStat.CasualMmr && identity is not null && double.IsFinite(identity.RatingDeviation) && identity.RatingDeviation>=0
+                    ? identity.RatingDeviation : null;
+                rows.Add(new PlayerLeaderboardRow(rank, ranked[i].Id, name, ranked[i].Value!.Value, ranked[i].Matches,
+                    identity is {SteamId: > 0} ? identity.SteamId.ToString(System.Globalization.CultureInfo.InvariantCulture) : null, deviation));
             }
             boards[stat] = new PlayerLeaderboard(1, StatNames.First(p => p.Value == stat).Key, recentOnly && stat!=PlayerLeaderboardStat.PlayerLevel ? "30d" : "all", nowMs,
                 MinMatches(stat), ranked.Count, rows);
