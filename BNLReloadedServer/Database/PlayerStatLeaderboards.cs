@@ -1,4 +1,5 @@
 using SQLite;
+using BNLReloadedServer.BaseTypes;
 
 namespace BNLReloadedServer.Database;
 
@@ -21,7 +22,9 @@ public enum PlayerLeaderboardStat
     FantasticKills,
     UnbelievableKills,
     BestStreak,
-    CasualMmr
+    CasualMmr,
+    ScorePerMinute,
+    PlayerLevel
 }
 
 public sealed record PlayerLeaderboardRow(int Rank, uint PlayerId, string Nickname, double Value, long Matches);
@@ -37,12 +40,14 @@ public sealed record PlayerLeaderboard(int Version, string Stat, string Period, 
 /// <summary>
 /// Player stat leaderboards over the match archive. Rounds use the profile eligibility rule
 /// (<see cref="LifetimeProfileStats.Eligible"/>), restricted to ranked and casual so private custom games cannot be
-/// farmed. Every board needs <see cref="MinMatchesPlayed"/> counted rounds, so a handful of lucky matches cannot top
+/// farmed. Match-stat boards need <see cref="MinMatchesPlayed"/> counted rounds, so a handful of lucky matches cannot top
 /// it. Count stats (kills, headshots, assists, objective damage, kill-chain accolades) rank the average per match;
 /// average DPS, win rate and KDR are already rates; hours, matches and best streak stay totals or the record.
 /// Accolade averages divide by, and require, rounds recorded after accolade tracking began. Hours are the time
 /// actually played in counted rounds. Casual MMR ranks the account's casual rating among players with that many
 /// counted casual rounds.
+/// Score per minute uses archived total score divided by played minutes. Player level reads current account
+/// progression, needs no matches and is always all-time.
 /// </summary>
 public static class PlayerStatLeaderboards
 {
@@ -73,7 +78,9 @@ public static class PlayerStatLeaderboards
         ["fantastic_kills"] = PlayerLeaderboardStat.FantasticKills,
         ["unbelievable_kills"] = PlayerLeaderboardStat.UnbelievableKills,
         ["best_streak"] = PlayerLeaderboardStat.BestStreak,
-        ["casual_mmr"] = PlayerLeaderboardStat.CasualMmr
+        ["casual_mmr"] = PlayerLeaderboardStat.CasualMmr,
+        ["score_per_minute"] = PlayerLeaderboardStat.ScorePerMinute,
+        ["player_level"] = PlayerLeaderboardStat.PlayerLevel
     };
 
     /// <param name="recentOnly">Last <see cref="RecentDays"/> days by match end, otherwise the whole archive.</param>
@@ -82,7 +89,7 @@ public static class PlayerStatLeaderboards
     public static PlayerLeaderboard Read(SQLiteConnection db, PlayerLeaderboardStat stat, bool recentOnly, long nowMs,
         IReadOnlyCollection<long> modeKeys, long? casualModeKey = null, int limit = Limit)
     {
-        return ReadAll(db, recentOnly, nowMs, modeKeys, onlyStat: stat, casualModeKey: casualModeKey, limit: limit)[stat];
+        return ReadAll(db, recentOnly && stat != PlayerLeaderboardStat.PlayerLevel, nowMs, modeKeys, onlyStat: stat, casualModeKey: casualModeKey, limit: limit)[stat];
     }
 
     // Aggregate the archive once for the complete trophy reconciliation. Include every tied leader beyond top 100.
@@ -98,6 +105,7 @@ public static class PlayerStatLeaderboards
             .Where(p => matches.ContainsKey(p.MatchId))
             .GroupBy(p => (p.MatchId, p.PlayerId)).ToDictionary(g => g.Key, g => g.ToList());
         var totals = new Dictionary<uint, LifetimeCombatTotals>();
+        var scores = new Dictionary<uint, (double Score, double Seconds, long Matches)>();
         var casualRounds = new Dictionary<uint, long>();
         var nicknames = new Dictionary<uint, (long At, string Name)>();
         foreach (var player in db.Table<ArchivedMatchPlayerRecord>().ToList())
@@ -108,6 +116,10 @@ public static class PlayerStatLeaderboards
             var id = (uint)player.PlayerId;
             if (!totals.TryGetValue(id, out var total)) totals[id] = total = new LifetimeCombatTotals();
             round.AddTo(total);
+            if(player.TotalScore >= 0) {
+                var score=scores.GetValueOrDefault(id);
+                scores[id]=(score.Score+player.TotalScore,score.Seconds+round.Seconds,score.Matches+1);
+            }
             if (match.GameModeKey == casualModeKey) casualRounds[id] = casualRounds.GetValueOrDefault(id) + 1;
             if (!nicknames.TryGetValue(id, out var known) || match.EndedAt > known.At) nicknames[id] = (match.EndedAt, player.Nickname);
         }
@@ -122,11 +134,16 @@ public static class PlayerStatLeaderboards
         var boards = new Dictionary<PlayerLeaderboardStat, PlayerLeaderboard>();
         foreach (var stat in StatNames.Values.Where(s => onlyStat == null || s == onlyStat))
         {
-            var ranked = (stat == PlayerLeaderboardStat.CasualMmr
-                    ? casualMmr.Select(pair => (Id: pair.Key, Value: (double?)pair.Value.Value, Matches: pair.Value.Matches))
-                    : totals.Select(pair => (Id: pair.Key, Value: Value(stat, pair.Value), Matches: pair.Value.Matches)))
+            var values = stat switch {
+                PlayerLeaderboardStat.CasualMmr => casualMmr.Select(pair => (Id: pair.Key, Value: (double?)pair.Value.Value, Matches: pair.Value.Matches)),
+                PlayerLeaderboardStat.ScorePerMinute => scores.Select(pair => (Id: pair.Key,
+                    Value: pair.Value.Matches>=MinMatchesPlayed && pair.Value.Seconds>0 ? (double?)Math.Round(pair.Value.Score*60d/pair.Value.Seconds,2) : null, Matches: pair.Value.Matches)),
+                PlayerLeaderboardStat.PlayerLevel => records.Select(p => (Id:p.PlayerId,Value:(double?)AccountLevel(p.Progression),Matches:totals.GetValueOrDefault(p.PlayerId)?.Matches??0)),
+                _ => totals.Select(pair => (Id: pair.Key, Value: Value(stat, pair.Value), Matches: pair.Value.Matches))
+            };
+            var ranked = values
                 .Where(r => r.Value is > 0)
-                .OrderByDescending(r => r.Value).ThenBy(r => r.Matches).ThenBy(r => r.Id)
+                .OrderByDescending(r => r.Value).ThenBy(r => stat==PlayerLeaderboardStat.PlayerLevel?0:r.Matches).ThenBy(r => r.Id)
                 .ToList();
             var rows = new List<PlayerLeaderboardRow>();
             for (int i = 0; i < ranked.Count && (rows.Count < limit || (includeAllLeaders && ranked[i].Value == ranked[0].Value)); i++)
@@ -138,13 +155,21 @@ public static class PlayerStatLeaderboards
                     : nicknames.GetValueOrDefault(ranked[i].Id).Name ?? string.Empty;
                 rows.Add(new PlayerLeaderboardRow(rank, ranked[i].Id, name, ranked[i].Value!.Value, ranked[i].Matches));
             }
-            boards[stat] = new PlayerLeaderboard(1, StatNames.First(p => p.Value == stat).Key, recentOnly ? "30d" : "all", nowMs,
+            boards[stat] = new PlayerLeaderboard(1, StatNames.First(p => p.Value == stat).Key, recentOnly && stat!=PlayerLeaderboardStat.PlayerLevel ? "30d" : "all", nowMs,
                 MinMatches(stat), ranked.Count, rows);
         }
         return boards;
     }
 
-    public static int MinMatches(PlayerLeaderboardStat stat) => MinMatchesPlayed;
+    public static int MinMatches(PlayerLeaderboardStat stat) => stat==PlayerLeaderboardStat.PlayerLevel?0:MinMatchesPlayed;
+
+    private static int? AccountLevel(byte[] progression) {
+        if(progression is not {Length:>0})return null;
+        try {
+            var level=PlayerProgression.ReadByteRecord(progression).PlayerProgress?.Level;
+            return level is >0?level:null;
+        } catch(Exception e) when(e is IOException or ArgumentException or OverflowException or IndexOutOfRangeException) {return null;}
+    }
 
     /// <summary>True for boards that rank the average per counted match rather than a total, rate or record.</summary>
     public static bool IsPerMatchAverage(PlayerLeaderboardStat stat) => stat is PlayerLeaderboardStat.Kills
@@ -170,7 +195,7 @@ public static class PlayerStatLeaderboards
             PlayerLeaderboardStat.WinRate => Math.Round(100d * t.Wins / t.Matches, 1),
             // Kills per death; a deathless record divides by one.
             PlayerLeaderboardStat.Kdr => Math.Round((double)t.Kills / Math.Max(t.Deaths, 1), 2),
-            PlayerLeaderboardStat.CasualMmr => null, // ranked from the account rating in ReadAll
+            PlayerLeaderboardStat.CasualMmr or PlayerLeaderboardStat.ScorePerMinute or PlayerLeaderboardStat.PlayerLevel => null, // ranked from archive scores/account data in ReadAll
             PlayerLeaderboardStat.BestStreak => t.AccoladeMatches > 0 ? t.BestStreak : null,
             // Kill-chain accolades average over the rounds tracked since accolades began, and need as many of those.
             _ when t.AccoladeMatches < MinMatchesPlayed => null,
