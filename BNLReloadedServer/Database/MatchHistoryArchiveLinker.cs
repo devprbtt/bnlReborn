@@ -6,6 +6,11 @@ namespace BNLReloadedServer.Database;
 
 public static class MatchHistoryArchiveLinker
 {
+    public static Task<List<ArchivedMatchRecord>> GetPageAsync(SQLiteAsyncConnection db,uint playerId,int limit,long? before) =>
+        db.QueryAsync<ArchivedMatchRecord>(
+            "SELECT m.* FROM Matches m WHERE (? IS NULL OR m.ended_at_ms < ?) AND EXISTS (SELECT 1 FROM MatchPlayers p WHERE p.match_id=m.id AND p.player_id=?) ORDER BY m.ended_at_ms DESC, m.id DESC LIMIT ?",
+            before,before,playerId,Math.Clamp(limit,1,100));
+
     // Old profile summaries used the delayed result-screen timestamp and an instance
     // ID instead of a round ID. Repair the response identity, never stats or ratings.
     public static string? FindId(MatchHistoryRecord history, IEnumerable<ArchivedMatchRecord> candidates)

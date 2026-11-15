@@ -37,6 +37,20 @@ try
     // Verify repaired identity survives the same profile-history wire format the client reads.
     var roundtrip=PlayerData.ReadMatchByteRecord(PlayerData.WriteMatchByteRecord([row]))[0];
     Check(Encoding.UTF8.GetString(roundtrip.MatchId!)==archive.Id&&roundtrip.Kill==7,"stable ID survives profile serialization");
+    for(int n=0;n<25;n++) {
+        var id="older-"+n;
+        await db.InsertAsync(new ArchivedMatchRecord{Id=id,StartedAt=1000+n,EndedAt=2000+n});
+        await db.InsertAsync(new ArchivedMatchPlayerRecord{MatchId=id,PlayerId=21});
+    }
+    var page=await MatchHistoryArchiveLinker.GetPageAsync(db,21,12,null);
+    Check(page.Count==12,"global archive history extends beyond ten matches");
+    var next=await MatchHistoryArchiveLinker.GetPageAsync(db,21,12,page[^1].EndedAt);
+    Check(next.Count==12&&!next.Any(m=>page.Any(p=>p.Id==m.Id)),"older-page cursor does not repeat records");
+    Check((await MatchHistoryArchiveLinker.GetPageAsync(db,999,100,null)).Count==0,"player history excludes other participants");
+    Check((await MatchHistoryArchiveLinker.GetPageAsync(db,21,0,null)).Count==1,"history page size has a nonzero lower bound");
+    Check(new BNLReloadedServer.ServerTypes.PublicQueuePlayer(21,"Test",1,"Casual",false,0).HasMmr,"real zero MMR remains available");
+    Check(!new BNLReloadedServer.ServerTypes.PublicQueuePlayer(21,"Test",1,"Casual").HasMmr,"missing rating remains unavailable");
+
 }
 finally{await db.CloseAsync();File.Delete(path);}
 Console.WriteLine($"MATCH_HISTORY_FIXTURE_OK checks={checks}");
