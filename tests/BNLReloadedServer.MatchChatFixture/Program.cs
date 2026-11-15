@@ -83,6 +83,21 @@ var result=new EndMatchData {PlayersData=[new EndMatchPlayerData {PlayerId=1,Sta
 typeof(GameInstance).GetMethod("SendSpectatorResults",Any)!.Invoke(match,[result]);
 Check(receivers[9].Results.Single()==result,"spectator receives complete result rows");
 Check(receivers[1].Results.Count==0&&receivers[2].Results.Count==0,"spectator result does not replace player reward packets");
+// A spectator loading after EndGame must receive the retained results.
+var zone = (GameZone)RuntimeHelpers.GetUninitializedObject(typeof(GameZone));
+var state = (ZoneData)RuntimeHelpers.GetUninitializedObject(typeof(ZoneData));
+typeof(GameZone).GetField("_zoneData",Any)!.SetValue(zone,state);
+var lateService=DispatchProxy.Create<IServiceZone,Roles>(); var late=(Roles)(object)lateService;
+var resend=typeof(GameZone).GetMethod("SendObserverResults",Any)!;
+resend.Invoke(zone,[lateService]);
+Check(late.Results.Count==0 && late.Ends.Count==0,"running match does not synthesize an end");
+state.MatchEnded=true; state.Winner=TeamType.Team2;
+resend.Invoke(zone,[lateService]);
+Check(late.Ends.Single()==TeamType.Team2 && late.Results.Count==0,"loading during reward delay receives winner without fake rows");
+typeof(GameZone).GetField("_spectatorResults",Any)!.SetValue(zone,result);
+resend.Invoke(zone,[lateService]);
+Check(late.Results.Single()==result,"late observer receives retained authoritative rows");
+Check(late.Ends.Count==2,"late observer receives end signal after roster snapshot");
 Console.WriteLine($"MATCH_CHAT checks={checks} failures={failures}");
 return failures == 0 ? 0 : 1;
 
@@ -92,9 +107,11 @@ public class Roles : DispatchProxy
     public HashSet<uint> Spectators = [];
     public List<RoomIdTeam> AddedRooms = [];
     public List<EndMatchData> Results = [];
+    public List<TeamType> Ends = [];
     protected override object? Invoke(MethodInfo? method, object?[]? args)
     {
         if (method is null) return null;
+        if(method.Name=="SendEndMatch") Ends.Add((TeamType)args![0]!);
         if(method.Name=="SendEndMatchResult") Results.Add((EndMatchData)args![0]!);
         if(method.Name=="SendRoomAdd") AddedRooms.Add((RoomIdTeam)args![0]!);
         if (method.Name == "GetTeamForPlayer") return Teams.GetValueOrDefault((uint)args![0]!, TeamType.Neutral);

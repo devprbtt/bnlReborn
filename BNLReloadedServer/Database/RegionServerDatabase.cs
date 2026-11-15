@@ -481,10 +481,9 @@ public partial class RegionServerDatabase(AsyncTaskTcpServer server, AsyncTaskTc
     public Scene GetLastScene(uint userId)
     {
         if (!UserConnected(userId, out var playerInfo)) return new SceneMainMenu();
-        if (playerInfo.GameInstanceId is { } instanceId &&
-            _gameInstances.TryGetValue(instanceId, out var instance) &&
-            instance.IsOver() && instance.IsPlayerSpectator(userId))
-            instance.PlayerLeftInstance(userId, KickReason.MatchQuit);
+        // An admitted spectator may reconnect while viewing results or finish
+        // loading after match end. Keep that seat; the zone resends final state.
+        // New admissions to ended matches remain rejected by the spectate path.
         return playerInfo.GameInstanceId != null ? playerInfo.ActiveScene ?? new SceneMainMenu() : new SceneMainMenu();
     }
 
