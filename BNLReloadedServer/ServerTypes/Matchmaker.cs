@@ -104,6 +104,14 @@ public class Matchmaker(AsyncTaskTcpServer server)
             .FirstOrDefault(card => card?.PlayersPerTeam == playersPerTeam)?.Key ?? mode.Key;
     }
 
+    // Reconcile a menu return after the original queue-complete update was missed.
+    // A real queue/pop must retain its authoritative state.
+    public void RefreshIdleState(uint playerId, IServiceMatchmaker service)
+    {
+        if (!IsQueued(playerId)) service.SendMatchmakerUpdate(new MatchmakerUpdate {
+            State=new MatchmakerState {State=MatchmakerStateType.None}});
+    }
+
     public bool IsQueued(uint playerId) => _queues.Values.Any(q => q.Players.Any(p => p.PlayerId == playerId));
 
     public int TotalQueuedPlayers() => _queues.Values.SelectMany(q => q.Players).Select(p => p.PlayerId).Distinct().Count();

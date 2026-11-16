@@ -343,6 +343,18 @@ public sealed class ControlPanelServer : IDisposable
                 return;
             }
 
+            if (method == "GET" && path.StartsWith("/api/replays/", StringComparison.Ordinal))
+            {
+                if (!ulong.TryParse(path["/api/replays/".Length..], out var replayId) ||
+                    !ReplayStore.TryResolve(replayId, out _, out var matchId))
+                {
+                    ctx.Response.StatusCode = 404;
+                    await WriteJson(ctx, new {error="Replay unavailable or expired"});
+                }
+                else await ServeMatchDetail(ctx, matchId);
+                return;
+            }
+
             if (method == "GET" && path.StartsWith("/api/matches/"))
             {
                 await ServeMatchDetail(ctx, Uri.UnescapeDataString(path["/api/matches/".Length..]));
@@ -943,6 +955,7 @@ public sealed class ControlPanelServer : IDisposable
          IsPublicTrophyRead(path) ||
          path == "/api/matches" ||
          path.StartsWith("/api/matches/", StringComparison.Ordinal) ||
+         path.StartsWith("/api/replays/", StringComparison.Ordinal) ||
          path == "/api/maps" ||
          (path.StartsWith("/api/maps/", StringComparison.Ordinal) && path.EndsWith("/download", StringComparison.Ordinal)) ||
          path.StartsWith("/api/cards/", StringComparison.Ordinal));
