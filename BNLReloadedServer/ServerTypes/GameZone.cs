@@ -1135,6 +1135,16 @@ public partial class GameZone : Updater
                 SpawnPoints = _zoneData.SpawnPoints.Values.ToList()
             });
         }
+        SendObserverResults(zoneService);
+    }
+
+    // A viewer can finish loading after the one-time end/result broadcast.
+    // Re-send display-only state after the initial roster; never award rewards.
+    private void SendObserverResults(IServiceZone zoneService)
+    {
+        if (!HasEnded) return;
+        zoneService.SendEndMatch(_zoneData.Winner);
+        if (_spectatorResults is { } result) zoneService.SendEndMatchResult(result);
     }
 
     private void JoinedInProgressAsParticipant(uint playerId, PlayerLobbyState lobbyInfo, IServiceZone zoneService)
@@ -1796,6 +1806,7 @@ public partial class GameZone : Updater
     }
 
     public Action<EndMatchData>? SpectatorResultSender { get; set; }
+    private EndMatchData? _spectatorResults;
 
     private void EndGame(TeamType winner, MatchEndReason reason)
     {
@@ -1868,7 +1879,8 @@ public partial class GameZone : Updater
                 if (entry.Stats?.Stats is { } goldStats) MatchGold.Write(goldAwards.GetValueOrDefault(entry.PlayerId), goldStats);
 
         // Observers receive scores only, with no personal reward or progression payload.
-        SpectatorResultSender?.Invoke(new EndMatchData { MatchSeconds=(float)gameLength.TotalSeconds, PlayersData=matchStats });
+        _spectatorResults = new EndMatchData { MatchSeconds=(float)gameLength.TotalSeconds, PlayersData=matchStats };
+        SpectatorResultSender?.Invoke(_spectatorResults);
 
         // Send match stats
         var zoneDataGameModeCard = _zoneData.GameModeCard;

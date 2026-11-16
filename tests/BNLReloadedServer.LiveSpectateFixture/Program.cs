@@ -41,6 +41,10 @@ Check((string?)connectionType.GetProperty("GameInstanceId")!.GetValue(connection
 Check(db.CheckSpectateCustomGame(1, liveId, "") == CustomGameSpectateResult.TooManySpectators, "live capacity check is preserved");
 recorder.Ended = true;
 Check(db.CheckSpectateCustomGame(1, liveId, "") == CustomGameSpectateResult.NoSuchGame && !db.SpectateCustomGame(1, liveId), "ended match cannot be entered");
+var resultScene = new SceneZone();
+connectionType.GetProperty("ActiveScene")!.SetValue(connection,resultScene);
+Check(ReferenceEquals(db.GetLastScene(1),resultScene),"admitted spectator reconnects to ended match results");
+Check(recorder.Leaves==0,"result reconnect never kicks the admitted spectator");
 recorder.Ended = false; recorder.Started = false;
 Check(db.CheckSpectateCustomGame(1, liveId, "") == CustomGameSpectateResult.NoSuchGame, "unstarted match cannot be entered");
 recorder.Started = true;
@@ -52,10 +56,13 @@ Console.WriteLine("LIVE_SPECTATE_FIXTURE_OK checks=" + checks);
 
 public class LiveInstance : DispatchProxy {
     public bool Started = true, Ended;
+    public int Leaves;
     public readonly List<uint> Sent = [];
     protected override object? Invoke(MethodInfo? method, object?[]? args) {
         if (method!.Name == "get_IsStarted") return Started;
         if (method.Name == "IsOver") return Ended;
+        if (method.Name == "IsPlayerSpectator") return true;
+        if (method.Name == "PlayerLeftInstance") Leaves++;
         if (method.Name == "SendUserToZone") Sent.Add((uint)args![0]!);
         return null;
     }
