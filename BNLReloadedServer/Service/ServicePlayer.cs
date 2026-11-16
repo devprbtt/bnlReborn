@@ -609,7 +609,8 @@ public class ServicePlayer(ISender sender, IServiceScene serviceScene, IServiceT
 
     private void ReceiveStartTutorial(BinaryReader reader)
     {
-
+        if (sender.AssociatedPlayerId is { } id && !_serverDatabase.StartTutorialGame(id))
+            SendNotification(new NotificationZeus {Text="Practice Grounds is unavailable while in a match or squad. Please leave first and try again."});
     }
 
     private void ReceiveRefuseChallenge(BinaryReader reader)

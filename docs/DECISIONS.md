@@ -81,3 +81,8 @@ Retire country crates through the authoritative catalogue/ownership/loadout rule
 ## 2026-11-09 — Retire hero skins without resetting loadouts
 
 For explicitly retired hero skins, preserve historical identities and grants but exclude ownership, hero selection and shop offers. Resolve equipped skins through SafeSkin and repair only SkinKey at login; avoid the generic invalid-skin path deleting a complete loadout. This policy applies to the four requested hero skins, not their separate weapon cosmetics.
+
+
+## 2026-11-15 - Tutorial terrain, map build timing and replay sharing
+
+Practice Grounds uses the existing authenticated StartTutorial wire message and native tutorial map/mode, loading terrain through MapDatabase rather than using CardMap.Data as a complete map. Replay sharing resolves an unsigned 64-bit replay ID to already-public archived match metadata; gameplay admission still uses the existing replay spectate checks and retained replay lifetime. Reconcile stale idle state when returning to the menu only if the player is absent from authoritative queues. Apply approved 3/4/6-minute initial build timing to matchmade objective maps based on their loaded objective counts; preserve host-selected custom timing and later build rounds. These changes are prepared for a later combined deployment.

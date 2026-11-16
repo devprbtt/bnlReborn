@@ -49,6 +49,7 @@ public interface IRegionServerDatabase
     public CustomGameUpdate? GetFullCustomGameUpdate(uint playerId);
     public bool StartCustomGame(uint playerId, string? signedMap);
     public bool StartMapEditorGame(uint playerId, MapData map, Key heroKey, TeamType team);
+    public bool StartTutorialGame(uint playerId);
     public bool StartTimeTrialGame(uint playerId);
     public bool StartTimeTrialCourse(uint playerId, Key map, IServiceMatchmaker service) => false;
     public bool RestartTimeTrialGame(uint playerId);

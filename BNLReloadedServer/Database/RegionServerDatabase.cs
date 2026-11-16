@@ -496,6 +496,8 @@ public partial class RegionServerDatabase(AsyncTaskTcpServer server, AsyncTaskTc
         switch (scene.Type)
         {
             case SceneType.MainMenu:
+                if (GetService<IServiceMatchmaker>(player.Guid, ServiceId.ServiceMatchmaker, out var queueService))
+                    _matchmaker.RefreshIdleState(userId, queueService);
                 // A client that has just reached the menu, after logging back in or leaving a
                 // match, may have missed the squad state pushed while it was still loading.
                 if (player.SquadId is { } squadId && _squads.TryGetValue(squadId, out var squad))
@@ -992,6 +994,26 @@ public partial class RegionServerDatabase(AsyncTaskTcpServer server, AsyncTaskTc
         gameInstance.StartMatch([Databases.PlayerDatabase.GetDummyPlayerLobbyInfo(playerId, heroKey, team)]);
         LiveStateChanged();
         return true;
+    }
+
+    public bool StartTutorialGame(uint playerId)
+    {
+        if (!UserConnected(playerId, out var info) || info.GameInstanceId != null || info.SquadId != null) return false;
+        var card = CatalogueHelper.MapList.Tutorial.GetCard<CardMap>();
+        var map = Databases.MapDatabase.LoadMapData(CatalogueHelper.MapList.Tutorial);
+        var mode = CatalogueHelper.ModeTutorial;
+        if (card?.Data == null || map?.BlocksData is not { Length: > 0 } || mode?.MatchMode.GetCard<CardMatch>()?.Data is not MatchDataTutorial) return false;
+        if (!GetService<IServiceMatchmaker>(info.Guid, ServiceId.ServiceMatchmaker, out var service)) return false;
+        LeaveQueue(playerId, service);
+        var initiator = new DummyGameInitiator(mode, map, TeamType.Team1, false);
+        var game = new GameInstance(matchServer, server, Guid.NewGuid().ToString(), initiator);
+        initiator.GameInstanceId = game.GameInstanceId;
+        game.SetMap(new MapInfoCard {MapKey=card.Key}, map);
+        game.SetMatchKey(initiator.MatchCard.Key);
+        if (!_gameInstances.TryAdd(game.GameInstanceId, game)) return false;
+        info.GameInstanceId = game.GameInstanceId;
+        game.StartMatch([Databases.PlayerDatabase.GetDummyPlayerLobbyInfo(playerId, Catalogue.Key("unit_hero_sarge_stone"), TeamType.Team1)]);
+        LiveStateChanged(); return true;
     }
 
     public bool StartTimeTrialGame(uint playerId)

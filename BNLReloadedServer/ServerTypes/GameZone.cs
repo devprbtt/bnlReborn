@@ -888,6 +888,11 @@ public partial class GameZone : Updater
                             .ToUnixTimeMilliseconds(),
                         _ => null
                     };
+                    if (_gameInitiator is MatchmakerInitiator && _zoneData.MatchCard.Data is MatchDataShieldCapture or MatchDataShieldRush2)
+                    {
+                        var seconds = MapBuildPhasePolicy.Seconds(Math.Max(_initialCubeCounts[(int)TeamType.Team1], _initialCubeCounts[(int)TeamType.Team2]));
+                        if (seconds.HasValue) endTime = startTime.AddSeconds(seconds.Value).ToUnixTimeMilliseconds();
+                    }
                     break;
                 }
             case ZonePhaseType.Build:
