@@ -467,13 +467,19 @@ public partial class GameZone : Updater
     }
 
     // Map units are controlled by everyone in the match
+    private readonly Dictionary<uint,string> _tutorialTokens=new();
+    private int _tutorialTokenTotal;
     private void CreateMapUnits()
     {
+        _tutorialTokens.Clear();
         foreach (var unit in _zoneData.MapData.Units)
         {
             var unitId = NewUnitId();
             CatalogueFactory.CreateUnit(unitId, unit, _defaultUnitUpdater);
+            if(_zoneData.MatchCard.Data?.Type==MatchType.Tutorial&&!_gameInitiator.IsMapEditor()&&unit.UnitKey.GetCard<CardUnit>()?.Labels?.Contains(UnitLabel.TutorialCheckpoint)==true)
+                _tutorialTokens[unitId]=TutorialTokenProgress.TokenId(CatalogueHelper.MapList.Tutorial,unit);
         }
+        _tutorialTokenTotal=_tutorialTokens.Count;
     }
 
     private Unit? CreateUnit(CardUnit unit, ZoneTransform transform, Unit? builder = null,
@@ -565,6 +571,10 @@ public partial class GameZone : Updater
             Unit.ScoreCardFamily(lootCard.Id ?? "", "unit_dummy_djinn_acid_cloud_lamp");
         var pickup = CatalogueFactory.CreateUnit(NewUnitId(), loot.LootUnitKey, transform,
             lampGas ? origin!.Team : team, lampGas ? origin : null, _defaultUnitUpdater);
+        // A destroyed tutorial target drops its token. Carry the authored target identity
+        // onto that pickup; the spawned unit ID and its falling position are not stable.
+        if(origin!=null&&pickup?.PickupUnitData!=null&&lootCard.Labels?.Contains(UnitLabel.TutorialCheckpoint)==true&&_tutorialTokens.TryGetValue(origin.Id,out var tutorialToken))
+            _tutorialTokens[pickup.Id]=tutorialToken;
         if (pickup != null && origin?.Key == new Key("unit_device_djinn_lamp") && lootCard.Data is UnitDataPickup)
             pickup.ScoreLampOwner = origin.OwnerPlayerId;
     }

@@ -1294,6 +1294,9 @@ public partial class GameZone
 
         _serviceZone.SendPickupTaken(playerId, pickup.Key);
         pickup.PickupTaken(player);
+        if(_tutorialTokens.TryGetValue(pickupId,out var token))
+            Databases.MasterServerDatabase.RecordTutorialToken(playerId,token,_tutorialTokenTotal)
+                .ObserveFailure(LogCat.Player,$"Failed to save practice token for player {playerId}");
     }
 
     public void ReceivedSelectSpawnPoint(uint playerId, uint? spawnId)

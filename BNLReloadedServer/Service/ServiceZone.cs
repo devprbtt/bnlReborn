@@ -381,7 +381,10 @@ public partial class ServiceZone(ISender sender, Func<System.Net.IPAddress?>? pe
 
     private void ReceiveFinishTutorial(BinaryReader reader)
     {
-
+        if(!sender.AssociatedPlayerId.HasValue)return;
+        var game=GameInstance;
+        if(game?.GetGameMode().GetCard<CardGameMode>()?.MatchMode.GetCard<CardMatch>()?.Data is not MatchDataTutorial)return;
+        ReceiveExitMatch(reader);
     }
 
     public void SendKickPlayer(uint playerId, KickReason reason)

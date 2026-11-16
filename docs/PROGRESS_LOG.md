@@ -220,3 +220,10 @@ Added authenticated Practice Grounds start using the full terrain map from MapDa
 Integrated leaderboard score-per-minute/account levels and avatar/rating metadata, partial case-insensitive player search, GUI archive/queue/presence support, late spectator results and reconnects, Practice Grounds terrain/start, idle-queue reconciliation, 3/4/6-minute initial objective build timing and shared replay lookup. Release branch descends from live 11e7db5150f1; all five feature merges are preserved.
 
 Warning-as-error Release build and linux-x64 publish passed. TeamFeatures, Auth, Accounting, PlayerLeaderboard, PlayerSearch, MatchHistory, PublicQueueRules, MatchChat, LiveSpectate, NineTopics and ReplayRecorder fixtures passed; transitive dependency audit reported no vulnerable packages. Deployment is authorized by the owner and tracked with client beta.96 release evidence.
+
+
+## 2026-11-16 — GUI ISSUES 3.0 practice collection fix
+
+Accepted tutorial pickups now persist one account/map/authored-unit identity, refresh the cached total and notify the client. The 12 target-dropped pickups inherit their targets' identities; the 23 loose pickups plus those 12 targets cap progress at 35. Duplicate collection cannot inflate progress. FinishTutorial now exits only an authenticated tutorial session through the normal exit path.
+
+Release build with warnings treated as errors passed (zero warnings/errors); TutorialTokenFixture 12 checks and NineTopicsFixture 11 checks pass. Actual authenticated local PTR integration reached 35/35 through pickup messages and returned to the menu. Local SQLite has 35 distinct records. The fixture used the existing admin debug command to destroy targets; the local account's prior role was restored. No production database or service was modified. Further reproduction and limits: docs/PRACTICE-TOKENS.md.

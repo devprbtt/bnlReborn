@@ -394,6 +394,12 @@ public partial class RegionServerDatabase(AsyncTaskTcpServer server, AsyncTaskTc
         }
     }
 
+    public void NotifyTutorialTokens(uint playerId,int tokens)
+    {
+        if(UserConnected(playerId,out var playerInfo)&&GetService<IServicePlayer>(playerInfo.Guid,ServiceId.ServicePlayer,out var servicePlayer))
+            servicePlayer.SendPlayerUpdate(new PlayerUpdate{TutorialTokens=tokens});
+    }
+
     public void NotifyInventory(uint playerId, List<InventoryItem> inventory)
     {
         if (UserConnected(playerId, out var playerInfo) &&

@@ -86,3 +86,8 @@ For explicitly retired hero skins, preserve historical identities and grants but
 ## 2026-11-15 - Tutorial terrain, map build timing and replay sharing
 
 Practice Grounds uses the existing authenticated StartTutorial wire message and native tutorial map/mode, loading terrain through MapDatabase rather than using CardMap.Data as a complete map. Replay sharing resolves an unsigned 64-bit replay ID to already-public archived match metadata; gameplay admission still uses the existing replay spectate checks and retained replay lifetime. Reconcile stale idle state when returning to the menu only if the player is absent from authoritative queues. Apply approved 3/4/6-minute initial build timing to matchmade objective maps based on their loaded objective counts; preserve host-selected custom timing and later build rounds. These changes are prepared for a later combined deployment.
+
+
+## 2026-11-16 — Stable identities for practice collectibles
+
+Persist tutorial collection in an additive SQLite table keyed by player plus authored map/unit/position, rather than runtime unit IDs. Propagate the authored target identity to its dropped token and keep the initial authored checkpoint total as the cap. Serialize database/cache/notification updates with the master database lock and update only the tutorial_tokens column. Retain existing saved totals and the existing PlayerUpdate protocol. Completion uses the established exit path only for authenticated tutorial sessions.

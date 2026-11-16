@@ -29,6 +29,7 @@ public class MasterServerDatabase : IMasterServerDatabase
     {
         _playerDb = new SQLiteAsyncConnection(Databases.PlayerDatabaseFile);
         _playerDb.CreateTableAsync<PlayerRecord>().Wait();
+        _playerDb.CreateTableAsync<TutorialTokenCollection>().Wait();
         _playerDb.CreateTableAsync<PlayerIpRecord>().Wait();
         _playerDb.CreateTableAsync<PlayerPresenceRecord>().Wait();
         _playerDb.CreateTableAsync<ArchivedMatchRecord>().Wait();
@@ -645,6 +646,19 @@ public class MasterServerDatabase : IMasterServerDatabase
         LifetimeProfileStats result = null!;
         await _playerDb.RunInTransactionAsync(db => result = LifetimeProfileStats.Read(db, playerId));
         return result;
+    }
+
+    public async Task RecordTutorialToken(uint playerId,string token,int total)
+    {
+        await _asyncLock.WaitAsync();
+        try {
+        int count=0;
+        await _playerDb.RunInTransactionAsync(db=>count=TutorialTokenProgress.Record(db,playerId,token,total));
+        var cached=Databases.PlayerDatabase.GetPlayerDataNoWait(playerId);
+        count=Math.Max(count,cached?.TutorialTokens??0);
+        Databases.PlayerDatabase.UpdatePlayer(playerId,new PlayerUpdate{TutorialTokens=count});
+        Databases.RegionServerDatabase.NotifyTutorialTokens(playerId,count);
+        } finally { _asyncLock.Release(); }
     }
 
     public async Task<CasualHeroBanSummary> GetCasualHeroBans(long since) =>

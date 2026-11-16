@@ -35,6 +35,7 @@ public interface IMasterServerDatabase
     public Task<ArchivedMatchDetail?> GetCompletedMatch(string matchId);
     public Task<ReputationView?> GetReputation(uint playerId);
     public Task<LifetimeProfileStats> GetLifetimeProfileStats(uint playerId);
+    public Task RecordTutorialToken(uint playerId,string token,int total);
     public Task<CasualHeroBanSummary> GetCasualHeroBans(long since);
     public Task<PlayerLeaderboard> GetPlayerLeaderboard(PlayerLeaderboardStat stat, bool recentOnly, int offset = 0, int limit = PlayerStatLeaderboards.Limit);
     public Task<T> WithTrophies<T>(Func<SQLite.SQLiteConnection, T> action);
