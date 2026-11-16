@@ -30,6 +30,7 @@ public interface IMasterServerDatabase
     public Task<bool> SetLoadoutForPlayer(uint playerId, Key hero, LobbyLoadout loadout);
     public Task<bool> SetNewMatchDataForPlayer(EndMatchResults endMatchResults);
     public Task StoreCompletedMatch(CompletedMatchRecord match);
+    public Task<List<ArchivedMatchRecord>> GetPlayerCompletedMatches(uint playerId,int limit,long? before);
     public Task<List<ArchivedMatchRecord>> GetCompletedMatches(int limit, long? before);
     public Task<ArchivedMatchDetail?> GetCompletedMatch(string matchId);
     public Task<ReputationView?> GetReputation(uint playerId);

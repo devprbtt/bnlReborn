@@ -681,6 +681,11 @@ public class MasterServerDatabase : IMasterServerDatabase
         return result;
     }
 
+    public Task<List<ArchivedMatchRecord>> GetPlayerCompletedMatches(uint playerId,int limit,long? before)
+    {
+        return MatchHistoryArchiveLinker.GetPageAsync(_playerDb,playerId,limit,before);
+    }
+
     public async Task<List<ArchivedMatchRecord>> GetCompletedMatches(int limit, long? before)
     {
         var query = _playerDb.Table<ArchivedMatchRecord>();

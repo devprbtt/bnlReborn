@@ -500,7 +500,8 @@ public sealed class ControlPanelServer : IDisposable
     {
         var limit = int.TryParse(ctx.Request.QueryString["limit"], out var requested) ? requested : 50;
         long? before = long.TryParse(ctx.Request.QueryString["before"], out var cursor) ? cursor : null;
-        var matches = await Databases.MasterServerDatabase.GetCompletedMatches(limit, before);
+        uint? playerId = uint.TryParse(ctx.Request.QueryString["player_id"],out var requestedPlayer) ? requestedPlayer : null;
+        var matches = playerId.HasValue ? await Databases.MasterServerDatabase.GetPlayerCompletedMatches(playerId.Value,limit,before) : await Databases.MasterServerDatabase.GetCompletedMatches(limit, before);
         await WriteJson(ctx, new
         {
             items = matches.Select(match => new
@@ -1152,6 +1153,17 @@ public sealed class ControlPanelServer : IDisposable
         try
         {
             var snapshot = GetHomeSnapshot();
+            if(ctx.Request.QueryString["presence"] is { } ids) {
+                var parts=ids.Split(',');
+                if(parts.Length>50 || parts.Any(part=>!uint.TryParse(part,out var id)||id==0)) {
+                    ctx.Response.StatusCode=400;await WriteJson(ctx,new{error="Expected 1 to 50 player IDs"});return;
+                }
+                var online=snapshot.Players.ToDictionary(p=>p.Id,p=>p.Activity);
+                await WriteJson(ctx,new{presence=parts.Select(uint.Parse).Distinct().Select(id=>new{
+                    id,activity=online.GetValueOrDefault(id,"offline"),
+                    last_online=Databases.PlayerDatabase.GetPresence(id).LastOnline?.ToUnixTimeMilliseconds()
+                })});return;
+            }
             await WriteJson(ctx, snapshot);
         }
         catch (Exception)
