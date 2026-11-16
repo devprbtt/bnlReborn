@@ -4,7 +4,7 @@ using BNLReloadedServer.Database;
 using BNLReloadedServer.ProtocolHelpers;
 using SQLite;
 
-public static class PlayerLeaderboardTests
+public static partial class PlayerLeaderboardTests
 {
     const long Ranked = 11, Casual = 22, Custom = 33, Day = 86_400_000L, Now = 100 * Day;
     const int Min = PlayerStatLeaderboards.MinMatchesPlayed;
@@ -34,14 +34,15 @@ public static class PlayerLeaderboardTests
     // One 100-second round for one player.
     static void Round(SQLiteConnection db, uint player, string nickname, long mode, long endedAt, int kills, int assists = 0, int objective = 0,
         float headshots = 0, float damage = 0, Dictionary<KillAccolade, int>? accolades = null, int streak = 0, bool twoHeroes = false,
-        int deaths = 0, bool winner = true)
+        int deaths = 0, bool winner = true, int score = 0, int seconds = 100)
     {
         var id = "r" + round++;
-        db.Insert(new ArchivedMatchRecord { Id = id, GameModeKey = mode, StartedAt = endedAt - 100_000, EndedAt = endedAt, Winner = 1 });
-        db.Insert(new ArchivedMatchPlayerRecord { MatchId = id, PlayerId = player, Nickname = nickname, IsWinner = winner, Stats = Stats(kills, assists, objective, deaths),
+        long duration=seconds*1000L;
+        db.Insert(new ArchivedMatchRecord { Id = id, GameModeKey = mode, StartedAt = endedAt - duration, EndedAt = endedAt, Winner = 1 });
+        db.Insert(new ArchivedMatchPlayerRecord { MatchId = id, PlayerId = player, Nickname = nickname, IsWinner = winner, TotalScore = score, Stats = Stats(kills, assists, objective, deaths),
             RawStats = Raw(headshots, damage), Accolades = ArchivedAccolades.Write(accolades, streak) });
-        db.Insert(new ArchivedMatchPresenceRecord { MatchId = id, PlayerId = player, HeroKey = 5, Sequence = 0, JoinedAt = endedAt - 100_000, LeftAt = endedAt - 50_000 });
-        db.Insert(new ArchivedMatchPresenceRecord { MatchId = id, PlayerId = player, HeroKey = twoHeroes ? 6 : 5, Sequence = 1, JoinedAt = endedAt - 50_000, LeftAt = endedAt });
+        db.Insert(new ArchivedMatchPresenceRecord { MatchId = id, PlayerId = player, HeroKey = 5, Sequence = 0, JoinedAt = endedAt - duration, LeftAt = endedAt - duration/2 });
+        db.Insert(new ArchivedMatchPresenceRecord { MatchId = id, PlayerId = player, HeroKey = twoHeroes ? 6 : 5, Sequence = 1, JoinedAt = endedAt - duration/2, LeftAt = endedAt });
     }
 
     // Many identical rounds in one transaction.
@@ -144,6 +145,7 @@ public static class PlayerLeaderboardTests
         }
         finally { SQLiteAsyncConnection.ResetPool(); try { File.Delete(path); } catch (IOException) { } }
         Careers();
+        ScoresAndLevels();
         TiedLeaders();
     }
 
@@ -155,7 +157,7 @@ public static class PlayerLeaderboardTests
         var all = PlayerStatLeaderboards.ReadAll(db, false, Now, Modes, includeAllLeaders: true, casualModeKey: Casual);
         Check(all[PlayerLeaderboardStat.Kills].Rows.Count == 102 && all[PlayerLeaderboardStat.Kills].Rows.All(r => r.Rank == 1), "trophy snapshot includes tied all-time leaders beyond top 100 and older than 30 days");
         Check(Board(db, PlayerLeaderboardStat.Kills).Rows.Count == 100 && Board(db, PlayerLeaderboardStat.Kills, true).Rows.Count == 0, "public top 100 and 30-day filters stay unchanged");
-        Check(all.Count == 17 && all.Values.All(b => b.Rows.All(r => r.PlayerId != 500)), "complete snapshot retains the 20-match threshold on every board");
+        Check(all.Count == Enum.GetValues<PlayerLeaderboardStat>().Length && all.Values.All(b => b.Rows.All(r => r.PlayerId != 500)), "complete snapshot contains every stat and excludes short match records");
     }
 
     // Hours, matches, win rate and KDR, on their own archive so the totals are exact.

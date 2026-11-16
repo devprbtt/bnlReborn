@@ -1,1 +1,2 @@
 PlayerLeaderboardTests.Run();
+PlayerLeaderboardTests.AvatarAndConfidence();
