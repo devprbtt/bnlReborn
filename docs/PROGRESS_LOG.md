@@ -213,3 +213,10 @@ Combined reputation (286012c), 13 country crate retirement (8346a62) and four he
 ## 2026-11-15 - Nine Discord topic server fixes prepared
 
 Added authenticated Practice Grounds start using the full terrain map from MapDatabase (catalogue map summaries omit BlocksData), native tutorial mode and Sarge loadout; rejects unavailable maps and occupied/squad sessions before leaving queues. Actual signed Unity local PTR test reached a spawned tutorial player after clicking the native Practice Grounds button. Reconcile idle matchmaker state on main-menu return without clearing a real queue/pop. Initial matchmade ShieldCapture/ShieldRush2 build phases now use actual map objective counts: 180/240/360 seconds for 1/2/3 cubes as approved; custom timing, intermediate build rounds and other modes retain their existing rules. Added read-only replay-ID metadata resolution through the existing public match archive. Eleven focused server checks, 48 replay recorder assertions and 11 live spectating checks pass; Release warnings-as-errors build passed. No production deployment. Client/review evidence lives in the private Unity repository docs/DISCORD-NINE-TOPICS-REPAIR.md.
+
+
+## 2026-11-16 — Beta.96 integrated server release
+
+Integrated leaderboard score-per-minute/account levels and avatar/rating metadata, partial case-insensitive player search, GUI archive/queue/presence support, late spectator results and reconnects, Practice Grounds terrain/start, idle-queue reconciliation, 3/4/6-minute initial objective build timing and shared replay lookup. Release branch descends from live 11e7db5150f1; all five feature merges are preserved.
+
+Warning-as-error Release build and linux-x64 publish passed. TeamFeatures, Auth, Accounting, PlayerLeaderboard, PlayerSearch, MatchHistory, PublicQueueRules, MatchChat, LiveSpectate, NineTopics and ReplayRecorder fixtures passed; transitive dependency audit reported no vulnerable packages. Deployment is authorized by the owner and tracked with client beta.96 release evidence.
