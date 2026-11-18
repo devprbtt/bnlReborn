@@ -229,3 +229,8 @@ Warning-as-error Release build and linux-x64 publish passed. TeamFeatures, Auth,
 - Added a guarded, idempotent one-time description migration with offline candidate mode, read-only online default, revision-checked writes, private backup and readback. No live CDB writes or deployment performed.
 - Validation: HealingPerkSources 128 checks; HealAttribution 22; BrainsRecovery 24; HealBane 36; GenieStationHealing 29; KillerAmmo ordering suite; three Python migration tests. Release warnings-as-errors build passed, zero warnings/errors. No live client/match test.
 - Details and rollout steps: docs/FAST_RESTOCK_STATIONS.md. Prepared on production base bf49715; no client/feed publication.
+
+
+## 2026-11-18 — Experimental admin gravity tool, flight and health
+
+Implemented capability-15 admin funny mode for every match and both teams, server-owned holding/charge, normal client launch physics, swept terrain checks, and lifecycle/role/lease cleanup. Added flight support via the companion client and exact 2000 health while enabled, restoring normal buff limits on exit. Release build and AdminFunny 45 checks, TeleportPlacement, DashMiss 330794 checks and Auth 4 assertions passed. Client builds/checks are tracked in the client repository. Not deployed. Details: docs/ADMIN_FUNNY_MODE.md.

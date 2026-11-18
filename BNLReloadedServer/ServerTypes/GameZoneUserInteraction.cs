@@ -28,6 +28,7 @@ public partial class GameZone
             return;
         }
 
+        if (unit.AdminFunnyHeld) return;
         unit.LastMoveTime = DateTimeOffset.Now;
         unit.WasAfkWarned = false;
         if ((MapBinary.ContainsBlock((Vector3s)transform.Position) &&
@@ -40,7 +41,7 @@ public partial class GameZone
     public void ReceivedBuildRequest(ushort rpcId, uint playerId, BuildInfo buildInfo, IServiceZone builderService)
     {
         if (!_playerIdToUnitId.TryGetValue(playerId, out var playerUnitId) ||
-            !_playerUnits.TryGetValue(playerUnitId, out var player) ||
+            !_playerUnits.TryGetValue(playerUnitId, out var player) || player.AdminFunnyHeld ||
             !player.Devices.Values.Select(d => d.DeviceKey).Contains(buildInfo.DeviceKey) ||
             _gameInitiator is WaitingArenaInitiator arena &&
             (arena.IsInSpawnNoBuildZone(buildInfo.BuildInsidePosition) ||
@@ -452,7 +453,7 @@ public partial class GameZone
     public void ReceivedCreateChannelRequest(ushort rpcId, uint playerId, ChannelData channelData, IServiceZone channelService)
     {
         if (!_playerIdToUnitId.TryGetValue(playerId, out var playerUnitId) ||
-            !_playerUnits.TryGetValue(playerUnitId, out var player) || player.IsDead)
+            !_playerUnits.TryGetValue(playerUnitId, out var player) || player.IsDead || player.AdminFunnyHeld)
         {
             channelService.SendStartChannel(rpcId, false);
             return;
@@ -585,7 +586,7 @@ public partial class GameZone
     public void ReceivedToolChargeStartRequest(uint playerId, byte toolIndex)
     {
         if (!_playerIdToUnitId.TryGetValue(playerId, out var playerUnitId) ||
-            !_playerUnits.TryGetValue(playerUnitId, out var player))
+            !_playerUnits.TryGetValue(playerUnitId, out var player) || player.AdminFunnyHeld)
         {
             return;
         }
@@ -601,7 +602,7 @@ public partial class GameZone
     public void ReceivedToolChargeEndRequest(ushort rpcId, uint playerId, byte toolIndex, IServiceZone chargeService)
     {
         if (!_playerIdToUnitId.TryGetValue(playerId, out var playerUnitId) ||
-            !_playerUnits.TryGetValue(playerUnitId, out var player))
+            !_playerUnits.TryGetValue(playerUnitId, out var player) || player.AdminFunnyHeld)
         {
             _unbufferedZone.SendToolEndChargeFail(rpcId, "not a player");
             return;
@@ -718,7 +719,7 @@ public partial class GameZone
     public void ReceivedDashHitRequest(uint playerId, byte toolIndex, HitData hitData)
     {
         if (!_playerIdToUnitId.TryGetValue(playerId, out var playerUnitId) ||
-            !_playerUnits.TryGetValue(playerUnitId, out var player))
+            !_playerUnits.TryGetValue(playerUnitId, out var player) || player.AdminFunnyHeld)
         {
             return;
         }
@@ -749,7 +750,7 @@ public partial class GameZone
     public void ReceivedGroundSlamCastRequest(uint playerId, byte toolIndex)
     {
         if (!_playerIdToUnitId.TryGetValue(playerId, out var playerUnitId) ||
-            !_playerUnits.TryGetValue(playerUnitId, out var player)
+            !_playerUnits.TryGetValue(playerUnitId, out var player) || player.AdminFunnyHeld
             || player.IsDead)
         {
             return;
@@ -787,7 +788,7 @@ public partial class GameZone
     public void ReceivedGroundSlamHitRequest(uint playerId, byte toolIndex, HitData hitData)
     {
         if (!_playerIdToUnitId.TryGetValue(playerId, out var playerUnitId) ||
-            !_playerUnits.TryGetValue(playerUnitId, out var player) || player.IsDead ||
+            !_playerUnits.TryGetValue(playerUnitId, out var player) || player.AdminFunnyHeld || player.IsDead ||
             !_groundSlamEntitlements.TryConsume(playerId, playerUnitId, toolIndex))
         {
             return;
@@ -832,7 +833,7 @@ public partial class GameZone
             return;
         }
 
-        if (ValidateAbility(player) && !player.IsBuff(BuffType.Disabled))
+        if (ValidateAbility(player) && !player.AdminFunnyHeld && !player.IsBuff(BuffType.Disabled))
         {
             if (player.IsRecall)
             {
@@ -1249,7 +1250,7 @@ public partial class GameZone
 
     public void ReceivedFall(uint playerId, uint unitId, float height, bool force)
     {
-        if (!_units.TryGetValue(unitId, out var unit))
+        if (!_units.TryGetValue(unitId, out var unit) || unit.AdminFunnyMode || unit.AdminFunnyHeld)
         {
             return;
         }
@@ -1738,6 +1739,9 @@ public partial class GameZone
 
         switch (command)
         {
+            case "admin_funny":
+                ReceivedAdminFunny(player, args);
+                break;
             case "spawn_test_dummy" when TryParseDummyHealth(args, out var dummyHealth):
                 SpawnDebugDummy(player, dummyHealth);
                 break;

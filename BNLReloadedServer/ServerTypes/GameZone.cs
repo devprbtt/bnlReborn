@@ -2380,6 +2380,7 @@ public partial class GameZone : Updater
                 Log.Info(LogCat.Perf, $"First tick started: {DiagnosticName}, units={_units.Count}");
             TickConquest(SecondsPerTick, tickNumber % TicksForBuffCheck == 0);
             RefreshRallySpawns();
+            TickAdminFunny();
             var doBuffCheck = tickNumber % TicksForBuffCheck == 0;
             var doDmgCaptureCheck = tickNumber % TicksForDmgCaptureCheck == 0;
             var doBlockCheck = tickNumber == 0;

@@ -123,7 +123,8 @@ public partial class ServiceZone(ISender sender, Func<System.Net.IPAddress?>? pe
         MessageAssistLead = 109,
         MessageReplayControl = 110,
         MessageFarmPing = 112,
-        MessageTimeAssaultReady = 114
+        MessageTimeAssaultReady = 114,
+        MessageReceiveAdminFunny = 115
     }
 
     private IRegionServerDatabase ServerDatabase => Databases.RegionServerDatabase;
@@ -134,7 +135,8 @@ public partial class ServiceZone(ISender sender, Func<System.Net.IPAddress?>? pe
     // 6: high-rate look stream with aim state, relayed to spectators.
     // 7: Skill II (Accomplice) players are told which enemy heroes they currently lead on damage.
     // 12 is the client's in-place replay rewind (replay rewinds rebuild state in the loaded scene); 13 adds clan emblems.
-    private const int TeamPingProtocolVersion = 14;
+    private const int TeamPingProtocolVersion = 15;
+    public bool SupportsAdminFunnyMode { get; private set; }
     public bool SupportsTimeAssaultReady { get; private set; }
     private bool _supportsReplayControls;
     private bool _supportsReplaySeekAck;
@@ -181,6 +183,7 @@ public partial class ServiceZone(ISender sender, Func<System.Net.IPAddress?>? pe
             if (magic == TeamPingCapabilityMagic && version >= TeamPingMinimumProtocolVersion)
             {
                 SupportsTeamPing = true;
+                SupportsAdminFunnyMode = version >= 15;
                 SupportsTimeAssaultReady = version >= 14;
                 SupportsFarmPing = version >= 9;
                 SupportsHeroEmote = version >= 2;
@@ -1383,6 +1386,9 @@ public partial class ServiceZone(ISender sender, Func<System.Net.IPAddress?>? pe
 
         switch (zoneEnum)
         {
+            case ServiceZoneId.MessageReceiveAdminFunny:
+                ReceiveAdminFunny(reader);
+                break;
             case ServiceZoneId.MessageZoneReady:
                 ReceiveZoneReady(reader);
                 break;

@@ -245,7 +245,18 @@ public partial class Unit
         }
     }
 
-    public bool IsBuff(BuffType buff) => _buffs.ContainsKey(buff);
+    public bool AdminFunnyHeld;
+    public bool AdminFunnyMode { get; private set; }
+    public void SetAdminFunnyMode(bool enabled)
+    {
+        AdminFunnyMode = enabled;
+        var buffs = ExtractBuffs(ActiveEffects.Select(info => info.Key).Distinct());
+        var baseHealth = UnitCard?.Health?.Health?.MaxHealth ?? 1;
+        var maxHealth = baseHealth * Math.Max(0, 1 + buffs.GetValueOrDefault(BuffType.HealthCap));
+        UpdateData(new UnitUpdate { Buffs = buffs, Health = IsDead ? null : enabled ? 2000 : Math.Min(_health,maxHealth) });
+    }
+
+    public bool IsBuff(BuffType buff) => (AdminFunnyHeld && buff is BuffType.Root or BuffType.Disarm) || _buffs.ContainsKey(buff);
 
     public float GetBuff(BuffType buff, float def = 0) => _buffs.GetValueOrDefault(buff, def);
 
@@ -1480,6 +1491,8 @@ public partial class Unit
         }
 
         if (_debugDummyMaxHealth is { } dummyHealth) buffResult[BuffType.HealthCap] = dummyHealth - 1;
+        if (AdminFunnyMode && UnitCard?.Health?.Health is {} health)
+            buffResult[BuffType.HealthCap] = 2000f / health.MaxHealth - 1;
         return buffResult;
     }
 

@@ -91,3 +91,8 @@ Practice Grounds uses the existing authenticated StartTutorial wire message and 
 ## 2026-11-18 — Keep Fast Restock descriptions in CDB and scope both gains to stations
 
 Fast Restock uses the existing effect health_gain/ammo_gain tuning only for station-origin restoration. Exclude both entries from global aggregation; split mixed regeneration by origin and use effective contributions for attribution. Keep existing station identity rules (supply labels/minimap types and station medkits), the wire protocol and brick-income effect. Remove runtime description/translation mutation; correct known old wording once through an explicit CDB migration so subsequent administrator edits remain authoritative. Deployment and production CDB writes are separate from preparing and pushing this fix.
+
+
+## 2026-11-18 — Experimental admin funny-mode authority
+
+Use negotiated zone capability 15 (115 request, 116 state), independently authorize each request and recheck after world queuing. Keep hold placement, charge timing, max health and lifecycle on the server; use the player's existing CharacterController/force physics for flight and the issued throw impulse. Enable per living admin per match, never persist. Require upgraded targets and suppress extension packets to older clients. Rebuild ordinary health buffs on exit, preserving effect ownership. Do not register a substitute character model until the later model work. See docs/ADMIN_FUNNY_MODE.md.

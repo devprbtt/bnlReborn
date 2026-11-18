@@ -169,6 +169,10 @@ public class ServiceDebug(ISender sender) : IServiceDebug
 
         switch (cmd)
         {
+            case "admin_funny":
+                if (args.Count == 6) GameInstance?.DebugZoneCommand(sender.AssociatedPlayerId.Value, cmd, args.ToArray());
+                SendExecuteArgs(rpcId, "success");
+                break;
             case "spawn_test_dummy":
                 if (!BNLReloadedServer.ServerTypes.GameZone.TryParseDummyHealth(args, out _) || GameInstance == null)
                 {
