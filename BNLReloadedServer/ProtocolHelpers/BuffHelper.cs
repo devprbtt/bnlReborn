@@ -57,23 +57,26 @@ public static class BuffHelper
         public float UnitMaxForcefield(float baseMaxForcefield) =>
           baseMaxForcefield * Math.Max(0.0f, 1f + unit.GetBuff(BuffType.ForcefieldCap));
 
-        public float AmmoGainAmount(float ammoGain) =>
-          ammoGain * Math.Max(0.0f, 1f + unit.GetBuff(BuffType.AmmoGain));
+        public float AmmoGainAmount(float ammoGain, float stationShare = 0) =>
+            unit.SourceGainAmount(ammoGain, BuffType.AmmoGain, stationShare);
 
         /// <summary>Health returned to this unit for dealing <paramref name="damage"/> to an enemy player.</summary>
         public float LifeStealAmount(float damage) =>
           damage * Math.Max(0.0f, unit.GetBuff(BuffType.LifeSteal));
 
-        public float HealthGainAmount(float healthGain, float stationShare = 0)
+        public float HealthGainAmount(float healthGain, float stationShare = 0) =>
+            unit.SourceGainAmount(healthGain, BuffType.HealthGain, stationShare);
+
+        private float SourceGainAmount(float amount, BuffType buff, float stationShare)
         {
-            var general = 1f + unit.GetBuff(BuffType.HealthGain);
-            if (stationShare <= 0) return healthGain * Math.Max(0, general);
-            var stationBonus = unit.ActiveEffects.Select(e => e.Key).Distinct()
+            var general = 1f + unit.GetBuff(buff);
+            if (stationShare <= 0) return amount * Math.Max(0, general);
+            var stationBonus = unit.ActiveEffects.Where(e => !e.IsExpired).Select(e => e.Key).Distinct()
                 .Select(k => k.GetCard<CardEffect>())
                 .Where(c => c?.Id == StationHealing.FastRestockEffect)
-                .Sum(c => (c!.Effect as ConstEffectBuff)?.Buffs?.GetValueOrDefault(BuffType.HealthGain) ?? 0);
+                .Sum(c => (c!.Effect as ConstEffectBuff)?.Buffs?.GetValueOrDefault(buff) ?? 0);
             var share = Math.Clamp(stationShare, 0, 1);
-            return healthGain * ((1 - share) * Math.Max(0, general) + share * Math.Max(0, general + stationBonus));
+            return amount * ((1 - share) * Math.Max(0, general) + share * Math.Max(0, general + stationBonus));
         }
 
         public float PlayerDamageAmount(float initialDamage) =>

@@ -57,7 +57,6 @@ public class ServerCatalogue : Catalogue
                 DeviceSkinPresentation.Apply(card, cards);
                 RetiredHeroSkins.Apply(card);
                 RetiredPerks.Apply(card);
-                StationHealing.ApplyDescription(card);
                 StaticMapWeather.Apply(card);
                 if (card is CardPerk perk) ClassPerkCatalogue.Validate(perk);
                 if (card is CardGlobalLogic global) global.ActionScores?.Validate();
@@ -87,7 +86,6 @@ public class ServerCatalogue : Catalogue
             DeviceSkinPresentation.Apply(card, cards);
             RetiredHeroSkins.Apply(card);
             RetiredPerks.Apply(card);
-            StationHealing.ApplyDescription(card);
             ValidateIncrementalChange(cards);
 
             var tempDict = new Dictionary<Key, Card>(_db, KeyEqualityComparer.Instance)

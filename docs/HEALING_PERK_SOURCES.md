@@ -1,5 +1,8 @@
 # Healing perk sources (2026-11-09; NOT DEPLOYED)
 
+Superseded for Fast Restock ammo scope and description handling by
+[FAST_RESTOCK_STATIONS.md](FAST_RESTOCK_STATIONS.md), prepared 2026-11-18.
+
 Player-facing notes:
 - Fast Restock's healing bonus now applies only to health/ammo stations, including health-station medkits.
 - Health Scavenger boosts healing from every source, including stations, hero tools/abilities, pickups, regeneration, mining, supplies and source-less recovery.

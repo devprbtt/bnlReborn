@@ -86,3 +86,8 @@ For explicitly retired hero skins, preserve historical identities and grants but
 ## 2026-11-15 - Tutorial terrain, map build timing and replay sharing
 
 Practice Grounds uses the existing authenticated StartTutorial wire message and native tutorial map/mode, loading terrain through MapDatabase rather than using CardMap.Data as a complete map. Replay sharing resolves an unsigned 64-bit replay ID to already-public archived match metadata; gameplay admission still uses the existing replay spectate checks and retained replay lifetime. Reconcile stale idle state when returning to the menu only if the player is absent from authoritative queues. Apply approved 3/4/6-minute initial build timing to matchmade objective maps based on their loaded objective counts; preserve host-selected custom timing and later build rounds. These changes are prepared for a later combined deployment.
+
+
+## 2026-11-18 — Keep Fast Restock descriptions in CDB and scope both gains to stations
+
+Fast Restock uses the existing effect health_gain/ammo_gain tuning only for station-origin restoration. Exclude both entries from global aggregation; split mixed regeneration by origin and use effective contributions for attribution. Keep existing station identity rules (supply labels/minimap types and station medkits), the wire protocol and brick-income effect. Remove runtime description/translation mutation; correct known old wording once through an explicit CDB migration so subsequent administrator edits remain authoritative. Deployment and production CDB writes are separate from preparing and pushing this fix.

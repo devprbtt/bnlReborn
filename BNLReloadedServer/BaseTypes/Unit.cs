@@ -1465,8 +1465,9 @@ public partial class Unit
             if (card?.Effect is not ConstEffectBuff { Buffs: not null } effectBuff) continue;
             foreach (var buff in effectBuff.Buffs)
             {
-                // Fast Restock healing is evaluated with its source, not as a global gain buff.
-                if (card.Id == StationHealing.FastRestockEffect && buff.Key == BuffType.HealthGain) continue;
+                // Fast Restock gains are evaluated with their source, not as global gain buffs.
+                if (card.Id == StationHealing.FastRestockEffect &&
+                    buff.Key is BuffType.HealthGain or BuffType.AmmoGain) continue;
                 if (buffResult.TryGetValue(buff.Key, out var value))
                 {
                     buffResult[buff.Key] = this.CombineBuffs(value, buff.Value, buff.Key, card.Key);

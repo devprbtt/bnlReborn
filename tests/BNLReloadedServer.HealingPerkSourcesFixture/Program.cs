@@ -17,7 +17,9 @@ const BindingFlags Any = BindingFlags.Instance | BindingFlags.NonPublic | Bindin
 int checks = 0;
 void Check(bool pass, string name) { if (!pass) throw new Exception("FAIL " + name); checks++; Console.WriteLine("PASS " + name); }
 
-var gear = new CardGear { Id = "fixture_ha_gear" };
+var gear = new CardGear { Id = "fixture_ha_gear",
+    Ammo = [new AmmoData { MagSize = 10, Pool = new AmmoPool { PoolSize = 100, BaseRegen = 1 } }],
+    Tools = [new ToolShot { Ammo = new ToolAmmo { AmmoIndex = 0, Rate = 1 } }] };
 var hero = new CardUnit
 {
     Id = "fixture_ha_hero", Data = new UnitDataPlayer(), Size = new Vector3s(1, 2, 1), PivotType = UnitPivotType.CenterBottom,
@@ -37,9 +39,13 @@ CardEffect Regen(string id, float rate) => new()
 };
 var stationRegen = Regen("fixture_ha_station_regen", 10f);
 var staffRegen = Regen("fixture_ha_staff_regen", 5f);
+var stationAmmo = new CardEffect { Id = "fixture_station_ammo", Positive = true,
+    Effect = new ConstEffectBuff { Buffs = new() { [BuffType.AmmoRegen] = 10 } } };
+var heroAmmo = new CardEffect { Id = "fixture_hero_ammo", Positive = true,
+    Effect = new ConstEffectBuff { Buffs = new() { [BuffType.AmmoRegen] = 5 } } };
 var mode = new CardGameMode { Id = "game_mode_friendly" };
 ((ServerCatalogue)Databases.Catalogue).Replicate([
-    gear, hero, orb, sprayImpact, stationRegen, staffRegen, mode, new CardGameMode { Id = "game_mode_custom" },
+    gear, hero, orb, sprayImpact, stationRegen, staffRegen, stationAmmo, heroAmmo, mode, new CardGameMode { Id = "game_mode_custom" },
     new CardMatch { Id = "fixture_ha_match", Data = new MatchDataShieldCapture() },
     new CardBlock { Id = "fixture_air", BlockId = 0, Passable = BlockPassableType.Any, Transparent = true, LightTransparent = true, SkylightTransparent = true },
     new CardGlobalLogic { Id = "global_logic" }
@@ -132,7 +138,7 @@ foreach (var (fast, scavenger) in new[] { (false,false), (true,false), (false,tr
     OnZone(() => {
         Reset(fast, scavenger);
         Check(Near(teammate.GetBuff(BuffType.HealthGain), scavenger ? .37f : 0), "global gain excludes Fast Restock");
-        Check(Near(teammate.GetBuff(BuffType.AmmoGain), fast ? .15f : 0), "ammo bonus retained");
+        Check(Near(teammate.GetBuff(BuffType.AmmoGain), 0), "global gain excludes Fast Restock ammo");
         Check(Near(teammate.GetBuff(BuffType.ResourceBonus), fast ? -.15f : 0), "brick penalty retained");
         Check(Near(teammate.UnitMaxHealth(100), scavenger ? 90 : 100), "Scavenger health penalty retained");
         Check(Near(teammate.AddHealth(10), 10 * (scavenger ? 1.37f : 1)), "source-less recovery/lifesteal common path");
@@ -169,6 +175,55 @@ foreach (var (fast, scavenger) in new[] { (false,false), (true,false), (false,tr
         return true;
     });
 }
+float AmmoPool() => teammate.Gears.Single().Ammo.Single().Pool;
+void ResetAmmo(bool fast)
+{
+    Reset(fast, false);
+    teammate.UpdateData(new UnitUpdate { Ammo = new() { [gear.Key] = [new Ammo { Index = 0, Mag = 0, Pool = 20 }] } });
+}
+foreach (var fast in new[] { false, true })
+    OnZone(() => {
+        foreach (var (name, source, isStation) in sources)
+        {
+            ResetAmmo(fast);
+            teammate.AddAmmo(10, source);
+            Check(Near(AmmoPool(), 30 + (fast && isStation ? 1.5f : 0)), $"instant ammo {name} fast={fast}");
+        }
+        ResetAmmo(fast);
+        teammate.AddAmmo(10);
+        Check(Near(AmmoPool(), 30), "source-less ammo is not boosted");
+        ResetAmmo(fast);
+        teammate.AddEffects([new ConstEffectInfo(stationAmmo.Key)], TeamType.Team1, new UnitSource(ammoStation));
+        teammate.AddEffects([new ConstEffectInfo(heroAmmo.Key)], TeamType.Team1, new UnitSource(healer));
+        teammate.ApplyBuffEffects(1);
+        Check(Near(AmmoPool(), 35 + (fast ? 1.5f : 0)), "mixed ammo regen boosts only station contribution");
+        ResetAmmo(fast);
+        teammate.AddEffects([new ConstEffectInfo(stationAmmo.Key)], TeamType.Team1, new UnitSource(ammoStation));
+        teammate.AddEffects([new ConstEffectInfo(stationAmmo.Key)], TeamType.Team1, new UnitSource(healer));
+        teammate.ApplyBuffEffects(1);
+        Check(Near(AmmoPool(), 30 + (fast ? .75f : 0)), "shared ammo regen key preserves station/hero split");
+        ResetAmmo(fast);
+        teammate.UpdateData(new UnitUpdate { Ammo = new() { [gear.Key] = [new Ammo { Index = 0, Pool = 99 }] } });
+        teammate.AddAmmo(10, new UnitSource(ammoStation));
+        Check(Near(AmmoPool(), 100), "station ammo capped at pool size");
+        return true;
+    });
+OnZone(() => {
+    ResetAmmo(true);
+    var effect = Catalogue.Key("effect_perk_fast_restock_pos").GetCard<CardEffect>()!;
+    var buffs = ((ConstEffectBuff)effect.Effect!).Buffs!;
+    var hp = buffs[BuffType.HealthGain]; var ammo = buffs[BuffType.AmmoGain];
+    buffs[BuffType.HealthGain] = .25f; buffs[BuffType.AmmoGain] = .4f;
+    Check(Near(teammate.AddHealth(10, out _, new UnitSource(station)), 12.5f), "station healing uses edited CDB percentage");
+    teammate.AddAmmo(10, new UnitSource(ammoStation));
+    Check(Near(AmmoPool(), 34), "station ammo uses edited CDB percentage");
+    buffs[BuffType.HealthGain] = hp; buffs[BuffType.AmmoGain] = ammo;
+    ResetAmmo(true);
+    teammate.RemoveEffects([new ConstEffectInfo(effect.Key)], TeamType.Team1, teammate.GetSelfSource());
+    teammate.AddAmmo(10, new UnitSource(ammoStation));
+    Check(Near(AmmoPool(), 30), "unequipped perk no longer boosts ammo station");
+    return true;
+});
 OnZone(() => {
     Reset(true,false);
     teammate.RemoveEffects([new ConstEffectInfo(Catalogue.Key("effect_perk_fast_restock_pos"))],TeamType.Team1,teammate.GetSelfSource());
@@ -179,9 +234,25 @@ zone.Stop();
 catalogue.Replicate(sourceCards);
 foreach (var id in new[] { "perk_def_fast_restock", "shop_item_perk_def_fast_restock" })
 {
-    var incoming=System.Text.Json.JsonSerializer.Deserialize<List<Card>>(File.ReadAllText(args[0]), JsonHelper.DefaultSerializerSettings)!.Single(c=>c.Id==id); catalogue.UpdateCard(incoming);
-    var text = incoming is CardPerk p ? p.Description!.Text : ((CardShopItem)incoming).Description!.Text;
-    Check(text!.Contains("healing from health and ammo stations"), "corrected tooltip survives catalogue refresh");
+    var incoming = sourceCards.Single(c => c.Id == id);
+    var description = incoming is CardPerk p ? p.Description! : ((CardShopItem)incoming).Description!;
+    // Deliberately includes the old trigger phrase: CDB edits and translations must remain untouched.
+    description.Text = "Custom healing and ammo regeneration from all sources / CDB owner text";
+    description.Data = new() { [Locale.pt] = new LocalizedEntry { Original = description.Text, Translation = "Texto editavel" } };
+    var expected = System.Text.Json.JsonSerializer.Serialize(description, JsonHelper.DefaultSerializerSettings);
+    catalogue.Replicate(sourceCards);
+    Check(System.Text.Json.JsonSerializer.Serialize(description, JsonHelper.DefaultSerializerSettings) == expected, "full replication preserves CDB text and translations");
+    catalogue.UpdateCard(incoming);
+    Check(System.Text.Json.JsonSerializer.Serialize(description, JsonHelper.DefaultSerializerSettings) == expected, "incremental refresh preserves CDB text and translations");
+    using var stream = new MemoryStream();
+    using var writer = new BinaryWriter(stream);
+    incoming.Write(writer);
+    stream.Position = 0;
+    var roundtrip = incoming is CardPerk ? (Card)new CardPerk() : new CardShopItem();
+    using var reader = new BinaryReader(stream);
+    roundtrip.Read(reader);
+    var sent = roundtrip is CardPerk perk ? perk.Description! : ((CardShopItem)roundtrip).Description!;
+    Check(System.Text.Json.JsonSerializer.Serialize(sent, JsonHelper.DefaultSerializerSettings) == expected, "wire catalogue preserves CDB text and translations");
 }
 Console.WriteLine($"HEALING_PERK_SOURCES PASS {checks} checks");
 

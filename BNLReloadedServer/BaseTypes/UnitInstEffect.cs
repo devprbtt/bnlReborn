@@ -198,10 +198,16 @@ public partial class Unit
                     break;
 
                 case (BuffType.AmmoRegen, _):
-                    var supplied = AddAmmo(value * multiplier, unitUpdate);
+                    var ammoShares = RegenShares(buffKey);
+                    var ammoTotal = ammoShares.Sum(s => s.Weight);
+                    var ammoStationShare = ammoTotal > 0
+                        ? ammoShares.Where(s => StationHealing.IsStation(s.Source)).Sum(s => s.Weight) / ammoTotal
+                        : 0;
+                    var supplied = AddAmmo(value * multiplier, unitUpdate, ammoStationShare);
                     if (supplied > 0)
                     {
-                        var shares = RegenShares(buffKey);
+                        var shares = ammoShares.Select(s => (s.Source,
+                            Weight: this.AmmoGainAmount(s.Weight, StationHealing.IsStation(s.Source) ? 1 : 0))).ToList();
                         var total = shares.Sum(s => s.Weight);
                         foreach (var (ammoSource, weight) in shares)
                             if (total > 0) ReportAmmoSupply(ammoSource, supplied * weight / total);
@@ -238,7 +244,7 @@ public partial class Unit
         }
     }
 
-    private float AddAmmo(float amount, UnitUpdate update)
+    private float AddAmmo(float amount, UnitUpdate update, float stationShare = 0)
     {
         if (Gears.Count == 0 || amount <= 0) return 0;
         var ammoUpdate = new Dictionary<Key, List<Ammo>>();
@@ -255,7 +261,7 @@ public partial class Unit
                 { Index = gearAmmo.AmmoIndex, Pool = gearAmmo.Pool });
                 if (gearAmmo.Pool >= gearAmmo.PoolSize) continue;
                 if (ammoData[i].Pool is not { } pool) continue;
-                var newPool = Math.Min(float.FusedMultiplyAdd(this.AmmoGainAmount(amount), pool.BaseRegen, gearAmmo.Pool),
+                var newPool = Math.Min(float.FusedMultiplyAdd(this.AmmoGainAmount(amount, stationShare), pool.BaseRegen, gearAmmo.Pool),
                     gearAmmo.PoolSize);
                 ammoUpdate[gear.Key][i].Pool = newPool;
                 ammoRestored += newPool - gearAmmo.Pool;
@@ -274,7 +280,7 @@ public partial class Unit
     public void AddAmmo(float amount, EffectSource? source = null)
     {
         var update = new UnitUpdate();
-        var supplied = AddAmmo(amount, update);
+        var supplied = AddAmmo(amount, update, StationHealing.IsStation(source) ? 1 : 0);
         ReportAmmoSupply(source, supplied);
         if (update.Ammo != null)
         {

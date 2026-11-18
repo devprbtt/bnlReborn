@@ -220,3 +220,12 @@ Added authenticated Practice Grounds start using the full terrain map from MapDa
 Integrated leaderboard score-per-minute/account levels and avatar/rating metadata, partial case-insensitive player search, GUI archive/queue/presence support, late spectator results and reconnects, Practice Grounds terrain/start, idle-queue reconciliation, 3/4/6-minute initial objective build timing and shared replay lookup. Release branch descends from live 11e7db5150f1; all five feature merges are preserved.
 
 Warning-as-error Release build and linux-x64 publish passed. TeamFeatures, Auth, Accounting, PlayerLeaderboard, PlayerSearch, MatchHistory, PublicQueueRules, MatchChat, LiveSpectate, NineTopics and ReplayRecorder fixtures passed; transitive dependency audit reported no vulnerable packages. Deployment is authorized by the owner and tracked with client beta.96 release evidence.
+
+
+## 2026-11-18 — Fast Restock station-only gains and editable CDB text
+
+- Removed the runtime Fast Restock description rewrite from full/incremental catalogue updates. Descriptions and translations stay CDB-owned through wire serialization.
+- Excluded Fast Restock ammo gain from global buffs, matching its healing treatment. Direct gains and mixed/shared-key regeneration use source-aware station contributions; attribution follows the effective ammo weights. Existing CDB percentages and brick penalty remain authoritative.
+- Added a guarded, idempotent one-time description migration with offline candidate mode, read-only online default, revision-checked writes, private backup and readback. No live CDB writes or deployment performed.
+- Validation: HealingPerkSources 128 checks; HealAttribution 22; BrainsRecovery 24; HealBane 36; GenieStationHealing 29; KillerAmmo ordering suite; three Python migration tests. Release warnings-as-errors build passed, zero warnings/errors. No live client/match test.
+- Details and rollout steps: docs/FAST_RESTOCK_STATIONS.md. Prepared on production base bf49715; no client/feed publication.
