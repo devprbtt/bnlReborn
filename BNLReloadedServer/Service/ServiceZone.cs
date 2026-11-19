@@ -135,7 +135,8 @@ public partial class ServiceZone(ISender sender, Func<System.Net.IPAddress?>? pe
     // 6: high-rate look stream with aim state, relayed to spectators.
     // 7: Skill II (Accomplice) players are told which enemy heroes they currently lead on damage.
     // 12 is the client's in-place replay rewind (replay rewinds rebuild state in the loaded scene); 13 adds clan emblems.
-    private const int TeamPingProtocolVersion = 17;
+    private const int TeamPingProtocolVersion = 18;
+    public bool SupportsAdminInvisibility { get; private set; }
     public bool SupportsAdminGravity { get; private set; }
     public bool SupportsAdminBeam { get; private set; }
     public bool SupportsAdminFunnyMode { get; private set; }
@@ -188,6 +189,7 @@ public partial class ServiceZone(ISender sender, Func<System.Net.IPAddress?>? pe
                 SupportsAdminFunnyMode = version >= 15;
                 SupportsAdminBeam = version >= 16;
                 SupportsAdminGravity = version >= 17;
+                SupportsAdminInvisibility = version >= 18;
                 SupportsTimeAssaultReady = version >= 14;
                 SupportsFarmPing = version >= 9;
                 SupportsHeroEmote = version >= 2;

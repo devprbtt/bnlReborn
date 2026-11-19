@@ -6,13 +6,13 @@ namespace BNLReloadedServer.Service;
 
 public partial class ServiceZone
 {
-    private static readonly string[] FunnyActions = ["on","off","grab","aim","charge","throw","drop","beam_charge","beam_fire","beam_cancel","fireball","well_on","well_off","repulse_charge","repulse_fire","gravity_cancel"];
+    private static readonly string[] FunnyActions = ["on","off","grab","aim","charge","throw","drop","beam_charge","beam_fire","beam_cancel","fireball","well_on","well_off","repulse_charge","repulse_fire","gravity_cancel","invis_toggle"];
     private void ReceiveAdminFunny(BinaryReader reader)
     {
         if (reader.BaseStream.Length-reader.BaseStream.Position != 21) return;
         var action=reader.ReadByte(); var target=reader.ReadUInt32(); var distance=reader.ReadSingle();
         var direction=new Vector3(reader.ReadSingle(),reader.ReadSingle(),reader.ReadSingle());
-        if (!SupportsAdminFunnyMode || action>=FunnyActions.Length || (action >= 7 && !SupportsAdminBeam) || (action>=11 && !SupportsAdminGravity) || !sender.AssociatedPlayerId.HasValue ||
+        if (!SupportsAdminFunnyMode || action>=FunnyActions.Length || (action >= 7 && !SupportsAdminBeam) || (action>=11 && !SupportsAdminGravity) || (action>=16 && !SupportsAdminInvisibility) || !sender.AssociatedPlayerId.HasValue ||
             !AdminFunnyRules.IsAdmin(Databases.PlayerDatabase.GetPlayerDataNoWait(sender.AssociatedPlayerId.Value)?.Role)) return;
         GameInstance?.DebugZoneCommand(sender.AssociatedPlayerId.Value,"admin_funny",
             [FunnyActions[action],target.ToString(CultureInfo.InvariantCulture),distance.ToString("R",CultureInfo.InvariantCulture),

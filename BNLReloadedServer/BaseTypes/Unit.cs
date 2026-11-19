@@ -247,6 +247,13 @@ public partial class Unit
 
     public bool AdminFunnyHeld;
     public bool AdminFunnyMode { get; private set; }
+    public bool AdminInvisible { get; private set; }
+    public void SetAdminInvisible(bool enabled)
+    {
+        if(enabled && (!AdminFunnyMode || IsDead))return;
+        AdminInvisible=enabled;
+        UpdateData(new UnitUpdate {Buffs=ExtractBuffs(ActiveEffects.Select(info=>info.Key).Distinct())});
+    }
     private long _adminStormEpochMs;
     public void SetAdminFunnyStormEpoch(long epochMs)
     {
@@ -256,6 +263,7 @@ public partial class Unit
     }
     public void SetAdminFunnyMode(bool enabled, long? stormEpochMs = null)
     {
+        if(!enabled)AdminInvisible=false;
         if (enabled) _adminStormEpochMs = stormEpochMs ?? (AdminFunnyMode ? _adminStormEpochMs : DateTimeOffset.UtcNow.ToUnixTimeMilliseconds());
         else _adminStormEpochMs = 0;
         AdminFunnyMode = enabled;
@@ -1486,7 +1494,7 @@ public partial class Unit
             foreach (var buff in effectBuff.Buffs)
             {
                 // This marker belongs to the authorized mode, never to a catalogue effect.
-                if (buff.Key is BuffType.AdminHideNameplate or BuffType.AdminStormEpochHigh or BuffType.AdminStormEpochLow) continue;
+                if (buff.Key is BuffType.AdminHideNameplate or BuffType.AdminStormEpochHigh or BuffType.AdminStormEpochLow or BuffType.AdminInvisible) continue;
                 // Fast Restock gains are evaluated with their source, not as global gain buffs.
                 if (card.Id == StationHealing.FastRestockEffect &&
                     buff.Key is BuffType.HealthGain or BuffType.AmmoGain) continue;
@@ -1505,6 +1513,7 @@ public partial class Unit
         if (AdminFunnyMode)
         {
             buffResult[BuffType.AdminHideNameplate] = 1;
+            if(AdminInvisible)buffResult[BuffType.AdminInvisible]=1;
             // Two exact float integers retain millisecond precision on the existing wire format.
             buffResult[BuffType.AdminStormEpochHigh] = _adminStormEpochMs / 1048576L;
             buffResult[BuffType.AdminStormEpochLow] = _adminStormEpochMs % 1048576L;

@@ -29,7 +29,7 @@ var secondary=new CardGear {Id="fixture_secondary",Tools=[]};
 var nativePullEffect=new CardEffect {Id="fixture_native_pull",Effect=new ConstEffectPull {Force=8}};
 var hero=new CardUnit {Id="fixture_hero",Data=new UnitDataPlayer(),Size=new Vector3s(1,2,1),PivotType=UnitPivotType.CenterBottom,
  Health=new UnitHealth {Health=new Health {MaxHealth=300,HealthType=HealthType.Player}}};
-var markerEffect=new CardEffect {Id="fixture_nameplate_marker",Effect=new ConstEffectBuff {Buffs=new() {[BuffType.AdminHideNameplate]=1,[BuffType.AdminStormEpochHigh]=123,[BuffType.AdminStormEpochLow]=456,[BuffType.RunSpeed]=.1f}}};
+var markerEffect=new CardEffect {Id="fixture_nameplate_marker",Effect=new ConstEffectBuff {Buffs=new() {[BuffType.AdminHideNameplate]=1,[BuffType.AdminStormEpochHigh]=123,[BuffType.AdminStormEpochLow]=456,[BuffType.AdminInvisible]=1,[BuffType.RunSpeed]=.1f}}};
 var mode=new CardGameMode {Id="game_mode_friendly"};
 ((ServerCatalogue)Databases.Catalogue).Replicate([gear,weapon,secondary,nativePullEffect,hero,mode,markerEffect,new CardGameMode {Id="game_mode_custom"},
  new CardMatch {Id="fixture_match",Data=new MatchDataShieldCapture()},new CardGlobalLogic {Id="global_logic"},
@@ -91,6 +91,7 @@ OnZone(()=>{
  Check(!teammate.IsBuff(BuffType.AdminHideNameplate),"catalogue effects cannot impersonate admin nameplate mode");
  Check(Epoch(admin)==sharedEpoch,"effect recomputation preserves authoritative weather epoch");
  Check(!teammate.IsBuff(BuffType.AdminStormEpochHigh) && !teammate.IsBuff(BuffType.AdminStormEpochLow),"catalogue effects cannot inject storm epoch");
+ Check(!teammate.IsBuff(BuffType.AdminInvisible) && !admin.IsBuff(BuffType.AdminInvisible),"catalogue effects cannot inject invisibility");
  Check(Math.Abs(admin.UnitMaxHealth(300)-2000)<.01f && Math.Abs(admin.HealthPercentage-1)<.001,"exact 2000 maximum and current health");
  Cmd("grab",teammate);Check(teammate.AdminFunnyHeld,"teammate grabbable");Check(teammate.IsBuff(BuffType.Root)&&teammate.IsBuff(BuffType.Disarm),"held target rooted/disarmed");
  var old=teammate.Transform.Position;zone.ReceivedMoveRequest(teammate.Id,999999,new ZoneTransform {Position=new Vector3(20,20,20)});Check(teammate.Transform.Position==old,"held player movement spoof ignored");
@@ -213,11 +214,26 @@ OnZone(()=>{
  Cmd("on");gravityHold=modes[admin.Id]!;Cmd("repulse_charge");int beforeCancel=nativeMoves.Count;Cmd("gravity_cancel");Check(gravityHold.GetType().GetField("RepulseStart")!.GetValue(gravityHold)==null && nativeMoves.Count==beforeCancel,"cancelled repulsion emits no knockback");Cmd("off");
  Check(AdminGravityRules.Charge(20)==1 && AdminGravityRules.Charge(-1)==0 && AdminGravityRules.Force(1,32)==37.5f,"gravity tuning clamps charge and applies bounded edge falloff");
  if(args.Length>0){var gravityWireSender=new CaptureSender();var gravityWire=new ServiceZone(gravityWireSender);typeof(ServiceZone).GetProperty("SupportsAdminGravity")!.SetValue(gravityWire,true);gravityWire.SendAdminGravity(admin.Id,2,987654321,new Vector3(8,5,4),32,1);File.WriteAllBytes(Path.Combine(args[0],"gravity-blast.bin"),gravityWireSender.Packets.Single());}
+ Cmd("on");Cmd("invis_toggle");Check(!admin.AdminInvisible,"older capability cannot toggle invisibility");
+ typeof(ServiceZone).GetProperty("SupportsAdminInvisibility")!.SetValue(adminService,true);
+ Cmd("invis_toggle");Check(admin.AdminInvisible && admin.GetBuff(BuffType.AdminInvisible)==1,"F enables authoritative invisibility marker");
+ Check(admin.UnitMaxHealth(300)==2000 && admin.AdminFunnyMode,"invisibility preserves transformed health and mode");
+ admin.SetAdminFunnyStormEpoch(Epoch(admin));Check(admin.GetBuff(BuffType.AdminInvisible)==1,"ordinary buff recomputation preserves invisibility");
+ using(var stream=new MemoryStream()){var invisSnapshot=admin.GetUpdateData();UnitUpdate.WriteRecord(new BinaryWriter(stream),new UnitUpdate {Buffs=invisSnapshot.Buffs});stream.Position=0;Check(UnitUpdate.ReadRecord(new BinaryReader(stream)).Buffs?.GetValueOrDefault(BuffType.AdminInvisible)==1,"late-observer full snapshot serializes invisibility");if(args.Length>0)File.WriteAllBytes(Path.Combine(args[0],"invisible-on.bin"),stream.ToArray());}
+ Cmd("on");Check(admin.AdminInvisible,"duplicate enable does not clear current invisibility");
+ for(int i=0;i<20;i++)Cmd("invis_toggle");Check(admin.AdminInvisible,"rapid toggling has no cooldown or charge consumption");
+ Cmd("invis_toggle");Check(!admin.AdminInvisible && !admin.IsBuff(BuffType.AdminInvisible),"F again immediately restores visibility");
+ if(args.Length>0){using var stream=new MemoryStream();UnitUpdate.WriteRecord(new BinaryWriter(stream),new UnitUpdate {Buffs=admin.GetUpdateData().Buffs});File.WriteAllBytes(Path.Combine(args[0],"invisible-off.bin"),stream.ToArray());}
+ Cmd("invis_toggle");Cmd("off");Check(!admin.AdminInvisible && !admin.IsBuff(BuffType.AdminInvisible),"mode exit clears invisibility state and buff");
+ Cmd("on");Cmd("invis_toggle");var invisibleHold=modes[admin.Id]!;invisibleHold.GetType().GetField("LastUpdate")!.SetValue(invisibleHold,DateTimeOffset.UtcNow.AddSeconds(-2));Call("TickAdminFunny");Check(!admin.AdminInvisible,"lease expiry restores visibility");
+ Cmd("on");Cmd("invis_toggle");dbPlayers[1].Role=PlayerRole.Moderator;Call("TickAdminFunny");Check(!admin.AdminInvisible,"role revocation restores visibility");dbPlayers[1].Role=PlayerRole.Admin;
+ Cmd("on");Cmd("invis_toggle");admin.IsDead=true;Call("TickAdminFunny");Check(!admin.AdminInvisible && admin.IsDead,"death restores visibility without revival");admin.IsDead=false;
+ admin.SetAdminInvisible(true);Check(!admin.AdminInvisible,"invisibility cannot be enabled outside transformed mode");
  if(args.Length>0) {var wireSender=new CaptureSender();var wireService=new ServiceZone(wireSender);typeof(ServiceZone).GetProperty("SupportsAdminBeam")!.SetValue(wireService,true);wireService.SendAdminBeam(admin.Id,1,123456789,Vector3.Zero,new Vector3(0,0,24),1);File.WriteAllBytes(Path.Combine(args[0],"beam-shot.bin"),wireSender.Packets.Single());}
  return true;
 });
 var oldSender=new CaptureSender();new ServiceZone(oldSender).SendAdminFunny(1,2,true,0,Vector3.Zero,Vector3.Zero,0);Check(oldSender.Packets.Count==0,"no extension packets to old clients");
-foreach(var version in new[]{14,15,16,17})
+foreach(var version in new[]{14,15,16,17,18})
 {
  var negotiated=new ServiceZone(new CaptureSender());using var stream=new MemoryStream();using var writer=new BinaryWriter(stream);
  writer.Write(0x42504E47u);writer.Write(version);stream.Position=0;
@@ -225,6 +241,7 @@ foreach(var version in new[]{14,15,16,17})
  Check(negotiated.SupportsAdminFunnyMode==(version>=15),"capability negotiation v"+version);
  Check(negotiated.SupportsAdminBeam==(version>=16),"beam capability negotiation v"+version);
  Check(negotiated.SupportsAdminGravity==(version>=17),"gravity capability negotiation v"+version);
+ Check(negotiated.SupportsAdminInvisibility==(version>=18),"invisibility capability negotiation v"+version);
  var gatedSender=new CaptureSender();var gated=new ServiceZone(gatedSender);typeof(ServiceZone).GetProperty("SupportsAdminBeam")!.SetValue(gated,version>=16);gated.SendAdminBeam(1,1,123,Vector3.Zero,Vector3.One,1);Check(gatedSender.Packets.Count==(version>=16?1:0),"beam observer packet gates v"+version);
  gated.SendAdminFireball(1,1,0,Vector3.Zero,Vector3.UnitZ);Check(gatedSender.Packets.Count==(version>=16?2:0),"fireball observer packet gates v"+version);
  typeof(ServiceZone).GetProperty("SupportsAdminGravity")!.SetValue(gated,version>=17);gated.SendAdminGravity(1,0,123,Vector3.Zero,28,1);Check(gatedSender.Packets.Count==(version>=17?3:version>=16?2:0),"gravity observer packet gates v"+version);

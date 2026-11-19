@@ -68,5 +68,6 @@ public enum BuffType
     // Server-owned presentation state, replicated in normal unit updates/snapshots.
     AdminHideNameplate = 60,
     AdminStormEpochHigh = 61,
-    AdminStormEpochLow = 62
+    AdminStormEpochLow = 62,
+    AdminInvisible = 63
 }

@@ -63,6 +63,11 @@ public partial class GameZone
         hold.LastUpdate = DateTimeOffset.UtcNow;
         admin.LastMoveTime = hold.LastUpdate; admin.WasAfkWarned = false;
         hold.Direction = Vector3.Normalize(direction); hold.Distance = distance;
+        if(action=="invis_toggle")
+        {
+            if(admin.ZoneService is ServiceZone {SupportsAdminInvisibility:true})admin.SetAdminInvisible(!admin.AdminInvisible);
+            return;
+        }
         if(action is "well_on" or "well_off" or "repulse_charge" or "repulse_fire" or "gravity_cancel") {ReceivedAdminGravity(hold,action);return;}
         if (action == "fireball") { LaunchAdminFireball(hold); return; }
         if (action.StartsWith("beam_", StringComparison.Ordinal)) { ReceivedAdminBeam(hold, action); return; }
