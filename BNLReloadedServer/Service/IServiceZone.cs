@@ -5,6 +5,7 @@ namespace BNLReloadedServer.Service;
 
 public interface IServiceZone : IService
 {
+    public bool SupportsAdminBeam { get; }
     public bool SupportsTeamPing { get; }
     public bool SupportsHeroEmote { get; }
     public bool SupportsAimLook { get; }
@@ -77,6 +78,8 @@ public interface IServiceZone : IService
     public void SendTeamPingCapability(int version);
     public void SendTeamPing(uint playerId, Vector3 position, Vector3 normal);
     public void SendHeroEmote(uint playerId, bool active, int emoteIndex);
+    public void SendAdminBeam(uint admin, byte phase, long time, Vector3 origin, Vector3 end, float charge);
+    public void SendAdminFireball(uint id, uint admin, byte phase, Vector3 position, Vector3 velocity);
     public void SendAimLook(uint playerId, byte[] body);
     public void SendScoreboardMetadata(IReadOnlyList<ScoreboardPlayerNetworkInfo> players);
 }

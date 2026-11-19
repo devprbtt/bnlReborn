@@ -13,6 +13,9 @@ public partial class GameZone
         public Unit? Target;
         public DateTimeOffset LastUpdate = DateTimeOffset.UtcNow;
         public DateTimeOffset? ChargeStart;
+        public DateTimeOffset? BeamStart;
+        public DateTimeOffset NextBeam, NextBeamPulse;
+        public DateTimeOffset NextFireball;
         public Vector3 Direction = Vector3.UnitZ;
         public float Distance = 6;
     }
@@ -55,6 +58,9 @@ public partial class GameZone
         hold.LastUpdate = DateTimeOffset.UtcNow;
         admin.LastMoveTime = hold.LastUpdate; admin.WasAfkWarned = false;
         hold.Direction = Vector3.Normalize(direction); hold.Distance = distance;
+        if (action == "fireball") { LaunchAdminFireball(hold); return; }
+        if (action.StartsWith("beam_", StringComparison.Ordinal)) { ReceivedAdminBeam(hold, action); return; }
+        if (hold.BeamStart != null && FunnyDig(admin)) CancelAdminBeam(hold);
         if (action == "drop" || !FunnyDig(admin)) { DropFunny(hold); return; }
         if (action == "grab" && hold.Target == null && _playerUnits.TryGetValue(targetId, out var target)
             && target != admin && FunnyAlive(target) && FunnyCapable(target) && !target.AdminFunnyHeld && !_funnyModes.ContainsKey(target.Id))
@@ -96,6 +102,7 @@ public partial class GameZone
             if (!FunnyAlive(admin) || !AdminFunnyRules.IsAdmin(admin.PlayerId is {} id ? Databases.PlayerDatabase.GetPlayerDataNoWait(id)?.Role : null)
                 || (DateTimeOffset.UtcNow-hold.LastUpdate).TotalSeconds > AdminFunnyRules.LeaseSeconds)
             { RemoveFunny(admin.Id); continue; }
+            TickAdminBeam(hold);
             if (hold.Target is not {} target) continue;
             if (!FunnyAlive(target) || !FunnyDig(admin)) { DropFunny(hold); continue; }
             target.LastMoveTime = DateTimeOffset.UtcNow; target.WasAfkWarned = false;
@@ -117,6 +124,7 @@ public partial class GameZone
             target.UnitMove(transform, Math.Max(target.LastMoveUpdateTime+1, (ulong)DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()));
             SendFunny(hold, 0);
         }
+        TickAdminFireballs();
     }
     private void SendFunny(FunnyHold hold, byte action, Vector3 velocity = default, bool enabled = true)
     {
@@ -138,6 +146,7 @@ public partial class GameZone
     private void RemoveFunny(uint id)
     {
         if (!_funnyModes.Remove(id,out var hold)) return;
+        CancelAdminBeam(hold);
         DropFunny(hold); hold.Admin.SetAdminFunnyMode(false); SendFunny(hold,1,enabled:false);
     }
 }

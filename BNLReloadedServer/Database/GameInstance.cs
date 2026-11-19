@@ -622,6 +622,14 @@ public partial class GameInstance : IGameInstance
             MapData, GameInitiator, _zonePlayerInfo, mapKey);
         zone.AssistLeadSender = AssistLeadConnection;
         zone.SpectatorResultSender = SendSpectatorResults;
+        zone.AdminBeamSender = (admin,phase,time,origin,end,charge) =>
+        {
+            foreach(var observer in EntityAttackObservers()) observer.SendAdminBeam(admin,phase,time,origin,end,charge);
+        };
+        zone.AdminFireballSender = (id,admin,phase,position,velocity) =>
+        {
+            foreach(var observer in EntityAttackObservers()) observer.SendAdminFireball(id,admin,phase,position,velocity);
+        };
 
         // Publish and drain under one gate: a load request racing construction is either queued
         // before the drain or sees the zone, never neither.
@@ -988,6 +996,14 @@ public partial class GameInstance : IGameInstance
         if (service.SupportsTeamPing) service.SendTeamPing(playerId, position, normal);
         // Exactly one native notice/VO accompanies either kind of marker.
         service.SendPlayerCommand(playerId, farm ? new Key("note_command_farm") : TeamPingRegistration.EnemySpottedNotification);
+    }
+
+    private IEnumerable<IServiceZone> EntityAttackObservers()
+    {
+        foreach(var connection in _connectedUsers.Values)
+            if(connection.LoadStage==ZoneLoadStage.Finished && _services.TryGetValue(connection.Guid,out var services) &&
+                services.TryGetValue(ServiceId.ServiceZone,out var service) && service is IServiceZone {SupportsAdminBeam:true} observer)
+                yield return observer;
     }
 
     public void HeroEmote(uint playerId, bool active, int emoteIndex) =>

@@ -32,6 +32,7 @@ var mode=new CardGameMode {Id="game_mode_friendly"};
 ((ServerCatalogue)Databases.Catalogue).Replicate([gear,weapon,hero,mode,markerEffect,new CardGameMode {Id="game_mode_custom"},
  new CardMatch {Id="fixture_match",Data=new MatchDataShieldCapture()},new CardGlobalLogic {Id="global_logic"},
  new CardBlock {Id="fixture_wall",BlockId=1,Passable=BlockPassableType.None,Solid=true,Grounded=true},
+ new CardBlock {Id="fixture_beam_wall",BlockId=2,Passable=BlockPassableType.None,Solid=true,Grounded=true,Destructible=true,Health=new Health {MaxHealth=1000}},
  new CardBlock {Id="fixture_air",BlockId=0,Passable=BlockPassableType.Any,Transparent=true,LightTransparent=true,SkylightTransparent=true}]);
 ((UnitDataPlayer)hero.Data!).Gears=[gear.Key,weapon.Key];
 var players=new ConcurrentDictionary<uint,PlayerLobbyState>();
@@ -43,6 +44,8 @@ var map=new MapData {Match=MatchType.ShieldCapture,Properties=new MapDataProps()
 var service=Stub<IServiceZone>();
 var zone=new GameZone(service,Stub<IServiceZone>(),Stub<IBuffer>(),Stub<ISender>(),map,
  Stub<IGameInitiator>(new(){["GetGameMode"]=mode.Key,["get_GameInstanceId"]="funny-fixture"}),players);
+var beamEvents=new List<object?[]>();
+zone.AdminBeamSender=(admin,phase,time,origin,end,charge)=>beamEvents.Add([admin,phase,time,origin,end,charge]);
 object? Call(string name,params object?[] args)=>typeof(GameZone).GetMethod(name,Any)!.Invoke(zone,args);
 T OnZone<T>(Func<T> body) {var done=new TaskCompletionSource<T>();zone.EnqueueAction(()=>{try{done.SetResult(body());}catch(Exception e){done.SetException(e);}});return done.Task.WaitAsync(TimeSpan.FromSeconds(10)).GetAwaiter().GetResult();}
 var sender=new CaptureSender(); var adminService=new ServiceZone(sender); var targetSender=new CaptureSender();var targetService=new ServiceZone(targetSender);
@@ -118,17 +121,95 @@ OnZone(()=>{
  Check(!admin.IsBuff(BuffType.AdminStormEpochHigh) && !admin.IsBuff(BuffType.AdminStormEpochLow),"mode cleanup removes both storm epoch fields");
  Check(!admin.IsBuff(BuffType.AdminHideNameplate) && admin.GetUpdateData().Buffs?.ContainsKey(BuffType.AdminHideNameplate)!=true,"off removes marker from current and future observer snapshots");
  if(args.Length>0){using var stream=new MemoryStream();UnitUpdate.WriteRecord(new BinaryWriter(stream),new UnitUpdate {Buffs=admin.GetUpdateData().Buffs,Health=admin.UnitMaxHealth(300)});File.WriteAllBytes(Path.Combine(args[0],"mode-off.bin"),stream.ToArray());}
+ // Beam tests use the same authorized world-thread path as the wire transport.
+ Check(AdminBeamRules.Charge(3)==1 && AdminBeamRules.Charge(-1)==0,"beam server charge clamps to 2.5 seconds");
+ Check(AdminBeamRules.Radius(1)==7 && AdminBeamRules.Damage(1).BlockDamage==25000,"full beam has seven-metre destruction radius and 25000 block damage");
+ Check(!AdminBeamRules.Damage(1).IgnoreInvincibility && AdminBeamRules.Damage(1).SelfDamage==0 && AdminBeamRules.Damage(1).FriendDamage==0,"beam preserves map protection and normal friendly-fire policy");
+ Check(AdminBeamRules.SegmentDistance(new Vector3(2,0,4),Vector3.Zero,new Vector3(0,0,8))==2,"beam geometry measures finite segment distance");
+ Position(admin,new Vector3(8,20,4));Position(teammate,new Vector3(24,20,24));Position(enemy,new Vector3(24,20,24));
+ admin.UpdateData(new UnitUpdate {CurrentGear=weapon.Key});Cmd("on");
+ var beamHold=modes[admin.Id]!;var beamField=beamHold.GetType().GetField("BeamStart")!;
+ Cmd("beam_charge");Check(beamField.GetValue(beamHold)==null,"legacy admin cannot start beam");
+ typeof(ServiceZone).GetProperty("SupportsAdminBeam")!.SetValue(adminService,true);
+ var beamCalls=beamEvents;
+ int beforeBeam=beamCalls.Count;Cmd("beam_fire");Check(beamCalls.Count==beforeBeam,"release without a server charge does not fire");
+ Cmd("beam_charge");var beamStart=beamField.GetValue(beamHold);Check(beamStart!=null,"weapon slot starts authorized beam charge");
+ Cmd("beam_charge");Check(Equals(beamField.GetValue(beamHold),beamStart),"duplicate beam charge does not restart timer");
+ Cmd("beam_cancel");Check(beamField.GetValue(beamHold)==null && beamCalls.Last()[1] is (byte)2,"beam cancel clears charge and broadcasts cleanup");
+ admin.UpdateData(new UnitUpdate {CurrentGear=gear.Key});Cmd("beam_charge");Check(beamField.GetValue(beamHold)==null,"dig tool remains reserved for gravity grab");
+ admin.UpdateData(new UnitUpdate {CurrentGear=weapon.Key});Cmd("beam_charge");
+ for(short x=6;x<=10;x++) for(short y=18;y<=22;y++) {var block=mapBinary[x,y,12];block.Id=2;}
+ {var block=mapBinary[8,20,13];block.Id=1;block=mapBinary[24,20,12];block.Id=2;}
+ beamField.SetValue(beamHold,DateTimeOffset.UtcNow.AddSeconds(-3));Cmd("beam_fire");
+ Check(beamField.GetValue(beamHold)==null && beamCalls.Last()[1] is (byte)1,"beam fire consumes charge and broadcasts shot");
+ Check(mapBinary[8,20,12].IsAir && mapBinary[6,18,12].IsAir,"charged beam actually destroys a wide patch of native terrain");
+ Check(mapBinary[8,20,13].Id==1 && mapBinary[24,20,12].Id==2,"beam respects indestructible and out-of-radius terrain");
+ var shotCall=beamCalls.Last();Check((float)shotCall[5]! ==1 && ((Vector3)shotCall[4]!).Z<12.3f,"server derives capped charge and first solid impact endpoint");
+ Cmd("beam_charge");Check(beamField.GetValue(beamHold)==null,"server cooldown rejects immediate repeated beam");
+ beamHold.GetType().GetField("NextBeam")!.SetValue(beamHold,DateTimeOffset.MinValue);
+ Cmd("beam_charge");admin.UpdateData(new UnitUpdate {CurrentGear=gear.Key});Call("TickAdminFunny");Check(beamField.GetValue(beamHold)==null,"tool switch cancels beam charge");
+ admin.UpdateData(new UnitUpdate {CurrentGear=weapon.Key});Cmd("beam_charge");Cmd("off");Check(beamField.GetValue(beamHold)==null && modes.Count==0,"mode exit cancels pending beam");
+ Cmd("on");beamHold=modes[admin.Id]!;
+ var balls=(System.Collections.IList)typeof(GameZone).GetField("_entityFireballs",Any)!.GetValue(zone)!;
+ Position(teammate,new Vector3(8,20,7));Position(enemy,new Vector3(10,20,10));
+ Cmd("fireball");Check(balls.Count==1,"secondary creates one server-owned projectile");
+ var ball=balls[0]!;var ballType=ball.GetType();Check(ballType.GetField("Target")!.GetValue(ball)==enemy,"homing selects visible enemy and ignores nearer teammate");
+ Cmd("fireball");Check(balls.Count==1,"fireball server cooldown prevents spam");
+ ballType.GetField("Last")!.SetValue(ball,DateTimeOffset.UtcNow.AddSeconds(-.1));Call("TickAdminFunny");
+ Check(((Vector3)ballType.GetField("Direction")!.GetValue(ball)!).X>0 && ((Vector3)ballType.GetField("Position")!.GetValue(ball)!).Z>4,"server projectile advances and turns toward enemy");
+ enemy.IsDead=true;ballType.GetField("Last")!.SetValue(ball,DateTimeOffset.UtcNow.AddSeconds(-.1));Call("TickAdminFunny");Check(balls.Count==1,"lost homing target keeps finite forward flight");enemy.IsDead=false;
+ ballType.GetField("Born")!.SetValue(ball,DateTimeOffset.UtcNow.AddSeconds(-6));Call("TickAdminFunny");Check(balls.Count==0,"fireball expires after bounded lifetime");
+ beamHold.GetType().GetField("NextFireball")!.SetValue(beamHold,DateTimeOffset.MinValue);
+ for(short x=6;x<=10;x++)for(short y=19;y<=22;y++){var block=mapBinary[x,y,6];block.Id=1;}
+ Cmd("fireball");ball=balls[0]!;ballType=ball.GetType();Check(ballType.GetField("Target")!.GetValue(ball)==null,"solid terrain blocks initial homing lock");
+ ballType.GetField("Last")!.SetValue(ball,DateTimeOffset.UtcNow.AddSeconds(-.1));Call("TickAdminFunny");Check(balls.Count==0 && mapBinary[8,20,6].Id==1,"swept fireball hits solid wall without removing protected terrain");
+ beamHold.GetType().GetField("NextFireball")!.SetValue(beamHold,DateTimeOffset.MinValue);Cmd("fireball");Cmd("off");Call("TickAdminFunny");Check(balls.Count==0,"mode exit removes in-flight fireballs");
+ Position(enemy,new Vector3(8,20,5));Position(teammate,new Vector3(8,20,5));enemy.SpawnProtectionTime=null;teammate.SpawnProtectionTime=null;
+ enemy.UpdateData(new UnitUpdate {Health=300});teammate.UpdateData(new UnitUpdate {Health=300});
+ var damageFrom=admin.GetMidpoint();var damageTo=enemy.GetMidpoint();
+ Call("ApplyEntityDamage",admin,damageFrom,damageTo,AdminBeamRules.Damage(0) with {EnemyDamage=100},0f,2f);
+ Check(Math.Abs(enemy.HealthPercentage-2f/3)<.001f && teammate.HealthPercentage==1,"entity damage reaches enemy through native health rules without hurting teammate");
+ enemy.UpdateData(new UnitUpdate {Health=300});enemy.SpawnProtectionTime=DateTimeOffset.Now.AddSeconds(30);
+ Call("ApplyEntityDamage",admin,damageFrom,damageTo,AdminBeamRules.Damage(1),0f,2f);Check(enemy.HealthPercentage==1,"entity beam respects spawn protection");enemy.SpawnProtectionTime=null;
+ Position(enemy,new Vector3(8,20,9));Call("ApplyEntityDamage",admin,damageFrom,new Vector3(8,20.95f,5.8f),AdminBeamRules.Damage(1),7f,2f);Check(enemy.HealthPercentage==1,"solid terrain shields units from entity damage");
+ if(args.Length>0) {var wireSender=new CaptureSender();var wireService=new ServiceZone(wireSender);typeof(ServiceZone).GetProperty("SupportsAdminBeam")!.SetValue(wireService,true);wireService.SendAdminBeam(admin.Id,1,123456789,Vector3.Zero,new Vector3(0,0,24),1);File.WriteAllBytes(Path.Combine(args[0],"beam-shot.bin"),wireSender.Packets.Single());}
  return true;
 });
 var oldSender=new CaptureSender();new ServiceZone(oldSender).SendAdminFunny(1,2,true,0,Vector3.Zero,Vector3.Zero,0);Check(oldSender.Packets.Count==0,"no extension packets to old clients");
-foreach(var version in new[]{14,15})
+foreach(var version in new[]{14,15,16})
 {
  var negotiated=new ServiceZone(new CaptureSender());using var stream=new MemoryStream();using var writer=new BinaryWriter(stream);
  writer.Write(0x42504E47u);writer.Write(version);stream.Position=0;
  typeof(ServiceZone).GetMethod("ReceiveZoneReady",Any)!.Invoke(negotiated,[new BinaryReader(stream)]);
  Check(negotiated.SupportsAdminFunnyMode==(version>=15),"capability negotiation v"+version);
+ Check(negotiated.SupportsAdminBeam==(version>=16),"beam capability negotiation v"+version);
+ var gatedSender=new CaptureSender();var gated=new ServiceZone(gatedSender);typeof(ServiceZone).GetProperty("SupportsAdminBeam")!.SetValue(gated,version>=16);gated.SendAdminBeam(1,1,123,Vector3.Zero,Vector3.One,1);Check(gatedSender.Packets.Count==(version>=16?1:0),"beam observer packet gates v"+version);
+ gated.SendAdminFireball(1,1,0,Vector3.Zero,Vector3.UnitZ);Check(gatedSender.Packets.Count==(version>=16?2:0),"fireball observer packet gates v"+version);
 }
 var rejectedSender=new CaptureSender {AssociatedPlayerId=2};var debug=new ServiceDebug(rejectedSender);
+// Exercise the production recipient selection, rather than a shared buffered
+// service whose capability flags are intentionally unset.
+var observerInstance=(GameInstance)System.Runtime.CompilerServices.RuntimeHelpers.GetUninitializedObject(typeof(GameInstance));
+var usersField=typeof(GameInstance).GetField("_connectedUsers",Any)!;
+var observerUsers=Activator.CreateInstance(usersField.FieldType)!;usersField.SetValue(observerInstance,observerUsers);
+var observerServices=new ConcurrentDictionary<Guid,Dictionary<ServiceId,IService>>();
+typeof(GameInstance).GetField("_services",Any)!.SetValue(observerInstance,observerServices);
+var observerSenders=new List<CaptureSender>();var observerZones=new List<ServiceZone>();
+var connectionType=typeof(GameInstance).GetNestedType("MatchConnectionInfo",BindingFlags.NonPublic)!;
+for(int i=0;i<4;i++)
+{
+ var guid=Guid.NewGuid();var capture=new CaptureSender();var observerService=new ServiceZone(capture);observerSenders.Add(capture);observerZones.Add(observerService);
+ typeof(ServiceZone).GetProperty("SupportsAdminBeam")!.SetValue(observerService,i!=2);
+ var connection=Activator.CreateInstance(connectionType,BindingFlags.Instance|BindingFlags.Public|BindingFlags.NonPublic,null,[guid,Guid.NewGuid(),TeamType.Neutral,null],null)!;
+ var stage=connectionType.GetProperty("LoadStage")!;if(i!=3)stage.SetValue(connection,Enum.Parse(stage.PropertyType,"Finished"));
+ observerUsers.GetType().GetMethod("TryAdd")!.Invoke(observerUsers,[(uint)(50+i),connection]);
+ observerServices[guid]=new(){[ServiceId.ServiceZone]=observerService};
+}
+var recipients=((IEnumerable<IServiceZone>)typeof(GameInstance).GetMethod("EntityAttackObservers",Any)!.Invoke(observerInstance,null)!).ToArray();
+Check(recipients.Length==2 && recipients.Contains(observerZones[0]) && recipients.Contains(observerZones[1]),"production relay includes loaded upgraded observers without requiring player units");
+foreach(var observer in recipients){observer.SendAdminBeam(1,1,123,Vector3.Zero,Vector3.UnitZ,1);observer.SendAdminFireball(1,1,0,Vector3.Zero,Vector3.UnitZ);}
+Check(observerSenders[0].Packets.Count==2 && observerSenders[1].Packets.Count==2,"beam and fireball packets reach both selected observer connections");
+Check(observerSenders[2].Packets.Count==0 && observerSenders[3].Packets.Count==0,"production relay excludes legacy and loading connections");
 using(var stream=new MemoryStream())
 {
  using var writer=new BinaryWriter(stream);writer.Write((ushort)1);writer.Write("admin_funny");writer.Write((int)6);
@@ -149,7 +230,8 @@ static T Stub<T>(Dictionary<string,object?>? returns=null) where T:class {var va
 public class StubProxy:DispatchProxy
 {
  public Dictionary<string,object?> Returns=[];
- protected override object? Invoke(MethodInfo? method,object?[]? args) {if(method==null)return null;if(Returns.TryGetValue(method.Name,out var value))return value;var type=method.ReturnType;if(type==typeof(void))return null;if(type==typeof(bool))return method.Name is "UsesPhaseBarriers" or "AllowsTeamCommunication";return type.IsValueType?Activator.CreateInstance(type):null;}
+ public List<object?[]> Calls=[];
+ protected override object? Invoke(MethodInfo? method,object?[]? args) {if(method==null)return null;if(method.Name=="SendAdminBeam")Calls.Add(args??[]);if(Returns.TryGetValue(method.Name,out var value))return value;var type=method.ReturnType;if(type==typeof(void))return null;if(type==typeof(bool))return method.Name is "UsesPhaseBarriers" or "AllowsTeamCommunication";return type.IsValueType?Activator.CreateInstance(type):null;}
 }
 public sealed class CaptureSender:ISender
 {

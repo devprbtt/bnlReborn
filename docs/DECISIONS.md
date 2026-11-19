@@ -105,3 +105,9 @@ Carry nameplate suppression as a server-owned marker in existing UnitUpdate.Buff
 ## 2026-11-18 — Shared transformation storm epoch in observer snapshots
 
 Keep the storm's activation time server-owned and publish the latest zone activation epoch on every active admin in existing unit buffs. Split Unix milliseconds into exact integer high/low float values (base 1048576; buff keys 61/62) to retain wire precision without a new observer protocol. Reject catalogue contributions to these fields. Refresh all active admins on a new activation, preserve the epoch on duplicate enable and retain it on surviving admins when another exits. Existing cleanup removes ownership. Clients aggregate living marked units and use the synchronized clock for late-join thunder seeking; presentation and reversible map weather remain client-owned. Updated clients are required, and deployment remains separate.
+
+## 2026-11-18 — Entity attack authority and observer delivery
+
+Keep admin entity attacks independent of CDB hero replacement: weapon slots use beam charge/release and secondary homing fireballs; dig retains gravity. Negotiate capability 16 for actions 7–10 in existing fixed-size message 115 and VFX-only messages 117/118. Validate role/capability/mode/liveness/aim on the world thread, derive charge/origins/target/endpoint and cooldown there, and use native health/block damage. Bounded server projectile lifetime, steering and swept collision prevent client hit claims. Existing mode cleanup removes attack ownership.
+
+Deliver observer VFX through loaded GameInstance connection services, including spectators, each with its own negotiated capability. Use GameZone callbacks rather than the shared buffered ServiceZone (which has no connection capability flags). Keep original procedural client VFX/materials temporary and non-colliding. Preserve old gravity negotiation and ordinary weapon control when the server lacks capability 16. Deployment remains separate.
