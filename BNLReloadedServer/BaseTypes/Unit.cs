@@ -1476,6 +1476,8 @@ public partial class Unit
             if (card?.Effect is not ConstEffectBuff { Buffs: not null } effectBuff) continue;
             foreach (var buff in effectBuff.Buffs)
             {
+                // This marker belongs to the authorized mode, never to a catalogue effect.
+                if (buff.Key == BuffType.AdminHideNameplate) continue;
                 // Fast Restock gains are evaluated with their source, not as global gain buffs.
                 if (card.Id == StationHealing.FastRestockEffect &&
                     buff.Key is BuffType.HealthGain or BuffType.AmmoGain) continue;
@@ -1491,6 +1493,7 @@ public partial class Unit
         }
 
         if (_debugDummyMaxHealth is { } dummyHealth) buffResult[BuffType.HealthCap] = dummyHealth - 1;
+        if (AdminFunnyMode) buffResult[BuffType.AdminHideNameplate] = 1;
         if (AdminFunnyMode && UnitCard?.Health?.Health is {} health)
             buffResult[BuffType.HealthCap] = 2000f / health.MaxHealth - 1;
         return buffResult;

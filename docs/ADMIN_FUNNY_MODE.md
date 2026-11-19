@@ -15,3 +15,10 @@ Model replacement is deferred. The client exposes ModeChanged for the later pres
 Validation: Release build, 45 new server fixture checks, TeleportPlacement fixture, DashMiss 330794 checks, Auth 4 assertions. The companion Unity validation checks request/state encoding and capability gating, default-off state, flight directions/speed/hover, and native CharacterController wall/vertical movement. A two-human interactive match smoke remains a rollout check.
 
 Reproduce: `dotnet run --project tests/BNLReloadedServer.AdminFunnyFixture -c Release`.
+
+
+## Overhead name visibility
+
+While enabled, the unit publishes AdminHideNameplate=1 (buff wire value 60) alongside its ordinary health/buff updates and full snapshots. This is presentation state owned by the authorized mode; normal catalogue effects cannot set it. Existing update delivery covers all match observers, including spectators and late joins. Normal effect recomputation preserves it while enabled, and existing mode cleanup removes it on disable/role loss/death/disconnect/lease expiry.
+
+Updated clients suppress overhead name text and title alpha, including crosshair-triggered display, while retaining native health bar fill/visibility. The title's prior enabled state returns on exit. No account name or scoreboard entry is rewritten. Existing clients accept unknown numeric buff keys but require the new client implementation to hide the title; deploy the matching client/server together. Server fixture now passes 52 checks.

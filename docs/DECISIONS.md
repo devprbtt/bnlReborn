@@ -96,3 +96,8 @@ Fast Restock uses the existing effect health_gain/ammo_gain tuning only for stat
 ## 2026-11-18 — Experimental admin funny-mode authority
 
 Use negotiated zone capability 15 (115 request, 116 state), independently authorize each request and recheck after world queuing. Keep hold placement, charge timing, max health and lifecycle on the server; use the player's existing CharacterController/force physics for flight and the issued throw impulse. Enable per living admin per match, never persist. Require upgraded targets and suppress extension packets to older clients. Rebuild ordinary health buffs on exit, preserving effect ownership. Do not register a substitute character model until the later model work. See docs/ADMIN_FUNNY_MODE.md.
+
+
+## 2026-11-18 — Replicated admin nameplate presentation
+
+Carry nameplate suppression as a server-owned marker in existing UnitUpdate.Buffs, including full observer snapshots, instead of adding a second high-rate observer mode stream or inferring the mode from its 2000 health cap. Reserve marker 60 for this purpose and ignore it in catalogue effect extraction. Updated clients disable only the native overhead name Text/title canvas, preserving health content and existing line-of-sight/team display rules; restore its prior enabled state on exit. Keep account identity and other UI data intact. Roll out with the corresponding client change; legacy clients can parse the marker but do not implement suppression.

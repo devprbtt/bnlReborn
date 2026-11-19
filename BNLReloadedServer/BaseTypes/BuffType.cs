@@ -64,5 +64,7 @@ public enum BuffType
     // carries "heal_bane" parses (an unknown buff name fails the whole load); it does nothing.
     HealBane = 58,
     // Fractional bonus to explosion damage against terrain blocks, e.g. 0.5 = +50%.
-    SplashBlockDamageBonus = 59
+    SplashBlockDamageBonus = 59,
+    // Server-owned presentation state, replicated in normal unit updates/snapshots.
+    AdminHideNameplate = 60
 }

@@ -234,3 +234,10 @@ Warning-as-error Release build and linux-x64 publish passed. TeamFeatures, Auth,
 ## 2026-11-18 — Experimental admin gravity tool, flight and health
 
 Implemented capability-15 admin funny mode for every match and both teams, server-owned holding/charge, normal client launch physics, swept terrain checks, and lifecycle/role/lease cleanup. Added flight support via the companion client and exact 2000 health while enabled, restoring normal buff limits on exit. Release build and AdminFunny 45 checks, TeleportPlacement, DashMiss 330794 checks and Auth 4 assertions passed. Client builds/checks are tracked in the client repository. Not deployed. Details: docs/ADMIN_FUNNY_MODE.md.
+
+
+## 2026-11-18 — Admin-mode overhead name suppression
+
+Added a server-owned presentation marker (BuffType.AdminHideNameplate, wire value 60) to the mode's ordinary replicated unit buffs. It reaches teammates, enemies, spectators and late/reconnecting clients through the existing update/snapshot route, and is removed on mode cleanup. Catalogue effects cannot supply the marker. The updated client suppresses the name Text and its title alpha during binding, Update and LateUpdate while preserving native health-bar content/fill/visibility; normal title state returns when the marker clears.
+
+Validation: Release server build zero warnings/errors; 52 admin-mode server checks, including marker serialization, late-observer snapshots, effect recomputation, cleanup and catalogue injection rejection. Unity nameplate checks consume actual server-generated on/off packets and verify both teams, observer independence, native health content, late-frame suppression and restoration. Requires updated observer clients; no public release or deployment performed. Client evidence: reports/admin-nameplate. Server feature branch remains feat/admin-funny-mode.

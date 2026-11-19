@@ -27,8 +27,9 @@ var gear=new CardGear {Id="fixture_dig",Tools=[new ToolShot {HitEffect=new InstE
 var weapon=new CardGear {Id="fixture_weapon",Tools=[]};
 var hero=new CardUnit {Id="fixture_hero",Data=new UnitDataPlayer(),Size=new Vector3s(1,2,1),PivotType=UnitPivotType.CenterBottom,
  Health=new UnitHealth {Health=new Health {MaxHealth=300,HealthType=HealthType.Player}}};
+var markerEffect=new CardEffect {Id="fixture_nameplate_marker",Effect=new ConstEffectBuff {Buffs=new() {[BuffType.AdminHideNameplate]=1,[BuffType.RunSpeed]=.1f}}};
 var mode=new CardGameMode {Id="game_mode_friendly"};
-((ServerCatalogue)Databases.Catalogue).Replicate([gear,weapon,hero,mode,new CardGameMode {Id="game_mode_custom"},
+((ServerCatalogue)Databases.Catalogue).Replicate([gear,weapon,hero,mode,markerEffect,new CardGameMode {Id="game_mode_custom"},
  new CardMatch {Id="fixture_match",Data=new MatchDataShieldCapture()},new CardGlobalLogic {Id="global_logic"},
  new CardBlock {Id="fixture_wall",BlockId=1,Passable=BlockPassableType.None,Solid=true,Grounded=true},
  new CardBlock {Id="fixture_air",BlockId=0,Passable=BlockPassableType.Any,Transparent=true,LightTransparent=true,SkylightTransparent=true}]);
@@ -59,6 +60,18 @@ OnZone(()=>{
  dbPlayers[1].Role=PlayerRole.User;Cmd("on");Check(modes.Count==0,"world thread rejects nonadmin");dbPlayers[1].Role=PlayerRole.Admin;
  Cap(adminService,false);Cmd("on");Check(modes.Count==0,"old admin client rejected");Cap(adminService,true);
  Cmd("on");Check(modes.Count==1 && admin.AdminFunnyMode,"mode enabled in normal friendly match");
+ Check(admin.GetBuff(BuffType.AdminHideNameplate)==1,"mode sets replicated nameplate marker");
+ var snapshot=admin.GetUpdateData();Check(snapshot.Buffs?.GetValueOrDefault(BuffType.AdminHideNameplate)==1,"late observer snapshot contains marker");
+ using(var stream=new MemoryStream())
+ {
+  UnitUpdate.WriteRecord(new BinaryWriter(stream),new UnitUpdate {Buffs=snapshot.Buffs,Health=2000});
+  if(args.Length>0){Directory.CreateDirectory(args[0]);File.WriteAllBytes(Path.Combine(args[0],"mode-on.bin"),stream.ToArray());}
+  stream.Position=0;Check(UnitUpdate.ReadRecord(new BinaryReader(stream)).Buffs?.GetValueOrDefault(BuffType.AdminHideNameplate)==1,"nameplate marker survives wire serialization");
+ }
+ admin.AddEffects([new ConstEffectInfo(markerEffect.Key)],admin.Team,admin.GetSelfSource());
+ teammate.AddEffects([new ConstEffectInfo(markerEffect.Key)],teammate.Team,teammate.GetSelfSource());
+ Check(admin.GetBuff(BuffType.AdminHideNameplate)==1,"effect recomputation preserves authorized mode marker");
+ Check(!teammate.IsBuff(BuffType.AdminHideNameplate),"catalogue effects cannot impersonate admin nameplate mode");
  Check(Math.Abs(admin.UnitMaxHealth(300)-2000)<.01f && Math.Abs(admin.HealthPercentage-1)<.001,"exact 2000 maximum and current health");
  Cmd("grab",teammate);Check(teammate.AdminFunnyHeld,"teammate grabbable");Check(teammate.IsBuff(BuffType.Root)&&teammate.IsBuff(BuffType.Disarm),"held target rooted/disarmed");
  var old=teammate.Transform.Position;zone.ReceivedMoveRequest(teammate.Id,999999,new ZoneTransform {Position=new Vector3(20,20,20)});Check(teammate.Transform.Position==old,"held player movement spoof ignored");
@@ -82,12 +95,15 @@ OnZone(()=>{
  Cmd("grab",enemy);enemy.IsActive=false;Call("TickAdminFunny");Check(!enemy.AdminFunnyHeld,"target disconnect releases");enemy.IsActive=true;
  Cmd("grab",enemy);hold.GetType().GetField("LastUpdate")!.SetValue(hold,DateTimeOffset.UtcNow.AddSeconds(-2));Call("TickAdminFunny");
  Check(modes.Count==0 && !enemy.AdminFunnyHeld && !admin.AdminFunnyMode,"lost admin heartbeat disables and releases");
+ Check(!admin.IsBuff(BuffType.AdminHideNameplate),"lease expiry removes nameplate marker");
  Check(admin.UnitMaxHealth(300)==300 && admin.HealthPercentage<=1,"normal health restored without excess health");
  Cmd("on");Cmd("grab",enemy);dbPlayers[1].Role=PlayerRole.Moderator;Call("TickAdminFunny");Check(modes.Count==0 && !enemy.AdminFunnyHeld,"role revocation disables and releases");dbPlayers[1].Role=PlayerRole.Admin;
  Cmd("on");Cmd("grab",enemy);admin.IsActive=false;Call("TickAdminFunny");Check(modes.Count==0 && !enemy.AdminFunnyHeld,"admin disconnect releases and disables");admin.IsActive=true;
  Cmd("on");Cmd("grab",enemy);enemy.IsDead=true;Call("TickAdminFunny");Check(!enemy.AdminFunnyHeld,"target death releases");enemy.IsDead=false;
  Cmd("off");Cmd("on");admin.IsDead=true;Call("TickAdminFunny");Check(modes.Count==0 && admin.IsDead,"admin death disables without revival");admin.IsDead=false;
  Cmd("on");Cmd("off");Check(modes.Count==0 && !admin.AdminFunnyMode,"explicit off resets mode");
+ Check(!admin.IsBuff(BuffType.AdminHideNameplate) && admin.GetUpdateData().Buffs?.ContainsKey(BuffType.AdminHideNameplate)!=true,"off removes marker from current and future observer snapshots");
+ if(args.Length>0){using var stream=new MemoryStream();UnitUpdate.WriteRecord(new BinaryWriter(stream),new UnitUpdate {Buffs=admin.GetUpdateData().Buffs,Health=admin.UnitMaxHealth(300)});File.WriteAllBytes(Path.Combine(args[0],"mode-off.bin"),stream.ToArray());}
  return true;
 });
 var oldSender=new CaptureSender();new ServiceZone(oldSender).SendAdminFunny(1,2,true,0,Vector3.Zero,Vector3.Zero,0);Check(oldSender.Packets.Count==0,"no extension packets to old clients");
