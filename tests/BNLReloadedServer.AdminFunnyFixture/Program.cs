@@ -31,7 +31,8 @@ var hero=new CardUnit {Id="fixture_hero",Data=new UnitDataPlayer(),Size=new Vect
  Health=new UnitHealth {Health=new Health {MaxHealth=300,HealthType=HealthType.Player}}};
 var markerEffect=new CardEffect {Id="fixture_nameplate_marker",Effect=new ConstEffectBuff {Buffs=new() {[BuffType.AdminHideNameplate]=1,[BuffType.AdminStormEpochHigh]=123,[BuffType.AdminStormEpochLow]=456,[BuffType.AdminInvisible]=1,[BuffType.RunSpeed]=.1f}}};
 var mode=new CardGameMode {Id="game_mode_friendly"};
-((ServerCatalogue)Databases.Catalogue).Replicate([gear,weapon,secondary,nativePullEffect,hero,mode,markerEffect,new CardGameMode {Id="game_mode_custom"},
+var entitySkin=new CardSkin {Id="fixture_entity_skin"};
+((ServerCatalogue)Databases.Catalogue).Replicate([gear,weapon,secondary,nativePullEffect,hero,mode,markerEffect,entitySkin,new CardGameMode {Id="game_mode_custom"},
  new CardMatch {Id="fixture_match",Data=new MatchDataShieldCapture()},new CardGlobalLogic {Id="global_logic"},
  new CardBlock {Id="fixture_wall",BlockId=1,Passable=BlockPassableType.None,Solid=true,Grounded=true},
  new CardBlock {Id="fixture_beam_wall",BlockId=2,Passable=BlockPassableType.None,Solid=true,Grounded=true,Destructible=true,Health=new Health {MaxHealth=1000}},
@@ -233,7 +234,7 @@ OnZone(()=>{
  return true;
 });
 var oldSender=new CaptureSender();new ServiceZone(oldSender).SendAdminFunny(1,2,true,0,Vector3.Zero,Vector3.Zero,0);Check(oldSender.Packets.Count==0,"no extension packets to old clients");
-foreach(var version in new[]{14,15,16,17,18})
+foreach(var version in new[]{14,15,16,17,18,19})
 {
  var negotiated=new ServiceZone(new CaptureSender());using var stream=new MemoryStream();using var writer=new BinaryWriter(stream);
  writer.Write(0x42504E47u);writer.Write(version);stream.Position=0;
@@ -242,6 +243,7 @@ foreach(var version in new[]{14,15,16,17,18})
  Check(negotiated.SupportsAdminBeam==(version>=16),"beam capability negotiation v"+version);
  Check(negotiated.SupportsAdminGravity==(version>=17),"gravity capability negotiation v"+version);
  Check(negotiated.SupportsAdminInvisibility==(version>=18),"invisibility capability negotiation v"+version);
+ Check(negotiated.SupportsAdminSpectator==(version>=19),"spectator entity capability negotiation v"+version);
  var gatedSender=new CaptureSender();var gated=new ServiceZone(gatedSender);typeof(ServiceZone).GetProperty("SupportsAdminBeam")!.SetValue(gated,version>=16);gated.SendAdminBeam(1,1,123,Vector3.Zero,Vector3.One,1);Check(gatedSender.Packets.Count==(version>=16?1:0),"beam observer packet gates v"+version);
  gated.SendAdminFireball(1,1,0,Vector3.Zero,Vector3.UnitZ);Check(gatedSender.Packets.Count==(version>=16?2:0),"fireball observer packet gates v"+version);
  typeof(ServiceZone).GetProperty("SupportsAdminGravity")!.SetValue(gated,version>=17);gated.SendAdminGravity(1,0,123,Vector3.Zero,28,1);Check(gatedSender.Packets.Count==(version>=17?3:version>=16?2:0),"gravity observer packet gates v"+version);
@@ -287,6 +289,43 @@ using(var stream=new MemoryStream())
  typeof(ServiceZone).GetMethod("ReceiveAdminFunny",Any)!.Invoke(rejectedZone,[new BinaryReader(stream)]);
  Check(modes.Count==0,"zone transport rejects nonadmin before game lookup");
 }
+((UnitDataPlayer)hero.Data!).Skins=[entitySkin.Key];
+dbPlayers[4]=new PlayerData {PlayerId=4,Role=PlayerRole.Admin,LastPlayedHero=hero.Key};
+var spectatorInitiator=Stub<IGameInitiator>(new(){["GetGameMode"]=mode.Key,["get_GameInstanceId"]="spectator-entity-fixture",["IsPlayerSpectator"]=true});
+var spectatorZone=new GameZone(Stub<IServiceZone>(),Stub<IServiceZone>(),Stub<IBuffer>(),Stub<ISender>(),map,spectatorInitiator,new());
+T SpectatorThread<T>(Func<T> f){var done=new TaskCompletionSource<T>();spectatorZone.EnqueueAction(()=>{try{done.SetResult(f());}catch(Exception e){done.SetException(e);}});return done.Task.WaitAsync(TimeSpan.FromSeconds(10)).GetAwaiter().GetResult();}
+var spectatorPackets=new CaptureSender();var spectatorService=new ServiceZone(spectatorPackets);
+foreach(string capability in new[]{"SupportsAdminFunnyMode","SupportsAdminBeam","SupportsAdminGravity","SupportsAdminInvisibility","SupportsAdminSpectator"})typeof(ServiceZone).GetProperty(capability)!.SetValue(spectatorService,true);
+var spectatorUnits=(Dictionary<uint,Unit>)typeof(GameZone).GetField("_playerUnits",Any)!.GetValue(spectatorZone)!;
+var spectatorData=(ZoneData)typeof(GameZone).GetField("_zoneData",Any)!.GetValue(spectatorZone)!;
+string[] OnArgs=["on","0","6","0","0","1"],OffArgs=["off","0","6","0","0","1"];
+SpectatorThread(()=>{spectatorZone.ReceivedAdminSpectator(4,OnArgs,spectatorService);return true;});
+Check(spectatorUnits.Count==1 && spectatorUnits.Values.Single().AdminSpectatorEntity,"admin spectator spawns transient entity body");
+var transient=spectatorUnits.Values.Single();
+Check(transient.Team==TeamType.Neutral && transient.AdminFunnyMode,"spectator entity is neutral and transformed");
+Check(transient.UnitMaxHealth(300)==2000 && transient.HealthPercentage==1,"spectator entity gets 2000 current and maximum health");
+Check(spectatorData.PlayerStats.Count==0 && spectatorData.PlayerInfo.Count==0,"spectator entity never enters scoreboard or roster");
+Check(spectatorInitiator.IsPlayerSpectator(4),"entity retains spectator membership");
+Check(spectatorPackets.Packets.First(p=>p[1]==120)[2]==1,"owner enters control before spawn");
+SpectatorThread(()=>{spectatorZone.ReceivedAdminSpectator(4,OnArgs,spectatorService);return true;});Check(spectatorUnits.Count==1,"repeat activation does not duplicate entity");
+SpectatorThread(()=>{spectatorZone.ReceivedAdminSpectator(4,OffArgs,spectatorService);return true;});
+Check(spectatorUnits.Count==0 && spectatorPackets.Packets.Last(p=>p[1]==120)[2]==0,"mode off removes body and restores spectator");
+Check(spectatorData.RespawnInfo.Count==0 && spectatorData.PlayerStats.Count==0,"exit leaves no respawn or score row");
+SpectatorThread(()=>{spectatorZone.ReceivedAdminSpectator(4,OnArgs,spectatorService);spectatorUnits.Values.Single().Killed(new ImpactData());return true;});
+Check(spectatorUnits.Count==0 && spectatorPackets.Packets.Last(p=>p[1]==120)[2]==0,"entity death immediately returns to spectating without respawn");
+SpectatorThread(()=>{spectatorZone.ReceivedAdminSpectator(4,OnArgs,spectatorService);spectatorZone.PlayerLeft(4,KickReason.MatchQuit);return true;});
+Check(spectatorUnits.Count==0,"leaving match removes spectator entity");
+SpectatorThread(()=>{spectatorZone.ReceivedAdminSpectator(4,OnArgs,spectatorService);var funny=(System.Collections.IDictionary)typeof(GameZone).GetField("_funnyModes",Any)!.GetValue(spectatorZone)!;var active=funny[spectatorUnits.Values.Single().Id]!;active.GetType().GetField("LastUpdate")!.SetValue(active,DateTimeOffset.UtcNow.AddSeconds(-2));typeof(GameZone).GetMethod("TickAdminFunny",Any)!.Invoke(spectatorZone,null);return true;});
+Check(spectatorUnits.Count==0,"spectator entity lease expiry returns to observation");
+SpectatorThread(()=>{spectatorZone.ReceivedAdminSpectator(4,OnArgs,spectatorService);dbPlayers[4].Role=PlayerRole.User;typeof(GameZone).GetMethod("TickAdminFunny",Any)!.Invoke(spectatorZone,null);return true;});
+Check(spectatorUnits.Count==0,"role revocation removes spectator entity");dbPlayers[4].Role=PlayerRole.Admin;
+((StubProxy)(object)spectatorInitiator).Returns["IsPlayerSpectator"]=false;
+SpectatorThread(()=>{spectatorZone.ReceivedAdminSpectator(4,OnArgs,spectatorService);return true;});Check(spectatorUnits.Count==0,"participant cannot invoke spectator spawn path");
+((StubProxy)(object)spectatorInitiator).Returns["IsPlayerSpectator"]=true;
+typeof(ServiceZone).GetProperty("SupportsAdminSpectator")!.SetValue(spectatorService,false);
+SpectatorThread(()=>{spectatorZone.ReceivedAdminSpectator(4,OnArgs,spectatorService);return true;});Check(spectatorUnits.Count==0,"old client cannot spawn spectator entity");
+typeof(ServiceZone).GetProperty("SupportsAdminSpectator")!.SetValue(spectatorService,true);dbPlayers[4].Role=PlayerRole.Moderator;
+SpectatorThread(()=>{spectatorZone.ReceivedAdminSpectator(4,OnArgs,spectatorService);return true;});Check(spectatorUnits.Count==0,"moderator spectator cannot spawn entity");
 Console.WriteLine($"{checks} admin funny checks passed");Environment.Exit(0);
 
 static T Stub<T>(Dictionary<string,object?>? returns=null) where T:class {var value=DispatchProxy.Create<T,StubProxy>();((StubProxy)(object)value).Returns=returns??[];return value;}

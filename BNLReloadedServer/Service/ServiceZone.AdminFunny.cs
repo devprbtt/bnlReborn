@@ -6,6 +6,11 @@ namespace BNLReloadedServer.Service;
 
 public partial class ServiceZone
 {
+    public void SendAdminSpectator(bool active)
+    {
+        if(!SupportsAdminSpectator)return;
+        using var writer=CreateWriter();writer.Write((byte)120);writer.Write(active);sender.Send(writer);
+    }
     private static readonly string[] FunnyActions = ["on","off","grab","aim","charge","throw","drop","beam_charge","beam_fire","beam_cancel","fireball","well_on","well_off","repulse_charge","repulse_fire","gravity_cancel","invis_toggle"];
     private void ReceiveAdminFunny(BinaryReader reader)
     {

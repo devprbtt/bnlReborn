@@ -1332,6 +1332,7 @@ public partial class GameZone : Updater
 
     public bool PlayerLeft(uint playerId, KickReason reason, bool disconnected = false)
     {
+        EndAdminSpectator(playerId);
         _activeHeroEmotes.Remove(playerId);
         _lastHeroEmote.Remove(playerId);
         _lastTeamPing.Remove(playerId);
@@ -1724,6 +1725,7 @@ public partial class GameZone : Updater
         {
             _gameInitiator.SetBackfillReady(false);
             _ratingEndedAt = DateTimeOffset.UtcNow;
+            foreach(var spectator in _adminSpectatorServices.Keys.ToArray())EndAdminSpectator(spectator);
             _zoneData.EndMatch(winner);
             BNLReloadedServer.ControlPanel.ControlPanelEvents.Publish(BNLReloadedServer.ControlPanel.ControlPanelEvent.Activity);
         });
@@ -1834,7 +1836,7 @@ public partial class GameZone : Updater
         // Grab match stats
         foreach (var player in _playerUnits.Values)
         {
-            if (player.Stats is null || player.PlayerId is null)
+            if (player.AdminSpectatorEntity || player.Stats is null || player.PlayerId is null)
                 continue;
 
             player.UpdateStatsFromTimers();

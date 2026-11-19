@@ -55,7 +55,13 @@ public partial class GameZone
         else
         {
             _unbufferedZone.SendUnitCreate(unit.Id, unitInit);
-            if (_gameLoop != null && (unit.IsDropped || unit.PlayerId == null))
+            if(unit.AdminSpectatorEntity)
+            {
+                // This owner is already subscribed as a spectator. It received the
+                // broadcast create, so transfer control instead of creating it twice.
+                creatorService?.SendUnitControl(unit.Id);
+            }
+            else if (_gameLoop != null && (unit.IsDropped || unit.PlayerId == null))
             {
                 creatorService?.SendUnitControl(unit.Id);
             }
@@ -1472,7 +1478,7 @@ public partial class GameZone
 
     private void UpdateMatchStats(Unit player, int? kills = null, int? deaths = null, int? assists = null)
     {
-        if (player.PlayerId == null) return;
+        if (player.PlayerId == null || player.AdminSpectatorEntity || !_zoneData.PlayerStats.ContainsKey(player.PlayerId.Value)) return;
         if (kills.HasValue)
         {
             _zoneData.PlayerStats[player.PlayerId.Value].Kills += kills.Value;
@@ -1599,6 +1605,7 @@ public partial class GameZone
 
     private void UnitIsKilled(Unit target, ImpactData impact, bool mining = false)
     {
+        if(target.AdminSpectatorEntity && target.PlayerId is {} spectator){EndAdminSpectator(spectator);return;}
         // This callback runs just before Unit.IsDead changes. Exclude the victim explicitly
         // so a last-carrier kill restores cube protection before another queued hit.
         if (_conquest?.Attacking == true && target.PlayerId.HasValue && target.Team == _conquest.Attacker)

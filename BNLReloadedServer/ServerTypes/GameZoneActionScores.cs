@@ -27,7 +27,7 @@ public partial class GameZone
         Vector3.DistanceSquared(position, u.GetMidpoint()) <= _actionScoreRules.ObjectiveRadius * _actionScoreRules.ObjectiveRadius);
     private void AwardAction(Unit player, string reason, float amount, Vector3 position, uint? target)
     {
-        if (!CanScore || player.PlayerId is not { } id || !float.IsFinite(amount) || amount <= 0) return;
+        if (!CanScore || player.AdminSpectatorEntity || player.PlayerId is not { } id || !float.IsFinite(amount) || amount <= 0) return;
         // Cube destruction is already the full shared objective reward.
         bool near = reason != "Cube destroyed" && NearScoreObjective(position);
         var rules = _actionScoreRules; var ledger = ActionScores;

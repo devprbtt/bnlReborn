@@ -1071,6 +1071,7 @@ public partial class GameInstance : IGameInstance
         var snapshot = new List<ScoreboardPlayerNetworkInfo>(_connectedUsers.Count);
         foreach (var (connectedPlayerId, connection) in _connectedUsers)
         {
+            if(GameInitiator.IsPlayerSpectator(connectedPlayerId))continue;
             if (!_services.TryGetValue(connection.Guid, out var services)) continue;
             var ping = services.GetValueOrDefault(ServiceId.ServicePing) as IServicePing;
             var zone = services.GetValueOrDefault(ServiceId.ServiceZone) as IServiceZone;
@@ -1104,7 +1105,18 @@ public partial class GameInstance : IGameInstance
         Zone?.EnqueueAction(() => Zone?.ReceivedDebugSpawnSupply(blockbusterCardId));
 
     public void DebugZoneCommand(uint playerId, string command, IReadOnlyList<string> args) =>
-        Zone?.EnqueueAction(() => Zone?.ReceivedDebugCommand(playerId, command, args));
+        Zone?.EnqueueAction(() =>
+        {
+            if(command=="admin_funny" && GameInitiator.IsPlayerSpectator(playerId))
+            {
+                if(_connectedUsers.TryGetValue(playerId,out var connection) && connection.LoadStage==ZoneLoadStage.Finished &&
+                    _services.TryGetValue(connection.Guid,out var services) &&
+                    services.TryGetValue(ServiceId.ServiceZone,out var service) && service is ServiceZone zoneService)
+                    Zone?.ReceivedAdminSpectator(playerId,args,zoneService);
+                return;
+            }
+            Zone?.ReceivedDebugCommand(playerId, command, args);
+        });
 
     private void OnLoadTimerElapsed(object? sender, ElapsedEventArgs e)
     {

@@ -161,5 +161,6 @@ public partial class GameZone
         CancelAdminBeam(hold);
         CancelAdminGravity(hold);
         DropFunny(hold); hold.Admin.SetAdminFunnyMode(false); SendFunny(hold,1,enabled:false);
+        if(hold.Admin.AdminSpectatorEntity && hold.Admin.PlayerId is {} playerId)EndAdminSpectator(playerId);
     }
 }

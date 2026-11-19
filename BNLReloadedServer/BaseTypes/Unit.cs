@@ -121,6 +121,7 @@ public partial class Unit
     public readonly EffectArea? DamageCaptureEffect;
     public readonly EffectArea? LandmineEffect;
 
+    public bool AdminSpectatorEntity { get; set; }
     public readonly Dictionary<Unit, DateTimeOffset> RecentDamagers = new();
     // Enemy player damage taken this life, per attacker; an attacker drops out when its assist window expires.
     public readonly Dictionary<Unit, float> RecentDamageTaken = new();
