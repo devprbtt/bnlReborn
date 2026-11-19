@@ -247,8 +247,17 @@ public partial class Unit
 
     public bool AdminFunnyHeld;
     public bool AdminFunnyMode { get; private set; }
-    public void SetAdminFunnyMode(bool enabled)
+    private long _adminStormEpochMs;
+    public void SetAdminFunnyStormEpoch(long epochMs)
     {
+        if (!AdminFunnyMode) return;
+        _adminStormEpochMs = epochMs;
+        UpdateData(new UnitUpdate { Buffs = ExtractBuffs(ActiveEffects.Select(info => info.Key).Distinct()) });
+    }
+    public void SetAdminFunnyMode(bool enabled, long? stormEpochMs = null)
+    {
+        if (enabled) _adminStormEpochMs = stormEpochMs ?? (AdminFunnyMode ? _adminStormEpochMs : DateTimeOffset.UtcNow.ToUnixTimeMilliseconds());
+        else _adminStormEpochMs = 0;
         AdminFunnyMode = enabled;
         var buffs = ExtractBuffs(ActiveEffects.Select(info => info.Key).Distinct());
         var baseHealth = UnitCard?.Health?.Health?.MaxHealth ?? 1;
@@ -1477,7 +1486,7 @@ public partial class Unit
             foreach (var buff in effectBuff.Buffs)
             {
                 // This marker belongs to the authorized mode, never to a catalogue effect.
-                if (buff.Key == BuffType.AdminHideNameplate) continue;
+                if (buff.Key is BuffType.AdminHideNameplate or BuffType.AdminStormEpochHigh or BuffType.AdminStormEpochLow) continue;
                 // Fast Restock gains are evaluated with their source, not as global gain buffs.
                 if (card.Id == StationHealing.FastRestockEffect &&
                     buff.Key is BuffType.HealthGain or BuffType.AmmoGain) continue;
@@ -1493,7 +1502,13 @@ public partial class Unit
         }
 
         if (_debugDummyMaxHealth is { } dummyHealth) buffResult[BuffType.HealthCap] = dummyHealth - 1;
-        if (AdminFunnyMode) buffResult[BuffType.AdminHideNameplate] = 1;
+        if (AdminFunnyMode)
+        {
+            buffResult[BuffType.AdminHideNameplate] = 1;
+            // Two exact float integers retain millisecond precision on the existing wire format.
+            buffResult[BuffType.AdminStormEpochHigh] = _adminStormEpochMs / 1048576L;
+            buffResult[BuffType.AdminStormEpochLow] = _adminStormEpochMs % 1048576L;
+        }
         if (AdminFunnyMode && UnitCard?.Health?.Health is {} health)
             buffResult[BuffType.HealthCap] = 2000f / health.MaxHealth - 1;
         return buffResult;

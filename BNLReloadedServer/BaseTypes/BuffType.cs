@@ -66,5 +66,7 @@ public enum BuffType
     // Fractional bonus to explosion damage against terrain blocks, e.g. 0.5 = +50%.
     SplashBlockDamageBonus = 59,
     // Server-owned presentation state, replicated in normal unit updates/snapshots.
-    AdminHideNameplate = 60
+    AdminHideNameplate = 60,
+    AdminStormEpochHigh = 61,
+    AdminStormEpochLow = 62
 }

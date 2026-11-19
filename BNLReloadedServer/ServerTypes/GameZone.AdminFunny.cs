@@ -17,6 +17,7 @@ public partial class GameZone
         public float Distance = 6;
     }
     private readonly Dictionary<uint, FunnyHold> _funnyModes = new();
+    private long _funnyStormEpochMs;
     private static bool FunnyDig(Unit unit) => unit.CurrentGear?.Card.Tools?.Any(t =>
         t is ToolShot { HitEffect: InstEffectDamage { Damage.Mining: true } }) == true;
     private static bool FunnyCapable(Unit unit) => unit.ZoneService is ServiceZone { SupportsAdminFunnyMode: true };
@@ -32,8 +33,14 @@ public partial class GameZone
         if (!FunnyAlive(admin) || admin.AdminFunnyHeld) return;
         if (action == "on")
         {
-            if (!_funnyModes.ContainsKey(admin.Id)) _funnyModes.Add(admin.Id, new FunnyHold { Admin = admin });
-            admin.SetAdminFunnyMode(true);
+            if (!_funnyModes.ContainsKey(admin.Id))
+            {
+                _funnyStormEpochMs = Math.Max(DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(), _funnyStormEpochMs + 1);
+                // Remaining admins retain this epoch even if the newest one later leaves.
+                foreach (var existing in _funnyModes.Values) existing.Admin.SetAdminFunnyStormEpoch(_funnyStormEpochMs);
+                _funnyModes.Add(admin.Id, new FunnyHold { Admin = admin });
+            }
+            admin.SetAdminFunnyMode(true, _funnyStormEpochMs);
             SendFunny(_funnyModes[admin.Id], 0);
             return;
         }

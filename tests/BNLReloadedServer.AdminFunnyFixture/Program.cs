@@ -27,7 +27,7 @@ var gear=new CardGear {Id="fixture_dig",Tools=[new ToolShot {HitEffect=new InstE
 var weapon=new CardGear {Id="fixture_weapon",Tools=[]};
 var hero=new CardUnit {Id="fixture_hero",Data=new UnitDataPlayer(),Size=new Vector3s(1,2,1),PivotType=UnitPivotType.CenterBottom,
  Health=new UnitHealth {Health=new Health {MaxHealth=300,HealthType=HealthType.Player}}};
-var markerEffect=new CardEffect {Id="fixture_nameplate_marker",Effect=new ConstEffectBuff {Buffs=new() {[BuffType.AdminHideNameplate]=1,[BuffType.RunSpeed]=.1f}}};
+var markerEffect=new CardEffect {Id="fixture_nameplate_marker",Effect=new ConstEffectBuff {Buffs=new() {[BuffType.AdminHideNameplate]=1,[BuffType.AdminStormEpochHigh]=123,[BuffType.AdminStormEpochLow]=456,[BuffType.RunSpeed]=.1f}}};
 var mode=new CardGameMode {Id="game_mode_friendly"};
 ((ServerCatalogue)Databases.Catalogue).Replicate([gear,weapon,hero,mode,markerEffect,new CardGameMode {Id="game_mode_custom"},
  new CardMatch {Id="fixture_match",Data=new MatchDataShieldCapture()},new CardGlobalLogic {Id="global_logic"},
@@ -53,6 +53,7 @@ var teammate=OnZone(()=> (Unit)Call("CreatePlayerUnit",2u,targetService)!);
 var enemy=OnZone(()=> (Unit)Call("CreatePlayerUnit",3u,targetService)!);
 var modes=(System.Collections.IDictionary)typeof(GameZone).GetField("_funnyModes",Any)!.GetValue(zone)!;
 void Cmd(string action,Unit? target=null,string distance="4")=>zone.ReceivedDebugCommand(1,"admin_funny",[action,(target?.Id??0).ToString(),distance,"0","0","1"]);
+long Epoch(Unit u)=>(long)u.GetBuff(BuffType.AdminStormEpochHigh)*1048576L+(long)u.GetBuff(BuffType.AdminStormEpochLow);
 void Position(Unit u,Vector3 pos) {u.Transform.Position=pos;u.IsActive=true;}
 OnZone(()=>{
  admin.ZoneService=adminService;teammate.ZoneService=targetService;enemy.ZoneService=targetService;
@@ -61,17 +62,29 @@ OnZone(()=>{
  Cap(adminService,false);Cmd("on");Check(modes.Count==0,"old admin client rejected");Cap(adminService,true);
  Cmd("on");Check(modes.Count==1 && admin.AdminFunnyMode,"mode enabled in normal friendly match");
  Check(admin.GetBuff(BuffType.AdminHideNameplate)==1,"mode sets replicated nameplate marker");
+ var firstEpoch=Epoch(admin);
+ Check(Math.Abs(DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()-firstEpoch)<2000,"storm epoch retains exact server milliseconds");
+ Cmd("on");Check(Epoch(admin)==firstEpoch,"duplicate on request does not restart storm");
+ dbPlayers[2].Role=PlayerRole.Admin;
+ zone.ReceivedDebugCommand(2,"admin_funny",["on","0","4","0","0","1"]);
+ Check(Epoch(admin)>firstEpoch && Epoch(admin)==Epoch(teammate),"new transformation synchronizes epoch across active admins");
+ var sharedEpoch=Epoch(admin);
+ zone.ReceivedDebugCommand(2,"admin_funny",["off","0","4","0","0","1"]);
+ Check(Epoch(admin)==sharedEpoch && teammate.GetBuff(BuffType.AdminStormEpochHigh)==0 && teammate.GetBuff(BuffType.AdminStormEpochLow)==0,"remaining admin retains current global storm after newest exits");
+ dbPlayers[2].Role=PlayerRole.User;
  var snapshot=admin.GetUpdateData();Check(snapshot.Buffs?.GetValueOrDefault(BuffType.AdminHideNameplate)==1,"late observer snapshot contains marker");
  using(var stream=new MemoryStream())
  {
   UnitUpdate.WriteRecord(new BinaryWriter(stream),new UnitUpdate {Buffs=snapshot.Buffs,Health=2000});
-  if(args.Length>0){Directory.CreateDirectory(args[0]);File.WriteAllBytes(Path.Combine(args[0],"mode-on.bin"),stream.ToArray());}
+  if(args.Length>0){Directory.CreateDirectory(args[0]);File.WriteAllBytes(Path.Combine(args[0],"mode-on.bin"),stream.ToArray());File.WriteAllText(Path.Combine(args[0],"storm-epoch.txt"),Epoch(admin).ToString());}
   stream.Position=0;Check(UnitUpdate.ReadRecord(new BinaryReader(stream)).Buffs?.GetValueOrDefault(BuffType.AdminHideNameplate)==1,"nameplate marker survives wire serialization");
  }
  admin.AddEffects([new ConstEffectInfo(markerEffect.Key)],admin.Team,admin.GetSelfSource());
  teammate.AddEffects([new ConstEffectInfo(markerEffect.Key)],teammate.Team,teammate.GetSelfSource());
  Check(admin.GetBuff(BuffType.AdminHideNameplate)==1,"effect recomputation preserves authorized mode marker");
  Check(!teammate.IsBuff(BuffType.AdminHideNameplate),"catalogue effects cannot impersonate admin nameplate mode");
+ Check(Epoch(admin)==sharedEpoch,"effect recomputation preserves authoritative weather epoch");
+ Check(!teammate.IsBuff(BuffType.AdminStormEpochHigh) && !teammate.IsBuff(BuffType.AdminStormEpochLow),"catalogue effects cannot inject storm epoch");
  Check(Math.Abs(admin.UnitMaxHealth(300)-2000)<.01f && Math.Abs(admin.HealthPercentage-1)<.001,"exact 2000 maximum and current health");
  Cmd("grab",teammate);Check(teammate.AdminFunnyHeld,"teammate grabbable");Check(teammate.IsBuff(BuffType.Root)&&teammate.IsBuff(BuffType.Disarm),"held target rooted/disarmed");
  var old=teammate.Transform.Position;zone.ReceivedMoveRequest(teammate.Id,999999,new ZoneTransform {Position=new Vector3(20,20,20)});Check(teammate.Transform.Position==old,"held player movement spoof ignored");
@@ -102,6 +115,7 @@ OnZone(()=>{
  Cmd("on");Cmd("grab",enemy);enemy.IsDead=true;Call("TickAdminFunny");Check(!enemy.AdminFunnyHeld,"target death releases");enemy.IsDead=false;
  Cmd("off");Cmd("on");admin.IsDead=true;Call("TickAdminFunny");Check(modes.Count==0 && admin.IsDead,"admin death disables without revival");admin.IsDead=false;
  Cmd("on");Cmd("off");Check(modes.Count==0 && !admin.AdminFunnyMode,"explicit off resets mode");
+ Check(!admin.IsBuff(BuffType.AdminStormEpochHigh) && !admin.IsBuff(BuffType.AdminStormEpochLow),"mode cleanup removes both storm epoch fields");
  Check(!admin.IsBuff(BuffType.AdminHideNameplate) && admin.GetUpdateData().Buffs?.ContainsKey(BuffType.AdminHideNameplate)!=true,"off removes marker from current and future observer snapshots");
  if(args.Length>0){using var stream=new MemoryStream();UnitUpdate.WriteRecord(new BinaryWriter(stream),new UnitUpdate {Buffs=admin.GetUpdateData().Buffs,Health=admin.UnitMaxHealth(300)});File.WriteAllBytes(Path.Combine(args[0],"mode-off.bin"),stream.ToArray());}
  return true;
