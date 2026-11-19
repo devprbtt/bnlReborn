@@ -30,7 +30,7 @@ public partial class GameZone
     {
         if (hold.Admin.ZoneService is not ServiceZone { SupportsAdminBeam: true }) return;
         if (action == "beam_cancel") { CancelAdminBeam(hold); return; }
-        if (FunnyDig(hold.Admin) || hold.Admin.CurrentGear == null || hold.Target != null) { CancelAdminBeam(hold); return; }
+        if (FunnyDig(hold.Admin) || FunnySecondary(hold.Admin) || hold.Admin.CurrentGear == null || hold.Target != null) { CancelAdminBeam(hold); return; }
         var now = DateTimeOffset.UtcNow;
         if (action == "beam_charge")
         {
@@ -49,7 +49,7 @@ public partial class GameZone
     private void TickAdminBeam(FunnyHold hold)
     {
         if (hold.BeamStart == null) return;
-        if (FunnyDig(hold.Admin) || hold.Admin.CurrentGear == null || hold.Target != null) { CancelAdminBeam(hold); return; }
+        if (FunnyDig(hold.Admin) || FunnySecondary(hold.Admin) || hold.Admin.CurrentGear == null || hold.Target != null) { CancelAdminBeam(hold); return; }
         var now = DateTimeOffset.UtcNow;
         if (now < hold.NextBeamPulse) return;
         hold.NextBeamPulse = now.AddMilliseconds(100);

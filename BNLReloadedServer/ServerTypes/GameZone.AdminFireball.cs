@@ -18,7 +18,7 @@ public partial class GameZone
     private void LaunchAdminFireball(FunnyHold hold)
     {
         var now=DateTimeOffset.UtcNow;
-        if(hold.Admin.ZoneService is not ServiceZone {SupportsAdminBeam:true} || FunnyDig(hold.Admin) ||
+        if(hold.Admin.ZoneService is not ServiceZone {SupportsAdminBeam:true} || FunnyDig(hold.Admin) || FunnySecondary(hold.Admin) ||
             hold.Admin.CurrentGear==null || hold.BeamStart!=null || now<hold.NextFireball || _entityFireballs.Count(b=>b.Owner==hold.Admin)>=8) return;
         hold.NextFireball=now.AddSeconds(.8);
         var origin=hold.Admin.GetMidpoint(); Unit? target=null; float best=float.NegativeInfinity;

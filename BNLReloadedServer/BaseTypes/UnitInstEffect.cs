@@ -1078,6 +1078,13 @@ public partial class Unit
         _wasConfused = false;
     }
 
+    private readonly Dictionary<uint,(Unit Origin,float Force)> _adminGravityPulls=new();
+    public void SetAdminGravityPull(Unit origin,float force,bool enabled)
+    {
+        if(enabled) _adminGravityPulls[origin.Id]=(origin,force); else _adminGravityPulls.Remove(origin.Id);
+        ReconcilePull();
+    }
+
     private void ReconcilePull()
     {
         Unit? selected = null;
@@ -1099,6 +1106,12 @@ public partial class Unit
                     force = pull.Force;
                 }
             }
+        }
+        foreach(var entry in _adminGravityPulls.Values)
+        {
+            if(entry.Origin.IsDead || !entry.Origin.IsActive) continue;
+            if(selected is null || entry.Force>force || (entry.Force==force && entry.Origin.Id==_activePuller))
+            {selected=entry.Origin;force=entry.Force;}
         }
         if (selected is null)
         {

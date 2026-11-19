@@ -630,6 +630,10 @@ public partial class GameInstance : IGameInstance
         {
             foreach(var observer in EntityAttackObservers()) observer.SendAdminFireball(id,admin,phase,position,velocity);
         };
+        zone.AdminGravitySender = (admin,phase,time,origin,radius,strength) =>
+        {
+            foreach(var observer in EntityAttackObservers()) observer.SendAdminGravity(admin,phase,time,origin,radius,strength);
+        };
 
         // Publish and drain under one gate: a load request racing construction is either queued
         // before the drain or sees the zone, never neither.

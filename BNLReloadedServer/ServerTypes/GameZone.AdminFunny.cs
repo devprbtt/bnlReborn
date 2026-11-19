@@ -16,6 +16,10 @@ public partial class GameZone
         public DateTimeOffset? BeamStart;
         public DateTimeOffset NextBeam, NextBeamPulse;
         public DateTimeOffset NextFireball;
+        public bool WellActive;
+        public DateTimeOffset? RepulseStart;
+        public DateTimeOffset NextRepulse,NextGravityPulse;
+        public readonly HashSet<Unit> GravityTargets=new();
         public Vector3 Direction = Vector3.UnitZ;
         public float Distance = 6;
     }
@@ -24,6 +28,7 @@ public partial class GameZone
     private static bool FunnyDig(Unit unit) => unit.CurrentGear?.Card.Tools?.Any(t =>
         t is ToolShot { HitEffect: InstEffectDamage { Damage.Mining: true } }) == true;
     private static bool FunnyCapable(Unit unit) => unit.ZoneService is ServiceZone { SupportsAdminFunnyMode: true };
+    private static bool FunnySecondary(Unit unit) => !FunnyDig(unit) && unit.CurrentGear?.Index==2;
     private bool FunnyAlive(Unit unit) => unit.IsActive && !unit.IsDead && _playerUnits.ContainsKey(unit.Id);
 
     private void ReceivedAdminFunny(Unit admin, IReadOnlyList<string> args)
@@ -58,6 +63,7 @@ public partial class GameZone
         hold.LastUpdate = DateTimeOffset.UtcNow;
         admin.LastMoveTime = hold.LastUpdate; admin.WasAfkWarned = false;
         hold.Direction = Vector3.Normalize(direction); hold.Distance = distance;
+        if(action is "well_on" or "well_off" or "repulse_charge" or "repulse_fire" or "gravity_cancel") {ReceivedAdminGravity(hold,action);return;}
         if (action == "fireball") { LaunchAdminFireball(hold); return; }
         if (action.StartsWith("beam_", StringComparison.Ordinal)) { ReceivedAdminBeam(hold, action); return; }
         if (hold.BeamStart != null && FunnyDig(admin)) CancelAdminBeam(hold);
@@ -103,6 +109,7 @@ public partial class GameZone
                 || (DateTimeOffset.UtcNow-hold.LastUpdate).TotalSeconds > AdminFunnyRules.LeaseSeconds)
             { RemoveFunny(admin.Id); continue; }
             TickAdminBeam(hold);
+            TickAdminGravity(hold);
             if (hold.Target is not {} target) continue;
             if (!FunnyAlive(target) || !FunnyDig(admin)) { DropFunny(hold); continue; }
             target.LastMoveTime = DateTimeOffset.UtcNow; target.WasAfkWarned = false;
@@ -147,6 +154,7 @@ public partial class GameZone
     {
         if (!_funnyModes.Remove(id,out var hold)) return;
         CancelAdminBeam(hold);
+        CancelAdminGravity(hold);
         DropFunny(hold); hold.Admin.SetAdminFunnyMode(false); SendFunny(hold,1,enabled:false);
     }
 }

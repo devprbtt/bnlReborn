@@ -25,16 +25,18 @@ Check(AdminFunnyRules.Launch(Vector3.UnitZ,20)==AdminFunnyRules.Launch(Vector3.U
 Check(AdminFunnyRules.Launch(Vector3.UnitZ,0).Z==15,"tap throw weaker");
 var gear=new CardGear {Id="fixture_dig",Tools=[new ToolShot {HitEffect=new InstEffectDamage {Damage=new Damage {Mining=true}}}]};
 var weapon=new CardGear {Id="fixture_weapon",Tools=[]};
+var secondary=new CardGear {Id="fixture_secondary",Tools=[]};
+var nativePullEffect=new CardEffect {Id="fixture_native_pull",Effect=new ConstEffectPull {Force=8}};
 var hero=new CardUnit {Id="fixture_hero",Data=new UnitDataPlayer(),Size=new Vector3s(1,2,1),PivotType=UnitPivotType.CenterBottom,
  Health=new UnitHealth {Health=new Health {MaxHealth=300,HealthType=HealthType.Player}}};
 var markerEffect=new CardEffect {Id="fixture_nameplate_marker",Effect=new ConstEffectBuff {Buffs=new() {[BuffType.AdminHideNameplate]=1,[BuffType.AdminStormEpochHigh]=123,[BuffType.AdminStormEpochLow]=456,[BuffType.RunSpeed]=.1f}}};
 var mode=new CardGameMode {Id="game_mode_friendly"};
-((ServerCatalogue)Databases.Catalogue).Replicate([gear,weapon,hero,mode,markerEffect,new CardGameMode {Id="game_mode_custom"},
+((ServerCatalogue)Databases.Catalogue).Replicate([gear,weapon,secondary,nativePullEffect,hero,mode,markerEffect,new CardGameMode {Id="game_mode_custom"},
  new CardMatch {Id="fixture_match",Data=new MatchDataShieldCapture()},new CardGlobalLogic {Id="global_logic"},
  new CardBlock {Id="fixture_wall",BlockId=1,Passable=BlockPassableType.None,Solid=true,Grounded=true},
  new CardBlock {Id="fixture_beam_wall",BlockId=2,Passable=BlockPassableType.None,Solid=true,Grounded=true,Destructible=true,Health=new Health {MaxHealth=1000}},
  new CardBlock {Id="fixture_air",BlockId=0,Passable=BlockPassableType.Any,Transparent=true,LightTransparent=true,SkylightTransparent=true}]);
-((UnitDataPlayer)hero.Data!).Gears=[gear.Key,weapon.Key];
+((UnitDataPlayer)hero.Data!).Gears=[gear.Key,weapon.Key,secondary.Key];
 var players=new ConcurrentDictionary<uint,PlayerLobbyState>();
 foreach(var id in new[]{1u,2u,3u}) players[id]=new PlayerLobbyState {PlayerId=id,Team=id==3?TeamType.Team2:TeamType.Team1,Hero=hero.Key,Nickname="fixture"};
 var dbPlayers=(ConcurrentDictionary<uint,PlayerData>)typeof(PlayerDatabase).GetField("_players",Any)!.GetValue(Databases.PlayerDatabase)!;
@@ -46,6 +48,7 @@ var zone=new GameZone(service,Stub<IServiceZone>(),Stub<IBuffer>(),Stub<ISender>
  Stub<IGameInitiator>(new(){["GetGameMode"]=mode.Key,["get_GameInstanceId"]="funny-fixture"}),players);
 var beamEvents=new List<object?[]>();
 zone.AdminBeamSender=(admin,phase,time,origin,end,charge)=>beamEvents.Add([admin,phase,time,origin,end,charge]);
+var gravityEvents=new List<object?[]>();zone.AdminGravitySender=(admin,phase,time,origin,radius,strength)=>gravityEvents.Add([admin,phase,time,origin,radius,strength]);
 object? Call(string name,params object?[] args)=>typeof(GameZone).GetMethod(name,Any)!.Invoke(zone,args);
 T OnZone<T>(Func<T> body) {var done=new TaskCompletionSource<T>();zone.EnqueueAction(()=>{try{done.SetResult(body());}catch(Exception e){done.SetException(e);}});return done.Task.WaitAsync(TimeSpan.FromSeconds(10)).GetAwaiter().GetResult();}
 var sender=new CaptureSender(); var adminService=new ServiceZone(sender); var targetSender=new CaptureSender();var targetService=new ServiceZone(targetSender);
@@ -172,19 +175,59 @@ OnZone(()=>{
  enemy.UpdateData(new UnitUpdate {Health=300});enemy.SpawnProtectionTime=DateTimeOffset.Now.AddSeconds(30);
  Call("ApplyEntityDamage",admin,damageFrom,damageTo,AdminBeamRules.Damage(1),0f,2f);Check(enemy.HealthPercentage==1,"entity beam respects spawn protection");enemy.SpawnProtectionTime=null;
  Position(enemy,new Vector3(8,20,9));Call("ApplyEntityDamage",admin,damageFrom,new Vector3(8,20.95f,5.8f),AdminBeamRules.Damage(1),7f,2f);Check(enemy.HealthPercentage==1,"solid terrain shields units from entity damage");
+ // Secondary weapon: native pull aggregation and knockback, across both teams.
+ Position(admin,new Vector3(8,5,4));Position(teammate,new Vector3(12,5,4));Position(enemy,new Vector3(8,5,9));
+ admin.UpdateData(new UnitUpdate {CurrentGear=secondary.Key});Cmd("on");var gravityHold=modes[admin.Id]!;
+ var wellField=gravityHold.GetType().GetField("WellActive")!;var repulseField=gravityHold.GetType().GetField("RepulseStart")!;
+ Cmd("well_on");Check(!(bool)wellField.GetValue(gravityHold)!,"capability 16 cannot start new gravity actions");
+ typeof(ServiceZone).GetProperty("SupportsAdminGravity")!.SetValue(adminService,true);
+ admin.UpdateData(new UnitUpdate {CurrentGear=weapon.Key});Cmd("well_on");Check(!(bool)wellField.GetValue(gravityHold)!,"primary slot cannot activate secondary gravity well");
+ admin.UpdateData(new UnitUpdate {CurrentGear=secondary.Key});Cmd("beam_charge");Check(gravityHold.GetType().GetField("BeamStart")!.GetValue(gravityHold)==null,"secondary slot cannot start primary beam");
+ Cmd("well_on");Check((bool)wellField.GetValue(gravityHold)!,"secondary LMB starts gravity well");
+ uint? Puller(Unit target)=>(uint?)typeof(Unit).GetField("_activePuller",Any)!.GetValue(target);
+ Check(Puller(teammate)==admin.Id && Puller(enemy)==admin.Id,"large well pulls both teammate and enemy toward caster");
+ Check((float)typeof(Unit).GetField("_activePullForce",Any)!.GetValue(enemy)! ==22,"well drives native pull at 22 metres per second");
+ Position(teammate,new Vector3(31,5,31));Call("TickAdminFunny");Check(Puller(teammate)==null,"leaving 28-metre well removes only that target");
+ Position(enemy,new Vector3(8,5,14));Call("TickAdminFunny");Check(Puller(enemy)==null,"solid wall blocks gravity attraction");
+ Position(enemy,new Vector3(8,5,9));Call("TickAdminFunny");Check(Puller(enemy)==admin.Id,"entering visible well reacquires pull");
+ var pullInfo=new ConstEffectInfo(nativePullEffect.Key);enemy.AddEffects([pullInfo],admin.Team,admin.GetSelfSource());
+ Cmd("well_off");Check(Puller(enemy)==admin.Id && (float)typeof(Unit).GetField("_activePullForce",Any)!.GetValue(enemy)! ==8,"ending admin well preserves ordinary native pull effect");
+ enemy.RemoveEffects([pullInfo],admin.Team,admin.GetSelfSource());Check(Puller(enemy)==null,"native pull clears when its own source ends");
+ Position(teammate,new Vector3(12,5,4));Position(enemy,new Vector3(10,5,8));
+ dbPlayers[2].Role=PlayerRole.Admin;teammate.UpdateData(new UnitUpdate {CurrentGear=secondary.Key});typeof(ServiceZone).GetProperty("SupportsAdminGravity")!.SetValue(targetService,true);
+ Cmd("well_on");zone.ReceivedDebugCommand(2,"admin_funny",["on","0","4","0","0","1"]);zone.ReceivedDebugCommand(2,"admin_funny",["well_on","0","4","0","0","1"]);
+ Cmd("well_off");Check(Puller(enemy)==teammate.Id,"overlapping wells retain remaining caster when first releases");
+ zone.ReceivedDebugCommand(2,"admin_funny",["off","0","4","0","0","1"]);dbPlayers[2].Role=PlayerRole.User;Check(Puller(enemy)==null,"last well owner cleanup removes pull");
+ Cmd("well_on");Cmd("repulse_charge");Check(!(bool)wellField.GetValue(gravityHold)! && Puller(enemy)==null && repulseField.GetValue(gravityHold)!=null,"RMB charge releases active attraction before charging repulsion");
+ var repulseStart=repulseField.GetValue(gravityHold);Cmd("repulse_charge");Check(Equals(repulseStart,repulseField.GetValue(gravityHold)),"duplicate repulsion charge preserves server start time");
+ repulseField.SetValue(gravityHold,DateTimeOffset.UtcNow.AddSeconds(-3));var nativeMoves=((StubProxy)(object)service).Maneuvers;int beforePush=nativeMoves.Count;
+ Cmd("repulse_fire");var pushes=nativeMoves.Skip(beforePush).Where(entry=>entry.Item2 is ManeuverKnockback).ToArray();
+ Check(pushes.Any(entry=>entry.Item1==teammate.Id) && pushes.Any(entry=>entry.Item1==enemy.Id) && pushes.All(entry=>entry.Item1!=admin.Id),"charged repulsion sends native knockback to both teams excluding caster");
+ Check((float)gravityEvents.Last()[4]! ==32 && (float)gravityEvents.Last()[5]! ==1 && ((ManeuverKnockback)pushes[0].Item2).Force>30,"server caps repulsion charge and expands radius to 32 metres");
+ Cmd("repulse_charge");Check(repulseField.GetValue(gravityHold)==null,"repulsion cooldown rejects repeated charge");
+ int eventsAfter=gravityEvents.Count;Cmd("repulse_fire");Check(gravityEvents.Count==eventsAfter,"release without repulsion charge cannot explode");
+ gravityHold.GetType().GetField("NextRepulse")!.SetValue(gravityHold,DateTimeOffset.MinValue);Cmd("repulse_charge");admin.UpdateData(new UnitUpdate {CurrentGear=weapon.Key});Call("TickAdminFunny");Check(repulseField.GetValue(gravityHold)==null,"weapon switch cancels pending repulsion without exploding");
+ admin.UpdateData(new UnitUpdate {CurrentGear=secondary.Key});Cmd("well_on");Cmd("off");Check(Puller(enemy)==null && !(bool)wellField.GetValue(gravityHold)!,"mode exit releases all well targets");
+ Cmd("on");gravityHold=modes[admin.Id]!;Cmd("well_on");gravityHold.GetType().GetField("LastUpdate")!.SetValue(gravityHold,DateTimeOffset.UtcNow.AddSeconds(-2));Call("TickAdminFunny");Check(Puller(enemy)==null && modes.Count==0,"heartbeat loss cleans up gravity well ownership");
+ Cmd("on");Cmd("well_on");dbPlayers[1].Role=PlayerRole.Moderator;Call("TickAdminFunny");Check(Puller(enemy)==null && modes.Count==0,"role revocation cleans up well targets");dbPlayers[1].Role=PlayerRole.Admin;
+ Cmd("on");gravityHold=modes[admin.Id]!;Cmd("repulse_charge");int beforeCancel=nativeMoves.Count;Cmd("gravity_cancel");Check(gravityHold.GetType().GetField("RepulseStart")!.GetValue(gravityHold)==null && nativeMoves.Count==beforeCancel,"cancelled repulsion emits no knockback");Cmd("off");
+ Check(AdminGravityRules.Charge(20)==1 && AdminGravityRules.Charge(-1)==0 && AdminGravityRules.Force(1,32)==37.5f,"gravity tuning clamps charge and applies bounded edge falloff");
+ if(args.Length>0){var gravityWireSender=new CaptureSender();var gravityWire=new ServiceZone(gravityWireSender);typeof(ServiceZone).GetProperty("SupportsAdminGravity")!.SetValue(gravityWire,true);gravityWire.SendAdminGravity(admin.Id,2,987654321,new Vector3(8,5,4),32,1);File.WriteAllBytes(Path.Combine(args[0],"gravity-blast.bin"),gravityWireSender.Packets.Single());}
  if(args.Length>0) {var wireSender=new CaptureSender();var wireService=new ServiceZone(wireSender);typeof(ServiceZone).GetProperty("SupportsAdminBeam")!.SetValue(wireService,true);wireService.SendAdminBeam(admin.Id,1,123456789,Vector3.Zero,new Vector3(0,0,24),1);File.WriteAllBytes(Path.Combine(args[0],"beam-shot.bin"),wireSender.Packets.Single());}
  return true;
 });
 var oldSender=new CaptureSender();new ServiceZone(oldSender).SendAdminFunny(1,2,true,0,Vector3.Zero,Vector3.Zero,0);Check(oldSender.Packets.Count==0,"no extension packets to old clients");
-foreach(var version in new[]{14,15,16})
+foreach(var version in new[]{14,15,16,17})
 {
  var negotiated=new ServiceZone(new CaptureSender());using var stream=new MemoryStream();using var writer=new BinaryWriter(stream);
  writer.Write(0x42504E47u);writer.Write(version);stream.Position=0;
  typeof(ServiceZone).GetMethod("ReceiveZoneReady",Any)!.Invoke(negotiated,[new BinaryReader(stream)]);
  Check(negotiated.SupportsAdminFunnyMode==(version>=15),"capability negotiation v"+version);
  Check(negotiated.SupportsAdminBeam==(version>=16),"beam capability negotiation v"+version);
+ Check(negotiated.SupportsAdminGravity==(version>=17),"gravity capability negotiation v"+version);
  var gatedSender=new CaptureSender();var gated=new ServiceZone(gatedSender);typeof(ServiceZone).GetProperty("SupportsAdminBeam")!.SetValue(gated,version>=16);gated.SendAdminBeam(1,1,123,Vector3.Zero,Vector3.One,1);Check(gatedSender.Packets.Count==(version>=16?1:0),"beam observer packet gates v"+version);
  gated.SendAdminFireball(1,1,0,Vector3.Zero,Vector3.UnitZ);Check(gatedSender.Packets.Count==(version>=16?2:0),"fireball observer packet gates v"+version);
+ typeof(ServiceZone).GetProperty("SupportsAdminGravity")!.SetValue(gated,version>=17);gated.SendAdminGravity(1,0,123,Vector3.Zero,28,1);Check(gatedSender.Packets.Count==(version>=17?3:version>=16?2:0),"gravity observer packet gates v"+version);
 }
 var rejectedSender=new CaptureSender {AssociatedPlayerId=2};var debug=new ServiceDebug(rejectedSender);
 // Exercise the production recipient selection, rather than a shared buffered
@@ -209,6 +252,9 @@ var recipients=((IEnumerable<IServiceZone>)typeof(GameInstance).GetMethod("Entit
 Check(recipients.Length==2 && recipients.Contains(observerZones[0]) && recipients.Contains(observerZones[1]),"production relay includes loaded upgraded observers without requiring player units");
 foreach(var observer in recipients){observer.SendAdminBeam(1,1,123,Vector3.Zero,Vector3.UnitZ,1);observer.SendAdminFireball(1,1,0,Vector3.Zero,Vector3.UnitZ);}
 Check(observerSenders[0].Packets.Count==2 && observerSenders[1].Packets.Count==2,"beam and fireball packets reach both selected observer connections");
+typeof(ServiceZone).GetProperty("SupportsAdminGravity")!.SetValue(observerZones[0],true);
+foreach(var observer in recipients)observer.SendAdminGravity(1,0,123,Vector3.Zero,28,1);
+Check(observerSenders[0].Packets.Count==3 && observerSenders[1].Packets.Count==2,"production connection relay sends gravity only to upgraded capability 17 observer");
 Check(observerSenders[2].Packets.Count==0 && observerSenders[3].Packets.Count==0,"production relay excludes legacy and loading connections");
 using(var stream=new MemoryStream())
 {
@@ -230,8 +276,9 @@ static T Stub<T>(Dictionary<string,object?>? returns=null) where T:class {var va
 public class StubProxy:DispatchProxy
 {
  public Dictionary<string,object?> Returns=[];
+ public List<(uint,Maneuver)> Maneuvers=[];
  public List<object?[]> Calls=[];
- protected override object? Invoke(MethodInfo? method,object?[]? args) {if(method==null)return null;if(method.Name=="SendAdminBeam")Calls.Add(args??[]);if(Returns.TryGetValue(method.Name,out var value))return value;var type=method.ReturnType;if(type==typeof(void))return null;if(type==typeof(bool))return method.Name is "UsesPhaseBarriers" or "AllowsTeamCommunication";return type.IsValueType?Activator.CreateInstance(type):null;}
+ protected override object? Invoke(MethodInfo? method,object?[]? args) {if(method==null)return null;if(method.Name=="SendUnitManeuver")Maneuvers.Add(((uint)args![0]!, (Maneuver)args[1]!));if(method.Name=="SendAdminBeam")Calls.Add(args??[]);if(Returns.TryGetValue(method.Name,out var value))return value;var type=method.ReturnType;if(type==typeof(void))return null;if(type==typeof(bool))return method.Name is "UsesPhaseBarriers" or "AllowsTeamCommunication";return type.IsValueType?Activator.CreateInstance(type):null;}
 }
 public sealed class CaptureSender:ISender
 {
