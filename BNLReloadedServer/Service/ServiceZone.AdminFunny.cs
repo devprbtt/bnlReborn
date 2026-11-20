@@ -14,7 +14,9 @@ public partial class ServiceZone
     private static readonly string[] FunnyActions = ["on","off","grab","aim","charge","throw","drop","beam_charge","beam_fire","beam_cancel","fireball","well_on","well_off","repulse_charge","repulse_fire","gravity_cancel","invis_toggle"];
     private void ReceiveAdminFunny(BinaryReader reader)
     {
-        if (reader.BaseStream.Length-reader.BaseStream.Position != 21) return;
+        // SessionReader shares its receive stream across coalesced TCP frames. Remaining
+        // bytes can include the next frame; consume only this request's fixed-size body.
+        if (reader.BaseStream.Length-reader.BaseStream.Position < 21) return;
         var action=reader.ReadByte(); var target=reader.ReadUInt32(); var distance=reader.ReadSingle();
         var direction=new Vector3(reader.ReadSingle(),reader.ReadSingle(),reader.ReadSingle());
         if (!SupportsAdminFunnyMode || action>=FunnyActions.Length || (action >= 7 && !SupportsAdminBeam) || (action>=11 && !SupportsAdminGravity) || (action>=16 && !SupportsAdminInvisibility) || !sender.AssociatedPlayerId.HasValue ||

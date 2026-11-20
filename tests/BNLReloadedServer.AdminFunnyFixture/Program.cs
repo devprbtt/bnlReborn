@@ -15,6 +15,33 @@ void Check(bool condition,string name) {if(!condition) throw new Exception("FAIL
 Check(!AdminFunnyRules.IsAdmin(PlayerRole.User),"user cannot enable");
 Check(!AdminFunnyRules.IsAdmin(PlayerRole.Moderator),"moderator cannot enable");
 Check(AdminFunnyRules.IsAdmin(PlayerRole.Admin)&&AdminFunnyRules.IsAdmin(PlayerRole.Core),"admin/core allowed");
+// SessionReader dispatches from a shared TCP receive buffer: later frames may follow this body.
+foreach(var trailing in new[]{0,1,32,1024})
+{
+ using var wire=new MemoryStream();
+ using(var writer=new BinaryWriter(wire,System.Text.Encoding.UTF8,true))
+ {writer.Write((byte)115);writer.Write((byte)0);writer.Write(0u);writer.Write(6f);writer.Write(0f);writer.Write(0f);writer.Write(1f);writer.Write(new byte[trailing]);}
+ wire.Position=0;using var reader=new BinaryReader(wire);
+ new ServiceZone(new CaptureSender()).Receive(reader);
+ Check(wire.Position==22,"entity request consumes its body with trailing transport bytes="+trailing);
+}
+for(var available=0;available<21;available++)
+{
+ var bytes=new byte[available+1];bytes[0]=115;
+ using var wire=new MemoryStream(bytes);using var reader=new BinaryReader(wire);
+ new ServiceZone(new CaptureSender()).Receive(reader);
+ Check(wire.Position==1,"truncated entity request rejected with body bytes="+available);
+}
+foreach(var split in new[]{0,5,23})
+{
+ using var wire=new MemoryStream();
+ using(var writer=new BinaryWriter(wire,System.Text.Encoding.UTF8,true))
+ {writer.Write7BitEncodedInt(22);writer.Write((byte)115);writer.Write((byte)0);writer.Write(0u);writer.Write(6f);writer.Write(0f);writer.Write(0f);writer.Write(1f);writer.Write7BitEncodedInt(1);writer.Write((byte)254);}
+ var bytes=wire.ToArray();var dispatcher=new EntityPacketDispatcher();var session=new SessionReader(dispatcher,"entity fixture truncated packet");
+ if(split>0)session.ProcessPacket(bytes,0,split);
+ session.ProcessPacket(bytes,split,bytes.Length-split);
+ Check(dispatcher.EntityBodyConsumed && dispatcher.FollowingFrameReceived,"TCP entity and following frame both decoded; split="+split);
+}
 foreach(var direction in new[]{new Vector3(float.NaN,0,1),new Vector3(float.PositiveInfinity,0,1),Vector3.Zero,new Vector3(0,0,9)})
  Check(!AdminFunnyRules.ValidAim(direction,5,100),"reject invalid direction "+direction);
 Check(!AdminFunnyRules.ValidAim(Vector3.UnitZ,float.NaN,100),"reject NaN distance");
@@ -345,4 +372,16 @@ public sealed class CaptureSender:ISender
  public void Send(byte[] buffer)=>Packets.Add(buffer);
  public void SendExcept(BinaryWriter writer,List<Guid> excluded)=>Send(writer);
  public void Subscribe(Guid id){} public void Unsubscribe(Guid id){} public void UnsubscribeAll(){}
+}
+public sealed class EntityPacketDispatcher:IServiceDispatcher
+{
+ public bool EntityBodyConsumed,FollowingFrameReceived;
+ private readonly ServiceZone service=new(new CaptureSender());
+ public bool Dispatch(BinaryReader reader)
+ {
+  var start=reader.BaseStream.Position;var id=reader.ReadByte();
+  if(id==254){FollowingFrameReceived=true;return true;}
+  reader.BaseStream.Position=start;service.Receive(reader);
+  EntityBodyConsumed=reader.BaseStream.Position-start==22;return true;
+ }
 }
