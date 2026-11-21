@@ -392,7 +392,10 @@ public partial class ServiceZone(ISender sender, Func<System.Net.IPAddress?>? pe
 
     private void ReceiveFinishTutorial(BinaryReader reader)
     {
-
+        // Shipped clients use this legacy packet for the Practice Grounds quit
+        // confirmation as well as leaving its result screen. It means leave,
+        // not proof of completion; pickups/checkpoints own progression.
+        ReceiveExitMatch(reader);
     }
 
     public void SendKickPlayer(uint playerId, KickReason reason)
