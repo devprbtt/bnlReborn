@@ -5,6 +5,9 @@ namespace BNLReloadedServer.ServerTypes;
 
 public partial class GameZone
 {
+    private static DamageData EntityFireballDamage() => DamageData.ZeroDamage with
+    { EnemyDamage=EntityAttackRules.Load().FireballPlayerDamage,EnemyDeviceDamage=400,EnemyObjectiveDamage=100,BlockDamage=1500 };
+
     private sealed class EntityFireball
     {
         public uint Id;
@@ -58,7 +61,7 @@ public partial class GameZone
             }
             if(hit)
             {
-                var damage=DamageData.ZeroDamage with {EnemyDamage=180,EnemyDeviceDamage=400,EnemyObjectiveDamage=100,BlockDamage=1500};
+                var damage=EntityFireballDamage();
                 ApplyEntityDamage(ball.Owner,from,ball.Position,damage,2.5f,0);
                 _entityFireballs.Remove(ball);AdminFireballSender?.Invoke(ball.Id,ball.Owner.Id,1,ball.Position,ball.Direction*24);continue;
             }

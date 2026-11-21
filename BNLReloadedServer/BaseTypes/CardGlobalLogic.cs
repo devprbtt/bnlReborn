@@ -11,6 +11,8 @@ public class CardGlobalLogic : Card
     // CDB/server only: leave the legacy client binary layout unchanged.
     public ActionScoreRules? ActionScores { get; set; }
 
+    public EntityAttackRules? EntityAttacks { get; set; }
+
     public List<Key>? AvailableAchievements { get; set; }
 
     public List<Key>? AvailableBadges { get; set; }

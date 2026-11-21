@@ -2,6 +2,7 @@ using System.Collections.Concurrent;
 using MatchType=BNLReloadedServer.BaseTypes.MatchType;
 using System.Numerics;
 using System.Reflection;
+using System.Text.Json;
 using BNLReloadedServer.BaseTypes;
 using BNLReloadedServer.Database;
 using BNLReloadedServer.ProtocolHelpers;
@@ -155,6 +156,39 @@ OnZone(()=>{
  if(args.Length>0){using var stream=new MemoryStream();UnitUpdate.WriteRecord(new BinaryWriter(stream),new UnitUpdate {Buffs=admin.GetUpdateData().Buffs,Health=admin.UnitMaxHealth(300)});File.WriteAllBytes(Path.Combine(args[0],"mode-off.bin"),stream.ToArray());}
  // Beam tests use the same authorized world-thread path as the wire transport.
  Check(AdminBeamRules.Charge(3)==1 && AdminBeamRules.Charge(-1)==0,"beam server charge clamps to 2.5 seconds");
+ var catalogue=(ServerCatalogue)Databases.Catalogue;
+ // Incremental publication requires a complete catalogue, including native required cards.
+ Card[] required=[new CardMapLogic{Id="map_logic"},new CardMapList{Id="map_list"},new CardChatLogic{Id="chat_logic"},
+ new CardSettingsLogic{Id="settings_logic"},new CardMovementLogic{Id="movement_logic"},new CardShopLogic{Id="shop_logic"},
+ new CardRewardsLogic{Id="rewards_logic"},new CardGameMode{Id="game_mode_ranked"},new CardGameMode{Id="game_mode_mad"},new CardGameMode{Id="game_mode_tutorial"}];
+ catalogue.Replicate(catalogue.All.Concat(required).Concat(Enumerable.Range(0,1000).Select(i=>new CardEffect{Id="entity_padding_"+i})).ToList());
+ var originalGlobal=Databases.Catalogue.GetCard<CardGlobalLogic>("global_logic")!;
+ DamageData FireballDamage() => (DamageData)typeof(GameZone).GetMethod("EntityFireballDamage",BindingFlags.NonPublic|BindingFlags.Static)!.Invoke(null,null)!;
+ Check(AdminBeamRules.Damage(1).EnemyDamage==100 && FireballDamage().EnemyDamage==40,"missing CDB settings default to 100 beam and 40 fireball player damage");
+ Check(Math.Abs(AdminBeamRules.Damage(0).EnemyDamage-100f*250/1200)<.001f,"default beam preserves proportional minimum charge damage");
+ var edited=JsonSerializer.Deserialize<CardGlobalLogic>("{\"_id\":\"global_logic\",\"entity_attacks\":{\"beam_player_damage_min\":10,\"beam_player_damage_max\":80,\"fireball_player_damage\":30}}",JsonHelper.DefaultSerializerSettings)!;
+ var json=JsonSerializer.Serialize(edited,JsonHelper.DefaultSerializerSettings);
+ var roundtrip=JsonSerializer.Deserialize<CardGlobalLogic>(json,JsonHelper.DefaultSerializerSettings)!;
+ Check(roundtrip.EntityAttacks!.BeamPlayerDamageMin==10 && roundtrip.EntityAttacks.BeamPlayerDamageMax==80 && roundtrip.EntityAttacks.FireballPlayerDamage==30,"CDB entity damage snake_case JSON roundtrip");
+ byte[] GlobalBytes(CardGlobalLogic card) {using var stream=new MemoryStream();card.Write(new BinaryWriter(stream));return stream.ToArray();}
+ Check(GlobalBytes(edited).SequenceEqual(GlobalBytes(originalGlobal)),"server-only entity settings preserve client binary layout");
+ catalogue.UpdateCard(edited);
+ Check(AdminBeamRules.Damage(0).EnemyDamage==10 && AdminBeamRules.Damage(.5f).EnemyDamage==45 && AdminBeamRules.Damage(1).EnemyDamage==80 && FireballDamage().EnemyDamage==30,"incremental CDB edit changes active match attack damage and charge scaling");
+ Check(AdminBeamRules.Damage(0).BlockDamage==5000 && AdminBeamRules.Damage(1).BlockDamage==25000 && FireballDamage().BlockDamage==1500,"CDB player edits preserve all block damage");
+ Check(AdminBeamRules.Damage(1).EnemyDeviceDamage==5000 && AdminBeamRules.Damage(1).EnemyObjectiveDamage==1200 && FireballDamage().EnemyDeviceDamage==400 && FireballDamage().EnemyObjectiveDamage==100,"CDB player edits preserve device and objective damage");
+ foreach(var invalidRules in new[]{new EntityAttackRules{BeamPlayerDamageMin=-1},new EntityAttackRules{BeamPlayerDamageMax=float.NaN},new EntityAttackRules{FireballPlayerDamage=float.PositiveInfinity},new EntityAttackRules{FireballPlayerDamage=100001},new EntityAttackRules{BeamPlayerDamageMin=101}})
+ {
+  var invalid=new CardGlobalLogic{Id="global_logic",EntityAttacks=invalidRules};
+  bool rejected=false;try{catalogue.UpdateCard(invalid);}catch(InvalidDataException){rejected=true;}
+  Check(rejected && AdminBeamRules.Damage(1).EnemyDamage==80,"invalid incremental CDB entity damage rejected without replacing current settings");
+  rejected=false;try{catalogue.Replicate([invalid]);}catch(InvalidDataException){rejected=true;}
+  Check(rejected && AdminBeamRules.Damage(1).EnemyDamage==80,"invalid full CDB entity damage rejected without replacing catalogue");
+ }
+ var validationCards=Enumerable.Range(0,999).Select(i=>(Card)new CardEffect{Id="entity_validate_"+i}).Append(new CardGlobalLogic{Id="global_logic",EntityAttacks=new EntityAttackRules{FireballPlayerDamage=-1}}).ToList();
+ Check(CatalogueValidator.Validate(validationCards).Any(p=>p.Contains("global_logic.entity_attacks")),"startup catalogue validation reports invalid entity settings");
+ catalogue.UpdateCard(new CardGlobalLogic{Id="global_logic",EntityAttacks=new EntityAttackRules{BeamPlayerDamageMin=0,BeamPlayerDamageMax=0,FireballPlayerDamage=0}});
+ Check(AdminBeamRules.Damage(1).EnemyDamage==0 && FireballDamage().EnemyDamage==0,"CDB can disable entity player damage without disabling terrain damage");
+ catalogue.UpdateCard(originalGlobal);
  Check(AdminBeamRules.Radius(1)==7 && AdminBeamRules.Damage(1).BlockDamage==25000,"full beam has seven-metre destruction radius and 25000 block damage");
  Check(!AdminBeamRules.Damage(1).IgnoreInvincibility && AdminBeamRules.Damage(1).SelfDamage==0 && AdminBeamRules.Damage(1).FriendDamage==0,"beam preserves map protection and normal friendly-fire policy");
  Check(AdminBeamRules.SegmentDistance(new Vector3(2,0,4),Vector3.Zero,new Vector3(0,0,8))==2,"beam geometry measures finite segment distance");
@@ -199,8 +233,18 @@ OnZone(()=>{
  Position(enemy,new Vector3(8,20,5));Position(teammate,new Vector3(8,20,5));enemy.SpawnProtectionTime=null;teammate.SpawnProtectionTime=null;
  enemy.UpdateData(new UnitUpdate {Health=300});teammate.UpdateData(new UnitUpdate {Health=300});
  var damageFrom=admin.GetMidpoint();var damageTo=enemy.GetMidpoint();
- Call("ApplyEntityDamage",admin,damageFrom,damageTo,AdminBeamRules.Damage(0) with {EnemyDamage=100},0f,2f);
+ Call("ApplyEntityDamage",admin,damageFrom,damageTo,AdminBeamRules.Damage(1),0f,2f);
  Check(Math.Abs(enemy.HealthPercentage-2f/3)<.001f && teammate.HealthPercentage==1,"entity damage reaches enemy through native health rules without hurting teammate");
+ enemy.UpdateData(new UnitUpdate {Health=300});
+ Call("ApplyEntityDamage",admin,damageFrom,damageTo,FireballDamage(),2.5f,0f);
+ Check(Math.Abs(enemy.HealthPercentage-260f/300)<.001f && teammate.HealthPercentage==1,"default fireball removes exactly 40 HP without hurting teammate");
+ catalogue.UpdateCard(edited);enemy.UpdateData(new UnitUpdate {Health=300});
+ Call("ApplyEntityDamage",admin,damageFrom,damageTo,AdminBeamRules.Damage(1),0f,2f);
+ Check(Math.Abs(enemy.HealthPercentage-220f/300)<.001f,"existing match beam removes edited CDB 80 HP");
+ enemy.UpdateData(new UnitUpdate {Health=300});
+ Call("ApplyEntityDamage",admin,damageFrom,damageTo,FireballDamage(),2.5f,0f);
+ Check(Math.Abs(enemy.HealthPercentage-270f/300)<.001f,"existing match fireball removes edited CDB 30 HP");
+ catalogue.UpdateCard(originalGlobal);
  enemy.UpdateData(new UnitUpdate {Health=300});enemy.SpawnProtectionTime=DateTimeOffset.Now.AddSeconds(30);
  Call("ApplyEntityDamage",admin,damageFrom,damageTo,AdminBeamRules.Damage(1),0f,2f);Check(enemy.HealthPercentage==1,"entity beam respects spawn protection");enemy.SpawnProtectionTime=null;
  Position(enemy,new Vector3(8,20,9));Call("ApplyEntityDamage",admin,damageFrom,new Vector3(8,20.95f,5.8f),AdminBeamRules.Damage(1),7f,2f);Check(enemy.HealthPercentage==1,"solid terrain shields units from entity damage");

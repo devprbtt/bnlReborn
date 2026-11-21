@@ -9,9 +9,14 @@ public static class AdminBeamRules
     public const float ChargeSeconds = 2.5f, Range = 160, CooldownSeconds = 4;
     public static float Charge(double seconds) => Math.Clamp((float)seconds / ChargeSeconds, 0, 1);
     public static float Radius(float charge) => 2 + 5 * charge;
-    public static DamageData Damage(float charge) => DamageData.ZeroDamage with
-    { EnemyDamage = 250 + 950 * charge, EnemyDeviceDamage = 500 + 4500 * charge,
-      EnemyObjectiveDamage = 250 + 950 * charge, BlockDamage = 5000 + 20000 * charge };
+    public static DamageData Damage(float charge)
+    {
+        var rules = EntityAttackRules.Load();
+        return DamageData.ZeroDamage with
+        { EnemyDamage = rules.BeamPlayerDamageMin + (rules.BeamPlayerDamageMax - rules.BeamPlayerDamageMin) * charge,
+          EnemyDeviceDamage = 500 + 4500 * charge,
+          EnemyObjectiveDamage = 250 + 950 * charge, BlockDamage = 5000 + 20000 * charge };
+    }
     public static float SegmentDistance(Vector3 point, Vector3 from, Vector3 to)
     {
         var delta = to-from;

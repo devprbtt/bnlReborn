@@ -59,7 +59,7 @@ public class ServerCatalogue : Catalogue
                 RetiredPerks.Apply(card);
                 StaticMapWeather.Apply(card);
                 if (card is CardPerk perk) ClassPerkCatalogue.Validate(perk);
-                if (card is CardGlobalLogic global) global.ActionScores?.Validate();
+                if (card is CardGlobalLogic global) { global.ActionScores?.Validate(); global.EntityAttacks?.Validate(); }
                 if (card.Id == null) continue;
                 card.Key = Key(card.Id);
                 tempDict.Add(card.Key, card);
@@ -73,7 +73,7 @@ public class ServerCatalogue : Catalogue
     public void UpdateCard(Card card)
     {
         StaticMapWeather.Apply(card);
-        if (card is CardGlobalLogic global) global.ActionScores?.Validate();
+        if (card is CardGlobalLogic global) { global.ActionScores?.Validate(); global.EntityAttacks?.Validate(); }
         if (card is CardPerk perk) ClassPerkCatalogue.Validate(perk);
         RankedDraftRegistration.Register([card]);
         GenieHealingVisualRegistration.RegisterAura(card);

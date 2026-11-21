@@ -49,6 +49,8 @@ public static class CatalogueValidator
             {
                 try { global.ActionScores?.Validate(); }
                 catch (InvalidDataException error) { problems.Add($"{card.Id}.action_scores: {error.Message}"); }
+                try { global.EntityAttacks?.Validate(); }
+                catch (InvalidDataException error) { problems.Add($"{card.Id}.entity_attacks: {error.Message}"); }
             }
             if (card is CardPerk perk)
             {

@@ -1,0 +1,7 @@
+{
+  "entity_attacks": {
+    "beam_player_damage_min": 20.833334,
+    "beam_player_damage_max": 100,
+    "fireball_player_damage": 40
+  }
+}
