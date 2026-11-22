@@ -162,3 +162,8 @@ Replace the moving-F perk's extra cooldown with 37.5% shielding, matching prepar
 ## 2026-11-22 — Shared teal shield tier is 30%
 
 Use 30% for the common teal tier, replacing the earlier prepared 37.5% for both Sweet Science and Rolling Wild and the shared client colour stop. Audit actual shield effect cards rather than globally scaling all damage/shields; keep the other tiers, strongest-source selection and cap. All consumers of ShieldStrength.ColorFor share the new colour meaning. Apply gameplay via the existing guarded catalogue plan; deliver the matching colour stop in a later client release. Deployment remains separate.
+
+
+## 2026-11-22 — Deploy binary and catalogue in one maintenance window
+
+Apply the integrated Time Assault/Tony/Second Wind runtime and reviewed 19-document catalogue while the game service is stopped. Stage from the existing release and require identical dependency libraries. Back up player data and document preimages privately; order new wrappers before references, retain source revision guards, and roll back document changes before reverting the binary. Verify live runtime cards as well as stored CDB content. This avoids exposing half-applied catalogue data or starting new zones with old scoring settings. Client visual changes remain for a separate client release.

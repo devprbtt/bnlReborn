@@ -79,7 +79,7 @@ foreach(var card in catalogue.All.OfType<CardEffect>())
     if(card.Effect is not ConstEffectBuff {Buffs:{} buffs} || !buffs.TryGetValue(BuffType.Shield,out var value))continue;
     Check(MathF.Abs(value-.375f)>.0001f,"no gameplay shield retains the retired tier: "+card.Id);
     if(card.Id is not ("effect_status_shielded_kinetic_shield" or "effect_hero_roly_emplacement_mode_rolling_wild"))
-        Check(JsonNode.DeepEquals(before[card.Id],after[card.Id]),"other shield sources preserved: "+card.Id);
+        Check(JsonNode.DeepEquals(before[card.Id!],after[card.Id!]),"other shield sources preserved: "+card.Id);
 }
 typeof(Unit).GetField("_buffs",hidden)!.SetValue(ally,new Dictionary<BuffType,float>{{BuffType.Shield,shield}});
 Close(ally.DamageTaken(100),70f,"native direct shield mitigation");
@@ -101,7 +101,10 @@ var shellDamage=(DamageData)convert.Invoke(zone,[cannonHit.Damage,Vector3.Zero,V
 Close(shellDamage.EnemyDamage*cannon["tools"]![1]!["bullet"]!.AsArray().Count,32,"native Roly RMB twin-shell damage totals32");
 Check(JsonNode.DeepEquals(before["gear_roly_tank_ball_cannon"]["tools"]![0],cannon["tools"]![0]),"Roly primary fire unchanged");
 Close(cannonHit.Damage!.WorldDamage,18,"Roly RMB terrain damage per shell unchanged");
-Check(after.Keys.SequenceEqual(before.Keys),"no catalogue cards added or removed");
+var newCards=after.Keys.Except(before.Keys).ToHashSet();
+Check(newCards.Count==0 || newCards.SetEquals([Unit.TonyBuildCastEffectId,"effect_hero_engineer_bfs_turret_cast"]),
+    "combined rollout adds only the two reviewed Tony wrappers");
+Check(after.Keys.Where(k=>!newCards.Contains(k)).SequenceEqual(before.Keys),"existing catalogue cards preserved");
 Check(new Key("unit_time_assault_original_device_eliza_acid_trap").GetCard<CardUnit>()!.LandmineUnitDataForTest()==2,"original Time Assault traps remain isolated");
 Console.WriteLine($"SIX_HERO_BALANCE PASS {checks} checks; actual engine damage curves saved");
 
