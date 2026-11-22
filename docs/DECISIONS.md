@@ -172,3 +172,6 @@ Apply the integrated Time Assault/Tony/Second Wind runtime and reviewed 19-docum
 ## 2026-11-22 — Shared activation buffs with original-recipient refresh
 
 Use native one-shot target bunches and timed self wrappers for Kira/Trondson, selecting on accepted F with exact ability/marker whitelist. Retain self-only bonuses and source attribution; new untimed Kira reload value lets the wrapper own10s/6s expiry without changing legacy effect data. Record successful original applications in server-only cloned impact metadata. Thrills kills refresh that set, gated by cast lifetime and original unit ids; never rescan nearby players. Keep other aura systems and wire format unchanged. Roll out binary and18 CDB documents together after separate authorization.
+## 2026-11-22 — End active trigger abilities on native death
+
+Death must consume an active toggle before a quick respawn inherits it. Clear the flag/duration and call AbilityUsed(update) in the death update, preserving native duration/reduction and respawn snapshot behavior. Keep existing cooldown unchanged when no toggle is active. Both Roly variants are covered without protocol/client/CDB changes; deployment remains separate.
