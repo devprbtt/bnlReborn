@@ -1,8 +1,39 @@
 {
   "schema_version": 1,
-  "source_sha256": "39ebd348b7566e3cf6097a6f4b97c31ec6e98a6fdec917829ba3a0cd446a98bc",
+  "source_sha256": "e605f641b1cf3a8f03799dc0db298238c60e3eb6bfa5e5fc4d69c4366e7afd83",
   "status": "PREPARED; NOT APPLIED",
   "cards": [
+    {
+      "id": "ability_roly_emplacement_mode_rolling_wild",
+      "expected_revision": "6-ebea02ed2b8e936a0409b62bcaf21f20",
+      "changes": [
+        {
+          "path": [
+            "charges",
+            "charge_cooldown"
+          ],
+          "before_exists": true,
+          "before": 52,
+          "after": 45
+        }
+      ]
+    },
+    {
+      "id": "effect_hero_roly_emplacement_mode_rolling_wild",
+      "expected_revision": "6-69f702b2a9df5b028028d978b8e7dc5e",
+      "changes": [
+        {
+          "path": [
+            "effect",
+            "buffs",
+            "shield"
+          ],
+          "before_exists": true,
+          "before": 0.4,
+          "after": 0.375
+        }
+      ]
+    },
     {
       "id": "effect_status_shielded_kinetic_shield",
       "expected_revision": "4-459fef39a311eb4c04593060d181c4a7",
@@ -350,6 +381,30 @@
           "after": {
             "roly_goo": 8
           }
+        }
+      ]
+    },
+    {
+      "id": "perk_hero_roly_rolling_wild",
+      "expected_revision": "7-f0ad1050c41dd6b4183f2ef3949af306",
+      "changes": [
+        {
+          "path": [
+            "description",
+            "text"
+          ],
+          "before_exists": true,
+          "before": "Allows movement at 60% of normal speed whilst the Emplacement Mode Active Ability is in use / Increases Active Ability cooldown by 7 seconds ",
+          "after": "Allows movement at 60% of normal speed whilst Emplacement Mode is active / Reduces Emplacement Mode shielding from 40% to 37.5% damage reduction"
+        },
+        {
+          "path": [
+            "description_2",
+            "text"
+          ],
+          "before_exists": true,
+          "before": "",
+          "after": "Move at 60% speed during Emplacement Mode, with 37.5% shielding instead of 40%. Uses the normal 45-second cooldown."
         }
       ]
     }

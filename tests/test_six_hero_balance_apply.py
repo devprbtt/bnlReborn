@@ -68,7 +68,7 @@ for scenario in ['dry run', 'already applied', 'revision drift', 'apply', 'lost 
     elif scenario == 'revision drift':
         assert not puts and isinstance(failure, AssertionError)
     elif scenario == 'apply':
-        assert failure is None and len(puts) == 9 and files
+        assert failure is None and len(puts) == len(plan['cards']) and files
         assert all(clean(state[k]) == clean(candidate[k]) for k in state)
     elif scenario == 'lost response rollback':
         assert isinstance(failure, TimeoutError) and len(puts) == 2

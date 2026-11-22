@@ -77,6 +77,17 @@ Close(shield,.375f,"next teal shield tier is37.5 percent");
 typeof(Unit).GetField("_buffs",hidden)!.SetValue(ally,new Dictionary<BuffType,float>{{BuffType.Shield,shield}});
 Close(ally.DamageTaken(100),62.5f,"native direct shield mitigation");
 Close(ally.SplashDamageTaken(100),62.5f,"native splash shield mitigation");
+var rolling=(ConstEffectBuff)new Key("effect_hero_roly_emplacement_mode_rolling_wild").GetCard<CardEffect>()!.Effect!;
+Close(rolling.Buffs![BuffType.Shield],shield,"Rolling Wild matches Sweet Science shield tier");
+typeof(Unit).GetField("_buffs",hidden)!.SetValue(ally,rolling.Buffs);
+Close(ally.DamageTaken(100),62.5f,"Rolling Wild native direct damage mitigation");
+Close(ally.SplashDamageTaken(100),62.5f,"Rolling Wild native splash mitigation");
+Close(rolling.Buffs[BuffType.RunSpeed],-.4f,"Rolling Wild retains sixty percent movement speed");
+Check(JsonNode.DeepEquals(before["effect_hero_roly_emplacement_mode"],after["effect_hero_roly_emplacement_mode"]),"ordinary Roly shield unchanged");
+Check(after["ability_roly_emplacement_mode_rolling_wild"]["charges"]!["charge_cooldown"]!.GetValue<int>()==45,
+    "shield downside replaces seven-second cooldown penalty");
+Check(after["perk_hero_roly_rolling_wild"]["description"]!["text"]!.GetValue<string>().Contains("37.5%") &&
+    !after["perk_hero_roly_rolling_wild"]["description"]!["text"]!.GetValue<string>().Contains("7 seconds"),"perk explains new downside");
 Check(after.Keys.SequenceEqual(before.Keys),"no catalogue cards added or removed");
 Check(new Key("unit_time_assault_original_device_eliza_acid_trap").GetCard<CardUnit>()!.LandmineUnitDataForTest()==2,"original Time Assault traps remain isolated");
 Console.WriteLine($"SIX_HERO_BALANCE PASS {checks} checks; actual engine damage curves saved");

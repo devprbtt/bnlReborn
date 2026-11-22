@@ -7,6 +7,7 @@ No new server binary or client build is required for these tuning values.
 | Request | Current | Prepared |
 | --- | --- | --- |
 | Roly Goo affected score | 10 per credited event | 8, a 20% reduction |
+| Roly Rolling Wild F perk | 40% shielding; 52s cooldown | 37.5% shielding; normal 45s cooldown |
 | Doc Globe Gun allied healing, both fire modes | 10 HP; Beautiful Bubbles 5 HP | 8 HP; Beautiful Bubbles 4 HP, a 20% reduction |
 | Trondson Sonic Staff primary falloff | Full damage through 15m; 70% at 30m | Full damage through 12m; 50% at 30m |
 | Sweet Science Kinetic Shield | 20% reduction, green | 37.5% reduction, existing teal tier |
@@ -33,7 +34,7 @@ not Goo damage or its application frequency. Objective bonuses retain their
 existing calculation. Scoring rules are loaded per zone, so new matches are
 needed to observe the updated award.
 
-Nine documents change at 26 explicit field paths, including matching English
+Twelve documents change at 30 explicit field paths, including matching English
 weapon-stat text and damage-range reticle previews. Other translations, card
 metadata and all unrelated fields remain intact. Time Assault's isolated
 original trap cards and authored course data are unchanged.
@@ -41,11 +42,11 @@ original trap cards and authored course data are unchanged.
 ## Evidence and validation
 
 Fresh raw live catalogue: 2,057 public documents, SHA256
-`39ebd348b7566e3cf6097a6f4b97c31ec6e98a6fdec917829ba3a0cd446a98bc`.
+`e605f641b1cf3a8f03799dc0db298238c60e3eb6bfa5e5fc4d69c4366e7afd83`.
 The copied input/candidate remain under the client repo's ignored
-`extracted/work/balance-six-20261122/`. Only the field patch is checked in here.
+`extracted/work/roly-rolling-wild-20261122/`. Only the field patch is checked in here.
 
-1,181 checks pass against the production server's actual ConvertToDamageData,
+1,188 checks pass against the production server's actual ConvertToDamageData,
 healing/unit and shield math: monotonic range curves, no close-range damage or
 critical changes, both gear variants, actual ally health gains, exclusion of
 enemy healing, unchanged other scoring defaults and original TA trap radius.
@@ -53,7 +54,7 @@ The guard/apply tool passes six fake-Couch scenarios: read-only preview,
 idempotence, revision drift, successful apply, rollback after a lost committed
 PUT response, and protection of concurrent authors' edits. Release build has
 zero warnings/errors. An actual read-only production preflight finds exactly
-nine pending documents and no already-applied documents. No live PUT occurred.
+twelve pending documents and no already-applied documents. No live PUT occurred.
 
 Examples from the actual damage conversion without hero buffs or shields:
 
@@ -98,3 +99,12 @@ Player-facing note: Reduced Roly Goo score and Doc's Globe Gun ally healing;
 increased ranged damage falloff for Trondson's staff and Nigel's rifle; raised
 Sweet Science's Kinetic Shield to the teal 37.5% tier; slightly increased Vander
 Graaf's beam healing. Perk variants follow the same tuning.
+
+
+## Rolling Wild follow-up
+
+Replace the moving-F perk's +7-second cooldown downside with a shield downside: 37.5% damage reduction instead of 40%, matching the prepared Sweet Science teal tier. Restore the normal 45-second cooldown. Keep 60% movement speed, jump/swim/sprint tuning, knockback/pull immunity, 10-second duration and normal F's 40% shielding. Update both English perk descriptions. The three added documents/four fields extend the earlier nine-document patch; all original nine patch rows are unchanged. This 12-document plan supersedes the earlier nine-document deployment plan; do not apply both independently against stale revisions.
+
+Validation now includes actual native direct/splash mitigation at 62.5 damage per 100, equal shield strength, preserved movement and ordinary Roly F, restored cooldown and correct perk text. The combined fixture passes 1,188 checks, writer passes all six fake-Couch scenarios, and read-only production preflight reports 12 pending/0 applied. Release build has zero warnings/errors. No live writes, deployment or client publication occurred. Prepared on `balance/roly-rolling-wild-20261122`, based on prior balance commit `1977e3b`.
+
+Additional player-facing note: Rolling Wild now trades reduced shielding (37.5%) for movement during F, replacing its longer cooldown.

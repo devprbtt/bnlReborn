@@ -16,7 +16,7 @@ parser.add_argument('patch', type=Path)
 parser.add_argument('--apply', action='store_true')
 args = parser.parse_args()
 patch = json.loads(args.patch.read_text())
-assert patch['schema_version'] == 1 and len(patch['cards']) == 9
+assert patch['schema_version'] == 1 and len(patch['cards']) == 12
 cfg = {k.replace('_', '').lower(): v for k, v in json.loads(Path('/opt/bnlreloaded/current/Configs/configs.json').read_text()).items()}
 base = cfg['couchdbendpoint'].rstrip('/') + '/' + cfg['couchdbdatabasename']
 authorization = 'Basic ' + base64.b64encode((cfg['couchdbusername'] + ':' + cfg['couchdbpassword']).encode()).decode()

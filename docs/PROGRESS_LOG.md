@@ -284,3 +284,10 @@ Live readback after the authorized Time Assault deployment exposed a missing mat
 Use existing CDB fields for the requested Goo score10→8, Doc weapon allied heals−20%, Trondson primary falloff15→12m/70→50% endpoint, Sweet Science shield20→37.5% (the existing next teal tier), Vander ally beam2→2.25 HP per pulse and Nigel rifle falloff80→70m/70→55% endpoint. Cover perk variants, English stats and reticle full-damage previews. Preserve other heal sources, close damage/critical multipliers, ranges, Time Assault original traps and other scoring rules. Nine reviewed documents/26 field paths; no engine-default changes needed.
 
 Added offline planner, revision/field-guarded dry-run-by-default apply tool with private backup/readback/rollback and concurrent-edit protection, checked-in field patch and fixture. 1,181 actual-engine assertions plus six fake-Couch deployment scenarios pass; Release build is clean. Live read-only preflight: nine pending, zero applied; no live writes. Source snapshot hash and full numbers/reproduction/rollout: docs/SIX_HERO_BALANCE_20261122.md. User did not request deployment in this turn; all values remain prepared, not live. The separately pending Time Assault restart fix is not merged or deployed here.
+
+
+## 2026-11-22 — Rolling Wild shield downside
+
+Owner requested that Roly's moving-F perk use less shielding, matching prepared Sweet Science's 37.5% instead of 40%. Replace Rolling Wild's cooldown downside: restore normal 45s from 52s and set only the perk variant shield to .375. Keep native 60% movement, all other buffs/duration, and standard Roly F's .4 shield. Update both English descriptions. Extend the pending balance plan from nine/26 to twelve documents/30 fields; all previous nine rows are identical.
+
+Validation: combined actual-engine fixture 1,188 checks, six fake-Couch guard/apply scenarios, zero-warning/error Release build and read-only live preflight 12 pending/0 applied. No CDB write, deployment, client/feed or website release. Branch `balance/roly-rolling-wild-20261122`; rollout remains separate. See docs/SIX_HERO_BALANCE_20261122.md.
