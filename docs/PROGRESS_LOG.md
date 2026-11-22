@@ -343,3 +343,8 @@ Owner authorized deploying the Nigel-only follow-up. Applied both reviewed rifle
 ## 2026-11-22 — Nigel falloff40m follow-up
 
 Owner requested40m immediately after the authorized live50m tuning. Prepared a fresh guarded two-card/six-field50-to40 patch, preserving the earlier70-to50 artifact. English stats and reticle match40m. Native damage40/37/34/31/28/25/22 at40/50/60/70/80/90/100m; close damage, critical multiplier, endpoint and other fields/cards preserved. Actual engine56 checks and six guarded-writer scenarios pass. Continue authorized live tuning after source commit/push, with private backup and runtime readback. No binary or client publication required. See docs/NIGEL_FALLOFF_40_20261122.md and client reports/nigel-falloff-40/.
+
+
+## 2026-11-22 — Nigel40m falloff deployed
+
+Applied the authorized50m-to40m revision to both Nigel rifle variants (six fields), source6368e1a. Raw CDB and running runtime readback verify40m onset and matching stats/reticle; server active/status/listeners healthy, no error-priority journal entries since apply. Private rollback backup /root/config-backups/six-hero-balance-20261122T150228Z. Binary remains0fee0bc; no restart or client/feed publication. Endpoint remains55% at100m. Evidence: client reports/nigel-falloff-40/.

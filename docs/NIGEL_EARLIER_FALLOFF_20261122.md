@@ -1,3 +1,5 @@
+> **Superseded:** the latest deployed threshold is40m. See [40m follow-up](NIGEL_FALLOFF_40_20261122.md). The50m record below is historical.
+
 > **Deployed:** The two Nigel rifle documents are live with falloff starting at50m. Stored/runtime values and health verified; no binary restart. The preparation record below is historical.
 
 # Earlier Nigel rifle falloff — 2026-11-22
