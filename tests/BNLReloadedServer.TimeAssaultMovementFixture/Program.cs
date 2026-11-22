@@ -92,4 +92,3 @@ public class CaptureSender : ISender
     public void SendExcept(BinaryWriter writer,List<Guid> excluded)=>Send(writer);
     public void Subscribe(Guid id){} public void Unsubscribe(Guid id){} public void UnsubscribeAll(){}
 }
-
