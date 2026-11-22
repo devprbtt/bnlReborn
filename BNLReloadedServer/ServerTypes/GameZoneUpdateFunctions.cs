@@ -246,6 +246,12 @@ public partial class GameZone
             _ => null,
         };
 
+        // The updated Thrills on-kill bunch refreshes only the activation set.
+        // Ignore a late/expired callback instead of resurrecting an ended cast.
+        if (effect is InstEffectBunch { Constant: { } refresh } &&
+            refresh.Contains(new Key(KiraThrillsCast)) && refresh.Contains(new Key(KiraThrillsOnKill)) &&
+            !RefreshThrillsRecipients(unitSource)) return true;
+
         // ImpactData received from an unmodified client cannot contain the new
         // server-only credit metadata. Stamp it from the authoritative source at
         // the first effect boundary, then preserve it through clones and DoTs.

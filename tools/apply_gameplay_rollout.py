@@ -42,10 +42,10 @@ class Couch:
             raise
 
 
-def preflight(db, plan):
+def preflight(db, plan, expected_card_count=19):
     rows = plan['cards']
-    assert plan['schema_version'] == 1 and len(rows) == 19
-    assert len({r['id'] for r in rows}) == 19
+    assert plan['schema_version'] == 1 and len(rows) == expected_card_count > 0
+    assert len({r['id'] for r in rows}) == expected_card_count
     pending = []
     for row in rows:
         live = db.request(row['id'])
@@ -104,10 +104,11 @@ def main():
     parser.add_argument('patch', type=Path)
     parser.add_argument('--apply', action='store_true')
     parser.add_argument('--required-revision')
+    parser.add_argument('--expected-card-count', type=int, default=19)
     args = parser.parse_args()
     plan = json.loads(args.patch.read_text())
     db = Couch()
-    pending = preflight(db, plan)
+    pending = preflight(db, plan, args.expected_card_count)
     print(json.dumps({'dry_run': not args.apply, 'pending_cards': len(pending),
                       'already_applied': len(plan['cards']) - len(pending)}), flush=True)
     if not args.apply or not pending:

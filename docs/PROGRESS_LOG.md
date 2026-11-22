@@ -348,3 +348,10 @@ Owner requested40m immediately after the authorized live50m tuning. Prepared a f
 ## 2026-11-22 — Nigel40m falloff deployed
 
 Applied the authorized50m-to40m revision to both Nigel rifle variants (six fields), source6368e1a. Raw CDB and running runtime readback verify40m onset and matching stats/reticle; server active/status/listeners healthy, no error-priority journal entries since apply. Private rollback backup /root/config-backups/six-hero-balance-20261122T150228Z. Binary remains0fee0bc; no restart or client/feed publication. Endpoint remains55% at100m. Evidence: client reports/nigel-falloff-40/.
+
+
+## 2026-11-22 — Kira/Trondson F activation buffs prepared
+
+Extended exact-key/marker accepted-cast selection from Tony to five Kira/Trondson variants. Preserve native ranges10m/16m, durations10s/6s/12s, cooldowns and strengths; retain timed buffs after leaving and reject late entrants. Owner chose Thrills kills refreshing original living recipients too. Track successful applications server-side, exclude new lives/expired or purged grants, and prune expired/caster lifecycle state. Preserve Kira own ammo, Idoru reload, Trondson purge/digging/mining/drill bonuses and native scoring. Keep legacy aura/shared effect cards intact.
+
+Prepared18-card patch (11 existing,7 new);2048 other documents unchanged. New world fixture110 plus existing Tony34/scoring308/cooldown21/self-effect14/ignore-caster12/Second Wind68 pass:567 assertions. Twelve transaction scenarios pass across new18/default19 plans; Release warnings-as-errors build zero warnings/errors. Live read-only preflight18 pending/7 new. Generic deployment manifest supports explicit18 while retaining19 default; verifier reuses committed ops fixes. No deployment, CDB write or client/feed release. Source branch fix/kira-trondson-cast-buffs-20261122; Roly death-cooldown remains separate. See server docs/KIRA_TRONDSON_ACTIVATION_BUFFS.md and client reports/kira-trondson-cast-buffs/.

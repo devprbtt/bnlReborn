@@ -406,6 +406,7 @@ public partial class Unit
         }
 
         ReportTonyBuildReceived([effect], source);
+        RecordActivationBuff([effect], source);
         if (effect is { TimestampEnd: not null })
         {
             var existing = ActiveEffects.Find(e => e.Key == effect.Key);
@@ -489,6 +490,7 @@ public partial class Unit
 
         ReportHeroEffectScores(appliedEffects, source);
         ReportTonyBuildReceived(appliedEffects, source);
+        RecordActivationBuff(appliedEffects, source);
         var doUpdate = false;
 
         foreach (var effect in appliedEffects.ToList())

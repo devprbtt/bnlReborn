@@ -32,6 +32,8 @@ public class ImpactData
     internal bool PeriodicEffect { get; set; }
     // Per accepted Tony cast, shared through effect-source clones; never sent on the wire.
     internal HashSet<uint>? TonyBuildRewardRecipients { get; set; }
+    internal Key? ActivationBuffMarker { get; set; }
+    internal HashSet<Unit>? ActivationBuffRecipients { get; set; }
 
     public void Write(BinaryWriter writer)
     {
@@ -96,7 +98,9 @@ public class ImpactData
           Crit = Crit,
           DamageCredit = DamageCredit,
           PeriodicEffect = PeriodicEffect,
-          TonyBuildRewardRecipients = TonyBuildRewardRecipients
+          TonyBuildRewardRecipients = TonyBuildRewardRecipients,
+          ActivationBuffMarker = ActivationBuffMarker,
+          ActivationBuffRecipients = ActivationBuffRecipients
       };
 
     internal ImpactData AsPeriodicEffect()

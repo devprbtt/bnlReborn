@@ -48,11 +48,12 @@ def main():
     writer = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(writer)
     plan = json.loads((upload / 'combined.patch.json').read_text())
+    expected_card_count = manifest.get('catalogue_card_count', 19)
     db = writer.Couch()
-    pending = writer.preflight(db, plan)
-    assert len(pending) == 19
+    pending = writer.preflight(db, plan, expected_card_count)
+    assert len(pending) == expected_card_count
     assert run('systemctl', 'is-active', 'bnlreloaded.service') == 'active'
-    print(json.dumps({'preflight': 'passed', 'pending_cards': 19, 'base': manifest['expected_base'],
+    print(json.dumps({'preflight': 'passed', 'pending_cards': len(pending), 'base': manifest['expected_base'],
                       'revision': revision, 'apply': args.apply}), flush=True)
     if not args.apply:
         return
@@ -82,8 +83,8 @@ def main():
             src.backup(dst)
             assert dst.execute('PRAGMA quick_check').fetchone()[0] == 'ok'
         os.chmod(backup / 'playerData.db', 0o600)
-        pending = writer.preflight(db, plan)
-        assert len(pending) == 19
+        pending = writer.preflight(db, plan, expected_card_count)
+        assert len(pending) == expected_card_count
         catalogue_attempted = True
         writer.apply(db, pending)
         pointer = root / '.current-gameplay-rollout'
@@ -135,7 +136,7 @@ def main():
             print('ROLLED_BACK_TO=' + str(previous), flush=True)
         raise
     result = {'revision': revision, 'release': str(release), 'backup': str(backup),
-              'applied_cards': 19, 'status': 'healthy', 'dll_sha256': sha(current / 'BNLReloadedServer.dll')}
+              'applied_cards': len(pending), 'status': 'healthy', 'dll_sha256': sha(current / 'BNLReloadedServer.dll')}
     (backup / 'result.json').write_text(json.dumps(result, indent=2))
     print(json.dumps(result), flush=True)
 

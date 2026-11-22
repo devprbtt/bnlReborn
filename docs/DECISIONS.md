@@ -167,3 +167,8 @@ Use 30% for the common teal tier, replacing the earlier prepared 37.5% for both 
 ## 2026-11-22 — Deploy binary and catalogue in one maintenance window
 
 Apply the integrated Time Assault/Tony/Second Wind runtime and reviewed 19-document catalogue while the game service is stopped. Stage from the existing release and require identical dependency libraries. Back up player data and document preimages privately; order new wrappers before references, retain source revision guards, and roll back document changes before reverting the binary. Verify live runtime cards as well as stored CDB content. This avoids exposing half-applied catalogue data or starting new zones with old scoring settings. Client visual changes remain for a separate client release.
+
+
+## 2026-11-22 — Shared activation buffs with original-recipient refresh
+
+Use native one-shot target bunches and timed self wrappers for Kira/Trondson, selecting on accepted F with exact ability/marker whitelist. Retain self-only bonuses and source attribution; new untimed Kira reload value lets the wrapper own10s/6s expiry without changing legacy effect data. Record successful original applications in server-only cloned impact metadata. Thrills kills refresh that set, gated by cast lifetime and original unit ids; never rescan nearby players. Keep other aura systems and wire format unchanged. Roll out binary and18 CDB documents together after separate authorization.

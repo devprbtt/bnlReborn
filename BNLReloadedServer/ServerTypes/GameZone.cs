@@ -2386,6 +2386,7 @@ public partial class GameZone : Updater
             RefreshRallySpawns();
             TickAdminFunny();
             var doBuffCheck = tickNumber % TicksForBuffCheck == 0;
+            if (doBuffCheck) PruneThrillsRecipients();
             var doDmgCaptureCheck = tickNumber % TicksForDmgCaptureCheck == 0;
             var doBlockCheck = tickNumber == 0;
 
