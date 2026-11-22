@@ -265,3 +265,10 @@ Validation: warnings-as-errors Release build zero warnings/errors; extended admi
 Added capability-18 action 16 to toggle server-owned AdminInvisible state in living admin mode. Publish reserved buff key 63 through ordinary unit updates/snapshots, reject CDB injection and preserve it during ordinary effect recomputation/duplicate enable. Clear on mode/death/disconnect/role/lease cleanup without changing health or granting immunity. Companion client intercepts native F only in supported admin mode and hides world model/gear, radar outline and health/minimap indicators, retaining physics and restoring prior presentation on reveal.
 
 Validation: warnings-as-errors Release build zero warnings/errors; 164 admin server checks; companion Unity 22 graphics-enabled visibility/protocol/render/collider/UI checks and 20 prior nameplate/palette checks. No deployment. Details: docs/ADMIN_FUNNY_MODE.md; client evidence: reports/admin-invisibility.
+
+
+## 2026-11-22 — Restore original Time Assault course trap stats
+
+Prepared scoped historical trap variants from the original downloaded CDB's actual Time Assault map unit references. The course Acid Trap uses base radius 2.0, not the anomalous player lvl01 radius 3.0. Added the full 29-card gameplay dependency closure, seven unit overrides and ground-trap remapping in the TimeTrial runtime terrain copy. Native CDB distribution carries all variant cards; normal mode cards and map files remain unchanged. No live CDB write or client rebuild required.
+
+Validation: 37,518 new assertions across six actual courses (784 proximity traps, 9,789 ground cells), original-card fidelity, actual zone/factory initialization, native map/CDB round trips, other-mode preservation, collision rejection and idempotence; fixed-spawn 504 and existing Time Assault 106 checks passed. Release warnings-as-errors build passed. Baseline generator reproduces the embedded hash. Full source hashes, player-facing note and rollout details: docs/TIME_ASSAULT_ORIGINAL_TRAPS.md. No deployment, client rebuild, public release or live client acceptance performed.

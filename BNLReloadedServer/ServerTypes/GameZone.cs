@@ -237,6 +237,7 @@ public partial class GameZone : Updater
             BlocksData = new MapBinary(mapData.Schema, mapData.BlocksData ?? [],
                 mapData.Size, mapData.Properties?.PlanePosition ?? 0, new MapUpdater(OnCut, OnMined, OnDetached, EnqueueAction),
                 terrain => { ConquestZoneFloor.Apply(terrain, mapKey, mapData);
+                    TimeAssaultTraps.ApplyTerrain(terrain, match.Data?.Type ?? mapData.Match);
                     if (gameInitiator is WaitingArenaInitiator) DeathmatchFollowup.RemoveMapRestrictions(terrain); }),
             CanSwitchHero = gameInitiator.CanSwitchHero(),
             ForceThirdPerson = gameInitiator.IsThirdPersonForced(),
@@ -472,7 +473,8 @@ public partial class GameZone : Updater
         foreach (var unit in _zoneData.MapData.Units)
         {
             var unitId = NewUnitId();
-            CatalogueFactory.CreateUnit(unitId, unit, _defaultUnitUpdater);
+            CatalogueFactory.CreateUnit(unitId, TimeAssaultTraps.SelectMapUnit(unit,
+                _zoneData.MatchCard.Data?.Type ?? _zoneData.MapData.Match), _defaultUnitUpdater);
         }
     }
 

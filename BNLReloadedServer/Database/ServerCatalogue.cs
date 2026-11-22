@@ -50,6 +50,7 @@ public class ServerCatalogue : Catalogue
             RankedDraftRegistration.Register(cards);
             GenieHealingVisualRegistration.Register(cards);
             DebugDummyRegistration.Register(cards);
+            TimeAssaultTraps.Register(cards);
             var tempDict = new Dictionary<Key, Card>(KeyEqualityComparer.Instance);
             foreach (var card in cards)
             {

@@ -121,3 +121,8 @@ Use capability 17 with fixed request actions 11–15 and observer VFX message 11
 ## 2026-11-18 — Replicated invisibility presentation state
 
 Keep F invisibility as an immediate no-cooldown toggle owned by authorized living admin mode. Capability 18/action 16 reuses the fixed request body. Reserve buff key 63 for server-owned state in ordinary observer updates/full snapshots rather than adding an observer packet or modifying catalogue hero abilities. Reject catalogue injection, preserve state during recomputation and clear it with mode lifecycle. Preserve health, combat rules and hitboxes; hiding is implemented by matching observer clients. Updated rollout and deployment remain separate.
+
+
+## 2026-11-22 — Isolate original course trap cards for Time Assault
+
+Use map-authored trap unit keys from the preserved original installed CDB, rather than treating the anomalous player level-1 Acid Trap card as the course baseline. Embed the 29-card original gameplay dependency closure under distinct keys, with checked 16-bit block IDs, and replicate it through the existing catalogue. Select historical map units and remap ground traps only in TimeTrial runtime copies before snapshots; preserve normal gameplay cards, source map files and player loadouts. This keeps linked clouds/burning/poison/root effects faithful without changing other modes or requiring a client build/live CDB edit. Existing records remain untouched. See TIME_ASSAULT_ORIGINAL_TRAPS.md for provenance, reproduction and rollout limits.

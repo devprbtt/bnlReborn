@@ -1,0 +1,2041 @@
+{
+  "map_unit_overrides": {
+    "unit_device_boxer_gravity_well_container": "unit_time_assault_original_device_boxer_gravity_well_container",
+    "unit_device_eliza_acid_trap": "unit_time_assault_original_device_eliza_acid_trap",
+    "unit_device_generic_fire_trap": "unit_time_assault_original_device_generic_fire_trap",
+    "unit_device_generic_fire_trap_djinn": "unit_time_assault_original_device_generic_fire_trap_djinn",
+    "unit_device_generic_landmine": "unit_time_assault_original_device_generic_landmine",
+    "unit_device_generic_landmine_cogwheel": "unit_time_assault_original_device_generic_landmine_cogwheel",
+    "unit_device_roly_toxic_waste": "unit_time_assault_original_device_roly_toxic_waste"
+  },
+  "map_block_overrides": {
+    "block_glue": "block_time_assault_original_glue",
+    "block_caltrops": "block_time_assault_original_caltrops",
+    "block_caltrops_astro": "block_time_assault_original_caltrops_astro",
+    "block_bear_trap": "block_time_assault_original_bear_trap",
+    "block_bear_trap_astro": "block_time_assault_original_bear_trap_astro",
+    "block_false": "block_time_assault_original_false",
+    "block_fire_from_fire_trap": "block_time_assault_original_fire"
+  },
+  "cards": [
+    {
+      "category": "block",
+      "_id": "block_time_assault_original_bear_trap",
+      "scope": "public",
+      "build_time": 0.4,
+      "base_cost": 60,
+      "level": 1,
+      "killscore_icon": "icon_killscore_beartrap",
+      "block_id": 64000,
+      "visual": {
+        "type": "prefab",
+        "material": "material_metal",
+        "collider": "none",
+        "prefabs": [
+          {
+            "icon": "block_beartrap",
+            "name": {
+              "text": "Bear Trap",
+              "data": {
+                "de": {
+                  "original": "Bear Trap",
+                  "translation": "B\u00e4renfalle"
+                },
+                "pt": {
+                  "original": "Bear Trap",
+                  "translation": "Armadilha para Ursos"
+                },
+                "es": {
+                  "original": "Bear Trap",
+                  "translation": "Trampa met\u00e1lica"
+                },
+                "fr": {
+                  "original": "Bear Trap",
+                  "translation": "Pi\u00e8ge \u00e0 ours"
+                },
+                "ru": {
+                  "original": "Bear Trap",
+                  "translation": "\u041c\u0435\u0434\u0432\u0435\u0436\u0438\u0439 \u043a\u0430\u043f\u043a\u0430\u043d"
+                }
+              }
+            },
+            "prefab": "Prefabs/Blocks/BearTrap",
+            "mirror": "square",
+            "is_top": false,
+            "is_bottom": false,
+            "is_right": false,
+            "is_left": false,
+            "is_forward": false,
+            "is_back": false
+          }
+        ],
+        "face_align": false,
+        "rotation": false
+      },
+      "transparent": true,
+      "light_transparent": true,
+      "skylight_transparent": true,
+      "light_fade": 1,
+      "self_light": 0,
+      "solid": false,
+      "grounded": true,
+      "replaceable": false,
+      "destructible": true,
+      "can_stay_in_air": false,
+      "passable": "any",
+      "passable_block_falling": false,
+      "can_swim": false,
+      "has_team": true,
+      "health": {
+        "max_health": 25,
+        "toughness": 2,
+        "shield": 0,
+        "health_type": "world",
+        "mining_only": false,
+        "melee_only": false
+      },
+      "splash_falloff": 0,
+      "splash_resistance": 0,
+      "device_type": "device",
+      "reward": {
+        "player_reward": 25,
+        "mining": true
+      },
+      "special": {
+        "type": "inside_effect",
+        "trigger_team": "opponent",
+        "enter_effect": {
+          "effect": {
+            "type": "bunch",
+            "break_on_effect_fail": false,
+            "instant": [
+              {
+                "type": "damage",
+                "damage": {
+                  "player_damage": 35,
+                  "world_damage": 500,
+                  "objective_damage": 0,
+                  "mining": false,
+                  "melee": true,
+                  "ignore_invincibility": false,
+                  "ignore_defences": false
+                },
+                "crit_modifier": 1,
+                "targeting": {
+                  "affected_units": [
+                    "player"
+                  ],
+                  "affected_team": "opponent",
+                  "caster_owned_only": false,
+                  "ignore_caster": false
+                }
+              }
+            ],
+            "constant": [
+              "effect_time_assault_original_status_rooted"
+            ],
+            "targeting": {
+              "affected_units": [
+                "player"
+              ],
+              "affected_team": "opponent",
+              "caster_owned_only": false,
+              "ignore_caster": false
+            }
+          },
+          "target_self": true,
+          "target_unit": true
+        }
+      }
+    },
+    {
+      "category": "block",
+      "_id": "block_time_assault_original_bear_trap_astro",
+      "scope": "public",
+      "build_time": 0.4,
+      "base_cost": 60,
+      "level": 1,
+      "killscore_icon": "icon_killscore_beartrap",
+      "block_id": 64001,
+      "visual": {
+        "type": "prefab",
+        "material": "material_metal",
+        "collider": "none",
+        "prefabs": [
+          {
+            "icon": "block_beartrap_astro",
+            "name": {
+              "text": "Electro Lazer Trap",
+              "data": {
+                "pt": {
+                  "original": "Electro Lazer Trap",
+                  "translation": "Armadilha Eletrolaser"
+                },
+                "es": {
+                  "original": "Electro Lazer Trap",
+                  "translation": "Trampa l\u00e1ser"
+                },
+                "de": {
+                  "original": "Electro Lazer Trap",
+                  "translation": "Schocklaserfalle"
+                },
+                "fr": {
+                  "original": "Electro Lazer Trap",
+                  "translation": "Pi\u00e8ge \u00e9lectro-laser"
+                },
+                "ru": {
+                  "original": "Electro Lazer Trap",
+                  "translation": "\u041b\u0430\u0437\u0435\u0440\u043d\u0430\u044f \u043b\u043e\u0432\u0443\u0448\u043a\u0430"
+                }
+              }
+            },
+            "prefab": "Prefabs/Blocks/BearTrapAstro",
+            "mirror": "square",
+            "is_top": false,
+            "is_bottom": false,
+            "is_right": false,
+            "is_left": false,
+            "is_forward": false,
+            "is_back": false
+          }
+        ],
+        "face_align": false,
+        "rotation": false
+      },
+      "transparent": true,
+      "light_transparent": true,
+      "skylight_transparent": true,
+      "light_fade": 1,
+      "self_light": 0,
+      "solid": false,
+      "grounded": true,
+      "replaceable": false,
+      "destructible": true,
+      "can_stay_in_air": false,
+      "passable": "any",
+      "passable_block_falling": false,
+      "can_swim": false,
+      "has_team": true,
+      "health": {
+        "max_health": 25,
+        "toughness": 2,
+        "shield": 0,
+        "health_type": "world",
+        "mining_only": false,
+        "melee_only": false
+      },
+      "splash_falloff": 0,
+      "splash_resistance": 0,
+      "device_type": "device",
+      "reward": {
+        "player_reward": 25,
+        "mining": true
+      },
+      "special": {
+        "type": "inside_effect",
+        "trigger_team": "opponent",
+        "enter_effect": {
+          "effect": {
+            "type": "bunch",
+            "break_on_effect_fail": false,
+            "instant": [
+              {
+                "type": "damage",
+                "damage": {
+                  "player_damage": 35,
+                  "world_damage": 500,
+                  "objective_damage": 0,
+                  "mining": false,
+                  "melee": true,
+                  "ignore_invincibility": false,
+                  "ignore_defences": false
+                },
+                "crit_modifier": 1,
+                "targeting": {
+                  "affected_units": [
+                    "player"
+                  ],
+                  "affected_team": "opponent",
+                  "caster_owned_only": false,
+                  "ignore_caster": false
+                }
+              }
+            ],
+            "constant": [
+              "effect_time_assault_original_status_rooted"
+            ],
+            "targeting": {
+              "affected_units": [
+                "player"
+              ],
+              "affected_team": "opponent",
+              "caster_owned_only": false,
+              "ignore_caster": false
+            }
+          },
+          "target_self": true,
+          "target_unit": true
+        }
+      }
+    },
+    {
+      "category": "block",
+      "_id": "block_time_assault_original_caltrops",
+      "scope": "public",
+      "build_time": 0,
+      "base_cost": 42,
+      "level": 1,
+      "killscore_icon": "icon_killscore_rockspikes",
+      "block_id": 64002,
+      "visual": {
+        "type": "prefab",
+        "material": "material_caltrops",
+        "collider": "none",
+        "prefabs": [
+          {
+            "icon": "block_time_assault_original_caltrops",
+            "name": {
+              "text": "Caltrops",
+              "data": {
+                "de": {
+                  "original": "Caltrops",
+                  "translation": "Kr\u00e4henf\u00fc\u00dfe"
+                },
+                "pt": {
+                  "original": "Caltrops",
+                  "translation": "Estrepes"
+                },
+                "es": {
+                  "original": "Caltrops",
+                  "translation": "Abrojos"
+                },
+                "fr": {
+                  "original": "Caltrops",
+                  "translation": "Chausse-trapes"
+                },
+                "ru": {
+                  "original": "Caltrops",
+                  "translation": "\u0428\u0438\u043f\u044b"
+                }
+              }
+            },
+            "prefab": "Prefabs/Blocks/Caltrops",
+            "mirror": "square",
+            "is_top": false,
+            "is_bottom": false,
+            "is_right": false,
+            "is_left": false,
+            "is_forward": false,
+            "is_back": false
+          }
+        ],
+        "face_align": false,
+        "rotation": false
+      },
+      "transparent": true,
+      "light_transparent": true,
+      "skylight_transparent": true,
+      "light_fade": 1,
+      "self_light": 0,
+      "solid": false,
+      "grounded": true,
+      "replaceable": false,
+      "destructible": true,
+      "can_stay_in_air": false,
+      "passable": "any",
+      "passable_block_falling": false,
+      "can_swim": false,
+      "has_team": true,
+      "health": {
+        "max_health": 20,
+        "toughness": 3,
+        "shield": 0,
+        "health_type": "world",
+        "mining_only": false,
+        "melee_only": false
+      },
+      "splash_falloff": 0,
+      "splash_resistance": 0,
+      "device_type": "device",
+      "reward": {
+        "player_reward": 25,
+        "mining": true
+      },
+      "special": {
+        "type": "inside_effect",
+        "trigger_team": "opponent",
+        "interval_effect": {
+          "effect": {
+            "type": "damage",
+            "damage": {
+              "player_damage": 7,
+              "world_damage": 0,
+              "objective_damage": 0,
+              "mining": false,
+              "melee": true,
+              "ignore_invincibility": false,
+              "ignore_defences": false
+            },
+            "crit_modifier": 1,
+            "targeting": {
+              "affected_units": [
+                "player"
+              ],
+              "affected_team": "opponent",
+              "caster_owned_only": false,
+              "ignore_caster": false
+            }
+          },
+          "target_self": false,
+          "target_unit": true
+        },
+        "interval": 0.33,
+        "inside_effects": [
+          "effect_time_assault_original_status_bleed_caltrop"
+        ]
+      }
+    },
+    {
+      "category": "block",
+      "_id": "block_time_assault_original_caltrops_astro",
+      "scope": "public",
+      "base_cost": 42,
+      "level": 1,
+      "killscore_icon": "icon_killscore_rockspikes",
+      "block_id": 64003,
+      "visual": {
+        "type": "prefab",
+        "material": "material_caltrops",
+        "collider": "none",
+        "prefabs": [
+          {
+            "icon": "block_time_assault_original_caltrops_astro",
+            "name": {
+              "text": "Electro Caltrops",
+              "data": {
+                "pt": {
+                  "original": "Electro Caltrops",
+                  "translation": "Estrepes El\u00e9tricas"
+                },
+                "es": {
+                  "original": "Electro Caltrops",
+                  "translation": "Electroabrojos"
+                },
+                "fr": {
+                  "original": "Electro Caltrops",
+                  "translation": "Chausse-trapes \u00e9lectroniques"
+                },
+                "ru": {
+                  "original": "Electro Caltrops",
+                  "translation": "\u042d\u043b\u0435\u043a\u0442\u0440\u043e\u0448\u0438\u043f\u044b"
+                },
+                "de": {
+                  "original": "Electro Caltrops",
+                  "translation": "Elektro-Kr\u00e4henf\u00fc\u00dfe"
+                }
+              }
+            },
+            "prefab": "Prefabs/Blocks/CaltropsAstro",
+            "mirror": "square",
+            "is_top": false,
+            "is_bottom": false,
+            "is_right": false,
+            "is_left": false,
+            "is_forward": false,
+            "is_back": false
+          }
+        ],
+        "face_align": false,
+        "rotation": false
+      },
+      "transparent": true,
+      "light_transparent": true,
+      "skylight_transparent": true,
+      "light_fade": 1,
+      "self_light": 0,
+      "solid": false,
+      "grounded": true,
+      "replaceable": false,
+      "destructible": true,
+      "can_stay_in_air": false,
+      "passable": "any",
+      "passable_block_falling": false,
+      "can_swim": false,
+      "has_team": true,
+      "health": {
+        "max_health": 20,
+        "toughness": 3,
+        "shield": 0,
+        "health_type": "world",
+        "mining_only": false,
+        "melee_only": false
+      },
+      "splash_falloff": 0,
+      "splash_resistance": 0,
+      "device_type": "device",
+      "reward": {
+        "player_reward": 25,
+        "mining": true
+      },
+      "special": {
+        "type": "inside_effect",
+        "trigger_team": "opponent",
+        "interval_effect": {
+          "effect": {
+            "type": "damage",
+            "damage": {
+              "player_damage": 7,
+              "world_damage": 0,
+              "objective_damage": 0,
+              "mining": false,
+              "melee": true,
+              "ignore_invincibility": false,
+              "ignore_defences": false
+            },
+            "crit_modifier": 1,
+            "targeting": {
+              "affected_units": [
+                "player"
+              ],
+              "affected_team": "opponent",
+              "caster_owned_only": false,
+              "ignore_caster": false
+            }
+          },
+          "target_self": false,
+          "target_unit": true
+        },
+        "interval": 0.33,
+        "inside_effects": [
+          "effect_time_assault_original_status_bleed_caltrop"
+        ]
+      }
+    },
+    {
+      "category": "block",
+      "_id": "block_time_assault_original_false",
+      "scope": "public",
+      "base_cost": 11,
+      "level": 1,
+      "killscore_icon": "",
+      "block_id": 64004,
+      "visual": {
+        "type": "clone",
+        "icon": "block_time_assault_original_false",
+        "name": {
+          "text": "Fake Block",
+          "data": {
+            "pt": {
+              "original": "Fake Block",
+              "translation": "Bloco Falso"
+            },
+            "es": {
+              "original": "Fake Block",
+              "translation": "Bloque falso"
+            },
+            "de": {
+              "original": "Fake Block",
+              "translation": "Blockattrappe"
+            },
+            "fr": {
+              "original": "Fake Block",
+              "translation": "Bloc factice"
+            },
+            "ru": {
+              "original": "Fake Block",
+              "translation": "\u041b\u043e\u0436\u043d\u044b\u0439 \u0431\u043b\u043e\u043a"
+            }
+          }
+        },
+        "material": "material_false",
+        "collider": "none"
+      },
+      "transparent": true,
+      "light_transparent": false,
+      "skylight_transparent": false,
+      "light_fade": 0,
+      "self_light": 0,
+      "solid": true,
+      "grounded": false,
+      "replaceable": false,
+      "destructible": true,
+      "can_stay_in_air": false,
+      "passable": "enemy",
+      "passable_block_falling": false,
+      "can_swim": false,
+      "has_team": true,
+      "health": {
+        "max_health": 10,
+        "toughness": 0,
+        "shield": 0,
+        "health_type": "world",
+        "mining_only": false,
+        "melee_only": false
+      },
+      "splash_falloff": 0,
+      "splash_resistance": 0,
+      "device_type": "block",
+      "reward": {
+        "player_reward": 6,
+        "mining": true
+      },
+      "special": {
+        "type": "inside_effect",
+        "trigger_team": "opponent",
+        "enter_effect": {
+          "effect": {
+            "type": "damage",
+            "damage": {
+              "player_damage": 0,
+              "world_damage": 1000,
+              "objective_damage": 0,
+              "mining": false,
+              "melee": false,
+              "ignore_invincibility": false,
+              "ignore_defences": false
+            },
+            "crit_modifier": 1
+          },
+          "target_self": true,
+          "target_unit": false
+        }
+      }
+    },
+    {
+      "category": "block",
+      "_id": "block_time_assault_original_fire",
+      "scope": "public",
+      "level": 1,
+      "killscore_icon": "icon_killscore_flame",
+      "block_id": 64005,
+      "visual": {
+        "type": "prefab",
+        "material": "material_dirt",
+        "collider": "none",
+        "prefabs": [
+          {
+            "icon": "block_time_assault_original_fire",
+            "name": {
+              "text": "Fire",
+              "data": {
+                "pt": {
+                  "original": "Fire",
+                  "translation": "Fogo"
+                },
+                "es": {
+                  "original": "Fire",
+                  "translation": "Fuego"
+                },
+                "de": {
+                  "original": "Fire",
+                  "translation": "Feuer"
+                },
+                "fr": {
+                  "original": "Fire",
+                  "translation": "Feu"
+                },
+                "ru": {
+                  "original": "Fire",
+                  "translation": "\u041f\u043b\u0430\u043c\u044f"
+                }
+              }
+            },
+            "prefab": "Prefabs/Blocks/Fireblock",
+            "mirror": "square",
+            "is_top": false,
+            "is_bottom": false,
+            "is_right": false,
+            "is_left": false,
+            "is_forward": false,
+            "is_back": false
+          }
+        ],
+        "face_align": false,
+        "rotation": false
+      },
+      "transparent": true,
+      "light_transparent": true,
+      "skylight_transparent": true,
+      "light_fade": 1,
+      "self_light": 10,
+      "solid": false,
+      "grounded": true,
+      "replaceable": true,
+      "destructible": true,
+      "can_stay_in_air": false,
+      "passable": "any",
+      "passable_block_falling": true,
+      "can_swim": false,
+      "has_team": true,
+      "health": {
+        "max_health": 6,
+        "toughness": 0,
+        "shield": 0,
+        "health_type": "world",
+        "mining_only": false,
+        "melee_only": false
+      },
+      "splash_falloff": 0,
+      "splash_resistance": 0,
+      "device_type": "none",
+      "special": {
+        "type": "inside_effect",
+        "trigger_team": "opponent",
+        "enter_effect": {
+          "effect": {
+            "type": "bunch",
+            "break_on_effect_fail": false,
+            "instant": [],
+            "constant": [
+              "effect_time_assault_original_status_burning"
+            ]
+          },
+          "target_self": false,
+          "target_unit": true
+        },
+        "interval_effect": {
+          "effect": {
+            "type": "damage",
+            "damage": {
+              "player_damage": 6,
+              "world_damage": 1,
+              "objective_damage": 0,
+              "mining": false,
+              "melee": false,
+              "ignore_invincibility": false,
+              "ignore_defences": false
+            },
+            "crit_modifier": 1,
+            "impact": "impact_lava"
+          },
+          "target_self": true,
+          "target_unit": true
+        },
+        "interval": 0.33
+      }
+    },
+    {
+      "category": "block",
+      "_id": "block_time_assault_original_glue",
+      "scope": "public",
+      "base_cost": 25,
+      "level": 1,
+      "killscore_icon": "",
+      "block_id": 64006,
+      "visual": {
+        "type": "prefab",
+        "material": "material_glue",
+        "collider": "none",
+        "prefabs": [
+          {
+            "icon": "block_time_assault_original_glue",
+            "name": {
+              "text": "Glue",
+              "data": {
+                "pt": {
+                  "original": "Glue",
+                  "translation": "Cola"
+                },
+                "es": {
+                  "original": "Glue",
+                  "translation": "Pegamento"
+                },
+                "de": {
+                  "original": "Glue",
+                  "translation": "Klebstoff"
+                },
+                "fr": {
+                  "original": "Glue",
+                  "translation": "Bloc adh\u00e9sif"
+                },
+                "ru": {
+                  "original": "Glue",
+                  "translation": "\u041a\u043b\u0435\u0439"
+                }
+              }
+            },
+            "prefab": "Prefabs/Blocks/Glue",
+            "mirror": "square",
+            "is_top": false,
+            "is_bottom": false,
+            "is_right": false,
+            "is_left": false,
+            "is_forward": false,
+            "is_back": false
+          }
+        ],
+        "face_align": false,
+        "rotation": false
+      },
+      "transparent": true,
+      "light_transparent": false,
+      "skylight_transparent": false,
+      "light_fade": 0,
+      "self_light": 0,
+      "solid": false,
+      "grounded": true,
+      "replaceable": false,
+      "destructible": true,
+      "can_stay_in_air": false,
+      "passable": "any",
+      "passable_block_falling": false,
+      "can_swim": false,
+      "has_team": true,
+      "health": {
+        "max_health": 24,
+        "toughness": 1,
+        "shield": 0,
+        "health_type": "world",
+        "mining_only": false,
+        "melee_only": false
+      },
+      "splash_falloff": 0,
+      "splash_resistance": 0,
+      "device_type": "device",
+      "reward": {
+        "player_reward": 13,
+        "mining": true
+      },
+      "special": {
+        "type": "inside_effect",
+        "trigger_team": "opponent",
+        "interval_effect": {
+          "effect": {
+            "type": "bunch",
+            "break_on_effect_fail": false,
+            "instant": [],
+            "constant": [
+              "effect_time_assault_original_status_slow_glue"
+            ]
+          },
+          "target_self": false,
+          "target_unit": true
+        },
+        "interval": 1
+      }
+    },
+    {
+      "category": "block",
+      "_id": "block_time_assault_original_toxic_waste",
+      "scope": "public",
+      "level": 1,
+      "killscore_icon": "icon_killscore_skull",
+      "block_id": 64007,
+      "visual": {
+        "type": "prefab",
+        "material": "material_dirt",
+        "collider": "none",
+        "prefabs": [
+          {
+            "icon": "block_time_assault_original_toxic_waste",
+            "name": {
+              "text": "Toxic Waste",
+              "data": {
+                "pt": {
+                  "original": "Toxic Waste",
+                  "translation": "Lixo T\u00f3xico"
+                },
+                "es": {
+                  "original": "Toxic Waste",
+                  "translation": "Residuos t\u00f3xicos"
+                },
+                "de": {
+                  "original": "Toxic Waste",
+                  "translation": "Giftm\u00fcll"
+                },
+                "fr": {
+                  "original": "Toxic Waste",
+                  "translation": "D\u00e9chets toxiques"
+                },
+                "ru": {
+                  "original": "Toxic Waste",
+                  "translation": "\u0422\u043e\u043a\u0441\u0438\u0447\u0435\u0441\u043a\u0438\u0435 \u043e\u0442\u0445\u043e\u0434\u044b"
+                }
+              }
+            },
+            "prefab": "Prefabs/Blocks/ToxicWaste",
+            "mirror": "square",
+            "is_top": false,
+            "is_bottom": false,
+            "is_right": false,
+            "is_left": false,
+            "is_forward": false,
+            "is_back": false
+          }
+        ],
+        "face_align": false,
+        "rotation": false
+      },
+      "transparent": true,
+      "light_transparent": true,
+      "skylight_transparent": true,
+      "light_fade": 1,
+      "self_light": 0,
+      "solid": false,
+      "grounded": true,
+      "replaceable": true,
+      "destructible": true,
+      "can_stay_in_air": false,
+      "passable": "any",
+      "passable_block_falling": true,
+      "can_swim": false,
+      "has_team": true,
+      "health": {
+        "max_health": 25,
+        "toughness": 0,
+        "shield": 0,
+        "health_type": "world",
+        "mining_only": false,
+        "melee_only": false
+      },
+      "splash_falloff": 0,
+      "splash_resistance": 0,
+      "device_type": "none",
+      "special": {
+        "type": "inside_effect",
+        "trigger_team": "opponent",
+        "interval_effect": {
+          "effect": {
+            "type": "bunch",
+            "break_on_effect_fail": false,
+            "instant": [
+              {
+                "type": "damage",
+                "damage": {
+                  "player_damage": 0,
+                  "world_damage": 5,
+                  "objective_damage": 0,
+                  "mining": false,
+                  "melee": false,
+                  "ignore_invincibility": false,
+                  "ignore_defences": false
+                },
+                "crit_modifier": 1,
+                "impact": "impact_acid"
+              }
+            ],
+            "constant": [
+              "effect_time_assault_original_status_slow_glue_toxic_waste",
+              "effect_time_assault_original_status_poison"
+            ]
+          },
+          "target_self": true,
+          "target_unit": true
+        },
+        "interval": 1
+      }
+    },
+    {
+      "category": "effect",
+      "_id": "effect_time_assault_original_device_gravity_well",
+      "scope": "public",
+      "prefab_unit": "",
+      "prefab_player": "",
+      "gui_info": {
+        "icon": "gameplayeffects_gravitywell",
+        "icon_pos_type": "negative",
+        "icon_form_type": "square"
+      },
+      "positive": false,
+      "labels": [
+        "soft_control"
+      ],
+      "effect": {
+        "type": "pull",
+        "force": 6,
+        "bind_to_unit": true,
+        "targeting": {
+          "affected_units": [
+            "player"
+          ],
+          "affected_team": "opponent",
+          "caster_owned_only": false,
+          "ignore_caster": false
+        }
+      }
+    },
+    {
+      "category": "effect",
+      "_id": "effect_time_assault_original_device_gravity_well_aura",
+      "scope": "public",
+      "prefab_unit": "",
+      "prefab_player": "",
+      "gui_info": {
+        "icon": "gameplayeffects_gravitywell",
+        "icon_pos_type": "negative",
+        "icon_form_type": "square"
+      },
+      "positive": false,
+      "labels": [
+        "soft_control"
+      ],
+      "effect": {
+        "type": "aura",
+        "outer_radius": 3,
+        "interval_effects": [],
+        "interval": 10,
+        "constant_effects": [
+          "effect_time_assault_original_device_gravity_well"
+        ]
+      }
+    },
+    {
+      "category": "effect",
+      "_id": "effect_time_assault_original_device_gravity_well_on_death_lvl01",
+      "scope": "public",
+      "prefab_unit": "",
+      "prefab_player": "",
+      "positive": false,
+      "labels": [],
+      "effect": {
+        "type": "on_death",
+        "effect": {
+          "type": "splash_damage",
+          "damage": {
+            "player_damage": 20,
+            "world_damage": 10,
+            "objective_damage": 0,
+            "mining": false,
+            "melee": false,
+            "ignore_invincibility": false,
+            "ignore_defences": false
+          },
+          "radius": 2,
+          "unit_inst_effects": [],
+          "unit_const_effects": [],
+          "impact": "impact_explosion_gravity_trap"
+        }
+      }
+    },
+    {
+      "category": "effect",
+      "_id": "effect_time_assault_original_device_immunity_jinx",
+      "scope": "public",
+      "prefab_unit": "",
+      "prefab_player": "",
+      "positive": true,
+      "labels": [],
+      "effect": {
+        "type": "immunity",
+        "positive": false,
+        "negative": false,
+        "effect_labels": [
+          "confusion"
+        ],
+        "effect_keys": []
+      }
+    },
+    {
+      "category": "effect",
+      "_id": "effect_time_assault_original_hero_doc_eliza_acid_cloud",
+      "scope": "public",
+      "prefab_unit": "",
+      "prefab_player": "",
+      "positive": false,
+      "labels": [],
+      "effect": {
+        "type": "aura",
+        "outer_radius": 5,
+        "interval_effects": [],
+        "interval": 0.33,
+        "constant_effects": [
+          "effect_time_assault_original_hero_doc_eliza_acid_cloud_damage"
+        ]
+      }
+    },
+    {
+      "category": "effect",
+      "_id": "effect_time_assault_original_hero_doc_eliza_acid_cloud_damage",
+      "scope": "public",
+      "prefab_unit": "",
+      "prefab_player": "",
+      "gui_info": {
+        "icon": "gameplayeffects_acidclouddamage",
+        "icon_pos_type": "negative",
+        "icon_form_type": "round"
+      },
+      "positive": false,
+      "scores": 15,
+      "labels": [
+        "dot_organic"
+      ],
+      "effect": {
+        "type": "interval",
+        "interval": 0.33,
+        "interval_effects": [
+          {
+            "type": "damage",
+            "damage": {
+              "player_damage": 4.75,
+              "world_damage": 0,
+              "objective_damage": 0,
+              "mining": false,
+              "melee": false,
+              "ignore_invincibility": false,
+              "ignore_defences": false
+            },
+            "crit_modifier": 1,
+            "impact": "impact_acid"
+          }
+        ],
+        "targeting": {
+          "affected_units": [
+            "player"
+          ],
+          "affected_team": "opponent",
+          "caster_owned_only": false,
+          "ignore_caster": false
+        }
+      }
+    },
+    {
+      "category": "effect",
+      "_id": "effect_time_assault_original_status_bleed_caltrop",
+      "scope": "public",
+      "prefab_unit": "",
+      "prefab_player": "",
+      "gui_info": {
+        "icon": "icon_killscore_rockspikes",
+        "icon_pos_type": "negative",
+        "icon_form_type": "round"
+      },
+      "positive": false,
+      "scores": 10,
+      "duration": 3,
+      "labels": [
+        "dot_organic"
+      ],
+      "effect": {
+        "type": "buff",
+        "buffs": {
+          "bleeding": 2.5
+        }
+      }
+    },
+    {
+      "category": "effect",
+      "_id": "effect_time_assault_original_status_burning",
+      "scope": "public",
+      "prefab_unit": "",
+      "prefab_player": "",
+      "gui_info": {
+        "icon": "gameplayeffects_burning",
+        "icon_pos_type": "negative",
+        "icon_form_type": "round"
+      },
+      "positive": false,
+      "scores": 25,
+      "duration": 5,
+      "labels": [
+        "dot_mechanic"
+      ],
+      "effect": {
+        "type": "buff",
+        "buffs": {
+          "burning": 3
+        }
+      }
+    },
+    {
+      "category": "effect",
+      "_id": "effect_time_assault_original_status_poison",
+      "scope": "public",
+      "prefab_unit": "",
+      "prefab_player": "",
+      "gui_info": {
+        "icon": "gameplayeffects_acidclouddamage",
+        "icon_pos_type": "negative",
+        "icon_form_type": "round"
+      },
+      "positive": false,
+      "scores": 25,
+      "duration": 5,
+      "labels": [
+        "dot_organic"
+      ],
+      "effect": {
+        "type": "buff",
+        "buffs": {
+          "poisoned": 3
+        }
+      }
+    },
+    {
+      "category": "effect",
+      "_id": "effect_time_assault_original_status_rooted",
+      "scope": "public",
+      "prefab_unit": "Prefabs/Effects/Constant/Unit/SSAbilityStunned",
+      "prefab_player": "Prefabs/Effects/Constant/Unit/SSAbilityStunned",
+      "gui_info": {
+        "icon": "icon_killscore_beartrap",
+        "icon_pos_type": "negative",
+        "icon_form_type": "round"
+      },
+      "positive": false,
+      "scores": 15,
+      "duration": 1.5,
+      "labels": [
+        "hard_control"
+      ],
+      "effect": {
+        "type": "buff",
+        "buffs": {
+          "root": 1
+        },
+        "targeting": {
+          "affected_units": [
+            "player"
+          ],
+          "affected_team": "opponent",
+          "caster_owned_only": false,
+          "ignore_caster": false
+        }
+      }
+    },
+    {
+      "category": "effect",
+      "_id": "effect_time_assault_original_status_slow_glue",
+      "scope": "public",
+      "prefab_unit": "Prefabs/Effects/Constant/Unit/GenericSlow",
+      "prefab_player": "Prefabs/Effects/Constant/Unit/GenericSlow",
+      "gui_info": {
+        "icon": "gameplayeffects_slow",
+        "icon_pos_type": "negative",
+        "icon_form_type": "round"
+      },
+      "positive": false,
+      "scores": 25,
+      "duration": 4,
+      "labels": [
+        "soft_control"
+      ],
+      "effect": {
+        "type": "buff",
+        "buffs": {
+          "run_speed": -0.6,
+          "sprint_speed": -0.6,
+          "dash_time": 0.2,
+          "dash_distance": -0.2,
+          "swim_speed": -0.6
+        },
+        "targeting": {
+          "affected_units": [
+            "player"
+          ],
+          "affected_team": "opponent",
+          "caster_owned_only": false,
+          "ignore_caster": false
+        }
+      }
+    },
+    {
+      "category": "effect",
+      "_id": "effect_time_assault_original_status_slow_glue_toxic_waste",
+      "scope": "public",
+      "prefab_unit": "Prefabs/Effects/Constant/Unit/GenericSlow",
+      "prefab_player": "Prefabs/Effects/Constant/Unit/GenericSlow",
+      "gui_info": {
+        "icon": "icon_killscore_acidbarrel",
+        "icon_pos_type": "negative",
+        "icon_form_type": "round"
+      },
+      "positive": false,
+      "scores": 25,
+      "duration": 3,
+      "labels": [
+        "soft_control"
+      ],
+      "effect": {
+        "type": "buff",
+        "buffs": {
+          "run_speed": -0.6,
+          "sprint_speed": -0.6,
+          "dash_time": 0.2,
+          "dash_distance": -0.2,
+          "swim_speed": -0.6
+        },
+        "targeting": {
+          "affected_units": [
+            "player"
+          ],
+          "affected_team": "opponent",
+          "caster_owned_only": false,
+          "ignore_caster": false
+        }
+      }
+    },
+    {
+      "category": "unit",
+      "_id": "unit_time_assault_original_device_boxer_gravity_well",
+      "scope": "public",
+      "level": 1,
+      "prefab": "Prefabs/Devices/GravityTrapActivated",
+      "killscore_icon": "icon_killscore_gravitytrap",
+      "pivot_type": "center",
+      "ground_only": true,
+      "can_rotate": false,
+      "block_movement": false,
+      "health": {
+        "health": {
+          "max_health": 50,
+          "toughness": 0,
+          "shield": 0,
+          "health_type": "world",
+          "mining_only": false,
+          "melee_only": false
+        },
+        "kill_reward": {
+          "player_reward": 50,
+          "mining": true
+        }
+      },
+      "lifetime": 10,
+      "labels": [],
+      "fall_hit_modifier": 0,
+      "block_binding": "none",
+      "allow_underwater": false,
+      "movement": {
+        "type": "falling",
+        "start_speed": 0,
+        "gravity": 10
+      },
+      "device_type": "none",
+      "init_effects": [
+        "effect_time_assault_original_device_gravity_well_on_death_lvl01"
+      ],
+      "enabled_effects": [
+        "effect_time_assault_original_device_gravity_well_aura"
+      ],
+      "material": "material_metal",
+      "treat_hits_as_owner_hits": false,
+      "data": {
+        "type": "common"
+      }
+    },
+    {
+      "category": "unit",
+      "_id": "unit_time_assault_original_device_boxer_gravity_well_container",
+      "scope": "public",
+      "build_time": 1,
+      "base_cost": 200,
+      "level": 1,
+      "prefab": "Prefabs/Devices/GravityTrap",
+      "killscore_icon": "icon_killscore_gravitytrap",
+      "name": {
+        "text": "Gravity Well",
+        "data": {
+          "ru": {
+            "original": "Gravity Well",
+            "translation": "\u0413\u0440\u0430\u0432\u0438\u0442\u0430\u0446\u0438\u043e\u043d\u043d\u044b\u0439 \u043a\u043e\u043b\u043e\u0434\u0435\u0446"
+          },
+          "es": {
+            "original": "Gravity Well",
+            "translation": "Pozo gravitatorio"
+          },
+          "de": {
+            "original": "Gravity Well",
+            "translation": "Gravitationsfeld"
+          },
+          "pt": {
+            "original": "Gravity Well",
+            "translation": "Po\u00e7o Gravitacional"
+          },
+          "fr": {
+            "original": "Gravity Well",
+            "translation": "Puits gravitationnel"
+          }
+        }
+      },
+      "icon_map_editor": "block_gravitytrap",
+      "size": {
+        "x": 1,
+        "y": 1,
+        "z": 1
+      },
+      "pivot_type": "center",
+      "ground_only": true,
+      "can_rotate": false,
+      "block_movement": false,
+      "health": {
+        "health": {
+          "max_health": 1,
+          "toughness": 0,
+          "shield": 0,
+          "health_type": "world",
+          "mining_only": false,
+          "melee_only": false
+        }
+      },
+      "labels": [],
+      "fall_hit_modifier": 0,
+      "block_binding": "detach",
+      "allow_underwater": false,
+      "movement": {
+        "type": "falling",
+        "start_speed": 0,
+        "gravity": 10
+      },
+      "device_type": "hero",
+      "init_effects": [],
+      "enabled_effects": [],
+      "material": "material_metal",
+      "treat_hits_as_owner_hits": false,
+      "data": {
+        "type": "landmine",
+        "trigger_radius": 3,
+        "beep_radius": 4,
+        "hit_on_timeout": false,
+        "trigger_effect": {
+          "type": "unit_spawn",
+          "unit_key": "unit_time_assault_original_device_boxer_gravity_well"
+        }
+      }
+    },
+    {
+      "category": "unit",
+      "_id": "unit_time_assault_original_device_eliza_acid_trap",
+      "scope": "public",
+      "build_time": 2,
+      "base_cost": 200,
+      "level": 1,
+      "prefab": "Prefabs/Devices/AcidTrap",
+      "killscore_icon": "icon_weapon_mine",
+      "name": {
+        "text": "Miasma Mine",
+        "data": {
+          "ru": {
+            "original": "Miasma Mine",
+            "translation": "\u0413\u0430\u0437\u043e\u0432\u0430\u044f \u043c\u0438\u043d\u0430"
+          },
+          "es": {
+            "original": "Miasma Mine",
+            "translation": "Mina de miasma"
+          },
+          "de": {
+            "original": "Miasma Mine",
+            "translation": "Miasma-Mine"
+          },
+          "pt": {
+            "original": "Miasma Mine",
+            "translation": "Mina de Miasma"
+          },
+          "fr": {
+            "original": "Miasma Mine",
+            "translation": "Mine toxique"
+          }
+        }
+      },
+      "icon_map_editor": "block_acidtrap",
+      "size": {
+        "x": 1,
+        "y": 1,
+        "z": 1
+      },
+      "pivot_type": "center",
+      "ground_only": false,
+      "can_rotate": true,
+      "block_movement": false,
+      "health": {
+        "health": {
+          "max_health": 1,
+          "toughness": 0,
+          "shield": 0,
+          "health_type": "world",
+          "mining_only": false,
+          "melee_only": false
+        }
+      },
+      "labels": [],
+      "fall_hit_modifier": 0,
+      "block_binding": "destroy",
+      "allow_underwater": false,
+      "movement": {
+        "type": "static"
+      },
+      "device_type": "hero",
+      "init_effects": [],
+      "enabled_effects": [],
+      "material": "material_metal",
+      "treat_hits_as_owner_hits": false,
+      "data": {
+        "type": "landmine",
+        "trigger_radius": 2,
+        "beep_radius": 4,
+        "hit_on_timeout": false,
+        "trigger_effect": {
+          "type": "unit_spawn",
+          "unit_key": "unit_time_assault_original_dummy_eliza_acid_cloud",
+          "impact": "impact_eliza_explosion_acid_grenade"
+        }
+      }
+    },
+    {
+      "category": "unit",
+      "_id": "unit_time_assault_original_device_generic_fire_trap",
+      "scope": "public",
+      "build_time": 1,
+      "base_cost": 200,
+      "level": 1,
+      "prefab": "Prefabs/Devices/CoalTrap",
+      "killscore_icon": "icon_killscore_mine",
+      "name": {
+        "text": "Fire Trap",
+        "data": {
+          "ru": {
+            "original": "Fire Trap",
+            "translation": "\u041e\u0433\u043d\u0435\u043d\u043d\u0430\u044f \u043b\u043e\u0432\u0443\u0448\u043a\u0430"
+          },
+          "es": {
+            "original": "Fire Trap",
+            "translation": "Trampa \u00edgnea"
+          },
+          "de": {
+            "original": "Fire Trap",
+            "translation": "Feuerfalle"
+          },
+          "pt": {
+            "original": "Fire Trap",
+            "translation": "Armadilha de Fogo"
+          },
+          "fr": {
+            "original": "Fire Trap",
+            "translation": "Pi\u00e8ge incendiaire"
+          }
+        }
+      },
+      "icon_map_editor": "block_coaltrap",
+      "size": {
+        "x": 1,
+        "y": 1,
+        "z": 1
+      },
+      "pivot_type": "center",
+      "ground_only": true,
+      "can_rotate": false,
+      "block_movement": false,
+      "health": {
+        "health": {
+          "max_health": 1,
+          "toughness": 0,
+          "shield": 0,
+          "health_type": "world",
+          "mining_only": false,
+          "melee_only": false
+        }
+      },
+      "labels": [],
+      "fall_hit_modifier": 0,
+      "block_binding": "destroy",
+      "allow_underwater": false,
+      "movement": {
+        "type": "static"
+      },
+      "device_type": "device",
+      "init_effects": [],
+      "enabled_effects": [],
+      "material": "material_metal",
+      "treat_hits_as_owner_hits": false,
+      "data": {
+        "type": "landmine",
+        "trigger_radius": 2,
+        "beep_radius": 4,
+        "hit_on_timeout": false,
+        "trigger_effect": {
+          "type": "bunch",
+          "break_on_effect_fail": false,
+          "instant": [
+            {
+              "type": "splash_damage",
+              "damage": {
+                "player_damage": 30,
+                "world_damage": 10,
+                "objective_damage": 0,
+                "mining": false,
+                "melee": false,
+                "ignore_invincibility": false,
+                "ignore_defences": false
+              },
+              "radius": 3,
+              "unit_inst_effects": [],
+              "unit_const_effects": [],
+              "impact": "impact_explosion_center"
+            },
+            {
+              "type": "blocks_spawn",
+              "pattern": {
+                "type": "sphere",
+                "block_key": "block_time_assault_original_fire",
+                "radius": 2,
+                "fill_rate": 1
+              }
+            }
+          ],
+          "constant": [
+            "effect_time_assault_original_status_burning"
+          ]
+        }
+      }
+    },
+    {
+      "category": "unit",
+      "_id": "unit_time_assault_original_device_generic_fire_trap_djinn",
+      "scope": "public",
+      "build_time": 1,
+      "base_cost": 200,
+      "level": 1,
+      "prefab": "Prefabs/Devices/CoalTrapDjinn",
+      "killscore_icon": "icon_killscore_mine",
+      "name": {
+        "text": "Fire trap in a bottle",
+        "data": {
+          "fr": {
+            "original": "Genie's Fire Trap",
+            "translation": "Pi\u00e8ge incendiaire de Genie"
+          },
+          "es": {
+            "original": "Genie's Fire Trap",
+            "translation": "Trampa \u00edgnea"
+          },
+          "de": {
+            "original": "Genie's Fire Trap",
+            "translation": "Genies Feuerfalle"
+          },
+          "pt": {
+            "original": "Genie's Fire Trap",
+            "translation": "Armadilha de Fogo de Genie"
+          },
+          "ru": {
+            "original": "Genie's Fire Trap",
+            "translation": "\u041e\u0433\u043d\u0435\u043d\u043d\u0430\u044f \u043b\u043e\u0432\u0443\u0448\u043a\u0430 Genie"
+          }
+        }
+      },
+      "icon_map_editor": "block_magmamine_djinn",
+      "size": {
+        "x": 1,
+        "y": 1,
+        "z": 1
+      },
+      "pivot_type": "center",
+      "ground_only": true,
+      "can_rotate": true,
+      "block_movement": false,
+      "health": {
+        "health": {
+          "max_health": 1,
+          "toughness": 0,
+          "shield": 0,
+          "health_type": "world",
+          "mining_only": false,
+          "melee_only": false
+        }
+      },
+      "labels": [],
+      "fall_hit_modifier": 0,
+      "block_binding": "destroy",
+      "allow_underwater": false,
+      "movement": {
+        "type": "static"
+      },
+      "device_type": "device",
+      "init_effects": [],
+      "enabled_effects": [],
+      "material": "material_metal",
+      "treat_hits_as_owner_hits": false,
+      "data": {
+        "type": "landmine",
+        "trigger_radius": 2,
+        "beep_radius": 4,
+        "hit_on_timeout": false,
+        "trigger_effect": {
+          "type": "bunch",
+          "break_on_effect_fail": false,
+          "instant": [
+            {
+              "type": "splash_damage",
+              "damage": {
+                "player_damage": 30,
+                "world_damage": 10,
+                "objective_damage": 0,
+                "mining": false,
+                "melee": false,
+                "ignore_invincibility": false,
+                "ignore_defences": false
+              },
+              "radius": 3,
+              "unit_inst_effects": [],
+              "unit_const_effects": [],
+              "impact": "impact_explosion_center"
+            },
+            {
+              "type": "blocks_spawn",
+              "pattern": {
+                "type": "sphere",
+                "block_key": "block_time_assault_original_fire",
+                "radius": 2,
+                "fill_rate": 1
+              }
+            }
+          ],
+          "constant": [
+            "effect_time_assault_original_status_burning"
+          ]
+        }
+      }
+    },
+    {
+      "category": "unit",
+      "_id": "unit_time_assault_original_device_generic_landmine",
+      "scope": "public",
+      "build_time": 1,
+      "base_cost": 200,
+      "level": 1,
+      "prefab": "Prefabs/Devices/GroundMine",
+      "killscore_icon": "icon_killscore_mine",
+      "name": {
+        "text": "Land Mine",
+        "data": {
+          "ru": {
+            "original": "Land Mine",
+            "translation": "\u041c\u0438\u043d\u0430"
+          },
+          "es": {
+            "original": "Land Mine",
+            "translation": "Mina terrestre"
+          },
+          "de": {
+            "original": "Land Mine",
+            "translation": "Landmine"
+          },
+          "pt": {
+            "original": "Land Mine",
+            "translation": "Mina Terrestre"
+          },
+          "fr": {
+            "original": "Land Mine",
+            "translation": "Mine terrestre"
+          }
+        }
+      },
+      "icon_map_editor": "block_landmine",
+      "size": {
+        "x": 1,
+        "y": 1,
+        "z": 1
+      },
+      "pivot_type": "center",
+      "ground_only": false,
+      "can_rotate": true,
+      "block_movement": false,
+      "health": {
+        "health": {
+          "max_health": 1,
+          "toughness": 0,
+          "shield": 0,
+          "health_type": "world",
+          "mining_only": false,
+          "melee_only": false
+        }
+      },
+      "labels": [],
+      "fall_hit_modifier": 0,
+      "block_binding": "destroy",
+      "allow_underwater": false,
+      "movement": {
+        "type": "static"
+      },
+      "device_type": "device",
+      "init_effects": [],
+      "enabled_effects": [],
+      "material": "material_metal",
+      "treat_hits_as_owner_hits": false,
+      "data": {
+        "type": "landmine",
+        "trigger_radius": 2,
+        "beep_radius": 4,
+        "hit_on_timeout": false,
+        "trigger_effect": {
+          "type": "bunch",
+          "break_on_effect_fail": false,
+          "instant": [
+            {
+              "type": "splash_damage",
+              "damage": {
+                "player_damage": 50,
+                "world_damage": 15,
+                "objective_damage": 0,
+                "mining": false,
+                "melee": false,
+                "ignore_invincibility": false,
+                "ignore_defences": false
+              },
+              "radius": 3,
+              "unit_inst_effects": [],
+              "unit_const_effects": [],
+              "impact": "impact_explosion_center"
+            },
+            {
+              "type": "knockback",
+              "force": 2,
+              "midair_force": 2,
+              "effect_range": 3,
+              "linear_falloff": true,
+              "affect_caster": true
+            }
+          ],
+          "constant": []
+        }
+      }
+    },
+    {
+      "category": "unit",
+      "_id": "unit_time_assault_original_device_generic_landmine_cogwheel",
+      "scope": "public",
+      "build_time": 1,
+      "base_cost": 200,
+      "level": 1,
+      "prefab": "Prefabs/Devices/GroundMineCogwheel",
+      "killscore_icon": "icon_killscore_mine",
+      "name": {
+        "text": "Golden Gear Land Mine",
+        "data": {
+          "fr": {
+            "original": "Golden Gear Land Mine",
+            "translation": "Mine terrestre dor\u00e9e"
+          },
+          "es": {
+            "original": "Golden Gear Land Mine",
+            "translation": "Mina terrestre de lat\u00f3n"
+          },
+          "de": {
+            "original": "Golden Gear Land Mine",
+            "translation": "Goldgetriebe-Landmine"
+          },
+          "pt": {
+            "original": "Golden Gear Land Mine",
+            "translation": "Mina Terrestre Dourada"
+          },
+          "ru": {
+            "original": "Golden Gear Land Mine",
+            "translation": "\u0417\u043e\u043b\u043e\u0442\u0430\u044f \u043c\u0438\u043d\u0430"
+          }
+        }
+      },
+      "icon_map_editor": "block_landmine_cogwheel",
+      "size": {
+        "x": 1,
+        "y": 1,
+        "z": 1
+      },
+      "pivot_type": "center",
+      "ground_only": false,
+      "can_rotate": true,
+      "block_movement": false,
+      "health": {
+        "health": {
+          "max_health": 1,
+          "toughness": 0,
+          "shield": 0,
+          "health_type": "world",
+          "mining_only": false,
+          "melee_only": false
+        }
+      },
+      "labels": [],
+      "fall_hit_modifier": 0,
+      "block_binding": "destroy",
+      "allow_underwater": false,
+      "movement": {
+        "type": "static"
+      },
+      "device_type": "device",
+      "init_effects": [],
+      "enabled_effects": [],
+      "material": "material_metal",
+      "treat_hits_as_owner_hits": false,
+      "data": {
+        "type": "landmine",
+        "trigger_radius": 2,
+        "beep_radius": 4,
+        "hit_on_timeout": false,
+        "trigger_effect": {
+          "type": "bunch",
+          "break_on_effect_fail": false,
+          "instant": [
+            {
+              "type": "splash_damage",
+              "damage": {
+                "player_damage": 50,
+                "world_damage": 15,
+                "objective_damage": 0,
+                "mining": false,
+                "melee": false,
+                "ignore_invincibility": false,
+                "ignore_defences": false
+              },
+              "radius": 3,
+              "unit_inst_effects": [],
+              "unit_const_effects": [],
+              "impact": "impact_explosion_center"
+            },
+            {
+              "type": "knockback",
+              "force": 2,
+              "midair_force": 2,
+              "effect_range": 3,
+              "linear_falloff": true,
+              "affect_caster": true
+            }
+          ],
+          "constant": []
+        }
+      }
+    },
+    {
+      "category": "unit",
+      "_id": "unit_time_assault_original_device_roly_toxic_waste",
+      "scope": "public",
+      "build_time": 1,
+      "base_cost": 100,
+      "level": 1,
+      "prefab": "Prefabs/Devices/RolyToxicWaste",
+      "killscore_icon": "icon_killscore_acidbarrel",
+      "name": {
+        "text": "Toxic Waste",
+        "data": {
+          "ru": {
+            "original": "Toxic Waste",
+            "translation": "\u0422\u043e\u043a\u0441\u0438\u0447\u0435\u0441\u043a\u0438\u0435 \u043e\u0442\u0445\u043e\u0434\u044b"
+          },
+          "es": {
+            "original": "Toxic Waste",
+            "translation": "Residuos t\u00f3xicos"
+          },
+          "de": {
+            "original": "Toxic Waste",
+            "translation": "Giftm\u00fcll"
+          },
+          "pt": {
+            "original": "Toxic Waste",
+            "translation": "Lixo T\u00f3xico"
+          },
+          "fr": {
+            "original": "Toxic Waste",
+            "translation": "D\u00e9chets toxiques"
+          }
+        }
+      },
+      "icon_map_editor": "block_toxicwaste",
+      "size": {
+        "x": 1,
+        "y": 1,
+        "z": 1
+      },
+      "pivot_type": "center",
+      "ground_only": false,
+      "can_rotate": true,
+      "block_movement": false,
+      "health": {
+        "health": {
+          "max_health": 5,
+          "toughness": 0,
+          "shield": 0,
+          "health_type": "world",
+          "mining_only": false,
+          "melee_only": false
+        },
+        "kill_reward": {
+          "player_reward": 5,
+          "mining": true
+        }
+      },
+      "labels": [],
+      "fall_hit_modifier": 0,
+      "block_binding": "detach",
+      "allow_underwater": false,
+      "movement": {
+        "type": "falling",
+        "start_speed": 0,
+        "gravity": 10
+      },
+      "device_type": "hero",
+      "init_effects": [],
+      "enabled_effects": [],
+      "material": "material_metal",
+      "treat_hits_as_owner_hits": false,
+      "data": {
+        "type": "landmine",
+        "trigger_radius": 0,
+        "beep_radius": 0,
+        "hit_on_timeout": false,
+        "trigger_effect": {
+          "type": "bunch",
+          "break_on_effect_fail": false,
+          "instant": [
+            {
+              "type": "splash_damage",
+              "damage": {
+                "player_damage": 25,
+                "world_damage": 15,
+                "objective_damage": 0,
+                "mining": false,
+                "melee": false,
+                "ignore_invincibility": false,
+                "ignore_defences": false
+              },
+              "radius": 3,
+              "unit_inst_effects": [],
+              "unit_const_effects": [],
+              "impact": "impact_explosion_toxic_waste"
+            },
+            {
+              "type": "blocks_spawn",
+              "pattern": {
+                "type": "sphere",
+                "block_key": "block_time_assault_original_toxic_waste",
+                "radius": 2,
+                "fill_rate": 1
+              }
+            }
+          ],
+          "constant": [
+            "effect_time_assault_original_status_poison"
+          ]
+        }
+      }
+    },
+    {
+      "category": "unit",
+      "_id": "unit_time_assault_original_dummy_eliza_acid_cloud",
+      "scope": "public",
+      "level": 1,
+      "prefab": "Prefabs/UnitsEffects/ElizaAcidSmoke",
+      "killscore_icon": "gameplayeffects_acidclouddamage",
+      "pivot_type": "center",
+      "ground_only": true,
+      "can_rotate": false,
+      "block_movement": false,
+      "lifetime": 5,
+      "labels": [
+        "destroy_on_match_end"
+      ],
+      "fall_hit_modifier": 0,
+      "block_binding": "none",
+      "allow_underwater": false,
+      "movement": {
+        "type": "static"
+      },
+      "device_type": "none",
+      "init_effects": [
+        "effect_time_assault_original_hero_doc_eliza_acid_cloud",
+        "effect_time_assault_original_device_immunity_jinx"
+      ],
+      "enabled_effects": [],
+      "material": "material_none",
+      "treat_hits_as_owner_hits": false,
+      "data": {
+        "type": "common"
+      }
+    }
+  ]
+}
