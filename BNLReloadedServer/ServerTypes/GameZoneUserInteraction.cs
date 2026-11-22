@@ -31,11 +31,48 @@ public partial class GameZone
         if (unit.AdminFunnyHeld) return;
         unit.LastMoveTime = DateTimeOffset.Now;
         unit.WasAfkWarned = false;
+        if (HoldTimeAssaultPrestart(unit, time, transform)) return;
         if ((MapBinary.ContainsBlock((Vector3s)transform.Position) &&
              !MapBinary[(Vector3s)transform.Position].IsPassable) || !unit.UnitMove(transform, time))
         {
             _serviceZone.SendUnitMoveFail(unitId, unit.LastMoveUpdateTime);
         }
+    }
+
+    private bool HoldTimeAssaultPrestart(Unit unit, ulong time, ZoneTransform requested)
+    {
+        if (unit.PlayerId == null || _zoneData.MatchCard.Data?.Type != BaseTypes.MatchType.TimeTrial)
+            return false;
+        var phase = _zoneData.Phase;
+        bool locked = phase.PhaseType is ZonePhaseType.TutorialInit or ZonePhaseType.Waiting or ZonePhaseType.Build;
+        // A movement packet sampled during countdown can arrive after GO. It must
+        // not become the first accepted position of the timed run.
+        bool sampledBeforeGo = phase.PhaseType == ZonePhaseType.Assault &&
+                               time < (ulong)Math.Max(phase.StartTime, 0);
+        if (!locked && !sampledBeforeGo) return false;
+
+        if (locked && time > unit.LastMoveUpdateTime)
+        {
+            unit.Transform = new ZoneTransform
+            {
+                Position = unit.Transform.Position,
+                Rotation = requested.Rotation,
+                LocalVelocity = Vector3s.Zero
+            };
+            unit.LastMoveUpdateTime = time;
+            // Do not run UnitMoved: no terrain/trap/pickup checks may be caused
+            // by a rejected countdown move. Aim-only heartbeats still replicate.
+            _unbufferedZone.SendUnitMove(unit.Id, time, unit.Transform);
+        }
+        if (sampledBeforeGo || requested.Position != unit.Transform.Position ||
+            requested.LocalVelocity != Vector3s.Zero || requested.IsSprint || requested.IsJump ||
+            requested.IsCrouch || requested.IsDash || requested.IsWallClimb || requested.IsGroundSlam)
+        {
+            // Deliver immediately even before the simulation/buffer loop starts.
+            // The native maneuver corrects existing clients without a new packet.
+            _unbufferedZone.SendUnitManeuver(unit.Id, new ManeuverTeleport { Position = unit.Transform.Position });
+        }
+        return true;
     }
 
     public void ReceivedBuildRequest(ushort rpcId, uint playerId, BuildInfo buildInfo, IServiceZone builderService)

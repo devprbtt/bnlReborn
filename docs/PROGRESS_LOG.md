@@ -277,3 +277,10 @@ Validation: 37,518 new assertions across six actual courses (784 proximity traps
 ## 2026-11-22 — Complete original Caltrops presentation dependency
 
 Live readback after the authorized Time Assault deployment exposed a missing material_caltrops target. Added it under an isolated material_time_assault_original_caltrops key, bringing the baseline to 30 cards; changed the generator and added resolution checks for every original card reference. All 37,537 current-live-catalogue trap assertions pass, covering the same 784 units and 9,789 ground cells. Baseline data/runtime stats otherwise unchanged. Deploy this corrective revision before considering the rollout complete.
+
+
+## 2026-11-22 — Authoritative Time Assault prestart movement lock
+
+Restarted zones begin in TutorialInit, which the client Waiting/Build predicate omitted, and the server accepted early movement. Consume runner movement during TutorialInit/Waiting/Build without moving or running terrain/trap/pickup callbacks; retain fresh look/heartbeat data and clear locomotion. Correct old clients through immediate native teleport, and reject countdown-sampled packets arriving after GO. Other modes/non-player units and fresh movement at GO keep their existing path. Client separately freezes before movement layers and clears queued motion. No map/timer/CDB/record edits.
+
+Production-before reproduction fails at TutorialInit; fixed server passes 6,900 checks across six maps and three run lifecycles, fixed-spawn 504 checks, warning-as-error Release build. Paired client Unity guard passes 4,326 checks. No deployment or live keyboard acceptance; client smoothing requires a later signed build. Details: docs/TIME_ASSAULT_RESTART_MOVEMENT.md.
