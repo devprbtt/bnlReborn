@@ -1,3 +1,5 @@
+> **Deployed:** The two Nigel rifle documents are live with falloff starting at50m. Stored/runtime values and health verified; no binary restart. The preparation record below is historical.
+
 # Earlier Nigel rifle falloff — 2026-11-22
 
 Prepared; **not applied to the live CDB**. The owner clarified that this follow-up concerns Nigel's rifle only. Choose an earlier full-damage threshold of **50m instead of 70m**, including Spot Shot. Preserve 55% damage at 100m, the 100m maximum range, 40 base damage and 1.625 critical multiplier. Trondson and the revolver are unchanged.
@@ -35,3 +37,8 @@ sudo python3 apply_six_hero_balance.py nigel-earlier-falloff.patch.json --expect
 Use `--apply` only for the authorized write. The writer preserves other fields, backs up privately, checks revisions, reads back and rolls back failures without overwriting concurrent authors. Refresh/review the patch on source drift. Existing server/clients support the data; no new binary is needed. Reconnect clients for updated cached stats/reticle. Keep this follow-up separate from already-applied balance plans and the pending Roly F death-cooldown branch.
 
 Player-facing note: **Nigel's rifle damage falloff now starts at50m instead of70m, including Spot Shot. Damage at70m changes40 to32.8; minimum damage remains22 at100m.**
+
+
+## Deployment result
+
+Source plan3fb706f applied2/2 cards, all six fields verified in raw CDB and the running runtime catalogue. Backup `/root/config-backups/six-hero-balance-20261122T145720Z`; binary revision remains0fee0bc. Public status/auth, listeners28100/28101/28102 and error-journal checks passed. No client/feed release or live gameplay acceptance claimed. Reconnect for updated cached stats. Separate Roly death-cooldown fix is not included.
