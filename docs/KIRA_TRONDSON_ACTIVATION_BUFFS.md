@@ -1,3 +1,5 @@
+> **Deployed and live-verified:** server `8a59207`, all18 CDB documents applied. The preparation record below is historical.
+
 # Kira and Trondson F activation buffs — 2026-11-22
 
 Prepared and tested; **not deployed**. Extend Tony's accepted-cast recipient selection to Kira and Trondson. This branch is based on source `e48236d`; the running binary remains `0fee0bc`. The separately pending Roly death-cooldown fix is not included.
@@ -54,3 +56,8 @@ Player-facing notes:
 
 - Kira and Trondson F now grant timed buffs to players in range at activation. Leaving range keeps the buff; entering later does not grant it.
 - Thrills for Days kills refresh Kira and the original living recipients, including teammates who have moved away.
+
+
+## Deployment result
+
+Exact live revision `8a592077ffc807d9cbc704e08fed24c073b48ee7`; main/production/feature refs match. Release `/opt/bnlreloaded/releases/8a592077ffc8`; DLL SHA256 `ce79eb227586c20de0fb6ade9b1cae83d4c7c372552fec078c96cdddf8efb5f9`. Rollback snapshot `/root/config-backups/gameplay-rollout-20261122T152505Z` contains catalogue preimages, a consistent SQLite backup and previous-release pointer. All18 CDB/runtime documents and30 original trap cards verified; service/auth/status/listeners and error-journal checks pass. Previously deployed balance values remain intact. 760 assertions passed across preparation/deployment fixtures, plus12 transaction scenarios. Reconnect existing clients for new native catalogue keys. No client release or live two-player acceptance is claimed. The separate Roly death-cooldown fix remains pending. Evidence: client reports/kira-trondson-cast-buffs/.
