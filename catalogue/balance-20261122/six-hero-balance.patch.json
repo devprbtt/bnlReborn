@@ -1,0 +1,357 @@
+{
+  "schema_version": 1,
+  "source_sha256": "39ebd348b7566e3cf6097a6f4b97c31ec6e98a6fdec917829ba3a0cd446a98bc",
+  "status": "PREPARED; NOT APPLIED",
+  "cards": [
+    {
+      "id": "effect_status_shielded_kinetic_shield",
+      "expected_revision": "4-459fef39a311eb4c04593060d181c4a7",
+      "changes": [
+        {
+          "path": [
+            "effect",
+            "buffs",
+            "shield"
+          ],
+          "before_exists": true,
+          "before": 0.2,
+          "after": 0.375
+        }
+      ]
+    },
+    {
+      "id": "gear_doc_eliza_bubble_gun",
+      "expected_revision": "11-924cad0dd8bf110c1cd28b32186c9306",
+      "changes": [
+        {
+          "path": [
+            "tools",
+            0,
+            "hit_effect",
+            "instant",
+            2,
+            "instant",
+            0,
+            "player_heal"
+          ],
+          "before_exists": true,
+          "before": 10,
+          "after": 8
+        },
+        {
+          "path": [
+            "tools",
+            1,
+            "hit_effect",
+            "instant",
+            2,
+            "instant",
+            0,
+            "player_heal"
+          ],
+          "before_exists": true,
+          "before": 10,
+          "after": 8
+        },
+        {
+          "path": [
+            "description",
+            "text"
+          ],
+          "before_exists": true,
+          "before": "Launches globes of corrosive acid in a ballistic arc that heal allied Heroes where they burst. <BINDING_CAST2> for a close range lob.\n\n<b>Primary Fire</b>\nDamage - 10   World Damage - 10   Splash Damage - 10   Splash World Damage - 10   Splash Radius - 2.5   Attack time - 0.6\nMax Range - 60\nHeals allies for 10 HP within 2.5m\n\n<b>Secondary Fire</b>\nDamage - 10   World Damage - 10   Splash Damage - 10   Splash World Damage - 10   Splash Radius - 2.5   Attack time - 0.5\nMax Range - 60\nHeals allies for 10 HP within 2.5m\n\nMagazine - 8   Reload - 0.8s",
+          "after": "Launches globes of corrosive acid in a ballistic arc that heal allied Heroes where they burst. <BINDING_CAST2> for a close range lob.\n\n<b>Primary Fire</b>\nDamage - 10   World Damage - 10   Splash Damage - 10   Splash World Damage - 10   Splash Radius - 2.5   Attack time - 0.6\nMax Range - 60\nHeals allies for 8 HP within 2.5m\n\n<b>Secondary Fire</b>\nDamage - 10   World Damage - 10   Splash Damage - 10   Splash World Damage - 10   Splash Radius - 2.5   Attack time - 0.5\nMax Range - 60\nHeals allies for 8 HP within 2.5m\n\nMagazine - 8   Reload - 0.8s"
+        }
+      ]
+    },
+    {
+      "id": "gear_doc_eliza_bubble_gun_beautiful_bubbles",
+      "expected_revision": "10-a7057dab66a9b0eb4cc0a615bd751176",
+      "changes": [
+        {
+          "path": [
+            "tools",
+            0,
+            "hit_effect",
+            "instant",
+            2,
+            "instant",
+            0,
+            "player_heal"
+          ],
+          "before_exists": true,
+          "before": 5,
+          "after": 4
+        },
+        {
+          "path": [
+            "tools",
+            1,
+            "hit_effect",
+            "instant",
+            2,
+            "instant",
+            0,
+            "player_heal"
+          ],
+          "before_exists": true,
+          "before": 5,
+          "after": 4
+        },
+        {
+          "path": [
+            "description",
+            "text"
+          ],
+          "before_exists": true,
+          "before": "Launches globes of corrosive acid in a ballistic arc that heal allied Heroes where they burst. <BINDING_CAST2> for a close range lob.\n\n<b>Primary Fire</b>\nDamage - 10   World Damage - 10   Splash Damage - 10   Splash World Damage - 10   Splash Radius - 2.5   Attack time - 0.6\nMax Range - 60\nHeals allies for 5 HP within 2.5m\n\n<b>Secondary Fire</b>\nDamage - 10   World Damage - 10   Splash Damage - 10   Splash World Damage - 10   Splash Radius - 2.5   Attack time - 0.5\nMax Range - 60\nHeals allies for 5 HP within 2.5m\n\nMagazine - 8   Reload - 0.8s",
+          "after": "Launches globes of corrosive acid in a ballistic arc that heal allied Heroes where they burst. <BINDING_CAST2> for a close range lob.\n\n<b>Primary Fire</b>\nDamage - 10   World Damage - 10   Splash Damage - 10   Splash World Damage - 10   Splash Radius - 2.5   Attack time - 0.6\nMax Range - 60\nHeals allies for 4 HP within 2.5m\n\n<b>Secondary Fire</b>\nDamage - 10   World Damage - 10   Splash Damage - 10   Splash World Damage - 10   Splash Radius - 2.5   Attack time - 0.5\nMax Range - 60\nHeals allies for 4 HP within 2.5m\n\nMagazine - 8   Reload - 0.8s"
+        }
+      ]
+    },
+    {
+      "id": "gear_hunter_rifle",
+      "expected_revision": "14-1ed1db8a4d922189d92e50c30c38da88",
+      "changes": [
+        {
+          "path": [
+            "tools",
+            0,
+            "hit_effect",
+            "falloff",
+            "max_damage_range"
+          ],
+          "before_exists": true,
+          "before": 80,
+          "after": 70
+        },
+        {
+          "path": [
+            "tools",
+            0,
+            "hit_effect",
+            "falloff",
+            "reduction_coeff"
+          ],
+          "before_exists": true,
+          "before": 0.7,
+          "after": 0.55
+        },
+        {
+          "path": [
+            "description",
+            "text"
+          ],
+          "before_exists": true,
+          "before": "Long range high powered rifle. Fires a fast moving projectile. Aim for magnificent headshots.\n\n<b>Primary Fire</b>\nDamage - 40   World Damage - 40   Crit Modifier - 1.625   Attack time - 1.15\nMax Damage Range - 80   Max Range - 100\n\nMagazine - 3   Reload - 3s",
+          "after": "Long range high powered rifle. Fires a fast moving projectile. Aim for magnificent headshots.\n\n<b>Primary Fire</b>\nDamage - 40   World Damage - 40   Crit Modifier - 1.625   Attack time - 1.15\nMax Damage Range - 70   Max Range - 100\n\nMagazine - 3   Reload - 3s"
+        },
+        {
+          "path": [
+            "reticles",
+            0,
+            "preview_damage_range"
+          ],
+          "before_exists": true,
+          "before": 80,
+          "after": 70
+        }
+      ]
+    },
+    {
+      "id": "gear_hunter_rifle_spot_shot",
+      "expected_revision": "8-507b3f0806f93dd5a5dc57c0c84bd221",
+      "changes": [
+        {
+          "path": [
+            "tools",
+            0,
+            "hit_effect",
+            "instant",
+            0,
+            "falloff",
+            "max_damage_range"
+          ],
+          "before_exists": true,
+          "before": 80,
+          "after": 70
+        },
+        {
+          "path": [
+            "tools",
+            0,
+            "hit_effect",
+            "instant",
+            0,
+            "falloff",
+            "reduction_coeff"
+          ],
+          "before_exists": true,
+          "before": 0.7,
+          "after": 0.55
+        },
+        {
+          "path": [
+            "description",
+            "text"
+          ],
+          "before_exists": true,
+          "before": "Long range high powered rifle. Fires a fast moving projectile. Aim for magnificent headshots.\n\n<b>Primary Fire</b>\nDamage - 40   World Damage - 40   Crit Modifier - 1.625   Attack time - 1.15\nMax Damage Range - 80   Max Range - 100\n\nMagazine - 3   Reload - 3s",
+          "after": "Long range high powered rifle. Fires a fast moving projectile. Aim for magnificent headshots.\n\n<b>Primary Fire</b>\nDamage - 40   World Damage - 40   Crit Modifier - 1.625   Attack time - 1.15\nMax Damage Range - 70   Max Range - 100\n\nMagazine - 3   Reload - 3s"
+        },
+        {
+          "path": [
+            "reticles",
+            0,
+            "preview_damage_range"
+          ],
+          "before_exists": true,
+          "before": 80,
+          "after": 70
+        }
+      ]
+    },
+    {
+      "id": "gear_magnus_static_gloves",
+      "expected_revision": "16-8ddee2bee89d522a15974cc7639a6274",
+      "changes": [
+        {
+          "path": [
+            "tools",
+            1,
+            "hit_effect",
+            "instant",
+            3,
+            "player_heal"
+          ],
+          "before_exists": true,
+          "before": 2,
+          "after": 2.25
+        },
+        {
+          "path": [
+            "description",
+            "text"
+          ],
+          "before_exists": true,
+          "before": "Unleash bolts of lightning that deal moderate damage to enemies or activate Tesla Coils. Hold <BINDING_CAST2> to channel a continuous beam of lightning that damages enemies and heals allied Heroes.\n\n<b>Primary Fire</b>\nDamage - 20.4   World Damage - 20.4   Crit Modifier - 1.5   Attack time - 0.66\nMax Damage Range - 20   Max Range - 30\n\n<b>Secondary Fire</b>\nDamage - 5   World Damage - 5   Crit Modifier - 1.25   Attack time - 0.1\nMax Damage Range - 10   Max Range - 15\nHeals allies for 2 HP\n\nMagazine - 50   Reload - 3s",
+          "after": "Unleash bolts of lightning that deal moderate damage to enemies or activate Tesla Coils. Hold <BINDING_CAST2> to channel a continuous beam of lightning that damages enemies and heals allied Heroes.\n\n<b>Primary Fire</b>\nDamage - 20.4   World Damage - 20.4   Crit Modifier - 1.5   Attack time - 0.66\nMax Damage Range - 20   Max Range - 30\n\n<b>Secondary Fire</b>\nDamage - 5   World Damage - 5   Crit Modifier - 1.25   Attack time - 0.1\nMax Damage Range - 10   Max Range - 15\nHeals allies for 2.25 HP\n\nMagazine - 50   Reload - 3s"
+        }
+      ]
+    },
+    {
+      "id": "gear_trondson_sonic_staff",
+      "expected_revision": "28-adc1ee2517929c5ee3f1ee806012e2ee",
+      "changes": [
+        {
+          "path": [
+            "tools",
+            0,
+            "hit_effect",
+            "falloff",
+            "max_damage_range"
+          ],
+          "before_exists": true,
+          "before": 15,
+          "after": 12
+        },
+        {
+          "path": [
+            "tools",
+            0,
+            "hit_effect",
+            "falloff",
+            "reduction_coeff"
+          ],
+          "before_exists": true,
+          "before": 0.7,
+          "after": 0.5
+        },
+        {
+          "path": [
+            "description",
+            "text"
+          ],
+          "before_exists": true,
+          "before": "Trondson's trusty Sonic Staff acts as a multi-purpose tool and weapon. <BINDING_CAST1> fires pulses of destructive sonic energy while <BINDING_CAST2> heals nearby allies.\n\n<b>Primary Fire</b>\nDamage - 8   World Damage - 4   Crit Modifier - 1.5   Attack time - 0.125\nMax Damage Range - 15   Max Range - 30\n\n<b>Secondary Fire</b>\nHeals allies for 15 HP within 5m, then regenerates 5 HP per second for 4s\n\nMagazine - 50   Reload - 2s",
+          "after": "Trondson's trusty Sonic Staff acts as a multi-purpose tool and weapon. <BINDING_CAST1> fires pulses of destructive sonic energy while <BINDING_CAST2> heals nearby allies.\n\n<b>Primary Fire</b>\nDamage - 8   World Damage - 4   Crit Modifier - 1.5   Attack time - 0.125\nMax Damage Range - 12   Max Range - 30\n\n<b>Secondary Fire</b>\nHeals allies for 15 HP within 5m, then regenerates 5 HP per second for 4s\n\nMagazine - 50   Reload - 2s"
+        },
+        {
+          "path": [
+            "reticles",
+            0,
+            "preview_damage_range"
+          ],
+          "before_exists": true,
+          "before": 15,
+          "after": 12
+        }
+      ]
+    },
+    {
+      "id": "gear_trondson_sonic_staff_echo_location",
+      "expected_revision": "19-579dac0e97193a0db141adbc01cba228",
+      "changes": [
+        {
+          "path": [
+            "tools",
+            0,
+            "hit_effect",
+            "falloff",
+            "max_damage_range"
+          ],
+          "before_exists": true,
+          "before": 15,
+          "after": 12
+        },
+        {
+          "path": [
+            "tools",
+            0,
+            "hit_effect",
+            "falloff",
+            "reduction_coeff"
+          ],
+          "before_exists": true,
+          "before": 0.7,
+          "after": 0.5
+        },
+        {
+          "path": [
+            "description",
+            "text"
+          ],
+          "before_exists": true,
+          "before": "Trondson's trusty Sonic Staff acts as a multi-purpose tool and weapon. <BINDING_CAST1> fires pulses of destructive sonic energy while <BINDING_CAST2> heals nearby allies and reveals enemy players within 11 meters for 7 seconds.\n\n<b>Primary Fire</b>\nDamage - 8   World Damage - 4   Crit Modifier - 1.5   Attack time - 0.125\nMax Damage Range - 15   Max Range - 30\n\n<b>Secondary Fire</b>\nHeals allies for 15 HP within 11m, then regenerates 5 HP per second for 4s\n\nMagazine - 50   Reload - 2s",
+          "after": "Trondson's trusty Sonic Staff acts as a multi-purpose tool and weapon. <BINDING_CAST1> fires pulses of destructive sonic energy while <BINDING_CAST2> heals nearby allies and reveals enemy players within 11 meters for 7 seconds.\n\n<b>Primary Fire</b>\nDamage - 8   World Damage - 4   Crit Modifier - 1.5   Attack time - 0.125\nMax Damage Range - 12   Max Range - 30\n\n<b>Secondary Fire</b>\nHeals allies for 15 HP within 11m, then regenerates 5 HP per second for 4s\n\nMagazine - 50   Reload - 2s"
+        },
+        {
+          "path": [
+            "reticles",
+            0,
+            "preview_damage_range"
+          ],
+          "before_exists": true,
+          "before": 15,
+          "after": 12
+        }
+      ]
+    },
+    {
+      "id": "global_logic",
+      "expected_revision": "43-eccad6ddc0e42e317c8555b9cfd53f4e",
+      "changes": [
+        {
+          "path": [
+            "action_scores"
+          ],
+          "before_exists": false,
+          "before": null,
+          "after": {
+            "roly_goo": 8
+          }
+        }
+      ]
+    }
+  ]
+}

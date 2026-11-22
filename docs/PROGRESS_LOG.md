@@ -277,3 +277,10 @@ Validation: 37,518 new assertions across six actual courses (784 proximity traps
 ## 2026-11-22 — Complete original Caltrops presentation dependency
 
 Live readback after the authorized Time Assault deployment exposed a missing material_caltrops target. Added it under an isolated material_time_assault_original_caltrops key, bringing the baseline to 30 cards; changed the generator and added resolution checks for every original card reference. All 37,537 current-live-catalogue trap assertions pass, covering the same 784 units and 9,789 ground cells. Baseline data/runtime stats otherwise unchanged. Deploy this corrective revision before considering the rollout complete.
+
+
+## 2026-11-22 — Prepare six-hero catalogue balance tuning
+
+Use existing CDB fields for the requested Goo score10→8, Doc weapon allied heals−20%, Trondson primary falloff15→12m/70→50% endpoint, Sweet Science shield20→37.5% (the existing next teal tier), Vander ally beam2→2.25 HP per pulse and Nigel rifle falloff80→70m/70→55% endpoint. Cover perk variants, English stats and reticle full-damage previews. Preserve other heal sources, close damage/critical multipliers, ranges, Time Assault original traps and other scoring rules. Nine reviewed documents/26 field paths; no engine-default changes needed.
+
+Added offline planner, revision/field-guarded dry-run-by-default apply tool with private backup/readback/rollback and concurrent-edit protection, checked-in field patch and fixture. 1,181 actual-engine assertions plus six fake-Couch deployment scenarios pass; Release build is clean. Live read-only preflight: nine pending, zero applied; no live writes. Source snapshot hash and full numbers/reproduction/rollout: docs/SIX_HERO_BALANCE_20261122.md. User did not request deployment in this turn; all values remain prepared, not live. The separately pending Time Assault restart fix is not merged or deployed here.
