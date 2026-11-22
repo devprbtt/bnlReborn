@@ -15,6 +15,8 @@ def subset(expected, actual, path):
         for key, value in expected.items():
             if key in ('_rev', 'hercules_metadata'):
                 continue
+            if value is None and key not in actual:
+                continue  # Runtime JSON omits optional nulls; Couch readback above is exact.
             assert key in actual, path + '.' + key
             subset(value, actual[key], path + '.' + key)
     elif isinstance(expected, list):
@@ -43,7 +45,23 @@ def main():
         assert writer.content(db.request(row['id'])) == writer.content(row['after']), row['id']
         with urllib.request.urlopen(url + '/api/cards/' + row['id'], timeout=20) as response:
             cards[row['id']] = json.load(response)
-        subset(row['after'], cards[row['id']], row['id'])
+        if row['before'] is None:
+            subset(row['after'], cards[row['id']], row['id'])
+        else:
+            # The runtime expands defaults/perk lists; validate changed fields rather
+            # than requiring untouched stored values to equal computed runtime data.
+            def changed(before, after, actual, path):
+                if before == after:
+                    return
+                if isinstance(before, dict) and isinstance(after, dict):
+                    for key, value in after.items():
+                        if key in ('_rev', 'hercules_metadata'):
+                            continue
+                        if before.get(key) != value:
+                            changed(before.get(key), value, actual.get(key), path + '.' + key)
+                else:
+                    subset(after, actual, path)
+            changed(row['before'], row['after'], cards[row['id']], row['id'])
     historical = json.loads((upload / 'TimeAssaultOriginalTraps.json').read_text())['cards']
     for expected in historical:
         with urllib.request.urlopen(url + '/api/cards/' + expected['_id'], timeout=20) as response:
