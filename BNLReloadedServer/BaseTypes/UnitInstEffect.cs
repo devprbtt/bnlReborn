@@ -815,6 +815,15 @@ public partial class Unit
         IsDead = true;
         LastMoveTime = null;
 
+        // Death ends an active toggle just like cancellation/expiry. Consume it
+        // now so fast respawns receive the cooldown, rather than a stale toggle.
+        if (AbilityTriggered)
+        {
+            AbilityTriggered = false;
+            AbilityTriggerTimeEnd = null;
+            AbilityUsed(update);
+        }
+
         if (IsActive && PlayerId != null)
         {
             TimeRespawning.Start();

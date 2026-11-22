@@ -326,3 +326,10 @@ Validation: actual-engine balance fixture 1,207 checks, six fake-Couch writer sc
 ## 2026-11-22 — Authorized combined server rollout
 
 Owner requested deployment of all server changes. Combined the three pending feature branches over live 54a8a3b, preserving the original trap correction. Prepared one guarded 19-card catalogue transaction with two new Tony wrappers, private CDB/SQLite backup, atomic release switch and rollback. Combined fixtures pass 46,807 assertions; six transaction scenarios pass; warning-free Release build and linux-x64 publish pass. Push this integrated revision before deployment; verify raw/runtime cards, historical traps and live health before advancing production refs. No client/feed publication is authorized or included. See docs/SERVER_GAMEPLAY_ROLLOUT_20261122.md. Final deployment evidence is recorded separately after execution.
+
+
+## 2026-11-22 — Roly F cooldown on death
+
+Prepared native death cleanup of the active ability toggle and duration, using the existing AbilityUsed(update) to consume its charge and publish cooldown immediately. Normal Roly and Rolling Wild fast respawns retain the endpoint on the new unit id; duplicate death and death during an existing cooldown cannot reset it. No client or CDB change.
+
+Actual-zone regression fails on live base0fee0bc and passes34 checks after the fix. Existing cooldown21, action-score308 and Second Wind68 pass (431 total); Release warnings-as-errors build zero warnings/errors. KillAccolade archive-layout assertion fails identically on unchanged live source and fixed branch; recorded without unrelated changes. Branch fix/roly-trigger-death-cooldown-20261122. No deployment or publication. See docs/ROLY_TRIGGER_DEATH_COOLDOWN.md in server source and reports/roly-trigger-death/ in client workspace.

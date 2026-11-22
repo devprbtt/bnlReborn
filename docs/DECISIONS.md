@@ -167,3 +167,8 @@ Use 30% for the common teal tier, replacing the earlier prepared 37.5% for both 
 ## 2026-11-22 — Deploy binary and catalogue in one maintenance window
 
 Apply the integrated Time Assault/Tony/Second Wind runtime and reviewed 19-document catalogue while the game service is stopped. Stage from the existing release and require identical dependency libraries. Back up player data and document preimages privately; order new wrappers before references, retain source revision guards, and roll back document changes before reverting the binary. Verify live runtime cards as well as stored CDB content. This avoids exposing half-applied catalogue data or starting new zones with old scoring settings. Client visual changes remain for a separate client release.
+
+
+## 2026-11-22 — End active trigger abilities on native death
+
+Death must consume an active toggle before a quick respawn inherits it. Clear the flag/duration and call AbilityUsed(update) in the death update, preserving native duration/reduction and respawn snapshot behavior. Keep existing cooldown unchanged when no toggle is active. Both Roly variants are covered without protocol/client/CDB changes; deployment remains separate.
