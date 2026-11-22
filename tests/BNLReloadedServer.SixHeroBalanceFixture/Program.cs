@@ -73,20 +73,27 @@ foreach(var (id,factor) in new[]{("gear_doc_eliza_bubble_gun",.8f),("gear_doc_el
     }
 }
 var shield=((ConstEffectBuff)new Key("effect_status_shielded_kinetic_shield").GetCard<CardEffect>()!.Effect!).Buffs![BuffType.Shield];
-Close(shield,.375f,"next teal shield tier is37.5 percent");
+Close(shield,.3f,"shared teal shield tier is30 percent");
+foreach(var card in catalogue.All.OfType<CardEffect>())
+{
+    if(card.Effect is not ConstEffectBuff {Buffs:{} buffs} || !buffs.TryGetValue(BuffType.Shield,out var value))continue;
+    Check(MathF.Abs(value-.375f)>.0001f,"no gameplay shield retains the retired tier: "+card.Id);
+    if(card.Id is not ("effect_status_shielded_kinetic_shield" or "effect_hero_roly_emplacement_mode_rolling_wild"))
+        Check(JsonNode.DeepEquals(before[card.Id],after[card.Id]),"other shield sources preserved: "+card.Id);
+}
 typeof(Unit).GetField("_buffs",hidden)!.SetValue(ally,new Dictionary<BuffType,float>{{BuffType.Shield,shield}});
-Close(ally.DamageTaken(100),62.5f,"native direct shield mitigation");
-Close(ally.SplashDamageTaken(100),62.5f,"native splash shield mitigation");
+Close(ally.DamageTaken(100),70f,"native direct shield mitigation");
+Close(ally.SplashDamageTaken(100),70f,"native splash shield mitigation");
 var rolling=(ConstEffectBuff)new Key("effect_hero_roly_emplacement_mode_rolling_wild").GetCard<CardEffect>()!.Effect!;
 Close(rolling.Buffs![BuffType.Shield],shield,"Rolling Wild matches Sweet Science shield tier");
 typeof(Unit).GetField("_buffs",hidden)!.SetValue(ally,rolling.Buffs);
-Close(ally.DamageTaken(100),62.5f,"Rolling Wild native direct damage mitigation");
-Close(ally.SplashDamageTaken(100),62.5f,"Rolling Wild native splash mitigation");
+Close(ally.DamageTaken(100),70f,"Rolling Wild native direct damage mitigation");
+Close(ally.SplashDamageTaken(100),70f,"Rolling Wild native splash mitigation");
 Close(rolling.Buffs[BuffType.RunSpeed],-.4f,"Rolling Wild retains sixty percent movement speed");
 Check(JsonNode.DeepEquals(before["effect_hero_roly_emplacement_mode"],after["effect_hero_roly_emplacement_mode"]),"ordinary Roly shield unchanged");
 Check(after["ability_roly_emplacement_mode_rolling_wild"]["charges"]!["charge_cooldown"]!.GetValue<int>()==45,
     "shield downside replaces seven-second cooldown penalty");
-Check(after["perk_hero_roly_rolling_wild"]["description"]!["text"]!.GetValue<string>().Contains("37.5%") &&
+Check(after["perk_hero_roly_rolling_wild"]["description"]!["text"]!.GetValue<string>().Contains("30%") &&
     !after["perk_hero_roly_rolling_wild"]["description"]!["text"]!.GetValue<string>().Contains("7 seconds"),"perk explains new downside");
 var cannon=after["gear_roly_tank_ball_cannon"];
 var cannonHit=cannon["tools"]![1]!["hit_effect"]!.ToJsonString().Deserialize<InstEffectSplashDamage>()!;

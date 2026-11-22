@@ -143,3 +143,8 @@ Added offline planner, revision/field-guarded dry-run-by-default apply tool with
 ## 2026-11-22 — Rolling Wild trades shielding for movement
 
 Replace the moving-F perk's extra cooldown with 37.5% shielding, matching prepared Sweet Science's existing teal tier. Restore base F cooldown of 45s, preserve normal Roly F shielding at 40%, and keep the movement benefit/duration/other immunities. Use only the existing perk effect, ability charge cooldown and English descriptions. Extend the pending catalogue patch without changing its earlier nine rows; the twelve-card plan supersedes the previous nine-card plan. No runtime or protocol change required. Deployment remains separate.
+
+
+## 2026-11-22 — Shared teal shield tier is 30%
+
+Use 30% for the common teal tier, replacing the earlier prepared 37.5% for both Sweet Science and Rolling Wild and the shared client colour stop. Audit actual shield effect cards rather than globally scaling all damage/shields; keep the other tiers, strongest-source selection and cap. All consumers of ShieldStrength.ColorFor share the new colour meaning. Apply gameplay via the existing guarded catalogue plan; deliver the matching colour stop in a later client release. Deployment remains separate.

@@ -298,3 +298,10 @@ Validation: combined actual-engine fixture 1,188 checks, six fake-Couch guard/ap
 Prepared cannon secondary player splash damage 18 to 16 per shell, for 32 instead of 36 across the simultaneous two-shell burst. Updated English per-shell stat. Primary fire, world/objective damage, splash radius, timing, ammo and projectiles remain unchanged. Added one document/two fields to the pending balance patch (13 documents/32 fields total); all prior twelve rows identical. Updated guarded writer count and server rollout notes.
 
 Validation: actual-engine balance fixture 1,191 checks, six fake-Couch writer scenarios and read-only live preflight 13 pending/0 applied. No CDB write, deployment or public release. Worktree/branch remains `roly-rolling-wild-server` / `balance/roly-rolling-wild-20261122`. Evidence: client reports/roly-cannon-rmb/ and docs/ROLY_CANNON_RMB_20261122.md.
+
+
+## 2026-11-22 — Shared teal shield tier revised to 30%
+
+Owner revised the shared 37.5% tier to 30% for everyone. Set the prepared Sweet Science/Rolling Wild shield cards to .3 and update both perk descriptions; move the shared client ShieldStrength colour stop from .375 to .3 in canonical and migration files. Audit all nine native shield buff cards: no other current 37.5% users; seven other shield strengths remain unchanged. Keep strongest-shield/cap rules and previous cannon RMB change. Combined plan still 13 cards/32 fields; ten unrelated rows identical.
+
+Validation: actual-engine balance fixture 1,207 checks, six fake-Couch writer scenarios, native Unity compilation and nine shared tier/badge checks, and read-only live preflight 13 pending/0 applied. No deployment, live CDB write or client/feed release. Client colour mapping is prepared and needs a later build; gameplay values remain compatible with existing clients. See docs/SHIELD_TIER_30_20261122.md and reports/shield-tier-30/ in the client workspace.

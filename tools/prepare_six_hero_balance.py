@@ -83,12 +83,12 @@ for prefix, start, minimum in [('gear_trondson_sonic_staff', 12, .5), ('gear_hun
 
 cid = 'effect_status_shielded_kinetic_shield'
 assert draft[cid]['effect']['buffs']['shield'] == .2
-change(cid, ['effect', 'buffs', 'shield'], .375)
+change(cid, ['effect', 'buffs', 'shield'], .3)
 
 # Rolling Wild trades some shielding for mobility, replacing the cooldown penalty.
 cid = 'effect_hero_roly_emplacement_mode_rolling_wild'
 assert draft[cid]['effect']['buffs']['shield'] == .4
-change(cid, ['effect', 'buffs', 'shield'], .375)
+change(cid, ['effect', 'buffs', 'shield'], .3)
 cid = 'ability_roly_emplacement_mode_rolling_wild'
 assert draft[cid]['charges']['charge_cooldown'] == 52
 assert draft['ability_roly_emplacement_mode']['charges']['charge_cooldown'] == 45
@@ -97,9 +97,9 @@ cid = 'perk_hero_roly_rolling_wild'
 assert 'Increases Active Ability cooldown by 7 seconds' in draft[cid]['description']['text']
 change(cid, ['description', 'text'],
        'Allows movement at 60% of normal speed whilst Emplacement Mode is active / '
-       'Reduces Emplacement Mode shielding from 40% to 37.5% damage reduction')
+       'Reduces Emplacement Mode shielding from 40% to 30% damage reduction')
 change(cid, ['description_2', 'text'],
-       'Move at 60% speed during Emplacement Mode, with 37.5% shielding instead of 40%. '
+       'Move at 60% speed during Emplacement Mode, with 30% shielding instead of 40%. '
        'Uses the normal 45-second cooldown.')
 
 # RMB is a simultaneous two-shell burst: 16 per shell makes 32 total.

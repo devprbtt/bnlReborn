@@ -30,7 +30,7 @@
           ],
           "before_exists": true,
           "before": 0.4,
-          "after": 0.375
+          "after": 0.3
         }
       ]
     },
@@ -46,7 +46,7 @@
           ],
           "before_exists": true,
           "before": 0.2,
-          "after": 0.375
+          "after": 0.3
         }
       ]
     },
@@ -422,7 +422,7 @@
           ],
           "before_exists": true,
           "before": "Allows movement at 60% of normal speed whilst the Emplacement Mode Active Ability is in use / Increases Active Ability cooldown by 7 seconds ",
-          "after": "Allows movement at 60% of normal speed whilst Emplacement Mode is active / Reduces Emplacement Mode shielding from 40% to 37.5% damage reduction"
+          "after": "Allows movement at 60% of normal speed whilst Emplacement Mode is active / Reduces Emplacement Mode shielding from 40% to 30% damage reduction"
         },
         {
           "path": [
@@ -431,7 +431,7 @@
           ],
           "before_exists": true,
           "before": "",
-          "after": "Move at 60% speed during Emplacement Mode, with 37.5% shielding instead of 40%. Uses the normal 45-second cooldown."
+          "after": "Move at 60% speed during Emplacement Mode, with 30% shielding instead of 40%. Uses the normal 45-second cooldown."
         }
       ]
     }
