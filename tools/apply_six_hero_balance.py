@@ -14,9 +14,11 @@ from pathlib import Path
 parser = argparse.ArgumentParser()
 parser.add_argument('patch', type=Path)
 parser.add_argument('--apply', action='store_true')
+parser.add_argument('--expected-card-count', type=int, default=13)
 args = parser.parse_args()
 patch = json.loads(args.patch.read_text())
-assert patch['schema_version'] == 1 and len(patch['cards']) == 13
+assert patch['schema_version'] == 1 and len(patch['cards']) == args.expected_card_count > 0
+assert len({row['id'] for row in patch['cards']}) == args.expected_card_count
 cfg = {k.replace('_', '').lower(): v for k, v in json.loads(Path('/opt/bnlreloaded/current/Configs/configs.json').read_text()).items()}
 base = cfg['couchdbendpoint'].rstrip('/') + '/' + cfg['couchdbdatabasename']
 authorization = 'Basic ' + base64.b64encode((cfg['couchdbusername'] + ':' + cfg['couchdbpassword']).encode()).decode()

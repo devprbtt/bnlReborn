@@ -326,3 +326,10 @@ Validation: actual-engine balance fixture 1,207 checks, six fake-Couch writer sc
 ## 2026-11-22 — Authorized combined server rollout
 
 Owner requested deployment of all server changes. Combined the three pending feature branches over live 54a8a3b, preserving the original trap correction. Prepared one guarded 19-card catalogue transaction with two new Tony wrappers, private CDB/SQLite backup, atomic release switch and rollback. Combined fixtures pass 46,807 assertions; six transaction scenarios pass; warning-free Release build and linux-x64 publish pass. Push this integrated revision before deployment; verify raw/runtime cards, historical traps and live health before advancing production refs. No client/feed publication is authorized or included. See docs/SERVER_GAMEPLAY_ROLLOUT_20261122.md. Final deployment evidence is recorded separately after execution.
+
+
+## 2026-11-22 — Earlier Nigel rifle falloff, prepared
+
+Owner clarified this follow-up concerns Nigel only. Prepared primary falloff onset70m to50m for rifle and Spot Shot, preserving55% damage at100m, close damage40 and critical multiplier1.625. Updated English stats and reticle threshold. Two cards/six fields; full scope comparison confirms all other fields/cards unchanged, including Trondson and revolver. Native body damage at60/70/80/90m becomes36.4/32.8/29.2/25.6.
+
+Actual engine fixture50 checks; six writer scenarios for new two-card plan and six for existing13-card plan; warnings-as-errors Release build zero warnings/errors. Read-only live preflight2 pending/0 applied. Writer now supports an explicit expected-card count (default13) and rejects duplicate ids. No deployment, live writes or client release. Branch balance/nigel-earlier-falloff-20261122; pending Roly death cooldown fix remains separate. See docs/NIGEL_EARLIER_FALLOFF_20261122.md and client reports/nigel-earlier-falloff/.

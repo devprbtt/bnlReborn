@@ -10,7 +10,8 @@ from pathlib import Path
 from unittest.mock import patch
 
 original = {c['_id']: c for c in json.loads(Path(sys.argv[1]).read_text(encoding='utf-8'))}
-plan = json.loads(Path('catalogue/balance-20261122/six-hero-balance.patch.json').read_text())
+plan_path = Path(sys.argv[2]) if len(sys.argv) > 2 else Path('catalogue/balance-20261122/six-hero-balance.patch.json')
+plan = json.loads(plan_path.read_text())
 candidate = copy.deepcopy(original)
 for row in plan['cards']:
     for c in row['changes']:
@@ -51,7 +52,7 @@ for scenario in ['dry run', 'already applied', 'revision drift', 'apply', 'lost 
                     state[cid]['concurrent_author_field'] = 'keep me'
                 raise TimeoutError('simulated lost committed PUT response')
         return Response(json.dumps(state[cid]).encode())
-    args = ['apply_six_hero_balance.py', 'fixture.patch.json']
+    args = ['apply_six_hero_balance.py', 'fixture.patch.json', '--expected-card-count', str(len(plan['cards']))]
     if scenario not in ['dry run', 'already applied', 'revision drift']:
         args.append('--apply')
     failure = None
