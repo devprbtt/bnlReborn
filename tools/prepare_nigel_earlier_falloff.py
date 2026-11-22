@@ -35,14 +35,14 @@ for cid in ['gear_hunter_rifle', 'gear_hunter_rifle_spot_shot']:
     found = [(p, v) for p, v in walk(card['tools'][0], ['tools', 0]) if v.get('type') == 'damage']
     assert len(found) == 1
     path, node = found[0]
-    assert node['falloff'] == {'reduction_coeff': .55, 'max_damage_range': 70, 'min_damage_range': 100, 'max_range': 100}
-    change(path + ['falloff', 'max_damage_range'], 50)
+    assert node['falloff'] == {'reduction_coeff': .55, 'max_damage_range': 50, 'min_damage_range': 100, 'max_range': 100}
+    change(path + ['falloff', 'max_damage_range'], 40)
     text = card['description']['text']
-    assert text.count('Max Damage Range - 70') == 1
-    change(['description', 'text'], text.replace('Max Damage Range - 70', 'Max Damage Range - 50'))
+    assert text.count('Max Damage Range - 50') == 1
+    change(['description', 'text'], text.replace('Max Damage Range - 50', 'Max Damage Range - 40'))
     for index, reticle in enumerate(card['reticles']):
-        if reticle['preview_damage_range'] == 70:
-            change(['reticles', index, 'preview_damage_range'], 50)
+        if reticle['preview_damage_range'] == 50:
+            change(['reticles', index, 'preview_damage_range'], 40)
     assert len(changes) == 3
     rows.append({'id': cid, 'expected_revision': original[cid]['_rev'], 'changes': changes})
 
@@ -51,4 +51,4 @@ plan = {'schema_version': 1, 'source_sha256': hashlib.sha256(source.read_bytes()
         'status': 'PREPARED; NOT APPLIED', 'cards': rows}
 (output / 'nigel-earlier-falloff.patch.json').write_text(json.dumps(plan, indent=2) + '\n', encoding='utf-8')
 (output / 'candidate-catalogue.json').write_text(json.dumps(list(draft.values()), indent=2) + '\n', encoding='utf-8')
-print('Prepared two cards/six fields: falloff starts 70m to 50m; no live writes')
+print('Prepared two cards/six fields: falloff starts 50m to 40m; no live writes')

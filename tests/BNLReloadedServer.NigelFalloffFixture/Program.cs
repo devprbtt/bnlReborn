@@ -31,9 +31,9 @@ foreach(var id in new[]{"gear_hunter_rifle","gear_hunter_rifle_spot_shot"})
     var old=Damage(before[id]);var next=Damage(after[id]);
     Near(next.Damage!.PlayerDamage,40,"close body damage remains40");
     Near(next.CritModifier,1.625f,"headshot multiplier preserved");
-    Near(At(next,49.99f),At(old,49.99f),"close damage retained below new boundary");
-    Check(At(next,50.01f)<At(old,50.01f),"falloff actually starts immediately after50m");
-    foreach(var (distance,expected) in new[]{(50f,40f),(60f,36.4f),(70f,32.8f),(80f,29.2f),(90f,25.6f),(100f,22f)})
+    Near(At(next,39.99f),At(old,39.99f),"close damage retained below new boundary");
+    Check(At(next,40.01f)<At(old,40.01f),"falloff actually starts immediately after40m");
+    foreach(var (distance,expected) in new[]{(40f,40f),(50f,37f),(60f,34f),(70f,31f),(80f,28f),(90f,25f),(100f,22f)})
     {
         Near(At(next,distance),expected,"native body damage at"+distance);
         Near(At(next,distance,true),expected*1.625f,"native headshot damage at"+distance);
@@ -48,9 +48,9 @@ Check(changed.SetEquals(["gear_hunter_rifle","gear_hunter_rifle_spot_shot"]),"on
 foreach(var id in changed)
 {
     var normalized=after[id].DeepClone();
-    Nodes(normalized["tools"]![0]).Single(n=>n["type"]?.GetValue<string>()=="damage")["falloff"]!["max_damage_range"]=70;
-    normalized["description"]!["text"]=normalized["description"]!["text"]!.GetValue<string>().Replace("Max Damage Range - 50","Max Damage Range - 70");
-    normalized["reticles"]![0]!["preview_damage_range"]=70;
+    Nodes(normalized["tools"]![0]).Single(n=>n["type"]?.GetValue<string>()=="damage")["falloff"]!["max_damage_range"]=50;
+    normalized["description"]!["text"]=normalized["description"]!["text"]!.GetValue<string>().Replace("Max Damage Range - 40","Max Damage Range - 50");
+    normalized["reticles"]![0]!["preview_damage_range"]=50;
     Check(JsonNode.DeepEquals(before[id],normalized),"all other weapon fields remain unchanged");
 }
 File.WriteAllLines(args[2],csv);

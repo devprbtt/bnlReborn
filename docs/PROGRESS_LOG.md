@@ -338,3 +338,8 @@ Actual engine fixture50 checks; six writer scenarios for new two-card plan and s
 ## 2026-11-22 — Nigel earlier falloff deployed
 
 Owner authorized deploying the Nigel-only follow-up. Applied both reviewed rifle documents (six fields), including Spot Shot, from source3fb706f. CDB/runtime readback confirms falloff start50m, unchanged55% at100m and matching English stats/reticle. Runtime watcher refreshed both cards; no restart or binary change. Running binary remains0fee0bc8001fa02a59ac4e1b950bddc4a1fd5ac5. Private catalogue rollback backup /root/config-backups/six-hero-balance-20261122T145720Z. Health/status/auth/listeners pass and no error-priority service journal entries since application. Evidence: client reports/nigel-earlier-falloff/. Roly F death-cooldown branch remains separate and undeployed.
+
+
+## 2026-11-22 — Nigel falloff40m follow-up
+
+Owner requested40m immediately after the authorized live50m tuning. Prepared a fresh guarded two-card/six-field50-to40 patch, preserving the earlier70-to50 artifact. English stats and reticle match40m. Native damage40/37/34/31/28/25/22 at40/50/60/70/80/90/100m; close damage, critical multiplier, endpoint and other fields/cards preserved. Actual engine56 checks and six guarded-writer scenarios pass. Continue authorized live tuning after source commit/push, with private backup and runtime readback. No binary or client publication required. See docs/NIGEL_FALLOFF_40_20261122.md and client reports/nigel-falloff-40/.

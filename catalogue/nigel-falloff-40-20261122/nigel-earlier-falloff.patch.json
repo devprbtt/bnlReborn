@@ -1,0 +1,83 @@
+{
+  "schema_version": 1,
+  "source_sha256": "7e170e172e3b582c133f0a286771a64c067c1bcaf2a206a420a8e4571feb79f5",
+  "status": "PREPARED; NOT APPLIED",
+  "cards": [
+    {
+      "id": "gear_hunter_rifle",
+      "expected_revision": "16-86b05da7b61a6663d7881df93f38de57",
+      "changes": [
+        {
+          "path": [
+            "tools",
+            0,
+            "hit_effect",
+            "falloff",
+            "max_damage_range"
+          ],
+          "before_exists": true,
+          "before": 50,
+          "after": 40
+        },
+        {
+          "path": [
+            "description",
+            "text"
+          ],
+          "before_exists": true,
+          "before": "Long range high powered rifle. Fires a fast moving projectile. Aim for magnificent headshots.\n\n<b>Primary Fire</b>\nDamage - 40   World Damage - 40   Crit Modifier - 1.625   Attack time - 1.15\nMax Damage Range - 50   Max Range - 100\n\nMagazine - 3   Reload - 3s",
+          "after": "Long range high powered rifle. Fires a fast moving projectile. Aim for magnificent headshots.\n\n<b>Primary Fire</b>\nDamage - 40   World Damage - 40   Crit Modifier - 1.625   Attack time - 1.15\nMax Damage Range - 40   Max Range - 100\n\nMagazine - 3   Reload - 3s"
+        },
+        {
+          "path": [
+            "reticles",
+            0,
+            "preview_damage_range"
+          ],
+          "before_exists": true,
+          "before": 50,
+          "after": 40
+        }
+      ]
+    },
+    {
+      "id": "gear_hunter_rifle_spot_shot",
+      "expected_revision": "10-4b3ceb65172e5628cddaf14465d371ac",
+      "changes": [
+        {
+          "path": [
+            "tools",
+            0,
+            "hit_effect",
+            "instant",
+            0,
+            "falloff",
+            "max_damage_range"
+          ],
+          "before_exists": true,
+          "before": 50,
+          "after": 40
+        },
+        {
+          "path": [
+            "description",
+            "text"
+          ],
+          "before_exists": true,
+          "before": "Long range high powered rifle. Fires a fast moving projectile. Aim for magnificent headshots.\n\n<b>Primary Fire</b>\nDamage - 40   World Damage - 40   Crit Modifier - 1.625   Attack time - 1.15\nMax Damage Range - 50   Max Range - 100\n\nMagazine - 3   Reload - 3s",
+          "after": "Long range high powered rifle. Fires a fast moving projectile. Aim for magnificent headshots.\n\n<b>Primary Fire</b>\nDamage - 40   World Damage - 40   Crit Modifier - 1.625   Attack time - 1.15\nMax Damage Range - 40   Max Range - 100\n\nMagazine - 3   Reload - 3s"
+        },
+        {
+          "path": [
+            "reticles",
+            0,
+            "preview_damage_range"
+          ],
+          "before_exists": true,
+          "before": 50,
+          "after": 40
+        }
+      ]
+    }
+  ]
+}
