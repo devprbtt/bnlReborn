@@ -71,6 +71,8 @@ T OnZone<T>(Func<T> body)
 var units = (IDictionary<uint, Unit>)typeof(GameZone).GetField("_units", Any)!.GetValue(zone)!;
 var (healer, teammate) = OnZone(() => ((Unit)Call("CreatePlayerUnit", 1u, Stub<IServiceZone>())!, (Unit)Call("CreatePlayerUnit", 2u, Stub<IServiceZone>())!));
 var thirdHealer = OnZone(() => (Unit)Call("CreatePlayerUnit", 3u, Stub<IServiceZone>())!);
+// Damage-only legacy cases deliberately keep the enemy out of the new threat radius.
+teammate.Transform.Position = healer.Transform.Position + new Vector3(100,0,0);
 var calls = ((StubProxy)(object)service).Calls;
 
 
@@ -127,6 +129,33 @@ OnZone(()=>{
     Reset();hero.Health!.Health!.MaxHealth=200;Step(6000);Near(40,"rate scales with maximum health");hero.Health.Health.MaxHealth=100;
     Reset();healer.AssignFreeForAllTeam(1);Step(6000);Near(30,"passive regeneration also works in FFA");healer.AssignFreeForAllTeam(null);
     Reset();Step(60000);Near(30,"server pause cannot bank a large healing burst");
+    teammate.Team=TeamType.Team2;
+    Reset();teammate.Transform.Position=healer.Transform.Position+new Vector3(7.99f,0,0);
+    Step(6000);Near(20,"living enemy within eight metres blocks recovery without shots or damage");
+    Step(10000);Near(20,"remaining near an enemy keeps resetting the quiet period");
+    teammate.Transform.Position=healer.Transform.Position+new Vector3(8,0,0);
+    Step(1000);Near(20,"eight-metre boundary is included");
+    teammate.Transform.Position=healer.Transform.Position+new Vector3(8.01f,0,0);
+    Step(4999);Near(20,"leaving enemy range starts a full quiet delay");
+    Step(251);Near(22.5f,"healing resumes only after the full proximity cooldown");
+    Reset();teammate.Transform.Position=healer.Transform.Position;teammate.Team=TeamType.Team1;
+    Step(6000);Near(30,"nearby ally does not prevent healing");
+    Reset();teammate.Team=TeamType.Team2;teammate.IsDead=true;
+    Step(6000);Near(30,"dead enemy does not prevent healing");teammate.IsDead=false;
+    Reset();teammate.IsActive=false;Step(6000);Near(30,"inactive enemy does not prevent healing");teammate.IsActive=true;
+    Reset();teammate.IsDropped=true;Step(6000);Near(30,"dropped enemy does not prevent healing");teammate.IsDropped=false;
+    teammate.Transform.Position=healer.Transform.Position+new Vector3(100,0,0);
+    Reset();healer.UpdateData(new UnitUpdate{Buffs=new Dictionary<BuffType,float>{{BuffType.VisionMark,1}}});
+    Step(6000);Near(20,"radar or ability reveal blocks healing even with no nearby enemy");
+    Step(6000);Near(20,"sustained reveal cannot bank recovery time");
+    healer.UpdateData(new UnitUpdate{Buffs=new Dictionary<BuffType,float>{{BuffType.VisionMark,0}}});
+    Step(4999);Near(20,"reveal ending still requires the complete quiet period");
+    Step(251);Near(22.5f,"recovery resumes after reveal cooldown");
+    Reset();Step(6000);Near(30,"recovery starts before a new reveal");
+    healer.UpdateData(new UnitUpdate{Buffs=new Dictionary<BuffType,float>{{BuffType.VisionMark,1}}});
+    Step(250);Near(30,"a fresh reveal immediately interrupts active recovery");
+    healer.UpdateData(new UnitUpdate{Buffs=new Dictionary<BuffType,float>{{BuffType.VisionMark,0}}});
+    teammate.Team=TeamType.Team1;
     Reset();clock+=6000;((Action)Call("OnTick",1UL)!)();Near(30,"native zone tick drives regeneration");
     Reset();clock+=6000;calls.Clear();Call("TickSkillRecovery");
     Check(calls.Where(c=>c.Name=="SendImpact").Select(c=>(ImpactData)c.Args[0]!).Any(i=>i.CasterPlayerId==healer.PlayerId && i.HitUnits!.Contains(healer.Id) && Math.Abs(i.ShotPos.X-10)<.01f),"actual restored health uses native self-heal feedback");
@@ -148,6 +177,29 @@ OnZone(()=>{
     tuned = new CardPerk { Id=ClassPerkCatalogue.SkillId, SlotType=PerkSlotType.Class, ClassPerk=new ClassPerkBalance { OutOfCombatSeconds=2, RegenMaxHealthPercentPerSecond=20 } };
     catalogue.Replicate(catalogue.All.Where(c=>c.Id!=tuned.Id).Append(tuned).ToList());
     Step(1000);Near(44,"replicated CDB rate updates an existing hero");
+    tuned.ClassPerk!.EnemyProximityRadius=4;
+    teammate.Team=TeamType.Team2;teammate.Transform.Position=healer.Transform.Position+new Vector3(5,0,0);
+    Reset();Step(3000);Near(40,"CDB proximity radius controls an existing hero");
+    teammate.Transform.Position=healer.Transform.Position+new Vector3(3,0,0);
+    Step(1000);Near(40,"configured four-metre proximity blocks healing");
+    teammate.Team=TeamType.Team1;teammate.Transform.Position=healer.Transform.Position+new Vector3(100,0,0);
+    foreach(var invalid in new[]{-1f,101f,float.NaN,float.PositiveInfinity})
+    {
+        tuned.ClassPerk.EnemyProximityRadius=invalid;
+        bool rejected=false;try{ClassPerkCatalogue.Validate(tuned);}catch(InvalidDataException){rejected=true;}
+        Check(rejected,"invalid proximity radius rejected: "+invalid);
+    }
+    tuned.ClassPerk.EnemyProximityRadius=8;
+    Check(ClassPerkCatalogue.Resolve(tuned,"{enemy_proximity_radius}m")=="8m","description resolves the configured radius");
+    var radarSpot=new CardEffect {Id="fixture_radar_spot",Positive=false,Duration=1,
+        Effect=new ConstEffectBuff {Buffs=new Dictionary<BuffType,float>{{BuffType.VisionMark,1}}}};
+    catalogue.Replicate(catalogue.All.Append(radarSpot).ToList());
+    Reset();healer.AddEffect(new ConstEffectInfo(radarSpot.Key),teammate.Team,teammate.GetSelfSource(teammate.CreateImpactData()));
+    healer.ApplyBuffEffects(.2f);Step(3000);Near(20,"native radar reveal effect prevents recovery");
+    healer.ActiveEffects.Single(e=>e.Key==radarSpot.Key).UpdateDuration(0UL);
+    healer.CleanUpExpired();healer.ApplyBuffEffects(.2f);
+    Step(1999);Near(20,"native reveal expiry still requires full quiet period");
+    Step(251);Near(25,"recovery resumes after native reveal expires");
     var icon = new CardEffect { Id="fixture_second_wind_icon", Positive=true, Duration=1, Effect=new ConstEffectBuff { Buffs=new Dictionary<BuffType,float>() } };
     bool HasIcon() => healer.ActiveEffects.Any(e=>e.Key==icon.Key);
     Check(!HasIcon(),"no Second Wind effect without class_perk.regen_effect");

@@ -30,6 +30,8 @@ public class ImpactData
     // Server-only provenance for damage produced by a constant effect's timer.
     // Periodic ticks retain kill/damage attribution but must not count as a new weapon hit.
     internal bool PeriodicEffect { get; set; }
+    // Per accepted Tony cast, shared through effect-source clones; never sent on the wire.
+    internal HashSet<uint>? TonyBuildRewardRecipients { get; set; }
 
     public void Write(BinaryWriter writer)
     {
@@ -93,7 +95,8 @@ public class ImpactData
           ShotPos = ShotPos,
           Crit = Crit,
           DamageCredit = DamageCredit,
-          PeriodicEffect = PeriodicEffect
+          PeriodicEffect = PeriodicEffect,
+          TonyBuildRewardRecipients = TonyBuildRewardRecipients
       };
 
     internal ImpactData AsPeriodicEffect()

@@ -1,3 +1,4 @@
+using System.Numerics;
 using BNLReloadedServer.BaseTypes;
 using BNLReloadedServer.Database;
 using BNLReloadedServer.ProtocolHelpers;
@@ -26,7 +27,8 @@ public partial class GameZone
         {
             if (!HasSkillRecovery(unit)) continue;
             var id = unit.PlayerId!.Value;
-            if (unit.IsDead || !unit.IsActive || unit.IsDropped || unit.CurrentChannelData != null)
+            if (unit.IsDead || !unit.IsActive || unit.IsDropped || unit.CurrentChannelData != null ||
+                SkillRecoveryThreatened(unit))
             {
                 _skillRecoveryFrom[id] = now + ClassPerkCatalogue.QuietMilliseconds(ClassPerkCatalogue.SkillId);
                 continue;
@@ -50,5 +52,16 @@ public partial class GameZone
                 Databases.Catalogue.GetCard<CardEffect>(effectId) != null)
                 unit.AddEffect(new ConstEffectInfo(Catalogue.Key(effectId)), unit.Team, unit.GetSelfSource(unit.CreateImpactData()));
         }
+    }
+
+    private bool SkillRecoveryThreatened(Unit unit)
+    {
+        // VisionMark is the authoritative reveal used by radar and spotting
+        // abilities. Recheck continuously so healing cannot accrue while marked.
+        if (unit.GetBuff(BuffType.VisionMark) > 0) return true;
+        var radius = ClassPerkCatalogue.Balance(ClassPerkCatalogue.SkillId).EnemyProximityRadius;
+        return radius > 0 && _playerUnits.Values.Any(enemy => enemy.Id != unit.Id &&
+            enemy.PlayerId != null && enemy.IsActive && !enemy.IsDead && !enemy.IsDropped &&
+            AreOpponents(unit, enemy) && Vector3.DistanceSquared(unit.GetMidpoint(), enemy.GetMidpoint()) <= radius * radius);
     }
 }

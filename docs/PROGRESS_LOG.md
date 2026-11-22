@@ -279,8 +279,18 @@ Validation: 37,518 new assertions across six actual courses (784 proximity traps
 Live readback after the authorized Time Assault deployment exposed a missing material_caltrops target. Added it under an isolated material_time_assault_original_caltrops key, bringing the baseline to 30 cards; changed the generator and added resolution checks for every original card reference. All 37,537 current-live-catalogue trap assertions pass, covering the same 784 units and 9,789 ground cells. Baseline data/runtime stats otherwise unchanged. Deploy this corrective revision before considering the rollout complete.
 
 
+<<<<<<< HEAD
 ## 2026-11-22 — Authoritative Time Assault prestart movement lock
 
 Restarted zones begin in TutorialInit, which the client Waiting/Build predicate omitted, and the server accepted early movement. Consume runner movement during TutorialInit/Waiting/Build without moving or running terrain/trap/pickup callbacks; retain fresh look/heartbeat data and clear locomotion. Correct old clients through immediate native teleport, and reject countdown-sampled packets arriving after GO. Other modes/non-player units and fresh movement at GO keep their existing path. Client separately freezes before movement layers and clears queued motion. No map/timer/CDB/record edits.
 
 Production-before reproduction fails at TutorialInit; fixed server passes 6,900 checks across six maps and three run lifecycles, fixed-spawn 504 checks, warning-as-error Release build. Paired client Unity guard passes 4,326 checks. No deployment or live keyboard acceptance; client smoothing requires a later signed build. Details: docs/TIME_ASSAULT_RESTART_MOVEMENT.md.
+=======
+## 2026-11-22 — Tony cast recipients and Second Wind threats
+
+Prepared Tony F as a one-time native timed buff for friendly players/turrets in activation range, preserving 20s duration and normal/Wider tuning. Select recipients at accepted cast using authoritative position; ignore subsequent client hit reports. Grant each player receiving the build buff 5 base points once per cast, including Tony, with existing score modifiers. Add clone-shared server-only receipt provenance and a tunable score default without editing global_logic.
+
+Second Wind now continuously resets its quiet deadline while VisionMark-revealed or within the owner's specified inclusive 8m of a living enemy player. Preserve existing 5s quiet period, 10% max-health/sec rate and damage/channel/death/respawn rules. Add validated CDB radius and resolved description placeholder. Store a six-card revision-guarded patch, including two new native timed wrappers, and an offline generator.
+
+Validation: native full-world Tony fixture 34 checks; Second Wind 68; existing scoring 308, class-perk catalogue/wire 31 and cooldown 21. Release warnings-as-errors build zero warnings/errors. Read-only live preflight matched all four existing card revisions/content and found both new effect IDs absent. No deployment, CDB write, client build or public feed release. See docs/TONY_SECOND_WIND.md. Commit/push the branch; deployment remains separate.
+>>>>>>> fix/tony-cast-second-wind-combat-20261122
