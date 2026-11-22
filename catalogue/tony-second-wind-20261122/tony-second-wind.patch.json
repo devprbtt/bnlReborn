@@ -1,0 +1,1276 @@
+{
+  "schema_version": 1,
+  "source_sha256": "39ebd348b7566e3cf6097a6f4b97c31ec6e98a6fdec917829ba3a0cd446a98bc",
+  "status": "PREPARED; NOT APPLIED",
+  "cards": [
+    {
+      "id": "ability_engineer_bfs",
+      "expected_revision": "19-66243d31d24d0e9c1c5d33a5045faec8",
+      "before": {
+        "_id": "ability_engineer_bfs",
+        "scope": "public",
+        "icon": "",
+        "killscore_icon": "",
+        "prefab": "",
+        "charges": {
+          "max_charges": 1,
+          "charge_cooldown": 60
+        },
+        "validate": null,
+        "behavior": {
+          "type": "cast",
+          "application": {
+            "type": "self",
+            "include_self_unit": true
+          },
+          "hit_effect": {
+            "type": "bunch",
+            "interrupt": null,
+            "targeting": null,
+            "impact": "impact_engineer_rush_ability",
+            "break_on_effect_fail": false,
+            "instant": [
+              {
+                "type": "all_units_bunch",
+                "interrupt": null,
+                "targeting": {
+                  "affected_labels": null,
+                  "affected_units": [],
+                  "affected_team": "friendly",
+                  "caster_owned_only": false,
+                  "ignore_caster": false
+                },
+                "impact": null,
+                "range": 5,
+                "break_on_effect_fail": false,
+                "instant": [
+                  {
+                    "type": "purge",
+                    "interrupt": null,
+                    "targeting": null,
+                    "impact": null,
+                    "positive": false,
+                    "negative": true
+                  }
+                ],
+                "constant": []
+              }
+            ],
+            "constant": [
+              "effect_hero_engineer_bfs_aura",
+              "effect_hero_engineer_bfs_build_self"
+            ]
+          }
+        },
+        "category": "ability"
+      },
+      "after": {
+        "_id": "ability_engineer_bfs",
+        "scope": "public",
+        "icon": "",
+        "killscore_icon": "",
+        "prefab": "",
+        "charges": {
+          "max_charges": 1,
+          "charge_cooldown": 60
+        },
+        "validate": null,
+        "behavior": {
+          "type": "cast",
+          "application": {
+            "type": "self",
+            "include_self_unit": true
+          },
+          "hit_effect": {
+            "type": "bunch",
+            "interrupt": null,
+            "targeting": null,
+            "impact": "impact_engineer_rush_ability",
+            "break_on_effect_fail": false,
+            "instant": [
+              {
+                "type": "all_units_bunch",
+                "interrupt": null,
+                "targeting": {
+                  "affected_labels": null,
+                  "affected_units": [],
+                  "affected_team": "friendly",
+                  "caster_owned_only": false,
+                  "ignore_caster": false
+                },
+                "impact": null,
+                "range": 5,
+                "break_on_effect_fail": false,
+                "instant": [
+                  {
+                    "type": "purge",
+                    "interrupt": null,
+                    "targeting": null,
+                    "impact": null,
+                    "positive": false,
+                    "negative": true
+                  }
+                ],
+                "constant": []
+              },
+              {
+                "type": "all_units_bunch",
+                "targeting": {
+                  "affected_labels": null,
+                  "affected_units": [
+                    "player"
+                  ],
+                  "affected_team": "friendly",
+                  "caster_owned_only": false,
+                  "ignore_caster": false
+                },
+                "range": 5,
+                "break_on_effect_fail": false,
+                "instant": [],
+                "constant": [
+                  "effect_hero_engineer_bfs_build_cast"
+                ]
+              },
+              {
+                "type": "all_units_bunch",
+                "targeting": {
+                  "affected_labels": [
+                    "engineer_turret"
+                  ],
+                  "affected_units": [
+                    "turret"
+                  ],
+                  "affected_team": "friendly",
+                  "caster_owned_only": false,
+                  "ignore_caster": false
+                },
+                "range": 5,
+                "break_on_effect_fail": false,
+                "instant": [],
+                "constant": [
+                  "effect_hero_engineer_bfs_turret_cast"
+                ]
+              }
+            ],
+            "constant": []
+          }
+        },
+        "category": "ability"
+      }
+    },
+    {
+      "id": "ability_engineer_bfs_wider",
+      "expected_revision": "6-23df9dd660c26360ce0d84dd20c5d303",
+      "before": {
+        "_id": "ability_engineer_bfs_wider",
+        "scope": "public",
+        "icon": "",
+        "killscore_icon": "",
+        "prefab": "",
+        "charges": {
+          "max_charges": 1,
+          "charge_cooldown": 67
+        },
+        "validate": null,
+        "behavior": {
+          "type": "cast",
+          "application": {
+            "type": "self",
+            "include_self_unit": true
+          },
+          "hit_effect": {
+            "type": "bunch",
+            "interrupt": null,
+            "targeting": null,
+            "impact": "impact_engineer_rush_ability",
+            "break_on_effect_fail": false,
+            "instant": [
+              {
+                "type": "all_units_bunch",
+                "interrupt": null,
+                "targeting": {
+                  "affected_labels": null,
+                  "affected_units": null,
+                  "affected_team": "friendly",
+                  "caster_owned_only": false,
+                  "ignore_caster": false
+                },
+                "impact": null,
+                "range": 11,
+                "break_on_effect_fail": false,
+                "instant": [
+                  {
+                    "type": "purge",
+                    "interrupt": null,
+                    "targeting": {
+                      "affected_labels": null,
+                      "affected_units": null,
+                      "affected_team": "friendly",
+                      "caster_owned_only": false,
+                      "ignore_caster": false
+                    },
+                    "impact": null,
+                    "positive": false,
+                    "negative": true
+                  }
+                ],
+                "constant": []
+              }
+            ],
+            "constant": [
+              "effect_hero_engineer_bfs_aura_wider",
+              "effect_hero_engineer_bfs_build_self"
+            ]
+          }
+        },
+        "category": "ability"
+      },
+      "after": {
+        "_id": "ability_engineer_bfs_wider",
+        "scope": "public",
+        "icon": "",
+        "killscore_icon": "",
+        "prefab": "",
+        "charges": {
+          "max_charges": 1,
+          "charge_cooldown": 67
+        },
+        "validate": null,
+        "behavior": {
+          "type": "cast",
+          "application": {
+            "type": "self",
+            "include_self_unit": true
+          },
+          "hit_effect": {
+            "type": "bunch",
+            "interrupt": null,
+            "targeting": null,
+            "impact": "impact_engineer_rush_ability",
+            "break_on_effect_fail": false,
+            "instant": [
+              {
+                "type": "all_units_bunch",
+                "interrupt": null,
+                "targeting": {
+                  "affected_labels": null,
+                  "affected_units": null,
+                  "affected_team": "friendly",
+                  "caster_owned_only": false,
+                  "ignore_caster": false
+                },
+                "impact": null,
+                "range": 11,
+                "break_on_effect_fail": false,
+                "instant": [
+                  {
+                    "type": "purge",
+                    "interrupt": null,
+                    "targeting": {
+                      "affected_labels": null,
+                      "affected_units": null,
+                      "affected_team": "friendly",
+                      "caster_owned_only": false,
+                      "ignore_caster": false
+                    },
+                    "impact": null,
+                    "positive": false,
+                    "negative": true
+                  }
+                ],
+                "constant": []
+              },
+              {
+                "type": "all_units_bunch",
+                "targeting": {
+                  "affected_labels": null,
+                  "affected_units": [
+                    "player"
+                  ],
+                  "affected_team": "friendly",
+                  "caster_owned_only": false,
+                  "ignore_caster": false
+                },
+                "range": 11,
+                "break_on_effect_fail": false,
+                "instant": [],
+                "constant": [
+                  "effect_hero_engineer_bfs_build_cast"
+                ]
+              },
+              {
+                "type": "all_units_bunch",
+                "targeting": {
+                  "affected_labels": [
+                    "engineer_turret"
+                  ],
+                  "affected_units": [
+                    "turret"
+                  ],
+                  "affected_team": "friendly",
+                  "caster_owned_only": false,
+                  "ignore_caster": false
+                },
+                "range": 11,
+                "break_on_effect_fail": false,
+                "instant": [],
+                "constant": [
+                  "effect_hero_engineer_bfs_turret_cast"
+                ]
+              }
+            ],
+            "constant": []
+          }
+        },
+        "category": "ability"
+      }
+    },
+    {
+      "id": "perk_class_skill_1",
+      "expected_revision": "3-026cf2265c70461b5e4069632bbaa205",
+      "before": {
+        "_id": "perk_class_skill_1",
+        "scope": "public",
+        "icon": "",
+        "name": {
+          "text": "Second Wind",
+          "data": {}
+        },
+        "description": {
+          "text": "After {out_of_combat_seconds}s out of combat, regenerate {regen_max_health_percent_per_second}% of your maximum health per second.\nAttacking or taking enemy damage restarts the timer.",
+          "data": {}
+        },
+        "description_2": {
+          "text": "Regenerate {regen_max_health_percent_per_second}% max health per second after {out_of_combat_seconds}s out of combat.",
+          "data": {}
+        },
+        "label": "{regen_max_health_percent_per_second}% max health / sec",
+        "level": 1,
+        "slot_type": "class",
+        "hero_dependency": null,
+        "perk_mods": [],
+        "category": "perk",
+        "class_perk": {
+          "out_of_combat_seconds": 5,
+          "regen_max_health_percent_per_second": 10,
+          "regen_effect": "effect_class_skill_1_regen_icon"
+        }
+      },
+      "after": {
+        "_id": "perk_class_skill_1",
+        "scope": "public",
+        "icon": "",
+        "name": {
+          "text": "Second Wind",
+          "data": {}
+        },
+        "description": {
+          "text": "After {out_of_combat_seconds}s out of combat, regenerate {regen_max_health_percent_per_second}% of your maximum health per second. Attacking, taking enemy or fall damage, being revealed, or an enemy player within {enemy_proximity_radius}m restarts the timer.",
+          "data": {}
+        },
+        "description_2": {
+          "text": "Regenerate {regen_max_health_percent_per_second}% max health per second after {out_of_combat_seconds}s without combat, enemy reveals or an enemy within {enemy_proximity_radius}m.",
+          "data": {}
+        },
+        "label": "{regen_max_health_percent_per_second}% max health / sec",
+        "level": 1,
+        "slot_type": "class",
+        "hero_dependency": null,
+        "perk_mods": [],
+        "category": "perk",
+        "class_perk": {
+          "out_of_combat_seconds": 5,
+          "regen_max_health_percent_per_second": 10,
+          "regen_effect": "effect_class_skill_1_regen_icon",
+          "enemy_proximity_radius": 8
+        }
+      }
+    },
+    {
+      "id": "unit_hero_engineer",
+      "expected_revision": "17-f0a439205eeef218012127ce6a1fdd5b",
+      "before": {
+        "_id": "unit_hero_engineer",
+        "scope": "public",
+        "build_time": null,
+        "cooldown": null,
+        "base_cost": null,
+        "cost_inc_per_unit": null,
+        "level": 1,
+        "prefab": "Prefabs/Units/Engineer",
+        "killscore_icon": "",
+        "name": {
+          "text": "Anthony 'Tony' Turretto",
+          "data": {
+            "ru": {
+              "original": "Anthony 'Tony' Turretto",
+              "translation": "Anthony 'Tony' Turretto"
+            },
+            "es": {
+              "original": "Anthony 'Tony' Turretto",
+              "translation": "Anthony 'Tony' Turretto"
+            },
+            "de": {
+              "original": "Anthony 'Tony' Turretto",
+              "translation": "Anthony 'Tony' Turretto"
+            },
+            "pt": {
+              "original": "Anthony 'Tony' Turretto",
+              "translation": "Anthony \"Tony\" Turretto"
+            },
+            "fr": {
+              "original": "Anthony 'Tony' Turretto",
+              "translation": "Anthony 'Tony' Turretto"
+            }
+          }
+        },
+        "description": null,
+        "minimap_type": "player",
+        "indicator": null,
+        "icon_map_editor": "player_select_engineer",
+        "size": {
+          "x": 1,
+          "y": 2,
+          "z": 1
+        },
+        "pivot_type": "center_bottom",
+        "ground_only": true,
+        "can_rotate": false,
+        "block_movement": false,
+        "capturing": null,
+        "health": {
+          "health": {
+            "max_health": 110,
+            "toughness": 0,
+            "shield": 0,
+            "health_type": "player",
+            "mining_only": false,
+            "melee_only": false
+          },
+          "forcefield": null,
+          "kill_reward": {
+            "player_reward": 50,
+            "enemy_reward": null,
+            "team_reward": 50,
+            "mining": false
+          }
+        },
+        "loot": {
+          "spawn_on_enemy_kill": true,
+          "spawn_on_friendly_kill": false,
+          "spawn_on_undefined_kill": true,
+          "loot_item": {
+            "type": "common",
+            "item": {
+              "loot_unit_key": "unit_pickup_hero_loot",
+              "killer_relative_loot_team": "both"
+            },
+            "opponent_item": {
+              "loot_unit_key": "unit_pickup_hero_loot",
+              "killer_relative_loot_team": "both"
+            }
+          }
+        },
+        "spawn_point": null,
+        "count_limit": null,
+        "lifetime": null,
+        "labels": [
+          "destroy_on_match_end",
+          "objective_capturer"
+        ],
+        "fall_hit_modifier": 1,
+        "block_binding": "none",
+        "allow_underwater": true,
+        "movement": {
+          "type": "custom"
+        },
+        "device_type": "none",
+        "init_effects": [],
+        "enabled_effects": [],
+        "material": "material_flesh",
+        "treat_hits_as_owner_hits": false,
+        "data": {
+          "type": "player",
+          "gui_info": {
+            "icon_portrait": "portrait_engineer",
+            "icon_portrait_background": "",
+            "icon_portrait_profile": "shop_tony",
+            "icon_portrait_levelup": "levelup_tony_sk1",
+            "description": {
+              "text": "Difficulty: Starter",
+              "data": {
+                "ru": {
+                  "original": "Difficulty: Starter",
+                  "translation": "\u0421\u043b\u043e\u0436\u043d\u043e\u0441\u0442\u044c: \u043d\u043e\u0432\u0438\u0447\u043e\u043a"
+                },
+                "es": {
+                  "original": "Difficulty: Starter",
+                  "translation": "Nivel: B\u00e1sico"
+                },
+                "de": {
+                  "original": "Difficulty: Starter",
+                  "translation": "Schwierigkeit: Leicht"
+                },
+                "pt": {
+                  "original": "Difficulty: Starter",
+                  "translation": "Dificuldade: Iniciante"
+                },
+                "fr": {
+                  "original": "Difficulty: Starter",
+                  "translation": "Difficult\u00e9\u00a0: d\u00e9butant"
+                }
+              }
+            },
+            "long_description": {
+              "text": "Just like Mamma\u2019s cooking Anthony knows every good job is all about preparation. Tony\u2019s your man when it comes to defending home base but he don\u2019t mind playing out of position if his crew need him to crack heads and redefine the front line.",
+              "data": {
+                "ru": {
+                  "original": "Just like Mamma\u2019s cooking Anthony knows every good job is all about preparation. Tony\u2019s your man when it comes to defending home base but he don\u2019t mind playing out of position if his crew need him to crack heads and redefine the front line.",
+                  "translation": "\u0413\u043b\u0430\u0432\u043d\u043e\u0435 \u0432 \u0440\u0430\u0431\u043e\u0442\u0435 \u2014 \u044d\u0442\u043e \u043f\u043e\u0434\u0433\u043e\u0442\u043e\u0432\u0438\u0442\u044c\u0441\u044f \u043a \u043d\u0435\u0439. \u042d\u0442\u043e Tony \u0443\u0437\u043d\u0430\u043b \u043e\u0442 \u043c\u0430\u043c\u044b, \u043a\u043e\u0442\u043e\u0440\u0430\u044f \u043f\u0440\u0435\u043a\u0440\u0430\u0441\u043d\u043e \u0433\u043e\u0442\u043e\u0432\u0438\u043b\u0430. \u0418\u043c\u0435\u043d\u043d\u043e Tony \u043b\u0443\u0447\u0448\u0435 \u0432\u0441\u0435\u0433\u043e \u043f\u043e\u0434\u0445\u043e\u0434\u0438\u0442 \u0434\u043b\u044f \u043e\u0431\u043e\u0440\u043e\u043d\u044b \u0432\u0430\u0448\u0435\u0439 \u0431\u0430\u0437\u044b, \u043d\u043e \u043e\u043d \u043d\u0435 \u043f\u0440\u043e\u0442\u0438\u0432 \u043f\u043e\u0440\u0430\u0431\u043e\u0442\u0430\u0442\u044c \u0438 \u0432 \u0434\u0440\u0443\u0433\u043e\u0439 \u0434\u043e\u043b\u0436\u043d\u043e\u0441\u0442\u0438, \u0438, \u0435\u0441\u043b\u0438 \u043d\u0430\u0434\u043e, \u043f\u0440\u043e\u043b\u043e\u043c\u0438\u0442\u044c \u043f\u0430\u0440\u0443 \u0447\u0435\u0440\u0435\u043f\u043e\u0432 \u0438\u043b\u0438 \u0443\u043a\u0440\u0435\u043f\u0438\u0442\u044c \u043b\u0438\u043d\u0438\u044e \u0444\u0440\u043e\u043d\u0442\u0430."
+                },
+                "es": {
+                  "original": "Just like Mamma\u2019s cooking Anthony knows every good job is all about preparation. Tony\u2019s your man when it comes to defending home base but he don\u2019t mind playing out of position if his crew need him to crack heads and redefine the front line.",
+                  "translation": "Al igual que las recetas de su mam\u00e1, Tony sabe que todo trabajo requiere preparaci\u00f3n detallada. Es por eso que se destaca en crear defensas y bases de avanzada, pero tampoco le molesta ayudar en el ataque si es necesario."
+                },
+                "de": {
+                  "original": "Just like Mamma\u2019s cooking Anthony knows every good job is all about preparation. Tony\u2019s your man when it comes to defending home base but he don\u2019t mind playing out of position if his crew need him to crack heads and redefine the front line.",
+                  "translation": "Tony wei\u00df, dass - genau wie beim Frikadellenrezept seiner Mutter - die Vorbereitung das A und O ist. Er ist genau der Richtige f\u00fcr die Verteidigung eurer Basis, hat aber auch nichts dagegen, seiner Crew mal dabei zu helfen, ein paar Blockk\u00f6pfe aufzubrechen und die Frontlinie vorzur\u00fccken."
+                },
+                "pt": {
+                  "original": "Just like Mamma\u2019s cooking Anthony knows every good job is all about preparation. Tony\u2019s your man when it comes to defending home base but he don\u2019t mind playing out of position if his crew need him to crack heads and redefine the front line.",
+                  "translation": "Assim como a receita de alm\u00f4ndegas da mamma, Tony sabe que um trabalho bem feito precisa de preparo. Ele \u00e9 \u00f3timo na cria\u00e7\u00e3o de defesas para a sua base, mas n\u00e3o se importa em mudar de posi\u00e7\u00e3o se sua equipe precisa que ele saia quebrando cr\u00e2nios e redefinindo a linha de frente."
+                },
+                "fr": {
+                  "original": "Just like Mamma\u2019s cooking Anthony knows every good job is all about preparation. Tony\u2019s your man when it comes to defending home base but he don\u2019t mind playing out of position if his crew need him to crack heads and redefine the front line.",
+                  "translation": "Comme Maman disait toujours pour la cuisine, tout est dans la pr\u00e9paration, et Anthony le sait bien. Il en conna\u00eet un rayon c\u00f4t\u00e9 d\u00e9fense de la base, et n'h\u00e9sitera pas \u00e0 monter \u00e0 l'assaut si ses co\u00e9quipiers ont besoin de son aide pour repousser les ennemis ou red\u00e9finir la ligne de front."
+                }
+              }
+            },
+            "learning_video": "hero_tony.ogg",
+            "message": {
+              "text": "Union Made, Professional Grade",
+              "data": {
+                "ru": {
+                  "original": "Union Made, Professional Grade",
+                  "translation": "\u041f\u0440\u043e\u0444\u0435\u0441\u0441\u0438\u043e\u043d\u0430\u043b\u044c\u043d\u044b\u0439 \u0441\u0442\u0440\u043e\u0438\u0442\u0435\u043b\u044c"
+                },
+                "es": {
+                  "original": "Union Made, Professional Grade",
+                  "translation": "Constructor profesional"
+                },
+                "de": {
+                  "original": "Union Made, Professional Grade",
+                  "translation": "Der Baumeister vom Block"
+                },
+                "pt": {
+                  "original": "Union Made, Professional Grade",
+                  "translation": "Construtor Profissional"
+                },
+                "fr": {
+                  "original": "Union Made, Professional Grade",
+                  "translation": "Syndicaliste jusqu'au bout des ongles"
+                }
+              }
+            },
+            "focus": {
+              "text": "Construction | Utility",
+              "data": {
+                "ru": {
+                  "original": "Construction | Utility",
+                  "translation": "\u0421\u0442\u0440\u043e\u0438\u0442\u0435\u043b\u044c\u0441\u0442\u0432\u043e | \u0423\u043d\u0438\u0432\u0435\u0440\u0441\u0430\u043b\u044c\u043d\u043e\u0441\u0442\u044c"
+                },
+                "es": {
+                  "original": "Construction | Utility",
+                  "translation": "Construcci\u00f3n | Utilidad"
+                },
+                "de": {
+                  "original": "Construction | Utility",
+                  "translation": "Bauen | Versorgung"
+                },
+                "pt": {
+                  "original": "Construction | Utility",
+                  "translation": "Constru\u00e7\u00e3o | Utilit\u00e1rios"
+                },
+                "fr": {
+                  "original": "Construction | Utility",
+                  "translation": "Construction | Support"
+                }
+              }
+            },
+            "difficulty": "hard",
+            "toughness": 0.4,
+            "mobility": 0.5,
+            "construction": 0.5,
+            "passive_ability": {
+              "icon": "passive_cyrus_littlebuddy",
+              "name": {
+                "text": "Hard Hat",
+                "data": {
+                  "ru": {
+                    "original": "Hard Hat",
+                    "translation": "\u0417\u0430\u0449\u0438\u0442\u043d\u0430\u044f \u043a\u0430\u0441\u043a\u0430"
+                  },
+                  "es": {
+                    "original": "Hard Hat",
+                    "translation": "Casco de construcci\u00f3n"
+                  },
+                  "de": {
+                    "original": "Hard Hat",
+                    "translation": "Schutzhelm"
+                  },
+                  "pt": {
+                    "original": "Hard Hat",
+                    "translation": "Capacete"
+                  },
+                  "fr": {
+                    "original": "Hard Hat",
+                    "translation": "Casque de chantier"
+                  }
+                }
+              },
+              "description": {
+                "text": "The hero is Shielded (50% damage taken) while building.",
+                "data": {
+                  "ru": {
+                    "original": "The hero is Shielded (50% damage taken) while building.",
+                    "translation": "\u041f\u0440\u0438 \u0441\u0442\u0440\u043e\u0438\u0442\u0435\u043b\u044c\u0441\u0442\u0432\u0435 \u0433\u0435\u0440\u043e\u0439 \u0417\u0410\u0429\u0418\u0429\u0415\u041d (\u043f\u043e\u043b\u0443\u0447\u0430\u0435\u043c\u044b\u0439 \u0443\u0440\u043e\u043d \u0441\u043d\u0438\u0436\u0430\u0435\u0442\u0441\u044f \u043d\u0430 50%)."
+                  },
+                  "es": {
+                    "original": "The hero is Shielded (50% damage taken) while building.",
+                    "translation": "Reduce 50% el da\u00f1o recibido al construir."
+                  },
+                  "de": {
+                    "original": "The hero is Shielded (50% damage taken) while building.",
+                    "translation": "Der Held ist beim Bauen gesch\u00fctzt (erlittener Schaden liegt bei 50 %)."
+                  },
+                  "pt": {
+                    "original": "The hero is Shielded (50% damage taken) while building.",
+                    "translation": "Este her\u00f3i est\u00e1 Protegido (redu\u00e7\u00e3o de 50% em danos recebidos) enquanto constr\u00f3i."
+                  },
+                  "fr": {
+                    "original": "The hero is Shielded (50% damage taken) while building.",
+                    "translation": "Le h\u00e9ros b\u00e9n\u00e9ficie d'une protection (r\u00e9duction de 50\u00a0% des d\u00e9g\u00e2ts subis) lorsqu'il construit."
+                  }
+                }
+              }
+            },
+            "active_ability": {
+              "icon": "activeability_icon_rushbuild",
+              "name": {
+                "text": "Better, Faster, Stronger",
+                "data": {
+                  "ru": {
+                    "original": "Better, Faster, Stronger",
+                    "translation": "\u0411\u044b\u0441\u0442\u0440\u0435\u0435, \u043b\u0443\u0447\u0448\u0435, \u0441\u0438\u043b\u044c\u043d\u0435\u0435"
+                  },
+                  "es": {
+                    "original": "Better, Faster, Stronger",
+                    "translation": "Construcci\u00f3n r\u00e1pida"
+                  },
+                  "de": {
+                    "original": "Better, Faster, Stronger",
+                    "translation": "Besser, schneller, h\u00e4rter!"
+                  },
+                  "pt": {
+                    "original": "Better, Faster, Stronger",
+                    "translation": "Veloz e Furioso"
+                  },
+                  "fr": {
+                    "original": "Better, Faster, Stronger",
+                    "translation": "Construction express"
+                  }
+                }
+              },
+              "description": {
+                "text": "Buffs build speed for Tony and nearby allies and buffs Lil' Buddy turrets around Tony with bonus damage.",
+                "data": {
+                  "ru": {
+                    "original": "Buffs build speed for Tony and nearby allies and buffs Lil' Buddy turrets around Tony with bonus damage.",
+                    "translation": "Tony \u0438 \u043d\u0430\u0445\u043e\u0434\u044f\u0449\u0438\u0435\u0441\u044f \u0440\u044f\u0434\u043e\u043c \u0442\u043e\u0432\u0430\u0440\u0438\u0449\u0438 \u0441\u0442\u0430\u043d\u0443\u0442 \u0431\u044b\u0441\u0442\u0440\u0435\u0435, \u0430 \u043e\u0433\u043d\u0435\u0432\u0430\u044f \u043c\u043e\u0449\u044c \u0441\u0442\u043e\u044f\u0449\u0438\u0445 \u0440\u044f\u0434\u043e\u043c \u0442\u0443\u0440\u0435\u043b\u0435\u0439 \u2014 \u0437\u0430\u043c\u0435\u0442\u043d\u043e \u0443\u0432\u0435\u043b\u0438\u0447\u0438\u0442\u0441\u044f."
+                  },
+                  "es": {
+                    "original": "Buffs build speed for Tony and nearby allies and buffs Lil' Buddy turrets around Tony with bonus damage.",
+                    "translation": "Acelera la velocidad de construcci\u00f3n para Tony y sus aliados cercanos y aumenta la potencia de sus torretas."
+                  },
+                  "de": {
+                    "original": "Buffs build speed for Tony and nearby allies and buffs Lil' Buddy turrets around Tony with bonus damage.",
+                    "translation": "Buffs beschleunigen Tony und nahe Verb\u00fcndete. Gefechtst\u00fcrme um Tony herum teilen mehr Schaden aus."
+                  },
+                  "pt": {
+                    "original": "Buffs build speed for Tony and nearby allies and buffs Lil' Buddy turrets around Tony with bonus damage.",
+                    "translation": "Aumenta a velocidade de constru\u00e7\u00e3o de Tony e de aliados pr\u00f3ximos e aprimora torres de tiro perto de Tony, causando danos adicionais."
+                  },
+                  "fr": {
+                    "original": "Buffs build speed for Tony and nearby allies and buffs Lil' Buddy turrets around Tony with bonus damage.",
+                    "translation": "La vitesse de construction de Tony et de ses alli\u00e9s \u00e0 proximit\u00e9 est augment\u00e9e. Les d\u00e9g\u00e2ts des tourelles pr\u00e8s de Tony sont augment\u00e9s."
+                  }
+                }
+              }
+            },
+            "steam_guide_link": "https://steamcommunity.com/app/299360/guides/?searchText=&browsefilter=toprated&browsesort=creationorder&requiredtags%5B%5D=-1&requiredtags%5B%5D=-1&requiredtags%5B%5D=Heroes"
+          },
+          "skins": [
+            "skin_engineer_s1",
+            "skin_engineer_s2",
+            "skin_engineer_s3",
+            "skin_engineer_s4",
+            "skin_engineer_s5",
+            "skin_engineer_winter_ops",
+            "skin_ai3d_engineer_gala"
+          ],
+          "class": "hero_class_brains",
+          "gears": [
+            "gear_engineer_drill",
+            "gear_engineer_rivet_gun",
+            "gear_engineer_caulk_gun"
+          ],
+          "special_devices": [
+            "device_engineer_turret",
+            "device_engineer_turret_snowman",
+            "device_engineer_turret_space_tony"
+          ],
+          "default_devices": [
+            "device_block_crate",
+            "device_block_brick",
+            "device_generic_fire_trap",
+            "device_generic_heal_station",
+            "device_generic_ammo_resupply"
+          ],
+          "active_ability_key": "ability_engineer_bfs",
+          "passive": [
+            "effect_hero_engineer_hard_hat"
+          ],
+          "ground_acceleration_mod": 1,
+          "crouch_speed": 1,
+          "run_speed": 3.5,
+          "jump_speed": 2,
+          "sprint_speed": 7,
+          "swim_speed": 1.75,
+          "swim_sprint_speed": 3.5,
+          "jump_height": 1.1,
+          "double_jump_height": null,
+          "init_resource_bonus": 1,
+          "force_fall": null,
+          "drown_damage": 20,
+          "unlockables": {},
+          "aim_assist_size": {
+            "x": 2,
+            "y": 2,
+            "z": 2
+          },
+          "aim_assist_ads_size": {
+            "x": 2,
+            "y": 2,
+            "z": 2
+          },
+          "aim_assist_center": {
+            "x": 0,
+            "y": 1,
+            "z": 0
+          },
+          "aim_assist_crouch_size": {
+            "x": 2,
+            "y": 1,
+            "z": 2
+          },
+          "aim_assist_crouch_ads_size": {
+            "x": 2,
+            "y": 1,
+            "z": 2
+          },
+          "aim_assist_crouch_center": {
+            "x": 0,
+            "y": 0.5,
+            "z": 0
+          },
+          "crit_modifier": 0
+        },
+        "category": "unit"
+      },
+      "after": {
+        "_id": "unit_hero_engineer",
+        "scope": "public",
+        "build_time": null,
+        "cooldown": null,
+        "base_cost": null,
+        "cost_inc_per_unit": null,
+        "level": 1,
+        "prefab": "Prefabs/Units/Engineer",
+        "killscore_icon": "",
+        "name": {
+          "text": "Anthony 'Tony' Turretto",
+          "data": {
+            "ru": {
+              "original": "Anthony 'Tony' Turretto",
+              "translation": "Anthony 'Tony' Turretto"
+            },
+            "es": {
+              "original": "Anthony 'Tony' Turretto",
+              "translation": "Anthony 'Tony' Turretto"
+            },
+            "de": {
+              "original": "Anthony 'Tony' Turretto",
+              "translation": "Anthony 'Tony' Turretto"
+            },
+            "pt": {
+              "original": "Anthony 'Tony' Turretto",
+              "translation": "Anthony \"Tony\" Turretto"
+            },
+            "fr": {
+              "original": "Anthony 'Tony' Turretto",
+              "translation": "Anthony 'Tony' Turretto"
+            }
+          }
+        },
+        "description": null,
+        "minimap_type": "player",
+        "indicator": null,
+        "icon_map_editor": "player_select_engineer",
+        "size": {
+          "x": 1,
+          "y": 2,
+          "z": 1
+        },
+        "pivot_type": "center_bottom",
+        "ground_only": true,
+        "can_rotate": false,
+        "block_movement": false,
+        "capturing": null,
+        "health": {
+          "health": {
+            "max_health": 110,
+            "toughness": 0,
+            "shield": 0,
+            "health_type": "player",
+            "mining_only": false,
+            "melee_only": false
+          },
+          "forcefield": null,
+          "kill_reward": {
+            "player_reward": 50,
+            "enemy_reward": null,
+            "team_reward": 50,
+            "mining": false
+          }
+        },
+        "loot": {
+          "spawn_on_enemy_kill": true,
+          "spawn_on_friendly_kill": false,
+          "spawn_on_undefined_kill": true,
+          "loot_item": {
+            "type": "common",
+            "item": {
+              "loot_unit_key": "unit_pickup_hero_loot",
+              "killer_relative_loot_team": "both"
+            },
+            "opponent_item": {
+              "loot_unit_key": "unit_pickup_hero_loot",
+              "killer_relative_loot_team": "both"
+            }
+          }
+        },
+        "spawn_point": null,
+        "count_limit": null,
+        "lifetime": null,
+        "labels": [
+          "destroy_on_match_end",
+          "objective_capturer"
+        ],
+        "fall_hit_modifier": 1,
+        "block_binding": "none",
+        "allow_underwater": true,
+        "movement": {
+          "type": "custom"
+        },
+        "device_type": "none",
+        "init_effects": [],
+        "enabled_effects": [],
+        "material": "material_flesh",
+        "treat_hits_as_owner_hits": false,
+        "data": {
+          "type": "player",
+          "gui_info": {
+            "icon_portrait": "portrait_engineer",
+            "icon_portrait_background": "",
+            "icon_portrait_profile": "shop_tony",
+            "icon_portrait_levelup": "levelup_tony_sk1",
+            "description": {
+              "text": "Difficulty: Starter",
+              "data": {
+                "ru": {
+                  "original": "Difficulty: Starter",
+                  "translation": "\u0421\u043b\u043e\u0436\u043d\u043e\u0441\u0442\u044c: \u043d\u043e\u0432\u0438\u0447\u043e\u043a"
+                },
+                "es": {
+                  "original": "Difficulty: Starter",
+                  "translation": "Nivel: B\u00e1sico"
+                },
+                "de": {
+                  "original": "Difficulty: Starter",
+                  "translation": "Schwierigkeit: Leicht"
+                },
+                "pt": {
+                  "original": "Difficulty: Starter",
+                  "translation": "Dificuldade: Iniciante"
+                },
+                "fr": {
+                  "original": "Difficulty: Starter",
+                  "translation": "Difficult\u00e9\u00a0: d\u00e9butant"
+                }
+              }
+            },
+            "long_description": {
+              "text": "Just like Mamma\u2019s cooking Anthony knows every good job is all about preparation. Tony\u2019s your man when it comes to defending home base but he don\u2019t mind playing out of position if his crew need him to crack heads and redefine the front line.",
+              "data": {
+                "ru": {
+                  "original": "Just like Mamma\u2019s cooking Anthony knows every good job is all about preparation. Tony\u2019s your man when it comes to defending home base but he don\u2019t mind playing out of position if his crew need him to crack heads and redefine the front line.",
+                  "translation": "\u0413\u043b\u0430\u0432\u043d\u043e\u0435 \u0432 \u0440\u0430\u0431\u043e\u0442\u0435 \u2014 \u044d\u0442\u043e \u043f\u043e\u0434\u0433\u043e\u0442\u043e\u0432\u0438\u0442\u044c\u0441\u044f \u043a \u043d\u0435\u0439. \u042d\u0442\u043e Tony \u0443\u0437\u043d\u0430\u043b \u043e\u0442 \u043c\u0430\u043c\u044b, \u043a\u043e\u0442\u043e\u0440\u0430\u044f \u043f\u0440\u0435\u043a\u0440\u0430\u0441\u043d\u043e \u0433\u043e\u0442\u043e\u0432\u0438\u043b\u0430. \u0418\u043c\u0435\u043d\u043d\u043e Tony \u043b\u0443\u0447\u0448\u0435 \u0432\u0441\u0435\u0433\u043e \u043f\u043e\u0434\u0445\u043e\u0434\u0438\u0442 \u0434\u043b\u044f \u043e\u0431\u043e\u0440\u043e\u043d\u044b \u0432\u0430\u0448\u0435\u0439 \u0431\u0430\u0437\u044b, \u043d\u043e \u043e\u043d \u043d\u0435 \u043f\u0440\u043e\u0442\u0438\u0432 \u043f\u043e\u0440\u0430\u0431\u043e\u0442\u0430\u0442\u044c \u0438 \u0432 \u0434\u0440\u0443\u0433\u043e\u0439 \u0434\u043e\u043b\u0436\u043d\u043e\u0441\u0442\u0438, \u0438, \u0435\u0441\u043b\u0438 \u043d\u0430\u0434\u043e, \u043f\u0440\u043e\u043b\u043e\u043c\u0438\u0442\u044c \u043f\u0430\u0440\u0443 \u0447\u0435\u0440\u0435\u043f\u043e\u0432 \u0438\u043b\u0438 \u0443\u043a\u0440\u0435\u043f\u0438\u0442\u044c \u043b\u0438\u043d\u0438\u044e \u0444\u0440\u043e\u043d\u0442\u0430."
+                },
+                "es": {
+                  "original": "Just like Mamma\u2019s cooking Anthony knows every good job is all about preparation. Tony\u2019s your man when it comes to defending home base but he don\u2019t mind playing out of position if his crew need him to crack heads and redefine the front line.",
+                  "translation": "Al igual que las recetas de su mam\u00e1, Tony sabe que todo trabajo requiere preparaci\u00f3n detallada. Es por eso que se destaca en crear defensas y bases de avanzada, pero tampoco le molesta ayudar en el ataque si es necesario."
+                },
+                "de": {
+                  "original": "Just like Mamma\u2019s cooking Anthony knows every good job is all about preparation. Tony\u2019s your man when it comes to defending home base but he don\u2019t mind playing out of position if his crew need him to crack heads and redefine the front line.",
+                  "translation": "Tony wei\u00df, dass - genau wie beim Frikadellenrezept seiner Mutter - die Vorbereitung das A und O ist. Er ist genau der Richtige f\u00fcr die Verteidigung eurer Basis, hat aber auch nichts dagegen, seiner Crew mal dabei zu helfen, ein paar Blockk\u00f6pfe aufzubrechen und die Frontlinie vorzur\u00fccken."
+                },
+                "pt": {
+                  "original": "Just like Mamma\u2019s cooking Anthony knows every good job is all about preparation. Tony\u2019s your man when it comes to defending home base but he don\u2019t mind playing out of position if his crew need him to crack heads and redefine the front line.",
+                  "translation": "Assim como a receita de alm\u00f4ndegas da mamma, Tony sabe que um trabalho bem feito precisa de preparo. Ele \u00e9 \u00f3timo na cria\u00e7\u00e3o de defesas para a sua base, mas n\u00e3o se importa em mudar de posi\u00e7\u00e3o se sua equipe precisa que ele saia quebrando cr\u00e2nios e redefinindo a linha de frente."
+                },
+                "fr": {
+                  "original": "Just like Mamma\u2019s cooking Anthony knows every good job is all about preparation. Tony\u2019s your man when it comes to defending home base but he don\u2019t mind playing out of position if his crew need him to crack heads and redefine the front line.",
+                  "translation": "Comme Maman disait toujours pour la cuisine, tout est dans la pr\u00e9paration, et Anthony le sait bien. Il en conna\u00eet un rayon c\u00f4t\u00e9 d\u00e9fense de la base, et n'h\u00e9sitera pas \u00e0 monter \u00e0 l'assaut si ses co\u00e9quipiers ont besoin de son aide pour repousser les ennemis ou red\u00e9finir la ligne de front."
+                }
+              }
+            },
+            "learning_video": "hero_tony.ogg",
+            "message": {
+              "text": "Union Made, Professional Grade",
+              "data": {
+                "ru": {
+                  "original": "Union Made, Professional Grade",
+                  "translation": "\u041f\u0440\u043e\u0444\u0435\u0441\u0441\u0438\u043e\u043d\u0430\u043b\u044c\u043d\u044b\u0439 \u0441\u0442\u0440\u043e\u0438\u0442\u0435\u043b\u044c"
+                },
+                "es": {
+                  "original": "Union Made, Professional Grade",
+                  "translation": "Constructor profesional"
+                },
+                "de": {
+                  "original": "Union Made, Professional Grade",
+                  "translation": "Der Baumeister vom Block"
+                },
+                "pt": {
+                  "original": "Union Made, Professional Grade",
+                  "translation": "Construtor Profissional"
+                },
+                "fr": {
+                  "original": "Union Made, Professional Grade",
+                  "translation": "Syndicaliste jusqu'au bout des ongles"
+                }
+              }
+            },
+            "focus": {
+              "text": "Construction | Utility",
+              "data": {
+                "ru": {
+                  "original": "Construction | Utility",
+                  "translation": "\u0421\u0442\u0440\u043e\u0438\u0442\u0435\u043b\u044c\u0441\u0442\u0432\u043e | \u0423\u043d\u0438\u0432\u0435\u0440\u0441\u0430\u043b\u044c\u043d\u043e\u0441\u0442\u044c"
+                },
+                "es": {
+                  "original": "Construction | Utility",
+                  "translation": "Construcci\u00f3n | Utilidad"
+                },
+                "de": {
+                  "original": "Construction | Utility",
+                  "translation": "Bauen | Versorgung"
+                },
+                "pt": {
+                  "original": "Construction | Utility",
+                  "translation": "Constru\u00e7\u00e3o | Utilit\u00e1rios"
+                },
+                "fr": {
+                  "original": "Construction | Utility",
+                  "translation": "Construction | Support"
+                }
+              }
+            },
+            "difficulty": "hard",
+            "toughness": 0.4,
+            "mobility": 0.5,
+            "construction": 0.5,
+            "passive_ability": {
+              "icon": "passive_cyrus_littlebuddy",
+              "name": {
+                "text": "Hard Hat",
+                "data": {
+                  "ru": {
+                    "original": "Hard Hat",
+                    "translation": "\u0417\u0430\u0449\u0438\u0442\u043d\u0430\u044f \u043a\u0430\u0441\u043a\u0430"
+                  },
+                  "es": {
+                    "original": "Hard Hat",
+                    "translation": "Casco de construcci\u00f3n"
+                  },
+                  "de": {
+                    "original": "Hard Hat",
+                    "translation": "Schutzhelm"
+                  },
+                  "pt": {
+                    "original": "Hard Hat",
+                    "translation": "Capacete"
+                  },
+                  "fr": {
+                    "original": "Hard Hat",
+                    "translation": "Casque de chantier"
+                  }
+                }
+              },
+              "description": {
+                "text": "The hero is Shielded (50% damage taken) while building.",
+                "data": {
+                  "ru": {
+                    "original": "The hero is Shielded (50% damage taken) while building.",
+                    "translation": "\u041f\u0440\u0438 \u0441\u0442\u0440\u043e\u0438\u0442\u0435\u043b\u044c\u0441\u0442\u0432\u0435 \u0433\u0435\u0440\u043e\u0439 \u0417\u0410\u0429\u0418\u0429\u0415\u041d (\u043f\u043e\u043b\u0443\u0447\u0430\u0435\u043c\u044b\u0439 \u0443\u0440\u043e\u043d \u0441\u043d\u0438\u0436\u0430\u0435\u0442\u0441\u044f \u043d\u0430 50%)."
+                  },
+                  "es": {
+                    "original": "The hero is Shielded (50% damage taken) while building.",
+                    "translation": "Reduce 50% el da\u00f1o recibido al construir."
+                  },
+                  "de": {
+                    "original": "The hero is Shielded (50% damage taken) while building.",
+                    "translation": "Der Held ist beim Bauen gesch\u00fctzt (erlittener Schaden liegt bei 50 %)."
+                  },
+                  "pt": {
+                    "original": "The hero is Shielded (50% damage taken) while building.",
+                    "translation": "Este her\u00f3i est\u00e1 Protegido (redu\u00e7\u00e3o de 50% em danos recebidos) enquanto constr\u00f3i."
+                  },
+                  "fr": {
+                    "original": "The hero is Shielded (50% damage taken) while building.",
+                    "translation": "Le h\u00e9ros b\u00e9n\u00e9ficie d'une protection (r\u00e9duction de 50\u00a0% des d\u00e9g\u00e2ts subis) lorsqu'il construit."
+                  }
+                }
+              }
+            },
+            "active_ability": {
+              "icon": "activeability_icon_rushbuild",
+              "name": {
+                "text": "Better, Faster, Stronger",
+                "data": {
+                  "ru": {
+                    "original": "Better, Faster, Stronger",
+                    "translation": "\u0411\u044b\u0441\u0442\u0440\u0435\u0435, \u043b\u0443\u0447\u0448\u0435, \u0441\u0438\u043b\u044c\u043d\u0435\u0435"
+                  },
+                  "es": {
+                    "original": "Better, Faster, Stronger",
+                    "translation": "Construcci\u00f3n r\u00e1pida"
+                  },
+                  "de": {
+                    "original": "Better, Faster, Stronger",
+                    "translation": "Besser, schneller, h\u00e4rter!"
+                  },
+                  "pt": {
+                    "original": "Better, Faster, Stronger",
+                    "translation": "Veloz e Furioso"
+                  },
+                  "fr": {
+                    "original": "Better, Faster, Stronger",
+                    "translation": "Construction express"
+                  }
+                }
+              },
+              "description": {
+                "text": "On activation, Tony and allied players within 5m gain increased build speed for 20s, and nearby Lil' Buddy turrets gain bonus damage for 20s. Buffs remain when recipients leave range; entering range later does not grant them. Affected players receive 5 points once per cast.",
+                "data": {
+                  "ru": {
+                    "original": "Buffs build speed for Tony and nearby allies and buffs Lil' Buddy turrets around Tony with bonus damage.",
+                    "translation": "Tony \u0438 \u043d\u0430\u0445\u043e\u0434\u044f\u0449\u0438\u0435\u0441\u044f \u0440\u044f\u0434\u043e\u043c \u0442\u043e\u0432\u0430\u0440\u0438\u0449\u0438 \u0441\u0442\u0430\u043d\u0443\u0442 \u0431\u044b\u0441\u0442\u0440\u0435\u0435, \u0430 \u043e\u0433\u043d\u0435\u0432\u0430\u044f \u043c\u043e\u0449\u044c \u0441\u0442\u043e\u044f\u0449\u0438\u0445 \u0440\u044f\u0434\u043e\u043c \u0442\u0443\u0440\u0435\u043b\u0435\u0439 \u2014 \u0437\u0430\u043c\u0435\u0442\u043d\u043e \u0443\u0432\u0435\u043b\u0438\u0447\u0438\u0442\u0441\u044f."
+                  },
+                  "es": {
+                    "original": "Buffs build speed for Tony and nearby allies and buffs Lil' Buddy turrets around Tony with bonus damage.",
+                    "translation": "Acelera la velocidad de construcci\u00f3n para Tony y sus aliados cercanos y aumenta la potencia de sus torretas."
+                  },
+                  "de": {
+                    "original": "Buffs build speed for Tony and nearby allies and buffs Lil' Buddy turrets around Tony with bonus damage.",
+                    "translation": "Buffs beschleunigen Tony und nahe Verb\u00fcndete. Gefechtst\u00fcrme um Tony herum teilen mehr Schaden aus."
+                  },
+                  "pt": {
+                    "original": "Buffs build speed for Tony and nearby allies and buffs Lil' Buddy turrets around Tony with bonus damage.",
+                    "translation": "Aumenta a velocidade de constru\u00e7\u00e3o de Tony e de aliados pr\u00f3ximos e aprimora torres de tiro perto de Tony, causando danos adicionais."
+                  },
+                  "fr": {
+                    "original": "Buffs build speed for Tony and nearby allies and buffs Lil' Buddy turrets around Tony with bonus damage.",
+                    "translation": "La vitesse de construction de Tony et de ses alli\u00e9s \u00e0 proximit\u00e9 est augment\u00e9e. Les d\u00e9g\u00e2ts des tourelles pr\u00e8s de Tony sont augment\u00e9s."
+                  }
+                }
+              }
+            },
+            "steam_guide_link": "https://steamcommunity.com/app/299360/guides/?searchText=&browsefilter=toprated&browsesort=creationorder&requiredtags%5B%5D=-1&requiredtags%5B%5D=-1&requiredtags%5B%5D=Heroes"
+          },
+          "skins": [
+            "skin_engineer_s1",
+            "skin_engineer_s2",
+            "skin_engineer_s3",
+            "skin_engineer_s4",
+            "skin_engineer_s5",
+            "skin_engineer_winter_ops",
+            "skin_ai3d_engineer_gala"
+          ],
+          "class": "hero_class_brains",
+          "gears": [
+            "gear_engineer_drill",
+            "gear_engineer_rivet_gun",
+            "gear_engineer_caulk_gun"
+          ],
+          "special_devices": [
+            "device_engineer_turret",
+            "device_engineer_turret_snowman",
+            "device_engineer_turret_space_tony"
+          ],
+          "default_devices": [
+            "device_block_crate",
+            "device_block_brick",
+            "device_generic_fire_trap",
+            "device_generic_heal_station",
+            "device_generic_ammo_resupply"
+          ],
+          "active_ability_key": "ability_engineer_bfs",
+          "passive": [
+            "effect_hero_engineer_hard_hat"
+          ],
+          "ground_acceleration_mod": 1,
+          "crouch_speed": 1,
+          "run_speed": 3.5,
+          "jump_speed": 2,
+          "sprint_speed": 7,
+          "swim_speed": 1.75,
+          "swim_sprint_speed": 3.5,
+          "jump_height": 1.1,
+          "double_jump_height": null,
+          "init_resource_bonus": 1,
+          "force_fall": null,
+          "drown_damage": 20,
+          "unlockables": {},
+          "aim_assist_size": {
+            "x": 2,
+            "y": 2,
+            "z": 2
+          },
+          "aim_assist_ads_size": {
+            "x": 2,
+            "y": 2,
+            "z": 2
+          },
+          "aim_assist_center": {
+            "x": 0,
+            "y": 1,
+            "z": 0
+          },
+          "aim_assist_crouch_size": {
+            "x": 2,
+            "y": 1,
+            "z": 2
+          },
+          "aim_assist_crouch_ads_size": {
+            "x": 2,
+            "y": 1,
+            "z": 2
+          },
+          "aim_assist_crouch_center": {
+            "x": 0,
+            "y": 0.5,
+            "z": 0
+          },
+          "crit_modifier": 0
+        },
+        "category": "unit"
+      }
+    },
+    {
+      "id": "effect_hero_engineer_bfs_build_cast",
+      "expected_revision": null,
+      "before": null,
+      "after": {
+        "_id": "effect_hero_engineer_bfs_build_cast",
+        "scope": "public",
+        "prefab_unit": "Prefabs/Effects/Constant/Unit/EngineerIconRushBuild",
+        "prefab_player": "",
+        "sound_for_player": null,
+        "sound_for_unit": null,
+        "gui_info": {
+          "name": null,
+          "description": null,
+          "icon": "progress_engineer_item_prog100_50",
+          "icon_pos_type": "positive",
+          "icon_form_type": "round"
+        },
+        "positive": true,
+        "interrupt": null,
+        "scores": 1,
+        "duration": 20,
+        "labels": [
+          "buff_combat"
+        ],
+        "effect": {
+          "type": "self",
+          "targeting": {
+            "affected_labels": null,
+            "affected_units": [
+              "player"
+            ],
+            "affected_team": "friendly",
+            "caster_owned_only": false,
+            "ignore_caster": false
+          },
+          "interval_effects": [],
+          "interval": 0,
+          "constant_effects": [
+            "effect_hero_engineer_bfs_build"
+          ]
+        },
+        "category": "effect"
+      }
+    },
+    {
+      "id": "effect_hero_engineer_bfs_turret_cast",
+      "expected_revision": null,
+      "before": null,
+      "after": {
+        "_id": "effect_hero_engineer_bfs_turret_cast",
+        "scope": "public",
+        "prefab_unit": "",
+        "prefab_player": "",
+        "sound_for_player": null,
+        "sound_for_unit": null,
+        "gui_info": null,
+        "positive": true,
+        "interrupt": null,
+        "scores": 1,
+        "duration": 20,
+        "labels": [
+          "buff_combat"
+        ],
+        "effect": {
+          "type": "self",
+          "targeting": {
+            "affected_labels": [
+              "engineer_turret"
+            ],
+            "affected_units": [
+              "turret"
+            ],
+            "affected_team": "friendly",
+            "caster_owned_only": false,
+            "ignore_caster": false
+          },
+          "interval_effects": [],
+          "interval": 0,
+          "constant_effects": [
+            "effect_hero_engineer_turret_buff"
+          ]
+        },
+        "category": "effect"
+      }
+    }
+  ]
+}

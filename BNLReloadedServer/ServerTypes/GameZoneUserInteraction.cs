@@ -852,6 +852,21 @@ public partial class GameZone
             {
                 case AbilityBehaviorCast abilityBehaviorCast:
                     player.AbilityUsed();
+                    // Updated Tony F chooses recipients at acceptance, never at a later client hit report.
+                    // Gate on the new effect so server-first deployments retain the old CDB behavior.
+                    if ((aCard.Key == new Key("ability_engineer_bfs") ||
+                         aCard.Key == new Key("ability_engineer_bfs_wider")) &&
+                        abilityBehaviorCast.Application is AbilityApplicationSelf &&
+                        abilityBehaviorCast.HitEffect is InstEffectBunch { Instant: { } instant } &&
+                        instant.OfType<InstEffectAllUnitsBunch>().Any(e =>
+                            e.Constant?.Contains(new Key(Unit.TonyBuildCastEffectId)) == true))
+                    {
+                        var castImpact = player.CreateImpactData(sourceKey: aCard.Key);
+                        castImpact.TonyBuildRewardRecipients = [];
+                        ApplyInstEffect(player.GetSelfSource(castImpact), [player],
+                            abilityBehaviorCast.HitEffect, castImpact);
+                        break;
+                    }
                     if (castData.Shots is { Count: > 0 } shots)
                     {
                         switch (abilityBehaviorCast.Application)

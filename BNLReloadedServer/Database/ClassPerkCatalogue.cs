@@ -87,6 +87,7 @@ public static class ClassPerkCatalogue
         static void Range(float n, float min, float max, string field)
         { if (!float.IsFinite(n) || n < min || n > max) throw new InvalidDataException($"Invalid class_perk.{field}: expected {min}..{max}."); }
         Range(b.OutOfCombatSeconds, 0, 60, "out_of_combat_seconds");
+        Range(b.EnemyProximityRadius, 0, 100, "enemy_proximity_radius");
         Range(b.HealingReturnPercent, 0, 100, "healing_return_percent");
         Range(b.RegenMaxHealthPercentPerSecond, 0, 100, "regen_max_health_percent_per_second");
         Range(b.SpawnDistance, 1, 3, "spawn_distance");
@@ -101,6 +102,7 @@ public static class ClassPerkCatalogue
         if (card.ClassPerk is not { } b || text == null) return text;
         static string F(float value) => value.ToString("0.###", CultureInfo.InvariantCulture);
         return text.Replace("{out_of_combat_seconds}", F(b.OutOfCombatSeconds))
+            .Replace("{enemy_proximity_radius}", F(b.EnemyProximityRadius))
             .Replace("{healing_return_percent}", F(b.HealingReturnPercent))
             .Replace("{regen_max_health_percent_per_second}", F(b.RegenMaxHealthPercentPerSecond))
             .Replace("{spawn_distance}", F(b.SpawnDistance))

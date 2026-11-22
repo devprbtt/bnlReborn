@@ -131,3 +131,10 @@ Use map-authored trap unit keys from the preserved original installed CDB, rathe
 ## 2026-11-22 — Complete original Caltrops presentation dependency
 
 Live readback after the authorized Time Assault deployment exposed a missing material_caltrops target. Added it under an isolated material_time_assault_original_caltrops key, bringing the baseline to 30 cards; changed the generator and added resolution checks for every original card reference. All 37,537 current-live-catalogue trap assertions pass, covering the same 784 units and 9,789 ground cells. Baseline data/runtime stats otherwise unchanged. Deploy this corrective revision before considering the rollout complete.
+
+
+## 2026-11-22 — Snapshot Tony F and reset recovery under authoritative threats
+
+Use existing native one-shot effect bunches and timed self wrappers to select Tony F recipients on server acceptance, rather than maintaining a caster aura or accepting later client hit geometry. Gate the immediate path on the two exact abilities carrying the new CDB marker to support server-first rollout. Carry the recipient deduplication set through server-only impact clones, preserving wire compatibility; receipt points belong to each affected player once per cast. Keep original turret bonus as an activation snapshot. No new global_logic document edit is needed.
+
+Treat the server's existing VisionMark and living enemy players within the owner's specified 8m as continuous Skill I combat conditions, resetting the same quiet deadline used for shots/damage. Use the existing relationship helper and inclusive midpoint distance without LOS; keep the current rate and delay tunable in class_perk. Data and runtime changes form one rollout, with server first and guarded six-card CDB application after backups. See docs/TONY_SECOND_WIND.md.

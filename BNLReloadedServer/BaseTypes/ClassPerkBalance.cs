@@ -4,6 +4,7 @@ namespace BNLReloadedServer.BaseTypes;
 public sealed class ClassPerkBalance
 {
     public float OutOfCombatSeconds { get; set; } = 5;
+    public float EnemyProximityRadius { get; set; } = 8;
     public float HealingReturnPercent { get; set; } = 50;
     public float RegenMaxHealthPercentPerSecond { get; set; } = 10;
     public float SpawnDistance { get; set; } = 1.15f;
