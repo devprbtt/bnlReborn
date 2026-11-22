@@ -291,3 +291,10 @@ Added offline planner, revision/field-guarded dry-run-by-default apply tool with
 Owner requested that Roly's moving-F perk use less shielding, matching prepared Sweet Science's 37.5% instead of 40%. Replace Rolling Wild's cooldown downside: restore normal 45s from 52s and set only the perk variant shield to .375. Keep native 60% movement, all other buffs/duration, and standard Roly F's .4 shield. Update both English descriptions. Extend the pending balance plan from nine/26 to twelve documents/30 fields; all previous nine rows are identical.
 
 Validation: combined actual-engine fixture 1,188 checks, six fake-Couch guard/apply scenarios, zero-warning/error Release build and read-only live preflight 12 pending/0 applied. No CDB write, deployment, client/feed or website release. Branch `balance/roly-rolling-wild-20261122`; rollout remains separate. See docs/SIX_HERO_BALANCE_20261122.md.
+
+
+## 2026-11-22 — Roly cannon RMB damage 36 to 32
+
+Prepared cannon secondary player splash damage 18 to 16 per shell, for 32 instead of 36 across the simultaneous two-shell burst. Updated English per-shell stat. Primary fire, world/objective damage, splash radius, timing, ammo and projectiles remain unchanged. Added one document/two fields to the pending balance patch (13 documents/32 fields total); all prior twelve rows identical. Updated guarded writer count and server rollout notes.
+
+Validation: actual-engine balance fixture 1,191 checks, six fake-Couch writer scenarios and read-only live preflight 13 pending/0 applied. No CDB write, deployment or public release. Worktree/branch remains `roly-rolling-wild-server` / `balance/roly-rolling-wild-20261122`. Evidence: client reports/roly-cannon-rmb/ and docs/ROLY_CANNON_RMB_20261122.md.

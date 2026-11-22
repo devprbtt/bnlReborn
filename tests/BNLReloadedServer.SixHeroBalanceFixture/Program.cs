@@ -88,6 +88,12 @@ Check(after["ability_roly_emplacement_mode_rolling_wild"]["charges"]!["charge_co
     "shield downside replaces seven-second cooldown penalty");
 Check(after["perk_hero_roly_rolling_wild"]["description"]!["text"]!.GetValue<string>().Contains("37.5%") &&
     !after["perk_hero_roly_rolling_wild"]["description"]!["text"]!.GetValue<string>().Contains("7 seconds"),"perk explains new downside");
+var cannon=after["gear_roly_tank_ball_cannon"];
+var cannonHit=cannon["tools"]![1]!["hit_effect"]!.ToJsonString().Deserialize<InstEffectSplashDamage>()!;
+var shellDamage=(DamageData)convert.Invoke(zone,[cannonHit.Damage,Vector3.Zero,Vector3.Zero,null,false,false,1f,null])!;
+Close(shellDamage.EnemyDamage*cannon["tools"]![1]!["bullet"]!.AsArray().Count,32,"native Roly RMB twin-shell damage totals32");
+Check(JsonNode.DeepEquals(before["gear_roly_tank_ball_cannon"]["tools"]![0],cannon["tools"]![0]),"Roly primary fire unchanged");
+Close(cannonHit.Damage!.WorldDamage,18,"Roly RMB terrain damage per shell unchanged");
 Check(after.Keys.SequenceEqual(before.Keys),"no catalogue cards added or removed");
 Check(new Key("unit_time_assault_original_device_eliza_acid_trap").GetCard<CardUnit>()!.LandmineUnitDataForTest()==2,"original Time Assault traps remain isolated");
 Console.WriteLine($"SIX_HERO_BALANCE PASS {checks} checks; actual engine damage curves saved");

@@ -271,6 +271,33 @@
       ]
     },
     {
+      "id": "gear_roly_tank_ball_cannon",
+      "expected_revision": "7-23a88380a3f7dfb7a2f08f4c089fc634",
+      "changes": [
+        {
+          "path": [
+            "tools",
+            1,
+            "hit_effect",
+            "damage",
+            "player_damage"
+          ],
+          "before_exists": true,
+          "before": 18,
+          "after": 16
+        },
+        {
+          "path": [
+            "description",
+            "text"
+          ],
+          "before_exists": true,
+          "before": "Powerful twin cannons with good range and accuracy. <BINDING_CAST1> for sustained alternating fire, <BINDING_CAST2> to launch a pair of high explosive shells.\n\n<b>Primary Fire</b>\nDamage - 18   World Damage - 18   Crit Modifier - 1.5   Attack time - 0.45\nMax Damage Range - 30   Max Range - 60\n\n<b>Secondary Fire</b>\nSplash Damage - 18   Splash World Damage - 18   Splash Radius - 2   Attack time - 1.5\nMax Range - 40",
+          "after": "Powerful twin cannons with good range and accuracy. <BINDING_CAST1> for sustained alternating fire, <BINDING_CAST2> to launch a pair of high explosive shells.\n\n<b>Primary Fire</b>\nDamage - 18   World Damage - 18   Crit Modifier - 1.5   Attack time - 0.45\nMax Damage Range - 30   Max Range - 60\n\n<b>Secondary Fire</b>\nSplash Damage - 16   Splash World Damage - 18   Splash Radius - 2   Attack time - 1.5\nMax Range - 40"
+        }
+      ]
+    },
+    {
       "id": "gear_trondson_sonic_staff",
       "expected_revision": "28-adc1ee2517929c5ee3f1ee806012e2ee",
       "changes": [

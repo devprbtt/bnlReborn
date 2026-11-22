@@ -102,7 +102,17 @@ change(cid, ['description_2', 'text'],
        'Move at 60% speed during Emplacement Mode, with 37.5% shielding instead of 40%. '
        'Uses the normal 45-second cooldown.')
 
-assert len(rows) == 12
+# RMB is a simultaneous two-shell burst: 16 per shell makes 32 total.
+cid = 'gear_roly_tank_ball_cannon'
+secondary = draft[cid]['tools'][1]
+assert secondary['type'] == 'burst' and len(secondary['bullet']) == 2
+assert secondary['hit_effect']['damage']['player_damage'] == 18
+change(cid, ['tools', 1, 'hit_effect', 'damage', 'player_damage'], 16)
+text = draft[cid]['description']['text']
+assert text.count('Splash Damage - 18') == 1
+change(cid, ['description', 'text'], text.replace('Splash Damage - 18', 'Splash Damage - 16'))
+
+assert len(rows) == 13
 output.mkdir(parents=True, exist_ok=True)
 patch = {'schema_version': 1, 'source_sha256': hashlib.sha256(source.read_bytes()).hexdigest(),
          'status': 'PREPARED; NOT APPLIED', 'cards': [rows[k] for k in sorted(rows)]}

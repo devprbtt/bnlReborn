@@ -34,7 +34,7 @@ not Goo damage or its application frequency. Objective bonuses retain their
 existing calculation. Scoring rules are loaded per zone, so new matches are
 needed to observe the updated award.
 
-Twelve documents change at 30 explicit field paths, including matching English
+Thirteen documents change at 32 explicit field paths, including matching English
 weapon-stat text and damage-range reticle previews. Other translations, card
 metadata and all unrelated fields remain intact. Time Assault's isolated
 original trap cards and authored course data are unchanged.
@@ -44,9 +44,9 @@ original trap cards and authored course data are unchanged.
 Fresh raw live catalogue: 2,057 public documents, SHA256
 `e605f641b1cf3a8f03799dc0db298238c60e3eb6bfa5e5fc4d69c4366e7afd83`.
 The copied input/candidate remain under the client repo's ignored
-`extracted/work/roly-rolling-wild-20261122/`. Only the field patch is checked in here.
+`extracted/work/roly-cannon-rmb-20261122/`. Only the field patch is checked in here.
 
-1,188 checks pass against the production server's actual ConvertToDamageData,
+1,191 checks pass against the production server's actual ConvertToDamageData,
 healing/unit and shield math: monotonic range curves, no close-range damage or
 critical changes, both gear variants, actual ally health gains, exclusion of
 enemy healing, unchanged other scoring defaults and original TA trap radius.
@@ -54,7 +54,7 @@ The guard/apply tool passes six fake-Couch scenarios: read-only preview,
 idempotence, revision drift, successful apply, rollback after a lost committed
 PUT response, and protection of concurrent authors' edits. Release build has
 zero warnings/errors. An actual read-only production preflight finds exactly
-twelve pending documents and no already-applied documents. No live PUT occurred.
+thirteen pending documents and no already-applied documents. No live PUT occurred.
 
 Examples from the actual damage conversion without hero buffs or shields:
 
@@ -105,6 +105,13 @@ Graaf's beam healing. Perk variants follow the same tuning.
 
 Replace the moving-F perk's +7-second cooldown downside with a shield downside: 37.5% damage reduction instead of 40%, matching the prepared Sweet Science teal tier. Restore the normal 45-second cooldown. Keep 60% movement speed, jump/swim/sprint tuning, knockback/pull immunity, 10-second duration and normal F's 40% shielding. Update both English perk descriptions. The three added documents/four fields extend the earlier nine-document patch; all original nine patch rows are unchanged. This 12-document plan supersedes the earlier nine-document deployment plan; do not apply both independently against stale revisions.
 
-Validation now includes actual native direct/splash mitigation at 62.5 damage per 100, equal shield strength, preserved movement and ordinary Roly F, restored cooldown and correct perk text. The combined fixture passes 1,188 checks, writer passes all six fake-Couch scenarios, and read-only production preflight reports 12 pending/0 applied. Release build has zero warnings/errors. No live writes, deployment or client publication occurred. Prepared on `balance/roly-rolling-wild-20261122`, based on prior balance commit `1977e3b`.
+Validation now includes actual native direct/splash mitigation at 62.5 damage per 100, equal shield strength, preserved movement and ordinary Roly F, restored cooldown and correct perk text. The combined fixture passes 1,191 checks, writer passes all six fake-Couch scenarios, and read-only production preflight reports 12 pending/0 applied. Release build has zero warnings/errors. No live writes, deployment or client publication occurred. Prepared on `balance/roly-rolling-wild-20261122`, based on prior balance commit `1977e3b`.
 
 Additional player-facing note: Rolling Wild now trades reduced shielding (37.5%) for movement during F, replacing its longer cooldown.
+
+
+## Roly cannon RMB follow-up
+
+Reduce secondary cannon damage from 36 to 32 for the simultaneous two-shell burst: player splash damage per shell changes 18 to 16. Update the English per-shell stat from 18 to 16. Primary fire, terrain/objective damage, explosion radius, ammunition, burst timing and projectile tuning remain unchanged. This adds one card/two fields; all prior twelve rows are identical. The current combined plan is thirteen documents/32 field changes and supersedes earlier nine/twelve-document drafts. The guarded writer expects this current plan.
+
+Validation: 1,191 actual-engine checks, including native two-shell total 32 and primary/terrain damage preservation; six fake-Couch writer scenarios; live read-only preflight 13 pending/0 applied. No live PUT or deployment. Player note: Roly cannon secondary-fire damage reduced from 36 to 32.
