@@ -20,7 +20,7 @@ var cards = File.ReadAllText(args[0]).Deserialize<List<Card>>()!;
 var catalogue = (ServerCatalogue)Databases.Catalogue;
 catalogue.Replicate(cards);
 var historical = catalogue.All.Where(IsHistorical).ToArray();
-Check(historical.Length == 29, "29 complete isolated trap/dependency cards");
+Check(historical.Length == 30, "30 complete isolated trap/dependency/material cards");
 var ordinary = catalogue.All.Where(c => !IsHistorical(c)).ToDictionary(c => c.Key, Bytes);
 var original = JsonNode.Parse(File.ReadAllText(args[1]))!.AsArray()
     .ToDictionary(c => c!["_id"]!.GetValue<string>(), c => c!);
@@ -35,6 +35,11 @@ JsonNode? Rewrite(JsonNode? node)
 foreach (var card in historical)
 {
     var id = card.Id!.Replace("_time_assault_original_", "_");
+    foreach (var reference in References(original[id]).Where(original.ContainsKey).Distinct())
+    {
+        var target = names.GetValueOrDefault(reference, reference);
+        Check(new Key(target).GetCard<Card>() != null, "historical reference resolves in current catalogue: " + target);
+    }
     var expected = Rewrite(original[id])!;
     if (card is CardBlock block) expected["block_id"] = block.BlockId;
     Check(Bytes(card).SequenceEqual(Bytes(expected.ToJsonString().Deserialize<Card>()!)), "all original stats/reference edges preserved: " + id);
@@ -117,11 +122,19 @@ using (var raw = new MemoryStream())
     zipped.CopyTo(raw); raw.Position = 0; using var reader = new BinaryReader(raw);
     Check(reader.ReadByte() == 0, "native CDB protocol version retained");
     var decoded = reader.ReadList<Card, List<Card>>(Card.ReadVariant);
-    Check(raw.Position == raw.Length && decoded.Count(IsHistorical) == 29, "native wire catalogue contains complete historical dependency set");
+    Check(raw.Position == raw.Length && decoded.Count(IsHistorical) == 30, "native wire catalogue contains complete historical dependency set");
     Check(decoded.Select(c => c.Id).Distinct().Count() == decoded.Count, "no duplicate wire card IDs");
     Check(decoded.OfType<CardBlock>().Select(c=>c.BlockId).Distinct().Count() == decoded.OfType<CardBlock>().Count(), "no duplicate wire block IDs");
 }
 Console.WriteLine($"TIME_ASSAULT_TRAPS PASS {checks} checks; {trapUnits} trap units; {trapCells} ground trap cells");
+
+static IEnumerable<string> References(JsonNode? node)
+{
+    if (node is JsonObject obj) return obj.SelectMany(p => References(p.Value));
+    if (node is JsonArray array) return array.SelectMany(References);
+    if (node is JsonValue value && value.TryGetValue<string>(out var text)) return [text];
+    return [];
+}
 
 static class CardExtensions
 {

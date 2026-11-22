@@ -26,7 +26,9 @@ def strings(value):
         yield value
 
 closure = set()
-pending = roots + blocks
+# Reborn no longer contains this original material. Preserve its native entry
+# sound/footstep presentation instead of leaving an unresolved visual key.
+pending = roots + blocks + ['material_caltrops']
 while pending:
     key = pending.pop()
     if key in closure:
@@ -47,7 +49,7 @@ def rewrite(value):
 cards = [rewrite(source[k]) for k in sorted(closure)]
 for i, card in enumerate(c for c in cards if c['category'] == 'block'):
     card['block_id'] = 64000 + i
-if len(roots) != 7 or len(cards) != 29:
+if len(roots) != 7 or len(cards) != 30:
     raise ValueError('Historical input changed; review the baseline before regenerating')
 if any(s.startswith('UNRESOLVED_HASH_') for c in cards for s in strings(c)):
     raise ValueError('Historical baseline has unresolved references')

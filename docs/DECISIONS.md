@@ -126,3 +126,8 @@ Keep F invisibility as an immediate no-cooldown toggle owned by authorized livin
 ## 2026-11-22 — Isolate original course trap cards for Time Assault
 
 Use map-authored trap unit keys from the preserved original installed CDB, rather than treating the anomalous player level-1 Acid Trap card as the course baseline. Embed the 29-card original gameplay dependency closure under distinct keys, with checked 16-bit block IDs, and replicate it through the existing catalogue. Select historical map units and remap ground traps only in TimeTrial runtime copies before snapshots; preserve normal gameplay cards, source map files and player loadouts. This keeps linked clouds/burning/poison/root effects faithful without changing other modes or requiring a client build/live CDB edit. Existing records remain untouched. See TIME_ASSAULT_ORIGINAL_TRAPS.md for provenance, reproduction and rollout limits.
+
+
+## 2026-11-22 — Complete original Caltrops presentation dependency
+
+Live readback after the authorized Time Assault deployment exposed a missing material_caltrops target. Added it under an isolated material_time_assault_original_caltrops key, bringing the baseline to 30 cards; changed the generator and added resolution checks for every original card reference. All 37,537 current-live-catalogue trap assertions pass, covering the same 784 units and 9,789 ground cells. Baseline data/runtime stats otherwise unchanged. Deploy this corrective revision before considering the rollout complete.

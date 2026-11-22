@@ -289,7 +289,7 @@
       "block_id": 64002,
       "visual": {
         "type": "prefab",
-        "material": "material_caltrops",
+        "material": "material_time_assault_original_caltrops",
         "collider": "none",
         "prefabs": [
           {
@@ -405,7 +405,7 @@
       "block_id": 64003,
       "visual": {
         "type": "prefab",
-        "material": "material_caltrops",
+        "material": "material_time_assault_original_caltrops",
         "collider": "none",
         "prefabs": [
           {
@@ -1262,6 +1262,28 @@
           "caster_owned_only": false,
           "ignore_caster": false
         }
+      }
+    },
+    {
+      "category": "material",
+      "_id": "material_time_assault_original_caltrops",
+      "scope": "public",
+      "impact_prefab": "Prefabs/Effects/Instant/Block_Hit_pos_metal",
+      "impact_sound": {
+        "container_name": "blocks_metal",
+        "event_name": "impact"
+      },
+      "destroy_prefab": "Prefabs/Effects/Instant/Block_Destruct_center_metal",
+      "destroy_sound": {
+        "container_name": "blocks_metal",
+        "event_name": "destroy"
+      },
+      "block_center_effect": "Prefabs/Effects/Instant/Block_Hit_center_metal",
+      "block_falling_impact_sound": "Play_mud_impact",
+      "footstep_surface_name": "Glue",
+      "player_enter_sound": {
+        "container_name": "blocks_thornbush",
+        "event_name": "player_enter"
       }
     },
     {

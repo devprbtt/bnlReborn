@@ -272,3 +272,8 @@ Validation: warnings-as-errors Release build zero warnings/errors; 164 admin ser
 Prepared scoped historical trap variants from the original downloaded CDB's actual Time Assault map unit references. The course Acid Trap uses base radius 2.0, not the anomalous player lvl01 radius 3.0. Added the full 29-card gameplay dependency closure, seven unit overrides and ground-trap remapping in the TimeTrial runtime terrain copy. Native CDB distribution carries all variant cards; normal mode cards and map files remain unchanged. No live CDB write or client rebuild required.
 
 Validation: 37,518 new assertions across six actual courses (784 proximity traps, 9,789 ground cells), original-card fidelity, actual zone/factory initialization, native map/CDB round trips, other-mode preservation, collision rejection and idempotence; fixed-spawn 504 and existing Time Assault 106 checks passed. Release warnings-as-errors build passed. Baseline generator reproduces the embedded hash. Full source hashes, player-facing note and rollout details: docs/TIME_ASSAULT_ORIGINAL_TRAPS.md. No deployment, client rebuild, public release or live client acceptance performed.
+
+
+## 2026-11-22 — Complete original Caltrops presentation dependency
+
+Live readback after the authorized Time Assault deployment exposed a missing material_caltrops target. Added it under an isolated material_time_assault_original_caltrops key, bringing the baseline to 30 cards; changed the generator and added resolution checks for every original card reference. All 37,537 current-live-catalogue trap assertions pass, covering the same 784 units and 9,789 ground cells. Baseline data/runtime stats otherwise unchanged. Deploy this corrective revision before considering the rollout complete.

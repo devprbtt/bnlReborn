@@ -22,7 +22,7 @@ Input SHA-256:
 - Original compressed CDB: `eb81164a196a688c058d6c49ae07c66d7a59bb9358ae1c46fb1628ef08f765fd`.
 - Decoded original JSON: `fe841debc430951cab60a30f41ade3c767b000a7d75044068dbbedbfc6530db5`.
 - Reborn raw server catalogue snapshot: `8b3475b158eab02bf0b87802d787da633d3710b35dd9e90808a285ff9d0386ef`.
-- Embedded isolated baseline: `cd666c08d3407ccfcb1ea50f47eeff26f61b40ce04dffcf1853a6ac3a9df6d9e`.
+- Embedded isolated baseline: `d7eeeb0aa0bf7a6084df9c3abb4bc4dbcadc88148ae7232a9da9bd4376c501ae`.
 
 The inputs are copied under the client repository's ignored
 `extracted/work/trap-trigger-investigation-20261122/`. The raw Reborn server
@@ -31,7 +31,7 @@ class-perk settings. The original wire CDB decodes exactly to its payload end.
 
 ## Scope and implementation
 
-Embed 29 isolated original cards: seven authored proximity-trap units, their
+Embed 30 isolated original cards: seven authored proximity-trap units, their
 spawned units/constant effects, and eight ground-trap/fire/goo blocks. Rewrite
 internal gameplay references so no child cloud, poison, fire, slow or root
 silently falls back to current multiplayer tuning. Reuse installed prefab,
@@ -73,7 +73,7 @@ dotnet run --project tests/BNLReloadedServer.TimeAssaultFixture -c Release -- <r
 dotnet build BNLReloadedServer -c Release -warnaserror
 ```
 
-37,518 trap assertions passed across six actual course payloads: 784 proximity
+37,537 trap assertions passed across six actual course payloads: 784 proximity
 traps and 9,789 remapped ground cells. The fixture checks every historical card
 against its independent original input, real `CreateMapUnits`/factory/trigger
 sphere behavior, terrain and native CDB wire round trips, complete dependency
@@ -86,3 +86,8 @@ Deployment acceptance still needs reconnect plus playing/restarting courses,
 including acid activation, fire spread/burning, mine blasts, gravity, ground
 traps and their visuals. Roll back with the preceding server revision; no map,
 catalogue database or player-data rollback is needed for this code-only change.
+
+
+## Deployment dependency follow-up
+
+The initial server restart on 777625b passed its health gate. Readback of every live historical card then caught material_caltrops missing from the current catalogue; the earlier wire fidelity check preserved the hash but did not establish that the target existed. Added an isolated original material card and reference-resolution assertions over every historical card. Thirty cards now include the original Caltrops entry sound and footstep material. Current-live-catalogue trap fixture passes 37,537 assertions. This correction supersedes the initial deployment candidate; live revision/hash/catalogue verification is required after its rollout.
