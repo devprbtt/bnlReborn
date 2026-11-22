@@ -138,8 +138,27 @@ Live readback after the authorized Time Assault deployment exposed a missing mat
 Restarted zones begin in TutorialInit, which the client Waiting/Build predicate omitted, and the server accepted early movement. Consume runner movement during TutorialInit/Waiting/Build without moving or running terrain/trap/pickup callbacks; retain fresh look/heartbeat data and clear locomotion. Correct old clients through immediate native teleport, and reject countdown-sampled packets arriving after GO. Other modes/non-player units and fresh movement at GO keep their existing path. Client separately freezes before movement layers and clears queued motion. No map/timer/CDB/record edits.
 
 Production-before reproduction fails at TutorialInit; fixed server passes 6,900 checks across six maps and three run lifecycles, fixed-spawn 504 checks, warning-as-error Release build. Paired client Unity guard passes 4,326 checks. No deployment or live keyboard acceptance; client smoothing requires a later signed build. Details: docs/TIME_ASSAULT_RESTART_MOVEMENT.md.
+
+
 ## 2026-11-22 — Snapshot Tony F and reset recovery under authoritative threats
 
 Use existing native one-shot effect bunches and timed self wrappers to select Tony F recipients on server acceptance, rather than maintaining a caster aura or accepting later client hit geometry. Gate the immediate path on the two exact abilities carrying the new CDB marker to support server-first rollout. Carry the recipient deduplication set through server-only impact clones, preserving wire compatibility; receipt points belong to each affected player once per cast. Keep original turret bonus as an activation snapshot. No new global_logic document edit is needed.
 
 Treat the server's existing VisionMark and living enemy players within the owner's specified 8m as continuous Skill I combat conditions, resetting the same quiet deadline used for shots/damage. Use the existing relationship helper and inclusive midpoint distance without LOS; keep the current rate and delay tunable in class_perk. Data and runtime changes form one rollout, with server first and guarded six-card CDB application after backups. See docs/TONY_SECOND_WIND.md.
+
+
+## 2026-11-22 — Prepare six-hero catalogue balance tuning
+
+Use existing CDB fields for the requested Goo score10→8, Doc weapon allied heals−20%, Trondson primary falloff15→12m/70→50% endpoint, Sweet Science shield20→37.5% (the existing next teal tier), Vander ally beam2→2.25 HP per pulse and Nigel rifle falloff80→70m/70→55% endpoint. Cover perk variants, English stats and reticle full-damage previews. Preserve other heal sources, close damage/critical multipliers, ranges, Time Assault original traps and other scoring rules. Nine reviewed documents/26 field paths; no engine-default changes needed.
+
+Added offline planner, revision/field-guarded dry-run-by-default apply tool with private backup/readback/rollback and concurrent-edit protection, checked-in field patch and fixture. 1,181 actual-engine assertions plus six fake-Couch deployment scenarios pass; Release build is clean. Live read-only preflight: nine pending, zero applied; no live writes. Source snapshot hash and full numbers/reproduction/rollout: docs/SIX_HERO_BALANCE_20261122.md. User did not request deployment in this turn; all values remain prepared, not live. The separately pending Time Assault restart fix is not merged or deployed here.
+
+
+## 2026-11-22 — Rolling Wild trades shielding for movement
+
+Replace the moving-F perk's extra cooldown with 37.5% shielding, matching prepared Sweet Science's existing teal tier. Restore base F cooldown of 45s, preserve normal Roly F shielding at 40%, and keep the movement benefit/duration/other immunities. Use only the existing perk effect, ability charge cooldown and English descriptions. Extend the pending catalogue patch without changing its earlier nine rows; the twelve-card plan supersedes the previous nine-card plan. No runtime or protocol change required. Deployment remains separate.
+
+
+## 2026-11-22 — Shared teal shield tier is 30%
+
+Use 30% for the common teal tier, replacing the earlier prepared 37.5% for both Sweet Science and Rolling Wild and the shared client colour stop. Audit actual shield effect cards rather than globally scaling all damage/shields; keep the other tiers, strongest-source selection and cap. All consumers of ShieldStrength.ColorFor share the new colour meaning. Apply gameplay via the existing guarded catalogue plan; deliver the matching colour stop in a later client release. Deployment remains separate.
