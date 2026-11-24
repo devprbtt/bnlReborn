@@ -9,6 +9,8 @@ public class MatchmakerInitiator(CardGameMode gameMode, List<PlayerQueueData> te
 {
     // A 5v5 automatic Casual match runs under the 4v4 Casual card; its roster size is the pop's, not the card's.
     public int PlayersPerTeam { get; } = playersPerTeam ?? gameMode.PlayersPerTeam;
+    internal IReadOnlyDictionary<uint, IReadOnlyDictionary<uint, bool>> MapPreferencesAtPop { get; } =
+        MapPreferences.Snapshot(team1.Concat(team2).Select(p => p.PlayerId), gameMode.Ranking);
 
     private const double SlotSettleSeconds = 10;
 

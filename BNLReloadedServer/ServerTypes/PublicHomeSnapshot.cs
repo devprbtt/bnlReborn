@@ -12,6 +12,7 @@ public record PublicHomePlayer(uint Id, string Name, string Activity);
 public record PublicPlaySnapshot(long ServerTime, PublicQueuePlayer[] Queue, PublicMatch[] Matches, PublicMap[] FriendlyMaps, PublicMap[] RankedMaps)
 {
     public PublicMap[] Friendly5v5Maps { get; init; } = [];
+    public int MapPreferencesVersion { get; init; } = MapPreferences.Version;
 }
 public record PublicQueuePlayer(uint Id, string Name, long JoinedAt, string Mode, bool InDeathmatch = false, int? Mmr = null) { public bool HasMmr => Mmr.HasValue; }
 public record PublicMatch(string Id, string Name, string MapId, long StartedAt, PublicMatchPlayer[] Team1, PublicMatchPlayer[] Team2);

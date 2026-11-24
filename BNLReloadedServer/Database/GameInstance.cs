@@ -474,7 +474,10 @@ public partial class GameInstance : IGameInstance
             var playersPerTeam = GameInitiator is MatchmakerInitiator matchmaker
                 ? matchmaker.PlayersPerTeam : gameMode.PlayersPerTeam;
             playable = CasualMapPool.Filter(playable, gameMode.Ranking, playersPerTeam, CasualMapPool.CubeCount).ToList();
-            maps = MapVoteSelection.Select(playable, mapGrabCount, gameMode.Ranking, rnd)
+            var selectedMaps = GameInitiator is MatchmakerInitiator matched
+                ? MapVoteSelection.SelectForPlayers(playable, mapGrabCount, gameMode.Ranking, rnd, matched.MapPreferencesAtPop)
+                : MapVoteSelection.Select(playable, mapGrabCount, gameMode.Ranking, rnd);
+            maps = selectedMaps
                 .Select(MapInfo (key) => new MapInfoCard { MapKey = key }).ToList();
             Log.Info(LogCat.Match, $"Map ballot instance={GameInstanceId} mode={gameMode.Id} ranking={gameMode.Ranking} " +
                 $"teamSize={playersPerTeam} eligible={playable.Count} candidates=[{string.Join(",", playable.Select(m => $"{m.Id}:{MapVoteSelection.ValidWeight(m.CasualVoteWeight)}"))}] " +

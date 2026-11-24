@@ -1,0 +1,123 @@
+{
+  "schema_version": 1,
+  "cards": [
+    {
+      "id": "map_list",
+      "expected_revision": "26-902ee9cafc7589ea1299b2fffaa6e661",
+      "changes": [
+        {
+          "path": [
+            "friendly"
+          ],
+          "before_exists": true,
+          "before": [
+            "map_sr2_build_101",
+            "map_sr2_eco_city",
+            "map_sr2_erosion",
+            "map_sr2_king_of_the_castle",
+            "map_sr2_pillerd",
+            "map_sr2_search_and_destroy",
+            "map_sr2_skull_block",
+            "map_sr2_steadfast",
+            "map_sr2_shuko_style",
+            "map_sr2_sky_bridge_don_edit_conquest",
+            "map_sr2_stone_temple_mid_edit",
+            "map_sr2_tiki_tower",
+            "map_sr2_wilsons_bay_mid_edit",
+            "map_sr2_olympia_ivy_edit",
+            "map_sr2_blockageddon_3cube",
+            "map_sr2_beach_base_new_conquest",
+            "map_sr2_paradise_weather_test",
+            "map_sr2_mountain_express"
+          ],
+          "after": [
+            "map_sr2_build_101",
+            "map_sr2_eco_city",
+            "map_sr2_erosion",
+            "map_sr2_king_of_the_castle",
+            "map_sr2_pillerd",
+            "map_sr2_search_and_destroy",
+            "map_sr2_skull_block",
+            "map_sr2_steadfast",
+            "map_sr2_shuko_style",
+            "map_sr2_sky_bridge_don_edit_conquest",
+            "map_sr2_stone_temple_mid_edit",
+            "map_sr2_tiki_tower",
+            "map_sr2_wilsons_bay_mid_edit",
+            "map_sr2_olympia_ivy_edit",
+            "map_sr2_blockageddon_3cube",
+            "map_sr2_beach_base_new_conquest",
+            "map_sr2_paradise_weather_test",
+            "map_sr2_mountain_express",
+            "map_sr2_aztec_temple",
+            "map_sr2_citadel",
+            "map_sr2_insandity",
+            "map_sr2_parapet",
+            "map_sr2_cogs_grog",
+            "map_sr2_fort_argent",
+            "map_sr2_front_lines",
+            "map_sr2_gate_house"
+          ]
+        }
+      ]
+    }
+  ],
+  "maps": [
+    {
+      "id": "map_sr2_aztec_temple",
+      "name": "Aztec Temple",
+      "cubes_per_team": 1,
+      "sha256": "773948431cb096a04880900fb7faa708191f44bee2efddf087dd899e6e8d2b25",
+      "source": "extracted\\work\\map-pool-preferences-server\\Maps\\map_sr2_aztec_temple.bnlbin"
+    },
+    {
+      "id": "map_sr2_citadel",
+      "name": "Citadel",
+      "cubes_per_team": 1,
+      "sha256": "a5e868fccc50984dc38b5a18e86deea17e49d2b094a862a31bef1cb7c2f49afd",
+      "source": "extracted\\work\\map-pool-preferences-server\\Maps\\map_sr2_citadel.bnlbin"
+    },
+    {
+      "id": "map_sr2_insandity",
+      "name": "Insandity",
+      "cubes_per_team": 1,
+      "sha256": "e5d4cd0fd925833103224f238d23015728f918398108a747dcdc1a3e84f5762d",
+      "source": "extracted\\work\\map-pool-preferences-server\\Maps\\map_sr2_insandity.bnlbin"
+    },
+    {
+      "id": "map_sr2_parapet",
+      "name": "Parapet",
+      "cubes_per_team": 1,
+      "sha256": "f52e39c4f892e05ee75d80a54ba7d9015d7333b2d69940b5ba392d94136f7d50",
+      "source": "extracted\\work\\map-pool-preferences-server\\Maps\\map_sr2_parapet.bnlbin"
+    },
+    {
+      "id": "map_sr2_cogs_grog",
+      "name": "Cog's Grog",
+      "cubes_per_team": 2,
+      "sha256": "feeb02c993d7ccb1a26486c2a06f218c4c0b5af6959dcc9c3b4859b82d5939b2",
+      "source": "extracted\\work\\map-pool-preferences-server\\Maps\\map_sr2_cogs_grog.bnlbin"
+    },
+    {
+      "id": "map_sr2_fort_argent",
+      "name": "Fort Argent",
+      "cubes_per_team": 2,
+      "sha256": "6e0d4574870751682d42e4e71d94d129e0f569a9e6f2220225917fbc578340d5",
+      "source": "extracted\\work\\map-pool-preferences-server\\Maps\\map_sr2_fort_argent.bnlbin"
+    },
+    {
+      "id": "map_sr2_front_lines",
+      "name": "Front Lines",
+      "cubes_per_team": 2,
+      "sha256": "13b08233d00951057f9905a99928e10b000505d9212c84e1bbefa5d14b2f3f7d",
+      "source": "extracted\\work\\map-pool-preferences-server\\Maps\\map_sr2_front_lines.bnlbin"
+    },
+    {
+      "id": "map_sr2_gate_house",
+      "name": "Gate House",
+      "cubes_per_team": 2,
+      "sha256": "66e39aa29cdd85775254d73ae918f0ece7df6487034cf0e7687f08c7e9c63a3e",
+      "source": "extracted\\work\\map-pool-preferences-server\\Maps\\map_sr2_gate_house.bnlbin"
+    }
+  ]
+}

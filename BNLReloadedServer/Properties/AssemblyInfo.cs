@@ -9,6 +9,7 @@ using System.Runtime.CompilerServices;
 [assembly: InternalsVisibleTo("BNLReloadedServer.DeathmatchFollowupFixture")]
 
 [assembly: InternalsVisibleTo("BNLReloadedServer.MapVoteFixture")]
+[assembly: InternalsVisibleTo("BNLReloadedServer.MapPreferencesFixture")]
 [assembly: InternalsVisibleTo("BNLReloadedServer.CasualMapPoolFixture")]
 
 [assembly: InternalsVisibleTo("BNLReloadedServer.BackfillReentryFixture")]

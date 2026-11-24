@@ -3,6 +3,7 @@ using BNLReloadedServer.Database;
 using BNLReloadedServer.ProtocolHelpers;
 using BNLReloadedServer.Servers;
 using BNLReloadedServer.Logging;
+using BNLReloadedServer.ServerTypes;
 
 namespace BNLReloadedServer.Service;
 
@@ -45,10 +46,18 @@ public class ServiceMatchmaker(ISender sender) : IServiceMatchmaker
         MessageSetCustomGameTeamOption = 32,
         MessageSetCustomTestDummies = 33,
         MessageSpawnCustomTestDummy = 34,
-        MessageStartTimeTrialCourse = 35
+        MessageStartTimeTrialCourse = 35,
+        MessageSetMapPreferences = 36
     }
 
     private readonly IRegionServerDatabase _serverDatabase = Databases.RegionServerDatabase;
+
+    private void ReceiveSetMapPreferences(BinaryReader reader)
+    {
+        if (!MapPreferences.TryRead(reader, out byte mode, out var choices) || sender.AssociatedPlayerId is not { } player) return;
+        var known = CatalogueHelper.GetCards<CardMap>(CardCategory.Map).Select(m => m.Key.Hash).ToHashSet();
+        MapPreferences.Set(player, mode, choices, known);
+    }
 
     private static BinaryWriter CreateWriter()
     {
@@ -460,6 +469,9 @@ public class ServiceMatchmaker(ISender sender) : IServiceMatchmaker
                 break;
             case ServiceMatchmakerId.MessageStartTimeTrialCourse:
                 ReceiveStartTimeTrialCourse(reader);
+                break;
+            case ServiceMatchmakerId.MessageSetMapPreferences:
+                ReceiveSetMapPreferences(reader);
                 break;
             case ServiceMatchmakerId.MessageRegisterCustomGame:
                 ReceiveRegisterCustomGame(reader);
