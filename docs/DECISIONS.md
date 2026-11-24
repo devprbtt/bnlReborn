@@ -190,3 +190,8 @@ Remember the last selected Blockbuster map drop-point coordinate per zone, share
 ## 2026-11-23 - Score Tony F on the caster, excluding self
 
 Supersede the November 22 recipient-owned receipt rule: award the caster for each other allied player receiving the timed building marker on accepted F. Exclude the caster by player identity before entering the shared per-cast deduplication set; preserve that set across impact clones. Report through the caster Unit with recipient target/location for correct score ownership and hero attribution. Use Build boost applied while retaining the legacy score configuration key and mapping for compatibility. Keep self buff gameplay and standard objective bonus rules; no score from self, ticking, duplicate reports or rejected casts. No protocol, CDB or client release is necessary. Deployment remains separate.
+
+
+## 2026-11-24 - Vander partial RMB bursts
+
+Keep native per-ball12 damage and vary projectile count with available magazine (1-5), preserving InfiniteAmmo and six-round perk leftovers. Derive affordable count on the server and reject excess or duplicate shot IDs before recording or broadcasting; consume actual accepted projectile count. Client predicts the same count and uses one-round reload/use gates. No new protocol field or blanket weapon ammo change.

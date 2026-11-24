@@ -375,3 +375,8 @@ Prepared an isolated server repair tracking the previous BB marker per GameZone.
 ## 2026-11-23 - Tony F credits the caster for other affected players
 
 Owner clarified that Tony earns five base points per affected teammate and his self-buff must not count. Route the existing successful-buff hook through the caster Unit, reject self before deduplication, and use Build boost applied as the breakdown reason. Recipients receive no receipt points. Keep per-cast player deduplication, ranges/duration/native turret bonus, and legacy TonyBuildBuffReceived configuration key. Both variants: Tony fixture 38 checks; Kira/Trondson activation regression 115; action scoring 308; cooldown 21 (482 total). Release warnings-as-errors build zero warnings/errors. Source branch fix/tony-f-caster-points-20261123; no CDB/client change or deployment. Evidence in client reports/tony-f-caster-points/.
+
+
+## 2026-11-24 - Beta100 combined release prepared
+
+Integrated Roly death cooldown, replay rewind, BB drop exclusion, Tony caster points and map preferences. Added authoritative Vander RMB partial bursts (one ball per ammo, capped five; 12 damage each); both variants, zero-ammo and InfiniteAmmo rules retained. Actual-zone41 checks and client45 checks pass. Three-document guarded catalogue plan expands Friendly18 to26 and updates weapon descriptions. See docs/RELEASE_BETA100.md and client reports/release-beta100 for full validation and deployment status.

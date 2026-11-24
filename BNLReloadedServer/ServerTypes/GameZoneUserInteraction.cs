@@ -1023,13 +1023,16 @@ public partial class GameZone
             return;
         }
 
+        var tool = player.CurrentGear?.GetTool(castData.ToolIndex);
+        int? burstCost = null;
+        if (VanderBallLightning.IsBurst(tool))
+        {
+            if (castData.Shots is not { Count: > 0 } burst || !VanderBallLightning.TryCost(tool!, burst, out int cost)) return;
+            burstCost = cost;
+        }
         _serviceZone.SendCast(playerUnitId, castData);
-
         if (castData.Shots is not { Count: > 0 } shots) return;
-
-        var tool = player.CurrentGear?.Tools[castData.ToolIndex];
-
-        if (!tool?.IsEnoughAmmoToUse() ?? false) return;
+        if (burstCost == null && (!tool?.IsEnoughAmmoToUse() ?? false)) return;
         if (tool != null && tool.Tool is not ToolBuild) MarkClassPerkCombat(player);
 
         shots.ForEach(shot =>
@@ -1077,7 +1080,7 @@ public partial class GameZone
             }
         });
 
-        var ammoUpdate = tool?.TakeAmmoUpdate();
+        var ammoUpdate = tool?.TakeAmmoUpdate(burstCost);
         if (ammoUpdate is not null && player.CurrentGear is not null)
         {
             player.UpdateData(new UnitUpdate
