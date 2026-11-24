@@ -47,17 +47,39 @@ Check(!MapPreferences.Snapshot(new uint[]{4002},GameRankingType.Friendly).Contai
 byte[] Wire(byte version=1,byte mode=0,ushort count=2,uint key1=10,byte value1=1,uint key2=20,byte value2=0){using var ms=new MemoryStream();using var w=new BinaryWriter(ms);w.Write(version);w.Write(mode);w.Write(count);w.Write(key1);w.Write(value1);w.Write(key2);w.Write(value2);return ms.ToArray();}
 bool Read(byte[] bytes){using var r=new BinaryReader(new MemoryStream(bytes));return MapPreferences.TryRead(r,out _,out _);}
 Check(Read(Wire()),"wire accepts full Boolean choices");
-foreach(var bad in new[]{Wire(version:2),Wire(mode:2),Wire(count:513),Wire(key1:0),Wire(key2:10),Wire(value1:2)})Check(!Read(bad),"malformed payload rejected");
+foreach(var bad in new[]{Wire(version:2),Wire(mode:3),Wire(count:513),Wire(key1:0),Wire(key2:10),Wire(value1:2)})Check(!Read(bad),"malformed payload rejected");
+Check(Read(Wire(mode:2)),"independent 5v5 mode accepted with legacy wire framing");
+Check(MapPreferences.Version==2&&MapPreferences.WireVersion==1,"capability advertises three slots while preserving wire format");
+MapPreferences.Set(5001,0,Ballot(3),valid);
+MapPreferences.Set(5001,1,Ballot(6),valid);
+MapPreferences.Set(5001,2,maps.ToDictionary(m=>m.Key.Hash,m=>Array.IndexOf(maps,m)>=3),valid);
+var four=new MatchmakerInitiator(new CardGameMode{Ranking=GameRankingType.Friendly,PlayersPerTeam=4},[Player(5001)],[]);
+var five=new MatchmakerInitiator(new CardGameMode{Ranking=GameRankingType.Friendly,PlayersPerTeam=4},[Player(5001)],[],5);
+Check(four.MapPreferencesAtPop[5001].Count(p=>p.Value)==3,"4v4 pop captures only 4v4 preferences");
+Check(five.PlayersPerTeam==5&&five.MapPreferencesAtPop[5001].Count(p=>p.Value)==4,"automatic 5v5 pop uses actual size despite 4v4 game card");
+for(int seed=0;seed<100;seed++) {
+ Check(Pick(four.MapPreferencesAtPop,seed).All(k=>maps.Take(3).Any(m=>m.Key==k)),"4v4 ballot follows 4v4 majority");
+ Check(Pick(five.MapPreferencesAtPop,seed).All(k=>maps.Skip(3).Any(m=>m.Key==k)),"5v5 ballot follows independent 5v5 majority");
+}
+MapPreferences.Set(5001,2,Ballot(0),valid);
+Check(five.MapPreferencesAtPop[5001].Values.Count(v=>v)==4,"5v5 pop is immutable after late changes");
+Check(MapPreferences.Snapshot(new uint[]{5001},GameRankingType.Friendly,4)[5001].Values.Count(v=>v)==3,"5v5 edits leave 4v4 unchanged");
+Check(MapPreferences.Snapshot(new uint[]{5001},GameRankingType.Ranked,5)[5001].Values.Count(v=>v)==6,"Ranked remains independent of Casual size");
+MapPreferences.Set(5002,0,Ballot(3),valid);
+Check(MapPreferences.Snapshot(new uint[]{5002},GameRankingType.Friendly,5).Count==0,"legacy shared ballot does not leak into 5v5");
+Check(MapPreferences.Snapshot(new uint[]{5001},GameRankingType.None,5).Count==0,"5v5 custom ignores preferences");
+MapPreferences.Set(5001,3,Ballot(7),valid);
+Check(MapPreferences.Snapshot(new uint[]{5001},GameRankingType.Friendly,4)[5001].Count(p=>p.Value)==3,"invalid slot cannot modify valid preferences");
 using(var reader=new BinaryReader(new MemoryStream(Wire().Concat(Wire(mode:1)).Concat(new byte[]{0,123}).ToArray()))) {
  Check(MapPreferences.TryRead(reader,out byte first,out _)&&first==0&&reader.BaseStream.Position==Wire().Length,"coalesced Casual frame leaves following commands intact");
  Check(MapPreferences.TryRead(reader,out byte second,out _)&&second==1&&reader.ReadByte()==0&&reader.ReadByte()==123,"coalesced Ranked and queue entry stay ordered");
 }
 for(int i=0;i<Wire().Length;i++)Check(!Read(Wire().Take(i).ToArray()),"truncated payload rejected");
 byte[] Frame(byte[] body){using var s=new MemoryStream();using var w=new BinaryWriter(s);w.Write7BitEncodedInt(body.Length);w.Write(body);return s.ToArray();}
-var frames=Frame(new byte[]{11,36}.Concat(Wire()).ToArray()).Concat(Frame(new byte[]{11,36}.Concat(Wire(mode:1)).ToArray())).Concat(Frame(new byte[]{11,0,42,0,0,0})).ToArray();
+var frames=Frame(new byte[]{11,36}.Concat(Wire()).ToArray()).Concat(Frame(new byte[]{11,36}.Concat(Wire(mode:1)).ToArray())).Concat(Frame(new byte[]{11,36}.Concat(Wire(mode:2)).ToArray())).Concat(Frame(new byte[]{11,0,42,0,0,0})).ToArray();
 var dispatcher=new PreferenceDispatcher();var session=new BNLReloadedServer.Servers.SessionReader(dispatcher,"fixture");
 session.ProcessPacket(frames,0,frames.Length);
-Check(dispatcher.Modes.SequenceEqual(new byte[]{0,1})&&dispatcher.Queue==42,"real framing routes both coalesced preferences followed by queue entry");
+Check(dispatcher.Modes.SequenceEqual(new byte[]{0,1,2})&&dispatcher.Queue==42,"real framing routes all three coalesced preferences followed by queue entry");
 Console.WriteLine($"PASS {checks} map preference checks");
 
 sealed class PreferenceDispatcher : BNLReloadedServer.Servers.IServiceDispatcher {
