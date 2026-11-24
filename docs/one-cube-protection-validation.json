@@ -1,0 +1,42 @@
+{
+  "baseline_revision": "ed896f6bd255c3ce4a5e9e700135b487ab335f0d",
+  "maps": [
+    {
+      "spawn_rooms": 4,
+      "room_volume_each": 108,
+      "air_to_no_build": 200,
+      "missing_metal_added": 0,
+      "map_id": "map_sr2_aztec_temple",
+      "before_sha256": "773948431cb096a04880900fb7faa708191f44bee2efddf087dd899e6e8d2b25",
+      "after_sha256": "e27272af6677ea97925e76e89693b58bcec8862f3aa0f6c98b119dad2f695e6e"
+    },
+    {
+      "spawn_rooms": 2,
+      "room_volume_each": 1102,
+      "air_to_no_build": 532,
+      "missing_metal_added": 0,
+      "map_id": "map_sr2_citadel",
+      "before_sha256": "a5e868fccc50984dc38b5a18e86deea17e49d2b094a862a31bef1cb7c2f49afd",
+      "after_sha256": "1c01b7be8f9ddc86bc13219b07b63a8ef71565fa2c6edb883bafee8ad781ec5c"
+    },
+    {
+      "spawn_rooms": 2,
+      "room_volume_each": 276,
+      "air_to_no_build": 232,
+      "missing_metal_added": 16,
+      "map_id": "map_sr2_insandity",
+      "before_sha256": "e5d4cd0fd925833103224f238d23015728f918398108a747dcdc1a3e84f5762d",
+      "after_sha256": "28910196faafcfab10efd3ecf265259058ae563948d44f0f08ebe456ad9991a2"
+    },
+    {
+      "spawn_rooms": 2,
+      "room_volume_each": 90,
+      "air_to_no_build": 6,
+      "missing_metal_added": 0,
+      "map_id": "map_sr2_parapet",
+      "before_sha256": "f52e39c4f892e05ee75d80a54ba7d9015d7333b2d69940b5ba392d94136f7d50",
+      "after_sha256": "1d80ab3e4fddb1fdfd5611c1c1ac96e5ea10d8a9483729b4bd61e0aeb7525ff3"
+    }
+  ],
+  "live_modified": false
+}
