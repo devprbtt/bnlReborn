@@ -107,6 +107,7 @@ public partial class GameZone : Updater
     private Timer? _respawnIncreaseTimer;
 
     private int _supplyTimes;
+    private Vector3? _lastBlockbusterDropPoint;
     private Timer? _supplyTimer;
 
     private readonly UnitUpdater _defaultUnitUpdater;
@@ -701,8 +702,17 @@ public partial class GameZone : Updater
             return null;
         }
 
-        var rand = new Random();
+        bool blockbuster = supply.DropPointLabel == UnitLabel.DropPointBlockbuster;
+        if (blockbuster) dropPoints = dropPoints.Distinct().ToArray();
+        // Remember the map marker, not the randomized landing offset. Resource
+        // drops between BBs must not reset this history. A single-location map
+        // still needs to deliver its scheduled drop.
+        if (blockbuster && dropPoints.Length > 1 && _lastBlockbusterDropPoint.HasValue)
+            dropPoints = dropPoints.Where(p => p != _lastBlockbusterDropPoint.Value).ToArray();
+
+        var rand = Random.Shared;
         var dropPoint = rand.GetItems(dropPoints, 1)[0];
+        if (blockbuster) _lastBlockbusterDropPoint = dropPoint;
         var offset = _zoneData.MatchCard.SupplyLogic?.RandomPosOffset;
         if (!(offset > 0)) return dropPoint;
 

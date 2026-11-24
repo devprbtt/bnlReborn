@@ -180,3 +180,8 @@ Death must consume an active toggle before a quick respawn inherits it. Clear th
 ## 2026-11-23 - Prefer complete scene lifecycle for backwards replay seeks
 
 Disable in-place backward reconstruction even when capability 12 is negotiated. Preserve the negotiation API and existing scene-reload/target reconstruction path so older clients also benefit. Acknowledged packet application cannot guarantee native camera, animation, UI, audio or timestamp state has reset. Re-enable only after an explicit comprehensive client timeline reset is tested. PlayerInfo folds replace complete membership to match the current client; statistics still merge per player. No protocol/CDB changes or live deployment.
+
+
+## 2026-11-23 - Exclude the previous BB anchor before landing offsets
+
+Remember the last selected Blockbuster map drop-point coordinate per zone, shared across BB tiers and retained through resource drops. Exclude that coordinate uniformly from distinct valid BB anchors when another location exists; apply the existing randomized landing offset after selection. Use coordinates so duplicate markers cannot bypass exclusion. Preserve single-location-map drops rather than stall the supply schedule, and retain history when no marker is available. No wire format, CDB or client change; deployment remains separate.

@@ -365,3 +365,8 @@ Actual-zone regression fails on live base0fee0bc and passes34 checks after the f
 ## 2026-11-23 - Replay rewind and roster recovery prepared
 
 Use the existing fresh-scene path for backwards seeks, including capability-12 clients; native client state cannot be reversed by removing units alone. Preserve forward seeking, requested time, pause and presentation acknowledgements. Fold PlayerInfo as complete membership replacement, with departure/empty-snapshot regression checks and matching recording oracle. Replay controls 70 checks and recorder 48 assertions pass; Release warnings-as-errors build zero warnings/errors. No live deployment. See docs/REPLAY_REWIND_RECOVERY.md.
+
+
+## 2026-11-23 - Prevent consecutive BB drops at the same map point
+
+Prepared an isolated server repair tracking the previous BB marker per GameZone. Exclude that coordinate from the next BB selection when alternatives exist, deduplicate BB marker coordinates, and apply the normal random offset afterwards. Resource drops do not overwrite BB history. Single-location maps retain their scheduled drop; absent markers retain history. Supply schedule 42 checks, Blockbuster deadline/landing suite and Conquest 100 checks pass; Release warnings-as-errors build clean. No client/catalogue changes or deployment. Source branch fix/bb-no-consecutive-drop-20261123; evidence reports/bb-no-consecutive-drop/.
