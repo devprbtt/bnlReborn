@@ -10,6 +10,18 @@ namespace BNLReloadedServer.Database;
 /// </summary>
 public static class LoadoutRules
 {
+    public static bool IsHeroDevice(Key hero, Key device)
+    {
+        if (hero.GetCard<CardUnit>()?.Data is not UnitDataPlayer data) return false;
+        var group = device.GetCard<CardDevice>()?.GroupKey ?? Key.None;
+        return (data.SpecialDevices ?? []).Any(special => special == device ||
+            group != Key.None && special.GetCard<CardDevice>()?.GroupKey == group);
+    }
+
+    public static bool CanUseDeviceInSlot(Key hero, Key device, int slot, uint? playerId = null) =>
+        slot == 1 ? CatalogueHelper.IsHeroSpecialDevice(hero, device) :
+        slot > 1 && !IsHeroDevice(hero, device) && CanUseDevice(hero, device, playerId);
+
     public static bool CanUseDevice(Key hero, Key device, uint? playerId = null)
     {
         if (DeviceSkinPresentation.IsRetired(device) || RetiredCountryCrates.IsRetired(device) || device.GetCard<CardDevice>() == null || Databases.Catalogue.GetCard<CardUnit>(hero)?.Data is not UnitDataPlayer heroData)
@@ -60,8 +72,7 @@ public static class LoadoutRules
             var maxSlot = ClassPerkCatalogue.DeviceSlots(hero, perks);
             foreach (var (slot, device) in devices.ToList())
             {
-                if (slot == 1 && CatalogueHelper.IsHeroSpecialDevice(hero, device)) continue;
-                if (slot is > 1 && slot <= maxSlot && CanUseDevice(hero, device, playerId)) continue;
+                if (slot >= 1 && slot <= maxSlot && CanUseDeviceInSlot(hero, device, slot, playerId)) continue;
                 removed.Add(device);
                 devices.Remove(slot);
             }

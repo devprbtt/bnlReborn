@@ -76,6 +76,12 @@ public static class PlayerDataSanitizer
                 if (CatalogueHelper.RepairHeroSpecialDevice(heroKey, loadout.Devices,
                         out var replacedDevice, out var defaultDevice))
                     stripped.Add($"invalid special device {replacedDevice} -> {defaultDevice} in loadout {heroKey}");
+                foreach (var (slot, device) in loadout.Devices.ToList())
+                {
+                    if (slot <= 1 || !LoadoutRules.IsHeroDevice(heroKey, device)) continue;
+                    loadout.Devices.Remove(slot);
+                    stripped.Add($"extra hero device {device} in slot {slot} of loadout {heroKey}");
+                }
             }
 
             if (loadout.Perks == null) continue;

@@ -93,6 +93,14 @@ Check(lobbyData.Players[26].Devices![1] == snowman && updates.Count == 1,
 lobby.UpdateDeviceSlot(26, 7, bricks);
 Check(!lobbyData.Players[26].Devices!.ContainsKey(7) && updates.Count == 1,
     "live lobby rejects out-of-range device slots");
+lobby.UpdateDeviceSlot(26, 2, turret);
+lobby.UpdateDeviceSlot(26, 3, snowman);
+Check(lobbyData.Players[26].Devices![2] == bricks && !lobbyData.Players[26].Devices!.ContainsKey(3) && updates.Count == 1,
+    "live lobby rejects stock and skinned hero blocks outside slot 1");
+player.HeroLoadouts[tony].Devices![2] = snowman;
+Check(player.SanitizeAgainstCatalogue() && !player.HeroLoadouts[tony].Devices!.ContainsKey(2) &&
+      player.HeroLoadouts[tony].Devices![1] == turret,
+    "stored profile removes extra hero-block skin while keeping slot 1");
 
 // Brains III grants device slot 7 only while it is the selected class perk.
 var brainsClass = new CardHeroClass { Id = "fixture_brains_class", Type = HeroClassType.Brains, AvailableDevices = [bricks] };
@@ -110,6 +118,8 @@ lobbyData.Players[27] = new PlayerLobbyState
 };
 var medicState = lobbyData.Players[27];
 updates.Clear();
+lobby.UpdateDeviceSlot(27, 7, turret);
+Check(!medicState.Devices!.ContainsKey(7) && updates.Count == 0, "Brains III extra slot cannot carry a second hero block");
 lobby.UpdateDeviceSlot(27, 7, bricks);
 Check(medicState.Devices![7] == bricks && updates.Count == 1, "Brains III accepts a device in slot 7");
 lobby.UpdateDeviceSlot(27, 8, bricks);

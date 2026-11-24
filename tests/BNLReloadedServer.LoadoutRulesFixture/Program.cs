@@ -93,6 +93,29 @@ Check(saved.Count == 1, "SetLoadout for a key that is not a hero is ignored");
 SetLoadout(new LobbyLoadout { HeroKey = eliza, Devices = CatalogueHelper.GetDefaultDevices(eliza), Perks = [elizaPerk], SkinKey = Key.None });
 Check(saved.Count == 2 && saved[1].Perks!.SequenceEqual([elizaPerk]), "Doc Eliza saves her own perk unchanged");
 
+// Skin variants are alternate appearances for the single mandatory hero slot.
+foreach (var hero in CatalogueHelper.GetHeroes())
+{
+    var heroData = (UnitDataPlayer)hero.GetCard<CardUnit>()!.Data!;
+    foreach (var variant in heroData.SpecialDevices!)
+    {
+        Check(LoadoutRules.CanUseDeviceInSlot(hero, variant, 1), "hero block skin remains valid in slot 1 " + variant);
+        for (int slot = 2; slot <= 7; slot++)
+            Check(!LoadoutRules.CanUseDeviceInSlot(hero, variant, slot), "hero block skin rejected in utility slot " + slot + " " + variant);
+        var duplicate = CatalogueHelper.GetDefaultDevices(hero)!;
+        duplicate[2] = variant; duplicate[7] = variant;
+        var filtered = LoadoutRules.Sanitize(hero, duplicate, []);
+        Check(filtered.Contains(variant) && duplicate[1] == heroData.SpecialDevices[0] &&
+              !duplicate.ContainsKey(2) && !duplicate.ContainsKey(7), "old duplicate loadout repaired " + variant);
+        var beforeSaved = saved.Count;
+        var payload = CatalogueHelper.GetDefaultDevices(hero)!;
+        payload[1] = variant; payload[2] = variant;
+        SetLoadout(new LobbyLoadout { HeroKey = hero, Devices = payload, Perks = [], SkinKey = Key.None });
+        Check(saved.Count == beforeSaved + 1 && saved.Last().Devices![1] == variant &&
+              !saved.Last().Devices!.ContainsKey(2), "SetLoadout keeps chosen skin only in slot 1 " + variant);
+    }
+}
+
 Console.WriteLine($"LOADOUT_RULES checks={checks} failures={failures}");
 return failures == 0 ? 0 : 1;
 

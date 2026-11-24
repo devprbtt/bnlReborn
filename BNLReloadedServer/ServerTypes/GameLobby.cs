@@ -462,7 +462,7 @@ public class GameLobby : Updater
         if (!LobbyData.Players.TryGetValue(playerId, out var player) || !CanEditLoadout(player) || player.Devices == null) return;
         if (slot < 1 || slot > ClassPerkCatalogue.DeviceSlots(player.Hero, player.Perks) ||
             slot == 1 && (deviceKey == null || !CatalogueHelper.IsHeroSpecialDevice(player.Hero, deviceKey.Value)) ||
-            slot > 1 && deviceKey is { } selectedDevice && !LoadoutRules.CanUseDevice(player.Hero, selectedDevice, playerId))
+            slot > 1 && deviceKey is { } selectedDevice && !LoadoutRules.CanUseDeviceInSlot(player.Hero, selectedDevice, slot, playerId))
             return;
         if (deviceKey != null)
         {
