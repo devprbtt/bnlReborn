@@ -172,3 +172,8 @@ Apply the integrated Time Assault/Tony/Second Wind runtime and reviewed 19-docum
 ## 2026-11-22 — Shared activation buffs with original-recipient refresh
 
 Use native one-shot target bunches and timed self wrappers for Kira/Trondson, selecting on accepted F with exact ability/marker whitelist. Retain self-only bonuses and source attribution; new untimed Kira reload value lets the wrapper own10s/6s expiry without changing legacy effect data. Record successful original applications in server-only cloned impact metadata. Thrills kills refresh that set, gated by cast lifetime and original unit ids; never rescan nearby players. Keep other aura systems and wire format unchanged. Roll out binary and18 CDB documents together after separate authorization.
+
+
+## 2026-11-23 - Exclude the previous BB anchor before landing offsets
+
+Remember the last selected Blockbuster map drop-point coordinate per zone, shared across BB tiers and retained through resource drops. Exclude that coordinate uniformly from distinct valid BB anchors when another location exists; apply the existing randomized landing offset after selection. Use coordinates so duplicate markers cannot bypass exclusion. Preserve single-location-map drops rather than stall the supply schedule, and retain history when no marker is available. No wire format, CDB or client change; deployment remains separate.

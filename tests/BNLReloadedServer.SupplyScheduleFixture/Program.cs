@@ -91,6 +91,52 @@ Fire(zone, repeatOnly); Drain();
 Check(data.SupplyInfo.NextSupplyDrop == bb.Key, "repeat-only schedule advances");
 Fire(zone, repeatOnly); Drain();
 Check(data.SupplyInfo.NextSupplyDrop == resource.Key, "repeat-only schedule wraps");
+// BB history belongs to the marker location, across tiers and intervening resources.
+var choose = typeof(GameZone).GetMethod("GetSupplyPosition", BindingFlags.Instance | BindingFlags.NonPublic)!;
+Vector3? Choose(SupplySequenceItem item) => (Vector3?)choose.Invoke(zone, [item]);
+var a = new Vector3(134, 14, 13);
+var b = new Vector3(160, 14, 13);
+var c = new Vector3(190, 14, 13);
+Unit Marker(uint id, Vector3 position) => new(id, new UnitInit { Key = marker.Key, Transform = new ZoneTransform { Position = position } }, updater);
+Check(Choose(Item(bb)) == a && Choose(Item(bb)) == a, "single-location maps keep delivering BBs");
+units[2] = Marker(2, b);
+Set(zone, "_lastBlockbusterDropPoint", a);
+var alternating = true;
+for (int i = 0; i < 40; i++) alternating &= Choose(Item(bb)) == (i % 2 == 0 ? b : a);
+Check(alternating, "two distinct BB locations always alternate");
+Set(zone, "_lastBlockbusterDropPoint", a);
+Choose(Item(resource));
+Check(Choose(Item(bb)) == b, "resource drops do not reset the previous BB location");
+units[3] = Marker(3, b);
+Set(zone, "_lastBlockbusterDropPoint", b);
+Check(Choose(Item(bb)) == a, "duplicate markers at the previous spot cannot repeat that spot");
+units[4] = Marker(4, c);
+var distinct = true;
+var previous = (Vector3)Get(zone, "_lastBlockbusterDropPoint")!;
+for (int i = 0; i < 500; i++)
+{
+    var next = Choose(Item(bb));
+    distinct &= next.HasValue && next != previous && (next == a || next == b || next == c);
+    previous = next!.Value;
+}
+Check(distinct, "three-location BB draws never repeat the previous spot");
+match.SupplyLogic.RandomPosOffset = 2;
+var offsetSafe = true;
+for (int i = 0; i < 100; i++)
+{
+    var previousAnchor = (Vector3)Get(zone, "_lastBlockbusterDropPoint")!;
+    var landed = Choose(Item(bb))!.Value;
+    var anchor = (Vector3)Get(zone, "_lastBlockbusterDropPoint")!;
+    offsetSafe &= anchor != previousAnchor && Math.Abs(landed.X - anchor.X) <= 2 &&
+                  Math.Abs(landed.Z - anchor.Z) <= 2 && landed.Y == anchor.Y;
+}
+Check(offsetSafe, "random landing offsets preserve BB marker exclusion and bounds");
+units.Clear();
+var remembered = Get(zone, "_lastBlockbusterDropPoint");
+Check(Choose(Item(bb)) == null && Equals(remembered, Get(zone, "_lastBlockbusterDropPoint")), "missing markers preserve BB history without inventing a drop");
+units[1] = Marker(1, a); units[2] = Marker(2, b);
+Set(zone, "_lastBlockbusterDropPoint", c);
+Check(Choose(Item(bb)).HasValue, "removed previous marker does not prevent selecting remaining locations");
 queue.Writer.Complete();
 using var closed = new Timer(150000);
 Fire(zone, closed);
