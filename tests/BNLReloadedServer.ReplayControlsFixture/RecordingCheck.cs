@@ -177,8 +177,11 @@ static class RecordingCheck
             var v = p.GetValue(z);
             if (v == null) continue;
             if (p.Name == "PlayerInfo")
+            {
+                foreach (var key in state.Keys.Where(k => k.StartsWith("PlayerInfo[", StringComparison.Ordinal)).ToList()) state.Remove(key);
                 foreach (var (k, info) in (Dictionary<uint, ZonePlayerInfo>)v)
                     state["PlayerInfo[" + k + "]"] = Hex(EncodeZone(new ZoneUpdate { PlayerInfo = new() { [k] = info } }));
+            }
             else if (p.Name == "Statistics")
             {
                 var st = (MatchStats)v;

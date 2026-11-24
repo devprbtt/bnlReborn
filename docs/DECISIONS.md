@@ -172,3 +172,8 @@ Apply the integrated Time Assault/Tony/Second Wind runtime and reviewed 19-docum
 ## 2026-11-22 — Shared activation buffs with original-recipient refresh
 
 Use native one-shot target bunches and timed self wrappers for Kira/Trondson, selecting on accepted F with exact ability/marker whitelist. Retain self-only bonuses and source attribution; new untimed Kira reload value lets the wrapper own10s/6s expiry without changing legacy effect data. Record successful original applications in server-only cloned impact metadata. Thrills kills refresh that set, gated by cast lifetime and original unit ids; never rescan nearby players. Keep other aura systems and wire format unchanged. Roll out binary and18 CDB documents together after separate authorization.
+
+
+## 2026-11-23 - Prefer complete scene lifecycle for backwards replay seeks
+
+Disable in-place backward reconstruction even when capability 12 is negotiated. Preserve the negotiation API and existing scene-reload/target reconstruction path so older clients also benefit. Acknowledged packet application cannot guarantee native camera, animation, UI, audio or timestamp state has reset. Re-enable only after an explicit comprehensive client timeline reset is tested. PlayerInfo folds replace complete membership to match the current client; statistics still merge per player. No protocol/CDB changes or live deployment.

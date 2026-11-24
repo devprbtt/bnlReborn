@@ -315,7 +315,7 @@ public sealed class ReplayCatchUp
     }
 
     // Mirrors the client's ZoneData.UpdateData: per-player stats and player
-    // info merge per player (a stat entry keeps its team when one omits it),
+    // statistics merge per player (a stat entry keeps its team when one omits it),
     // every other present field replaces the previous value. The phase
     // callback then sees one transition from the pre-seek phase to the final.
     public static void Merge(ZoneUpdate into, ZoneUpdate from)
@@ -343,8 +343,9 @@ public sealed class ReplayCatchUp
         if (from.RespawnInfo != null) into.RespawnInfo = from.RespawnInfo;
         if (from.PlayerInfo != null)
         {
-            into.PlayerInfo = into.PlayerInfo == null ? new() : new(into.PlayerInfo);
-            foreach (var (player, info) in from.PlayerInfo) into.PlayerInfo[player] = info;
+            // PlayerInfo is a complete current-membership snapshot. Merging
+            // resurrects departed players and leaves unselectable roster rows.
+            into.PlayerInfo = new(from.PlayerInfo);
         }
         if (from.SupplyInfo != null) into.SupplyInfo = from.SupplyInfo;
         if (from.Objectives != null) into.Objectives = from.Objectives;

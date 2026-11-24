@@ -102,6 +102,11 @@ try {
     ReplayCatchUp.Merge(folded,new ZoneUpdate{WeaponSkinsJson="{\"1\":{\"skin_hunter_s1\":\"skin_weapon_hunter_ice_rifle\"}}"});
     ReplayCatchUp.Merge(folded,new ZoneUpdate{ActionScoresJson="new"});
     Check(folded.ActionScoresJson=="new" && folded.WeaponSkinsJson!.Contains("ice_rifle"),"folded seeks keep the latest action scores and weapon skins");
+    folded.PlayerInfo = new() { [1] = new ZonePlayerInfo(), [2] = new ZonePlayerInfo() };
+    ReplayCatchUp.Merge(folded,new ZoneUpdate { PlayerInfo = new() { [2] = new ZonePlayerInfo() } });
+    Check(folded.PlayerInfo.Count==1 && folded.PlayerInfo.ContainsKey(2),"folded roster drops departed players rather than resurrecting their rows");
+    ReplayCatchUp.Merge(folded,new ZoneUpdate { PlayerInfo = new() });
+    Check(folded.PlayerInfo.Count==0,"empty roster snapshot clears prior membership");
     var ackHost=new Host();var ackReplay=Track(new ReplayInstance(ackHost,path,"ack",7));
     ackReplay.EnableControls(7,true);ackReplay.LinkGuidToPlayer(7,Guid.NewGuid(),Guid.NewGuid());
     ackReplay.PlayerEnterScene(7);ackReplay.PlayerZoneReady(7);ackReplay.Control(7,1,0);
@@ -238,22 +243,26 @@ try {
         await Until(()=>!worldHost.State.Seeking && worldHost.State.Position==start+1500);
         int mark=worldHost.Packets.Count;
         world.Control(7,3,-1300);
+        await Until(()=>!worldHost.Scenes.IsEmpty);
+        Check(worldHost.State.Seeking,"capability-12 rewind waits for a fresh client scene");
+        world.PlayerEnterScene(7);world.PlayerZoneReady(7);
         await Until(()=>!worldHost.State.Seeking);
         var rebuilt=Frames(worldHost.Packets.Skip(mark).ToList()).ToList();
-        Check(worldHost.Scenes.IsEmpty && worldHost.State.Position==start+200 && worldHost.State.Paused,"rewind rebuilds in the loaded scene at the target with pause intent");
+        Check(worldHost.State.Position==start+200 && worldHost.State.Paused,"scene-reloaded rewind reaches the target with pause intent");
         int Drop(uint id)=>rebuilt.FindIndex(f=>f.Message==12 && BitConverter.ToUInt32(f.Body,0)==id);
         int Create(uint id)=>rebuilt.FindIndex(f=>f.Message==10 && BitConverter.ToUInt32(f.Body,0)==id);
-        Check(Drop(50)>=0 && Drop(60)>=0 && Create(50)>Drop(50) && Create(60)>Drop(60),"rewind removes the client's units before recreating the target's");
+        Check(Drop(50)<0 && Drop(60)<0 && Create(50)>=0 && Create(60)>=0,"fresh scene creates target units without replaying old-world removal effects");
         var restored=new Dictionary<Vector3s,BlockUpdate>();
         foreach(var f in rebuilt.Where(f=>f.Message==8)) using(var r=new BinaryReader(new MemoryStream(f.Body))){ int n=r.Read7BitEncodedInt();
             for(int i=0;i<n;i++){ var at=new Vector3s(r.ReadInt16(),r.ReadInt16(),r.ReadInt16());restored[at]=BlockUpdate.ReadRecord(r);} }
-        Check(restored.TryGetValue(new Vector3s(0,0,0),out var kept) && kept.Id==7 && restored.TryGetValue(new Vector3s(1,1,1),out var original) && original.Id==5,
-            "blocks changed after the target return to their keyframe value; earlier changes stay");
+        Check(restored.TryGetValue(new Vector3s(0,0,0),out var kept) && kept.Id==7 && !restored.ContainsKey(new Vector3s(1,1,1)),
+            "fresh map retains earlier block updates without applying later destruction");
         Check(!rebuilt.Any(f=>f.Message==9 && ZoneUpdate.ReadRecord(new BinaryReader(new MemoryStream(f.Body))).Phase?.PhaseType==ZonePhaseType.Assault),"rewound zone phase is the target's");
         world.Control(7,3,1700);
         await Until(()=>!worldHost.State.Seeking && worldHost.State.Position==start+1900);
+        int scenes=worldHost.Scenes.Count;
         world.Control(7,3,-1500);
-        await Until(()=>!worldHost.Scenes.IsEmpty);
+        await Until(()=>worldHost.Scenes.Count>scenes);
         Check(worldHost.State.Seeking,"after the match end, rewind falls back to a scene reload");
         world.PlayerLeftInstance(7,KickReason.MatchQuit);
     }
@@ -268,8 +277,10 @@ try {
         atEnd.Control(7,3,60000);
         await Until(()=>endHost.State.Position==4000 && endHost.State.Paused && !endHost.State.Seeking);
         atEnd.Control(7,3,-1000);
+        await Until(()=>!endHost.Scenes.IsEmpty);
+        atEnd.PlayerEnterScene(7);atEnd.PlayerZoneReady(7);
         await Until(()=>!endHost.State.Seeking && endHost.State.Position==3000);
-        Check(endHost.Scenes.IsEmpty && endHost.State.Paused,"in-place rewind from the final frame completes without a reload");
+        Check(endHost.State.Paused,"rewind from the final frame reloads safely and preserves pause");
         atEnd.PlayerLeftInstance(7,KickReason.MatchQuit);
     }
     if(args.Contains("--seek-window-benchmark"))
