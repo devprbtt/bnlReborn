@@ -172,3 +172,8 @@ Apply the integrated Time Assault/Tony/Second Wind runtime and reviewed 19-docum
 ## 2026-11-22 — Shared activation buffs with original-recipient refresh
 
 Use native one-shot target bunches and timed self wrappers for Kira/Trondson, selecting on accepted F with exact ability/marker whitelist. Retain self-only bonuses and source attribution; new untimed Kira reload value lets the wrapper own10s/6s expiry without changing legacy effect data. Record successful original applications in server-only cloned impact metadata. Thrills kills refresh that set, gated by cast lifetime and original unit ids; never rescan nearby players. Keep other aura systems and wire format unchanged. Roll out binary and18 CDB documents together after separate authorization.
+
+
+## 2026-11-23 - Score Tony F on the caster, excluding self
+
+Supersede the November 22 recipient-owned receipt rule: award the caster for each other allied player receiving the timed building marker on accepted F. Exclude the caster by player identity before entering the shared per-cast deduplication set; preserve that set across impact clones. Report through the caster Unit with recipient target/location for correct score ownership and hero attribution. Use Build boost applied while retaining the legacy score configuration key and mapping for compatibility. Keep self buff gameplay and standard objective bonus rules; no score from self, ticking, duplicate reports or rejected casts. No protocol, CDB or client release is necessary. Deployment remains separate.

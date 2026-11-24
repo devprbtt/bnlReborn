@@ -53,8 +53,8 @@ foreach(var wider in new[]{false,true})
             Check(tony.AbilityCharges==0,"native cast route spends its charge");
             Check(Has(tony)&&Has(ally),"Tony and allies in activation range receive timed build buff");
             Check(!Has(late)&&!Has(enemy)&&!Has(dead),"late, enemy and dead players do not receive cast buff");
-            Check(reward.Total(1)==5&&reward.Total(2)==5&&reward.Total(3)==0&&reward.Total(4)==0&&reward.Total(5)==0,
-                "five points go to each affected player rather than all points going to Tony");
+            Check(reward.Total(1)==5&&reward.Total(2)==0&&reward.Total(3)==0&&reward.Total(4)==0&&reward.Total(5)==0,
+                "Tony gets five points per other affected player; self, recipients, enemies and dead players earn nothing");
             for(int i=0;i<3;i++)foreach(var u in units.Append(turret))u.ApplyBuffEffects(.2f);
             Check(ally.GetBuff(BuffType.BuildSpeed)==1 && tony.GetBuff(BuffType.BuildSpeed)==1,"native full build-speed bonus applied");
             Check(turret.GetBuff(BuffType.PlayerDamage)==.5f,"original turret damage bonus preserved as timed snapshot");
@@ -68,18 +68,25 @@ foreach(var wider in new[]{false,true})
             zone.ReceivedHit((ulong)DateTimeOffset.Now.ToUnixTimeMilliseconds(),new(){[4242]=new HitData{InsidePoint=origin}});
             Check(!Has(late)&&reward.Total(3)==0,"delayed or repeated client hit reports cannot change recipients or award points");
             Check(ally.ActiveEffects.Single(e=>e.Key==new Key(Unit.TonyBuildCastEffectId)).ExpirationTime==end,"movement does not refresh duration");
-            Check(reward.Total(1)==5&&reward.Total(2)==5,"persistent buff ticks never repeat score");
+            Check(reward.Total(1)==5&&reward.Total(2)==0,"persistent buff ticks never repeat score");
             zone.ReceivedAbilityCastRequest(2,1,new AbilityCastData{ShotPos=origin},service);
-            Check(reward.Total(1)==5&&reward.Total(2)==5,"rejected recast pays nothing");
+            Check(reward.Total(1)==5&&reward.Total(2)==0,"rejected recast pays nothing");
             // A second accepted activation rewards its own recipient set once.
             tony.AbilityCharges=1;zone.ReceivedAbilityCastRequest(3,1,new AbilityCastData{ShotPos=origin},service);
-            Check(reward.Total(1)==10&&reward.Total(2)==5&&reward.Total(3)==5,"new cast rewards current recipients, not departed recipients");
+            Check(reward.Total(1)==10&&reward.Total(2)==0&&reward.Total(3)==0,"new cast credits Tony for current recipients, not departed recipients");
+            Place(ally,origin+Vector3.UnitX);
+            tony.AbilityCharges=1;zone.ReceivedAbilityCastRequest(4,1,new AbilityCastData{ShotPos=origin},service);
+            Check(reward.Total(1)==20&&reward.Total(2)==0&&reward.Total(3)==0,"two affected teammates give Tony ten points without recipient payouts");
+            Place(ally,origin+new Vector3(radius+8,0,0));Place(late,origin+new Vector3(radius+9,0,0));
+            tony.AbilityCharges=1;zone.ReceivedAbilityCastRequest(5,1,new AbilityCastData{ShotPos=origin},service);
+            Check(Has(tony)&&reward.Total(1)==20,"self-only F still buffs Tony but awards zero points");
             foreach(var u in units.Append(turret))
                 foreach(var effect in u.ActiveEffects.Where(e=>e.Key==new Key(Unit.TonyBuildCastEffectId)||e.Key==new Key("effect_hero_engineer_bfs_turret_cast")))effect.UpdateDuration(0UL);
             for(int i=0;i<3;i++)foreach(var u in units.Append(turret)){u.CleanUpExpired();u.ApplyBuffEffects(.2f);}
             Check(ally.GetBuff(BuffType.BuildSpeed)==0&&late.GetBuff(BuffType.BuildSpeed)==0&&tony.GetBuff(BuffType.BuildSpeed)==0,"timed wrapper expiry removes child build buffs");
             Check(turret.GetBuff(BuffType.PlayerDamage)==0,"timed turret bonus expires normally");
-            Check(reward.Breakdown(2).GetValueOrDefault("Build boost received")==5,"receipt reason appears in score breakdown");
+            Check(reward.Breakdown(1).GetValueOrDefault("Build boost applied")==20&&reward.Breakdown(2).GetValueOrDefault("Build boost received")==0,
+                "Tony's score breakdown credits applied buffs without recipient receipt points");
             return true;
         });
     }

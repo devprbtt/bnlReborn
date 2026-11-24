@@ -71,7 +71,7 @@ public partial class GameZone
             "Fire trap entry" => rules.FireTrapEntry, "Fire trap explosion" => rules.FireTrapExplosion, "Mine affected" => rules.MineAffected,
             "Glue affected" => rules.GlueAffected, "Bush affected" => rules.BushAffected,
             "Build boost assist" => rules.TonyBuildAssist, "Demolition boost assist" => rules.TrondsonDemolitionAssist,
-            "Build boost received" => rules.TonyBuildBuffReceived,
+            "Build boost received" or "Build boost applied" => rules.TonyBuildBuffReceived,
             "Lamp pickup" => rules.GenieLampPickup, "Jinx" => rules.GenieJinx, "Cage affected" => rules.VanderCage,
             "EMP affected" => rules.SweetScienceEmp, "Avalanche affected" => rules.YetiAvalanche,
             "Grenade hit" => rules.SargeGrenadeHit, "Goo affected" => rules.RolyGoo,

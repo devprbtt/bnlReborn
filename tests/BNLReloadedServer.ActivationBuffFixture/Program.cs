@@ -82,6 +82,7 @@ foreach(var variant in new[]{("kira","",10f,10f), ("kira","_idoru",16f,10f),
                 Check(ledger.Breakdown(1).GetValueOrDefault("Demolition boost assist")==10,"existing digging-assist source credit preserved");
             }
             Check(ledger.Breakdown(2).GetValueOrDefault("Build boost received")==0,"Tony-only receipt scoring not added to other heroes");
+            Check(ledger.Breakdown(1).GetValueOrDefault("Build boost applied")==0,"Tony-only caster scoring not added to Kira or Trondson");
             Check(caster.AuraEffects.Keys.All(a=>a.ConstantEffects?.All(k=>
                 !k.GetCard<CardEffect>()!.Id!.StartsWith("effect_hero_"+family))!=false),"F leaves no carried aura");
             Place(ally,origin+new Vector3(radius+8,0,0));Place(late,origin+Vector3.UnitX);
