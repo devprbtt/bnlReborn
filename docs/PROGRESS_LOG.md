@@ -370,3 +370,8 @@ Use the existing fresh-scene path for backwards seeks, including capability-12 c
 ## 2026-11-23 - Prevent consecutive BB drops at the same map point
 
 Prepared an isolated server repair tracking the previous BB marker per GameZone. Exclude that coordinate from the next BB selection when alternatives exist, deduplicate BB marker coordinates, and apply the normal random offset afterwards. Resource drops do not overwrite BB history. Single-location maps retain their scheduled drop; absent markers retain history. Supply schedule 42 checks, Blockbuster deadline/landing suite and Conquest 100 checks pass; Release warnings-as-errors build clean. No client/catalogue changes or deployment. Source branch fix/bb-no-consecutive-drop-20261123; evidence reports/bb-no-consecutive-drop/.
+
+
+## 2026-11-23 - Tony F credits the caster for other affected players
+
+Owner clarified that Tony earns five base points per affected teammate and his self-buff must not count. Route the existing successful-buff hook through the caster Unit, reject self before deduplication, and use Build boost applied as the breakdown reason. Recipients receive no receipt points. Keep per-cast player deduplication, ranges/duration/native turret bonus, and legacy TonyBuildBuffReceived configuration key. Both variants: Tony fixture 38 checks; Kira/Trondson activation regression 115; action scoring 308; cooldown 21 (482 total). Release warnings-as-errors build zero warnings/errors. Source branch fix/tony-f-caster-points-20261123; no CDB/client change or deployment. Evidence in client reports/tony-f-caster-points/.

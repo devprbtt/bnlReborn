@@ -39,6 +39,7 @@ public sealed class ActionScoreRules
     public int BushAffected { get; set; } = 5;
     public float TrapEffectCooldown { get; set; } = 15;
     public int TonyBuildAssist { get; set; } = 5;
+    // Legacy configuration name; pays the caster per other F-buff recipient.
     public int TonyBuildBuffReceived { get; set; } = 5;
     public int TrondsonDemolitionAssist { get; set; } = 10;
     public int GenieLampPickup { get; set; } = 10;

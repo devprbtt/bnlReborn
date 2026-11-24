@@ -185,3 +185,8 @@ Disable in-place backward reconstruction even when capability 12 is negotiated. 
 ## 2026-11-23 - Exclude the previous BB anchor before landing offsets
 
 Remember the last selected Blockbuster map drop-point coordinate per zone, shared across BB tiers and retained through resource drops. Exclude that coordinate uniformly from distinct valid BB anchors when another location exists; apply the existing randomized landing offset after selection. Use coordinates so duplicate markers cannot bypass exclusion. Preserve single-location-map drops rather than stall the supply schedule, and retain history when no marker is available. No wire format, CDB or client change; deployment remains separate.
+
+
+## 2026-11-23 - Score Tony F on the caster, excluding self
+
+Supersede the November 22 recipient-owned receipt rule: award the caster for each other allied player receiving the timed building marker on accepted F. Exclude the caster by player identity before entering the shared per-cast deduplication set; preserve that set across impact clones. Report through the caster Unit with recipient target/location for correct score ownership and hero attribution. Use Build boost applied while retaining the legacy score configuration key and mapping for compatibility. Keep self buff gameplay and standard objective bonus rules; no score from self, ticking, duplicate reports or rejected casts. No protocol, CDB or client release is necessary. Deployment remains separate.

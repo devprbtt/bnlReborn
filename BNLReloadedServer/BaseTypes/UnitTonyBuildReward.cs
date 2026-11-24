@@ -8,6 +8,7 @@ public partial class Unit
     {
         if (PlayerId is not { } recipient || IsDead || !IsActive || IsDropped || Team == TeamType.Neutral ||
             source is not UnitSource { Unit.PlayerId: not null, Impact: { } impact } caster ||
+            recipient == caster.Unit.PlayerId ||
             caster.Unit.Team != Team ||
             !ScoreCardFamily(ScoreSourceId(impact.SourceKey), "ability_engineer_bfs") ||
             !effects.Any(e => e.Card.Id == TonyBuildCastEffectId && e.HasDuration)) return;
@@ -15,6 +16,6 @@ public partial class Unit
         // application/ticks/cloned impacts can therefore never pay it twice.
         impact.TonyBuildRewardRecipients ??= [];
         if (!impact.TonyBuildRewardRecipients.Add(recipient)) return;
-        ReportActionScore("Build boost received", 1, GetMidpoint(), caster.Unit.Id);
+        caster.Unit.ReportActionScore("Build boost applied", 1, GetMidpoint(), Id);
     }
 }
