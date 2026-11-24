@@ -360,3 +360,8 @@ Prepared18-card patch (11 existing,7 new);2048 other documents unchanged. New wo
 Prepared native death cleanup of the active ability toggle and duration, using the existing AbilityUsed(update) to consume its charge and publish cooldown immediately. Normal Roly and Rolling Wild fast respawns retain the endpoint on the new unit id; duplicate death and death during an existing cooldown cannot reset it. No client or CDB change.
 
 Actual-zone regression fails on live base0fee0bc and passes34 checks after the fix. Existing cooldown21, action-score308 and Second Wind68 pass (431 total); Release warnings-as-errors build zero warnings/errors. KillAccolade archive-layout assertion fails identically on unchanged live source and fixed branch; recorded without unrelated changes. Branch fix/roly-trigger-death-cooldown-20261122. No deployment or publication. See docs/ROLY_TRIGGER_DEATH_COOLDOWN.md in server source and reports/roly-trigger-death/ in client workspace.
+
+
+## 2026-11-23 - Replay rewind and roster recovery prepared
+
+Use the existing fresh-scene path for backwards seeks, including capability-12 clients; native client state cannot be reversed by removing units alone. Preserve forward seeking, requested time, pause and presentation acknowledgements. Fold PlayerInfo as complete membership replacement, with departure/empty-snapshot regression checks and matching recording oracle. Replay controls 70 checks and recorder 48 assertions pass; Release warnings-as-errors build zero warnings/errors. No live deployment. See docs/REPLAY_REWIND_RECOVERY.md.

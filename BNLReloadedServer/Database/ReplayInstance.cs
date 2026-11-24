@@ -136,9 +136,12 @@ public sealed class ReplayInstance : GameInstanceBase
         _controls = true;
         _acknowledgedSeeking = acknowledgedSeeking;
         _presentationReady = presentationReady;
-        // In-place rewind relies on acknowledged batches to know when the
-        // rebuilt state is visible.
-        _rewindInPlace = rewindInPlace && acknowledgedSeeking;
+        // Capability 12 only promises packet handling, not a reset of native
+        // camera, animation, UI, audio and timestamp caches. Removing units
+        // cannot undo those states. Use the existing scene-reload path for
+        // backwards seeks until the client has a complete timeline reset.
+        // Keep the argument for compatibility with capability negotiation.
+        _rewindInPlace = false;
     }
 
     private long Position => Math.Min(_timeline.DurationMs, _position + _clock.ElapsedMilliseconds);

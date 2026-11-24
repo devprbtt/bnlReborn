@@ -175,3 +175,8 @@ Use native one-shot target bunches and timed self wrappers for Kira/Trondson, se
 ## 2026-11-22 — End active trigger abilities on native death
 
 Death must consume an active toggle before a quick respawn inherits it. Clear the flag/duration and call AbilityUsed(update) in the death update, preserving native duration/reduction and respawn snapshot behavior. Keep existing cooldown unchanged when no toggle is active. Both Roly variants are covered without protocol/client/CDB changes; deployment remains separate.
+
+
+## 2026-11-23 - Prefer complete scene lifecycle for backwards replay seeks
+
+Disable in-place backward reconstruction even when capability 12 is negotiated. Preserve the negotiation API and existing scene-reload/target reconstruction path so older clients also benefit. Acknowledged packet application cannot guarantee native camera, animation, UI, audio or timestamp state has reset. Re-enable only after an explicit comprehensive client timeline reset is tested. PlayerInfo folds replace complete membership to match the current client; statistics still merge per player. No protocol/CDB changes or live deployment.
