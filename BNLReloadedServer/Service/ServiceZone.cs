@@ -135,7 +135,7 @@ public partial class ServiceZone(ISender sender, Func<System.Net.IPAddress?>? pe
     // 6: high-rate look stream with aim state, relayed to spectators.
     // 7: Skill II (Accomplice) players are told which enemy heroes they currently lead on damage.
     // 12 is the client's in-place replay rewind (replay rewinds rebuild state in the loaded scene); 13 adds clan emblems.
-    private const int TeamPingProtocolVersion = 19;
+    private const int TeamPingProtocolVersion = 20;
     public bool SupportsAdminSpectator { get; private set; }
     public bool SupportsAdminInvisibility { get; private set; }
     public bool SupportsAdminGravity { get; private set; }
@@ -143,6 +143,7 @@ public partial class ServiceZone(ISender sender, Func<System.Net.IPAddress?>? pe
     public bool SupportsAdminFunnyMode { get; private set; }
     public bool SupportsTimeAssaultReady { get; private set; }
     private bool _supportsReplayControls;
+    private bool _supportsReplayTimeline;
     private bool _supportsReplaySeekAck;
     private bool _supportsReplayPresentationReady;
     private bool _supportsReplayInPlaceRewind;
@@ -202,6 +203,7 @@ public partial class ServiceZone(ISender sender, Func<System.Net.IPAddress?>? pe
                 SupportsAimLook = version >= 6;
                 SupportsAssistLead = version >= 7;
                 _supportsReplayControls = version >= 8;
+                _supportsReplayTimeline = version >= 20;
                 _supportsReplaySeekAck = version >= 10;
                 _supportsReplayPresentationReady = version >= 11;
                 _supportsReplayInPlaceRewind = version >= 12;
@@ -213,7 +215,7 @@ public partial class ServiceZone(ISender sender, Func<System.Net.IPAddress?>? pe
         {
             if (_supportsReplayControls && GameInstance is ReplayInstance replay)
                 replay.EnableControls(sender.AssociatedPlayerId.Value, _supportsReplaySeekAck, _supportsReplayPresentationReady,
-                    _supportsReplayInPlaceRewind);
+                    _supportsReplayInPlaceRewind, _supportsReplayTimeline);
             GameInstance?.PlayerZoneReady(sender.AssociatedPlayerId.Value);
         }
     }

@@ -45,6 +45,7 @@ public sealed class ReplayInstance : GameInstanceBase
     private bool _paused;
     private bool _seeking;
     private bool _controls;
+    private bool _eventTimeline;
     private bool _acknowledgedSeeking;
     private int _barrierSequence;
     private readonly List<(int Id, TaskCompletionSource<bool> Completion)> _barriers = [];
@@ -64,7 +65,8 @@ public sealed class ReplayInstance : GameInstanceBase
     public string GameInstanceId { get; }
     public string MatchId { get; }
 
-    public ReplayInstance(IReplayHost host, string path, string matchId, uint viewerId, int seekWindow = 8)
+    public ReplayInstance(IReplayHost host, string path, string matchId, uint viewerId, int seekWindow = 8,
+        Func<Key, CardUnit?>? unitCard = null)
     {
         _host = host;
         _seekWindow = Math.Clamp(seekWindow, 1, 8);
@@ -73,7 +75,7 @@ public sealed class ReplayInstance : GameInstanceBase
         MatchId = matchId;
         GameInstanceId = "replay-" + Guid.NewGuid().ToString("N");
         using var reader = new ReplayReader(path);
-        _timeline = new ReplayTimeline(path);
+        _timeline = new ReplayTimeline(path, unitCard);
         var metadata = reader.Metadata.RootElement;
         _gameMode = Key.FromHash(metadata.GetProperty("mode_key").GetUInt32());
         _matchKey = Key.FromHash(metadata.GetProperty("match_key").GetUInt32());
@@ -130,10 +132,11 @@ public sealed class ReplayInstance : GameInstanceBase
     }
 
     public void EnableControls(uint playerId, bool acknowledgedSeeking = false, bool presentationReady = false,
-        bool rewindInPlace = false)
+        bool rewindInPlace = false, bool eventTimeline = false)
     {
         if (playerId != _viewerId) return;
         _controls = true;
+        _eventTimeline = eventTimeline;
         _acknowledgedSeeking = acknowledgedSeeking;
         _presentationReady = presentationReady;
         // Capability 12 only promises packet handling, not a reset of native
@@ -165,7 +168,7 @@ public sealed class ReplayInstance : GameInstanceBase
                 return;
             }
             if (_streaming == 0 || _seeking) return;
-            if (command == 0) { SendState(); return; }
+            if (command == 0) { SendState(); SendTimeline(); return; }
             if (command is 1 or 2)
             {
                 if (command == 2 && Position >= _timeline.DurationMs) { SendState(); return; }
@@ -180,6 +183,7 @@ public sealed class ReplayInstance : GameInstanceBase
             long target;
             if (command == 3) target = Position + Math.Clamp(argument, -60000, 60000);
             else if (command == 4) target = _timeline.NextCombat(Position);
+            else if (command == 6 && _eventTimeline) target = Math.Max(0, argument);
             else return;
             if (target < 0 && command == 4) { SendState(); return; }
             target = Math.Clamp(target, _presentationReady ? _timeline.FirstPlayableOffset : 0, Math.Max(0L, (long)_timeline.DurationMs - 1));
@@ -214,6 +218,23 @@ public sealed class ReplayInstance : GameInstanceBase
     private void SetClock() => _host.SetReplayClock(_viewerId,
         _recordedServerTime + Position - DateTimeOffset.Now.ToUnixTimeMilliseconds());
 
+    private void SendTimeline()
+    {
+        if (!_eventTimeline) return;
+        // Small independent chunks keep even long matches below the packet limit.
+        for (int offset = 0; offset < Math.Max(1, _timeline.Events.Count); offset += 64)
+        {
+            using var writer = new BinaryWriter(new MemoryStream());
+            writer.Write((byte)6); writer.Write((byte)121);
+            writer.Write(offset == 0);
+            int count = Math.Min(64, _timeline.Events.Count-offset);
+            writer.Write(count);
+            foreach (var item in _timeline.Events.Skip(offset).Take(count))
+            { writer.Write((long)item.At); writer.Write(item.Kind); writer.Write(item.Label); }
+            Send(RecordingSender.Frame(writer));
+        }
+    }
+
     private void SendState()
     {
         if (!_controls) return;
@@ -235,6 +256,7 @@ public sealed class ReplayInstance : GameInstanceBase
         {
             if (playerId != _viewerId || _load == null || IsOver() || _streaming != 0) return;
             _streaming = 1;
+            SendTimeline();
             _position = 0;
             _clock.Reset();
             _world = new ReplayWorld(); // the client loaded a fresh scene
