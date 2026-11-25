@@ -72,7 +72,7 @@ def main():
         assert Path(name).name == name and sha(upload/name) == digest,name
     for row in manifest['maps']:
         name = row['map_id']+'.bnlbin'
-        assert re.fullmatch('map_sr2_[a-z_]+\.bnlbin',name)
+        assert re.fullmatch(r'map_sr2_[a-z_]+\.bnlbin',name)
         assert sha(upload/name) == row['after_sha256'],name
         assert sha(maps/name) == row['before_sha256'],'Map baseline changed: '+name
     assert (upload/'REVISION').read_text().strip() == revision
