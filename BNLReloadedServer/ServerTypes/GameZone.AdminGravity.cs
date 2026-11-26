@@ -51,6 +51,7 @@ public partial class GameZone
             var center=hold.Admin.GetMidpoint();
             foreach(var target in GravityCandidates(hold.Admin,radius))
             {
+                if (!CanKnockback(target, hold.Admin, hold.Admin.Team, false)) continue;
                 ReleaseGravityGrab(target);
                 float force=AdminGravityRules.Force(charge,Vector3.Distance(center,target.GetMidpoint()));
                 _serviceZone.SendUnitManeuver(target.Id,new ManeuverKnockback {Origin=center,Force=force,MidairForce=force});

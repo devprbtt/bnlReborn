@@ -540,6 +540,16 @@ public partial class GameZone : Updater
     private bool AreOpponents(Unit target, Unit source) =>
         RelationshipApplies(target, source, source.Team, RelativeTeamType.Opponent);
 
+    private bool CanKnockback(Unit target, Unit? source, TeamType sourceTeam, bool affectCaster)
+    {
+        // Owned projectiles/devices count as self, even after the shooter respawns.
+        // Other players must be opponents regardless of friendly-fire settings.
+        if (source is not null && (target.Id == source.Id ||
+            target.PlayerId.HasValue && target.PlayerId == source.CombatOwnerPlayerId))
+            return affectCaster;
+        return RelationshipApplies(target, source, sourceTeam, RelativeTeamType.Opponent);
+    }
+
     internal static void AssignPickupToRecipient(bool freeForAll, Unit pickup, Unit recipient)
     {
         pickup.Team = recipient.Team;

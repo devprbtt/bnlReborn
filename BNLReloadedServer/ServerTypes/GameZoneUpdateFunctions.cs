@@ -290,7 +290,8 @@ public partial class GameZone
 
             InstEffectKnockback instEffectKnockback => _unitOctree
                 .GetColliding(new BoundingSphere(impactPoint, instEffectKnockback.EffectRange))
-                .Where(u => u.PlayerId != null && !u.IsBuff(BuffType.KnockbackIgnore) && !u.IsBuff(BuffType.Root)),
+                .Where(u => u.PlayerId != null && !u.IsBuff(BuffType.KnockbackIgnore) && !u.IsBuff(BuffType.Root) &&
+                    CanKnockback(u, unitSource, source.Team, instEffectKnockback.AffectCaster)),
 
             InstEffectResourceAll => _playerUnits.Values.ToList(),
 
@@ -1057,13 +1058,6 @@ public partial class GameZone
                 return true;
 
             case InstEffectKnockback instEffectKnockback:
-                actualUnitList = actualUnitList.Where(u => u.PlayerId != null).ToList();
-
-                if (!instEffectKnockback.AffectCaster && unitSource is not null)
-                {
-                    actualUnitList.RemoveAll(u => u.PlayerId == unitSource.OwnerPlayerId);
-                }
-
                 if (hasImpact)
                 {
                     impactData.HitUnits = actualUnitList.Select(u => u.Id).ToList();
