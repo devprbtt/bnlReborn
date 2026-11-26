@@ -1493,6 +1493,9 @@ public partial class Unit
             keys.Remove(CatalogueHelper.KillThrillRegenKey);
 
         var buffResult = new Dictionary<BuffType, float>();
+        // Healing reductions other units inflict (Heal Bane, Bloody Bleeding) do not stack with each
+        // other: the strongest one applies. The unit's own perk penalties still add on top of it.
+        var strongestInflictedHealCut = 0f;
         foreach (var card in keys.Select(effect => Databases.Catalogue.GetCard<CardEffect>(effect)))
         {
             if (card?.Effect is not ConstEffectBuff { Buffs: not null } effectBuff) continue;
@@ -1503,6 +1506,11 @@ public partial class Unit
                 // Fast Restock gains are evaluated with their source, not as global gain buffs.
                 if (card.Id == StationHealing.FastRestockEffect &&
                     buff.Key is BuffType.HealthGain or BuffType.AmmoGain) continue;
+                if (buff.Key == BuffType.HealthGain && buff.Value < 0 && InitialEffects?.ContainsKey(card.Key) != true)
+                {
+                    strongestInflictedHealCut = MathF.Min(strongestInflictedHealCut, buff.Value);
+                    continue;
+                }
                 if (buffResult.TryGetValue(buff.Key, out var value))
                 {
                     buffResult[buff.Key] = this.CombineBuffs(value, buff.Value, buff.Key, card.Key);
@@ -1513,6 +1521,10 @@ public partial class Unit
                 }
             }
         }
+        if (strongestInflictedHealCut < 0)
+            buffResult[BuffType.HealthGain] = buffResult.TryGetValue(BuffType.HealthGain, out var healthGain)
+                ? MathF.Max(healthGain + strongestInflictedHealCut, -1)
+                : MathF.Max(strongestInflictedHealCut, -1);
 
         if (_debugDummyMaxHealth is { } dummyHealth) buffResult[BuffType.HealthCap] = dummyHealth - 1;
         if (AdminFunnyMode)

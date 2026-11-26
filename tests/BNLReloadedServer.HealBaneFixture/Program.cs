@@ -41,7 +41,19 @@ var bleed = new CardEffect
     Effect = new ConstEffectBuff { Targeting = opponents, Buffs = new() { [BuffType.Bleeding] = 5f } }
 };
 
-var protectedDots = new[] { BuffType.Bleeding, BuffType.Burning, BuffType.Poisoned }.Select(buff => new CardEffect
+// Bloody Bleeding's healing cut and a hero's own perk penalty, as the live catalogue carries them.
+var bloodyHealCut = new CardEffect
+{
+    Id = "effect_status_bleed_bloody_bleeding_heal", Positive = false, Duration = 5,
+    Effect = new ConstEffectBuff { Buffs = new() { [BuffType.HealthGain] = -0.2f } }
+};
+var perkHealPenalty = new CardEffect
+{
+    Id = "effect_perk_just_a_scratch_neg", Positive = false,
+    Effect = new ConstEffectBuff { Buffs = new() { [BuffType.HealthGain] = -0.25f } }
+};
+
+var protectedDots =new[] { BuffType.Bleeding, BuffType.Burning, BuffType.Poisoned }.Select(buff => new CardEffect
 {
     Id = "fixture_spawn_protection_" + buff, Positive = false, Duration = 60,
     Effect = new ConstEffectBuff { Targeting = opponents, Buffs = new() { [buff] = 5f } }
@@ -57,7 +69,7 @@ var hero = new CardUnit
 var mode = new CardGameMode { Id = "game_mode_friendly" };
 var catalogue = (ServerCatalogue)Databases.Catalogue;
 catalogue.Replicate([
-    gear, hero, debuff, perk, weakDebuff, weakPerk, bleed, .. protectedDots, mode, new CardGameMode { Id = "game_mode_custom" },
+    gear, hero, debuff, perk, weakDebuff, weakPerk, bleed, bloodyHealCut, perkHealPenalty, .. protectedDots, mode, new CardGameMode { Id = "game_mode_custom" },
     new CardMatch { Id = "fixture_hb_match", Data = new MatchDataShieldCapture() },
     new CardBlock { Id = "fixture_air", BlockId = 0, Passable = BlockPassableType.Any, Transparent = true, LightTransparent = true, SkylightTransparent = true },
     new CardGlobalLogic { Id = "global_logic" }
@@ -170,6 +182,45 @@ Reset(victim);
 Hit(victim, gear.Key, by: secondAttacker);
 Check(Baned(victim, weakDebuff) && !Baned(victim, debuff) && Math.Abs(victim.HealthGainAmount(10f) - 7f) < 0.01f,
     "a perk variant pointing at another debuff applies that one's values (30%)");
+
+// Healing cuts other heroes inflict do not stack: the strongest applies. Own perk penalties still add.
+float Healed(Unit u) => OnZone(() => u.HealthGainAmount(10f));
+void Inflict(Unit u, CardEffect e) => OnZone(() => { u.AddEffect(new ConstEffectInfo(e.Key), attacker.Team, attacker.GetSelfSource()); return 0; });
+Reset(other);
+Inflict(other, bloodyHealCut);
+Check(Baned(other, bloodyHealCut) && Math.Abs(Healed(other) - 8f) < 0.01f, "Bloody Bleeding alone cuts healing by 20%");
+Hit(other, gear.Key);
+Check(Baned(other, debuff) && Baned(other, bloodyHealCut), "Heal Bane and Bloody Bleeding are both active");
+Check(Math.Abs(Healed(other) - 4f) < 0.01f, "together they cut healing by 60%, not 80%");
+Reset(other);
+Hit(other, gear.Key);
+Inflict(other, bloodyHealCut);
+Check(Baned(other, debuff) && Baned(other, bloodyHealCut) && Math.Abs(Healed(other) - 4f) < 0.01f,
+    "the order they land in does not matter");
+// Heal Bane (shorter) runs out first: expire it and let the unit drop it as its own tick does.
+OnZone(() =>
+{
+    other.ActiveEffects.Single(e => e.Key == debuff.Key).UpdateDuration(1);
+    typeof(Unit).GetMethod("RemoveExpiredEffects", Any)!.Invoke(other, null);
+    return 0;
+});
+Check(!Baned(other, debuff) && Baned(other, bloodyHealCut) && Math.Abs(Healed(other) - 8f) < 0.01f,
+    "when Heal Bane ends, Bloody Bleeding's 20% remains");
+Reset(other);
+OnZone(() =>
+{
+    other.InitialEffects = other.InitialEffects.SetItem(perkHealPenalty.Key, null);
+    other.AddEffect(new ConstEffectInfo(perkHealPenalty.Key), other.Team, other.GetSelfSource());
+    return 0;
+});
+Check(Baned(other, perkHealPenalty) && Math.Abs(Healed(other) - 7.5f) < 0.01f, "an own perk penalty alone cuts healing by 25%");
+Inflict(other, bloodyHealCut);
+Check(Math.Abs(Healed(other) - 5.5f) < 0.01f, "own perk penalty and Bloody Bleeding still add (45%)");
+Hit(other, gear.Key);
+Check(Baned(other, debuff) && Math.Abs(Healed(other) - 1.5f) < 0.01f,
+    "own perk penalty adds to the strongest inflicted cut only (25% + 60% = 85%)");
+OnZone(() => { other.InitialEffects = other.InitialEffects.Remove(perkHealPenalty.Key); return 0; });
+Reset(other);
 
 // The client has no on_hit type and throws on unknown variants; it must be sent something it parses.
 using (var stream = new MemoryStream())
