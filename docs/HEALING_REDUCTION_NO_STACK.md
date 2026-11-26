@@ -43,3 +43,14 @@ clients receive the combined buff value as before.
 - `BNLReloadedServer` Release `-warnaserror --no-incremental`: 0 warnings, 0 errors.
 
 Requires a server deployment (restart); not deployed.
+
+## Bleed ticks do not re-trigger Heal Bane (checked 2026-11-26)
+
+`tests/BNLReloadedServer.HealBaneBleedFixture` (live catalogue as args[0]) equips the live `perk_off_heal_bane`
+on a real Ninja and hits a real enemy with the Katana swing, Ninja Star and triple throw of the Bloody Bleeding
+gear, through the same `ApplyInstEffect` call `ReceivedHit` makes. The bleed then ticks through `ApplyBuffEffects`
+and the zone damage handler. 34 checks: each direct hit applies Heal Bane; bleed ticks deal damage but neither
+refresh Heal Bane (live `ExpirationTime` unchanged) nor reapply it after it runs out; the next direct hit does.
+With the `PeriodicEffect` guard removed from `OnHitEffectsApply` the fixture fails, so it detects the bug.
+No server or CDB change was needed. Note: `ConstEffectInfo.TimestampEnd` is the original stamp; refreshes move
+`ExpirationTime`.
