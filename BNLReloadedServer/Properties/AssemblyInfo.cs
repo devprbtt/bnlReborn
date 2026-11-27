@@ -19,3 +19,4 @@ using System.Runtime.CompilerServices;
 [assembly: InternalsVisibleTo("BNLReloadedServer.TrophyFixture")]
 
 [assembly: InternalsVisibleTo("BNLReloadedServer.MmrFixture")]
+[assembly: InternalsVisibleTo("BNLReloadedServer.ChatModerationFixture")]

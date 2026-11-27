@@ -1828,6 +1828,10 @@ public partial class GameZone
         var lootKiller = _gameInitiator is WaitingArenaInitiator && killerPlayer is not null
             ? killerPlayer
             : killer;
+        // A hero's own weapon or device can credit that hero with their death.
+        // Use the same neutral pickup as an environmental death.
+        if (target.PlayerId is { } victimId && (impact.CasterPlayerId == victimId || killer == target))
+            lootKiller = null;
         var friendlyKill = lootKiller is not null && !AreOpponents(target, lootKiller);
         if (lootKiller is null)
         {

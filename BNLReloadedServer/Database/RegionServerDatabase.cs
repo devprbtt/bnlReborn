@@ -48,6 +48,7 @@ public partial class RegionServerDatabase(AsyncTaskTcpServer server, AsyncTaskTc
     }
 
     private readonly ConcurrentDictionary<uint, ConnectionInfo> _connectedUsers = new();
+    private readonly Lock _chatMuteLock = new();
     private readonly ConcurrentDictionary<uint, ConcurrentQueue<string>> _scheduledNotifications = new();
 
     // Session teardown removes from these on arbitrary threads while request threads read them,
@@ -258,7 +259,13 @@ public partial class RegionServerDatabase(AsyncTaskTcpServer server, AsyncTaskTc
 
             var data = _playerDatabase.GetPlayerDataNoWait(userId);
 
-            result = _connectedUsers.TryAdd(userId, new ConnectionInfo(sessionId, chatPlayer, data is { Role: PlayerRole.Admin or PlayerRole.Core }));
+            var connection = new ConnectionInfo(sessionId, chatPlayer, data is { Role: PlayerRole.Admin or PlayerRole.Core });
+            lock (_chatMuteLock)
+            {
+                foreach (var targetId in Databases.MasterServerDatabase.GetChatMutes(userId).GetAwaiter().GetResult())
+                    connection.Ignored.TryAdd(targetId, 0);
+                result = _connectedUsers.TryAdd(userId, connection);
+            }
         }
         else
         {
@@ -1194,19 +1201,28 @@ public partial class RegionServerDatabase(AsyncTaskTcpServer server, AsyncTaskTc
 
     public bool SetIgnored(uint playerId, uint targetId, bool ignore)
     {
-        if (playerId == targetId || !UserConnected(playerId, out var playerInfo)) return false;
-        if (!(ignore ? playerInfo.Ignored.TryAdd(targetId, 0) : playerInfo.Ignored.TryRemove(targetId, out _)))
-            return false;
-        SendIgnores(playerInfo);
-        return true;
+        if (targetId == 0 || playerId == targetId) return false;
+        lock (_chatMuteLock)
+        {
+            if (!UserConnected(playerId, out var playerInfo) || !playerInfo.Online ||
+                playerInfo.Ignored.ContainsKey(targetId) == ignore) return false;
+
+            Databases.MasterServerDatabase.SetChatMute(playerId, targetId, ignore).GetAwaiter().GetResult();
+            if (ignore) playerInfo.Ignored.TryAdd(targetId, 0);
+            else playerInfo.Ignored.TryRemove(targetId, out _);
+            SendIgnores(playerInfo);
+            return true;
+        }
     }
 
-    // A player who reconnects mid-match keeps their mutes here but starts with an empty client-side
-    // list, so it has to be pushed again once the new session's services are up.
+    // Push the account's full list once the client services are ready, including an empty list.
     public void SendIgnoresTo(uint playerId)
     {
-        if (UserConnected(playerId, out var playerInfo) && playerInfo.Ignored.Count > 0)
-            SendIgnores(playerInfo);
+        lock (_chatMuteLock)
+        {
+            if (UserConnected(playerId, out var playerInfo))
+                SendIgnores(playerInfo);
+        }
     }
 
     private void SendIgnores(ConnectionInfo playerInfo)
@@ -1293,11 +1309,6 @@ public partial class RegionServerDatabase(AsyncTaskTcpServer server, AsyncTaskTc
         var wasArena = gameInstanceId == _waitingArenaInstanceId;
         playerInfo.GameInstanceId = null;
         if (wasArena) _waitingArenaInitiator?.RemovePlayer(playerId);
-        if (playerInfo.Ignored.Count > 0)
-        {
-            playerInfo.Ignored.Clear();
-            SendIgnores(playerInfo);
-        }
         UpdateScene(playerId, new SceneMainMenu());
         if (wasArena)
         {

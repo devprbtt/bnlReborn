@@ -31,6 +31,7 @@ public class MasterServerDatabase : IMasterServerDatabase
         _playerDb.CreateTableAsync<PlayerRecord>().Wait();
         _playerDb.CreateTableAsync<PlayerIpRecord>().Wait();
         _playerDb.CreateTableAsync<PlayerPresenceRecord>().Wait();
+        ChatMuteStore.EnsureSchema(_playerDb).GetAwaiter().GetResult();
         _playerDb.CreateTableAsync<ArchivedMatchRecord>().Wait();
         _playerDb.CreateTableAsync<ArchivedMatchTeamRecord>().Wait();
         _playerDb.CreateTableAsync<ArchivedMatchPlayerRecord>().Wait();
@@ -913,6 +914,11 @@ public class MasterServerDatabase : IMasterServerDatabase
             _asyncLock.Release();
         }
     }
+
+    public Task<List<uint>> GetChatMutes(uint playerId) => ChatMuteStore.Read(_playerDb, playerId);
+
+    public Task SetChatMute(uint playerId, uint targetId, bool muted) =>
+        ChatMuteStore.Write(_playerDb, playerId, targetId, muted);
 
     public async Task<DateTimeOffset?> GetLastOnline(uint playerId)
     {

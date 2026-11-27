@@ -44,4 +44,26 @@ Check(!region.SendMessage(4,new RoomIdGlobal(),"test"),"global ingress blocked")
 Check(!region.SendMessage(4,new RoomIdSquad(),"test"),"room ingress blocked");
 Check(region.SendMessage(4,110,"test")!=null,"private ingress blocked");
 Check(!region.SendClanChat(4,"test"),"clan ingress blocked");
+var dbPath = Path.Combine(temp, "player-mutes.db");
+var firstConnection = new SQLite.SQLiteAsyncConnection(dbPath);
+await ChatMuteStore.EnsureSchema(firstConnection);
+await ChatMuteStore.EnsureSchema(firstConnection);
+Check((await ChatMuteStore.Read(firstConnection, 1)).Count == 0, "existing account starts with no persisted mutes");
+await ChatMuteStore.Write(firstConnection, 1, 0xf1234567U, true);
+await ChatMuteStore.Write(firstConnection, 1, 0xf1234567U, true);
+await ChatMuteStore.Write(firstConnection, 2, 3, true);
+await firstConnection.CloseAsync();
+
+var restarted = new SQLite.SQLiteAsyncConnection(dbPath);
+Check((await ChatMuteStore.Read(restarted, 1)).SequenceEqual(new[] { 0xf1234567U }),
+    "mute survives a fresh SQLite connection with no duplicate or signed ID conversion");
+Check((await ChatMuteStore.Read(restarted, 2)).SequenceEqual(new[] { 3U }),
+    "mute lists are scoped to their owning account");
+await ChatMuteStore.Write(restarted, 1, 0xf1234567U, false);
+await restarted.CloseAsync();
+var afterUnmute = new SQLite.SQLiteAsyncConnection(dbPath);
+Check((await ChatMuteStore.Read(afterUnmute, 1)).Count == 0 &&
+    (await ChatMuteStore.Read(afterUnmute, 2)).SequenceEqual(new[] { 3U }),
+    "unmute survives reopening and preserves other accounts");
+await afterUnmute.CloseAsync();
 Console.WriteLine($"PASS {checks} chat moderation checks");

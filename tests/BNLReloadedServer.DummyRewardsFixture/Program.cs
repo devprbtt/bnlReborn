@@ -124,6 +124,22 @@ OnZone(() =>
     Check(!shooter.ActiveEffects.Any(e => e.Key == slow.Key), "slow immunity removes the slow already applied");
     shooter.AddEffect(new ConstEffectInfo(Catalogue.Key("effect_status_slow_glue"), 5f), enemy.Team, enemy.GetSelfSource(Hit(enemy)));
     Check(!shooter.ActiveEffects.Any(e => e.Key == slow.Key), "and still blocks a new one");
+    lootBefore = Loot();
+    ally.Killed(Hit(shooter));
+    Check(ally.IsDead && Loot() == lootBefore, "a teammate killing the hero still follows the CDB friendly-kill flag");
+
+    lootBefore = Loot();
+    var selfDamage = Hit(shooter);
+    selfDamage.CasterUnitId = device.Id;
+    shooter.Killed(selfDamage);
+    var drop = units.Values.Where(u => u.Key == Catalogue.Key("unit_pickup_hero_loot") && !u.IsDead)
+        .MaxBy(u => u.Id);
+    Check(shooter.IsDead && Loot() == lootBefore + 1 && drop?.Team == TeamType.Neutral,
+        "a suicide credited through the player's own device spawns one neutral hero pickup");
+
+    lootBefore = Loot();
+    enemy.Killed(Hit(enemy));
+    Check(enemy.IsDead && Loot() == lootBefore + 1, "directly self-attributed death also drops a hero pickup");
     return true;
 });
 zone.Stop();

@@ -19,6 +19,8 @@ public interface IMasterServerDatabase
     public Task RecordPlayerIp(uint playerId, IPAddress? address);
     public Task<DateTimeOffset?> GetLastOnline(uint playerId);
     public Task SaveLastOnline(uint playerId, DateTimeOffset lastOnline);
+    public Task<List<uint>> GetChatMutes(uint playerId);
+    public Task SetChatMute(uint playerId, uint targetId, bool muted);
     public Task<List<PlayerIpRecord>> GetIpsForPlayer(uint playerId);
     public Task<List<PlayerIpRecord>> GetPlayersForIp(string ip);
     public Task<List<string>> GetNicknamesForIp(string ip, int limit);
