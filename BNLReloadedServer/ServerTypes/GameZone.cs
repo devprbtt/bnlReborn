@@ -2608,8 +2608,7 @@ public partial class GameZone : Updater
 
                     case UnitDataLandmine when !isDisabled && unit.LandmineEffect is not null:
                         var nearbyUnits = _unitOctree.GetColliding(unit.LandmineEffect.Shape);
-                        var nearbyEnemies = nearbyUnits.Where(u => u.PlayerId != null && AreOpponents(u, unit));
-                        if (nearbyEnemies.Any())
+                        if (nearbyUnits.Any(u => !u.IsDead && (u.PlayerId != null || u.IsHeroPracticeTarget) && AreOpponents(u, unit)))
                         {
                             unit.Killed(unit.CreateBlankImpactData());
                         }

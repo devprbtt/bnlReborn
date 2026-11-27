@@ -40,6 +40,13 @@ CardUnit Hero(string id) => new()
 var brawnHero = Hero("fixture_cp_brawn");
 var brainsHero = Hero("fixture_cp_brains");
 var skillHero = Hero("fixture_cp_skill");
+var dummyCard = Hero(DebugDummyRegistration.Id);
+var turretCard = new CardUnit { Id = "fixture_cp_turret", Data = new UnitDataTurret() };
+var mineCard = new CardUnit
+{
+    Id = "fixture_cp_mine", Data = new UnitDataLandmine { TriggerRadius = 2 },
+    Size = new Vector3s(1, 1, 1), Health = new UnitHealth { Health = new Health { MaxHealth = 10 } }
+};
 // A regular on-kill perk (Killer Shield shape) to observe Skill II assists.
 var killerBunch = new CardEffect { Id = "fixture_killer_bunch", Positive = true, Duration = 5, Effect = new ConstEffectBuff { Buffs = new() { [BuffType.Shield] = 0.5f } } };
 var killerEffect = new CardEffect
@@ -58,7 +65,7 @@ catalogue.Replicate([
     brawn, brains, skill, gear, brawnHero, brainsHero, skillHero, killerBunch, killerEffect, killerPerk, regenCard, mode,
     new CardGameMode { Id = "game_mode_custom" }, new CardMatch { Id = "fixture_cp_match", Data = new MatchDataShieldCapture() },
     new CardBlock { Id = "fixture_air", BlockId = 0, Passable = BlockPassableType.Any, Transparent = true, LightTransparent = true, SkylightTransparent = true },
-    new CardGlobalLogic { Id = "global_logic" }, cpBlock, cpDevice, .. perkCards, .. effectCards
+    new CardGlobalLogic { Id = "global_logic" }, cpBlock, cpDevice, dummyCard, turretCard, mineCard, .. perkCards, .. effectCards
 ]);
 cpDevice.DeviceLevels = [cpBlock.Key];
 ((ConstEffectOnKill)killerEffect.Effect!).Effect = new InstEffectBunch { Constant = [killerBunch.Key], Instant = [] };
@@ -336,7 +343,55 @@ OnZone(() => { u[6].RecentDamagers[u[9]] = DateTimeOffset.Now.AddSeconds(10); re
 Check(Refresh(9) is [_], "and returns while the damage is still inside the window");
 Hit(u[9], u[6], 50);
 Check(u[6].IsDead && Refresh(9) is { Length: 0 }, "a dead victim is no longer listed");
+// A spawned dummy has hero health and no player ID. Its damage record feeds
+// Accomplice without granting real-player assists.
+var updater = (UnitUpdater)typeof(GameZone).GetField("_defaultUnitUpdater", Any)!.GetValue(zone)!;
+Unit CreateDevice(CardUnit card, TeamType team, Vector3 position, bool mapControlled = false) =>
+    new((uint)Call("NewUnitId")!, new UnitInit
+    {
+        Key = card.Key, Team = team, Controlled = mapControlled,
+        Transform = ZoneTransformHelper.ToZoneTransform(position, Quaternion.Identity),
+    }, updater);
+
+var practice = OnZone(() =>
+{
+    foreach (var unit in u.Values) unit.IsActive = true;
+    ((UnitDataPlayer)dummyCard.Data!).Class = brawn.Key;
+    return CreateDevice(dummyCard, TeamType.Team2, new Vector3(24, 5, 24), true);
+});
+Fresh(practice);
+Hit(u[9], practice, 60);
+Check(Refresh(9) is [var practiceLead] && practiceLead == practice.Id, "Accomplice lead list includes a damaged test dummy");
+Hit(u[12], practice, 40);
+Check(practice.IsDead && Proc(u[9]), "an Accomplice top-damage assist on a test dummy triggers the on-kill perk");
+Check(Refresh(9) is { Length: 0 }, "the dead test dummy clears the Accomplice lead marker");
+
+Fresh(practice);
+Place(practice, new Vector3(24, 5, 24));
+Hit(u[9], practice, 30);
+Hit(u[12], practice, 70);
+Check(practice.IsDead && !Proc(u[9]), "a non-leading test-dummy assist does not trigger Accomplice");
 zone.AssistLeadSender = null;
+
+OnZone(() =>
+{
+    var mineTarget = CreateDevice(dummyCard, TeamType.Team2, new Vector3(24, 5, 24), true);
+    var friendlyMine = CreateDevice(mineCard, TeamType.Team2, new Vector3(24, 5, 24));
+    var enemyMine = CreateDevice(mineCard, TeamType.Team1, new Vector3(24, 5, 24));
+    var turret = CreateDevice(turretCard, TeamType.Team1, new Vector3(22, 5, 24), true);
+    var owner = u.Values.Where(p => p.IsActive && !p.IsDead && p.Team == TeamType.Team1).MinBy(p => p.Id)!;
+    var other = u.Values.First(p => p != owner && p.Team == TeamType.Team1);
+    zone.ReceivedTurretTarget(other.PlayerId!.Value, turret.Id, mineTarget.Id);
+    Check(turret.TurretTargetId != mineTarget.Id, "a second client cannot drive a map turret against a practice target");
+    zone.ReceivedTurretTarget(owner.PlayerId!.Value, turret.Id, mineTarget.Id);
+    Check(turret.TurretTargetId == mineTarget.Id, "a map turret accepts a practice target from its elected client");
+    zone.ReceivedTurretTarget(other.PlayerId.Value, turret.Id, 0);
+    Check(turret.TurretTargetId == mineTarget.Id, "a second client cannot clear the map turret's practice target");
+    ((Action)Call("OnTick", 1UL)!)();
+    Check(enemyMine.IsDead, "an enemy practice target triggers a mine in the zone tick");
+    Check(!friendlyMine.IsDead, "a same-team practice target leaves a mine armed");
+    return true;
+});
 
 // Wire: message 109 (ushort count, uint unit ids), only to clients that advertised zone capability 7.
 byte[] LeadBytes(int clientVersion)

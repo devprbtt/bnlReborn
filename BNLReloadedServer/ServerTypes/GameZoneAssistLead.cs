@@ -31,9 +31,10 @@ public partial class GameZone
 
         if (leads.Count > 0)
         {
-            foreach (var victim in _playerUnits.Values)
+            foreach (var victim in _units.Values)
             {
-                if (victim.IsDead || victim.PlayerId == null || victim.RecentDamageTaken.Count == 0) continue;
+                if (victim.IsDead || victim.RecentDamageTaken.Count == 0 ||
+                    (victim.PlayerId == null && !victim.IsHeroPracticeTarget)) continue;
                 foreach (var top in TopDamagers(victim))
                     if (leads.TryGetValue(top, out var victims)) victims.Add(victim.Id);
             }

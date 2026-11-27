@@ -13,6 +13,16 @@ public partial class GameZone
     /// </summary>
     private void ApplyClassKillPerks(Unit killerPlayer, IEnumerable<uint> assistPlayerIds, HashSet<uint> topDamagerIds)
     {
+        ApplyAccomplice(assistPlayerIds, topDamagerIds);
+
+        // Skill III: the kill removes a share of every active allied respawn timer, the killer's included.
+        if (killerPlayer.ActiveClassPerk == ClassPerkCatalogue.Skill3Id)
+            ReduceAlliedRespawnTimers(killerPlayer,
+                ClassPerkCatalogue.Balance(ClassPerkCatalogue.Skill3Id).RespawnReductionPercent / 100f);
+    }
+
+    private void ApplyAccomplice(IEnumerable<uint> assistPlayerIds, HashSet<uint> topDamagerIds)
+    {
         // Skill II: an assist triggers the assister's on_kill effects (Killer Shield, Killer Ammo, Rapid Reset...)
         // exactly as a kill would, but only when the assister dealt the most damage to the victim (ties count).
         // Assists already exclude the killer and are opponents of the victim.
@@ -26,11 +36,6 @@ public partial class GameZone
             foreach (var effect in assister.ActiveEffects.GetEffectsOfType<ConstEffectOnKill>().Select(kil => kil.Effect).OfType<InstEffect>())
                 ApplyInstEffect(assister.GetSelfSource(assistImpact), [assister], effect, assistImpact);
         }
-
-        // Skill III: the kill removes a share of every active allied respawn timer, the killer's included.
-        if (killerPlayer.ActiveClassPerk == ClassPerkCatalogue.Skill3Id)
-            ReduceAlliedRespawnTimers(killerPlayer,
-                ClassPerkCatalogue.Balance(ClassPerkCatalogue.Skill3Id).RespawnReductionPercent / 100f);
     }
 
     /// <summary>

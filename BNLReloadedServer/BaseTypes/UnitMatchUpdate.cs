@@ -177,6 +177,12 @@ public partial class Unit
             ? ScoreType.RepairByHero
             : ScoreType.RepairByBlock, amount);
 
+    internal void RecordAssistDamage(Unit attacker, float damage)
+    {
+        RecentDamagers[attacker] = DateTimeOffset.Now.AddSeconds(AssistSeconds);
+        RecentDamageTaken[attacker] = RecentDamageTaken.GetValueOrDefault(attacker) + damage;
+    }
+
     public void DamageStatsUpdate(TeamType targetTeam, float damage, bool crit, bool isFall, Unit? attacker,
         Unit? attackerPlayer, DamageCreditType recordedCredit = DamageCreditType.None)
     {
@@ -195,8 +201,7 @@ public partial class Unit
                 if (attackerPlayer is not null &&
                     DamageAccounting.IsEnemyPlayerDamage(targetTeam, attackerPlayer.Team))
                 {
-                    RecentDamagers[attackerPlayer] = DateTimeOffset.Now.AddSeconds(AssistSeconds);
-                    RecentDamageTaken[attackerPlayer] = RecentDamageTaken.GetValueOrDefault(attackerPlayer) + damage;
+                    RecordAssistDamage(attackerPlayer, damage);
 
                     var playerData = PlayerUnitData;
                     if (playerData?.Class == CatalogueHelper.BrawnClassKey)

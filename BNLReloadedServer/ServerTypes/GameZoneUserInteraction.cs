@@ -1358,13 +1358,24 @@ public partial class GameZone
         _zoneData.UpdatePlayerSelectedSpawn(playerId, spawnId);
     }
 
+    // Map turrets normally take aim updates from the target's client. A practice
+    // target has no connection, so one living opponent drives the turret for it.
+    private bool CanDriveTurretAt(Unit player, Unit turret, Unit target) =>
+        player.Id == target.Id ||
+        (target.IsHeroPracticeTarget && AreOpponents(target, turret) &&
+         _playerUnits.Values.Where(u => u.IsActive && !u.IsDead && AreOpponents(target, u))
+             .MinBy(u => u.Id) == player);
+
     public void ReceivedTurretTarget(uint playerId, uint turretId, uint targetId)
     {
         if (!_units.TryGetValue(turretId, out var turret) || turret.TurretUnitData is null ||
             !_playerIdToUnitId.TryGetValue(playerId, out var playerUnitId) ||
             !_playerUnits.TryGetValue(playerUnitId, out var player) ||
-            (targetId != 0U && (!_units.TryGetValue(targetId, out var target) ||
-                                (turret.Controlled && targetId != player.Id))))
+            (targetId != 0U && (!_units.TryGetValue(targetId, out var target) || target.IsDead ||
+                                (turret.Controlled && !CanDriveTurretAt(player, turret, target)))) ||
+            (targetId == 0U && turret.Controlled && turret.TurretTargetId is { } currentId &&
+             _units.GetValueOrDefault(currentId) is { IsHeroPracticeTarget: true } current &&
+             !CanDriveTurretAt(player, turret, current)))
         {
             return;
         }
@@ -1377,8 +1388,9 @@ public partial class GameZone
         if (!_units.TryGetValue(turretId, out var turret) || turret.TurretUnitData is null ||
             !_playerIdToUnitId.TryGetValue(playerId, out var playerUnitId) ||
             !_playerUnits.TryGetValue(playerUnitId, out var player) ||
-            (turret.TurretUnitData.RequiresTarget && (turret.TurretTargetId == 0U ||
-            (turret.Controlled && turret.TurretTargetId != player.Id))))
+            (turret.TurretUnitData.RequiresTarget &&
+             (turret.TurretTargetId is not { } targetId || !_units.TryGetValue(targetId, out var target) ||
+              target.IsDead || (turret.Controlled && !CanDriveTurretAt(player, turret, target)))))
         {
             return;
         }

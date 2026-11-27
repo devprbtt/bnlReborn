@@ -1560,6 +1560,9 @@ public partial class GameZone
             }
         }
 
+        if (damage > 0 && target.IsHeroPracticeTarget && attackerPlayer != null && AreOpponents(target, attackerPlayer))
+            target.RecordAssistDamage(attackerPlayer, damage);
+
         var targetTeam = target.Team;
 
         ScoreDamage(target, damage, impact, attackerPlayer, attacker);
@@ -1616,7 +1619,7 @@ public partial class GameZone
         // so a last-carrier kill restores cube protection before another queued hit.
         if (_conquest?.Attacking == true && target.PlayerId.HasValue && target.Team == _conquest.Attacker)
             TickConquest(0, true, target.Id);
-        var assists = target.PlayerId != null
+        var assists = target.PlayerId != null || target.IsHeroPracticeTarget
             ? target.RecentDamagers.Where(a => a.Value > DateTimeOffset.Now && AreOpponents(target, a.Key))
                 .Select(k => k.Key.PlayerId)
             .Where(a => a is not null && a != impact.CasterPlayerId).OfType<uint>().ToList() : [];
@@ -1647,7 +1650,7 @@ public partial class GameZone
             : _playerUnits.GetValueOrDefault(_playerIdToUnitId.GetValueOrDefault(impact.CasterPlayerId.Value));
         var killerIsOpponent = killerPlayer is not null && AreOpponents(target, killerPlayer);
         var scoreAccolade = target.IsActive ? RecordKillAccolades(target, killerPlayer, killerIsOpponent, impact.Crit) : null;
-        ScoreKill(target, killerPlayer, killerIsOpponent, impact.Crit, assists, scoreAccolade, topDamagers);
+        ScoreKill(target, killerPlayer, killerIsOpponent, impact.Crit, target.PlayerId != null ? assists : [], scoreAccolade, topDamagers);
         ScoreHeroDeviceDestroyed(target, killerPlayer, killer, impact);
 
         var targetTeam = target.Team;
@@ -1681,7 +1684,7 @@ public partial class GameZone
 
         if (target is { IsActive: true })
         {
-            var assisters = assists
+            var assisters = (target.PlayerId != null ? assists : [])
                 .Where(i => _playerIdToUnitId.ContainsKey(i) && _playerUnits.ContainsKey(_playerIdToUnitId[i]))
                 .Select(i => _playerUnits[_playerIdToUnitId[i]]);
 
@@ -1767,6 +1770,9 @@ public partial class GameZone
                 ApplyInstEffect(target.GetSelfSource(tImpact6), [], unitDataProjectile.DeathEffect, tImpact6);
                 break;
         }
+
+        if (target.IsHeroPracticeTarget && targetUnitCard?.Data is not UnitDataPlayer && killerIsOpponent)
+            ApplyAccomplice(assists, topDamagers);
 
         AwardKillResources(target, killerPlayer, killerIsOpponent, mining);
 
