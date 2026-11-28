@@ -214,6 +214,12 @@ Knockback();
 Tick(4);
 Check(damageDummy.Transform.IsJump && damageDummy.Transform.Position.X > rest.X &&
     damageDummy.Transform.Position.Y > rest.Y, "normal area knockback launches an unstunned dummy");
+var firstRise = damageDummy.Transform.GetLocalVelocity().Y;
+Knockback();
+Knockback();
+Tick();
+Check(damageDummy.Transform.GetLocalVelocity().Y < firstRise,
+    "repeated weaker air hits cannot stack upward velocity on a rising dummy");
 Tick(100);
 rest = damageDummy.Transform.Position;
 Check(!damageDummy.Transform.IsJump && rest.X < 5 && Math.Abs(rest.Y - 1) < 0.01f,
@@ -259,6 +265,11 @@ for (var z = 0; z < 12; z++)
     SetBlock(new Vector3s(x, 0, z), air);
 Tick();
 Check(damageDummy.Transform.IsJump && damageDummy.Transform.Position.Y < 1, "destroying support restarts gravity");
+Tick(18);
+Check(damageDummy.Transform.GetLocalVelocity().Y < -3, "unsupported dummy builds enough downward speed to cancel an additive launch");
+Knockback();
+Tick();
+Check(damageDummy.Transform.GetLocalVelocity().Y > 0, "native midair knockback lifts a falling dummy");
 Console.WriteLine($"PASS debug dummy: {checks} checks");
 if (args is ["--export-client-fixture", var output])
 {

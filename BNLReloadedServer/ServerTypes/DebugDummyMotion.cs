@@ -42,7 +42,18 @@ internal sealed class DebugDummyMotion
                 : Vector3.Normalize(horizontal) * 0.707f + Vector3.UnitY * 0.707f;
         }
         var grounded = _velocity.Y <= 0 && IsGrounded(map, unit.Team, position);
-        _velocity += direction * (grounded ? knockback.Force : knockback.MidairForce);
+        var launch = direction * (grounded ? knockback.Force : knockback.MidairForce);
+        var horizontalLaunch = launch with { Y = 0 };
+        var launchSpeed = horizontalLaunch.Length();
+        if (launchSpeed > 0)
+        {
+            var horizontalDirection = horizontalLaunch / launchSpeed;
+            var incomingSpeed = Vector3.Dot(_velocity, horizontalDirection);
+            _velocity += horizontalDirection * Math.Max(0, launchSpeed - incomingSpeed);
+        }
+
+        if (launch.Y > 0) _velocity.Y = Math.Max(_velocity.Y, launch.Y);
+        else if (launch.Y < 0) _velocity.Y = Math.Min(_velocity.Y, launch.Y);
     }
 
     public Vector3 Step(MapBinary map, TeamType team, Vector3 position, float dt, float airResistance,
