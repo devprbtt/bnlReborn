@@ -1035,6 +1035,16 @@ public partial class GameZone
         if (burstCost == null && (!tool?.IsEnoughAmmoToUse() ?? false)) return;
         if (tool != null && tool.Tool is not ToolBuild) MarkClassPerkCombat(player);
 
+        var pelletCount = tool?.Tool switch
+        {
+            ToolShot { Bullet: ToolBulletHitscan or ToolBulletProjectile } shot => shot.Bullets?.Count,
+            ToolSpinup { Bullet: ToolBulletHitscan or ToolBulletProjectile } spinup => spinup.Bullets?.Count,
+            ToolThrow { Bullet: ToolBulletHitscan or ToolBulletProjectile } thrown => thrown.Bullets?.Count,
+            _ => null
+        };
+        var lifeStealVolley = shots.Count > 1 && pelletCount is > 1
+            ? new LifeStealVolley(player.Id, pelletCount.Value) : null;
+
         shots.ForEach(shot =>
         {
             if (castData.UnitProjectileSpeed is not null)
@@ -1075,7 +1085,7 @@ public partial class GameZone
                         player.CurrentGear, castData.ToolIndex, ChargeLength: player.LengthOfCharge),
 
                     _ => new ShotInfo(shot.ShotId.Value, player, castData.ShotPos, shot.TargetPos,
-                        player.CurrentGear, castData.ToolIndex)
+                        player.CurrentGear, castData.ToolIndex) { LifeStealVolley = lifeStealVolley }
                 };
             }
         });
@@ -1134,6 +1144,8 @@ public partial class GameZone
 
             var impactData = shot.Caster.CreateImpactDataExact(hitData.InsidePoint, shot.ShotPos, hitData.Normal,
                 hitData.Crit ?? false, shot.SourceGear?.Key ?? shot.SourceAbility);
+            impactData.LifeStealVolley = shot.LifeStealVolley;
+            impactData.LifeStealPelletId = shotId;
             var casterSource = shot.Caster.GetSelfSource(impactData);
 
             Unit? hitTarget = null;

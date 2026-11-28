@@ -13,4 +13,5 @@ public record ShotInfo(
     Key? SourceAbility = null,
     float ChargeLength = 0.0f)
 {
+    internal LifeStealVolley? LifeStealVolley { get; init; }
 }

@@ -1548,8 +1548,8 @@ public partial class GameZone
         // trap blocks or abilities.
         if (attackerPlayer is not null && OnHitApplies(attackerPlayer, target) && AreOpponents(target, attackerPlayer))
         {
-            if (attackerPlayer.GetBuff(BuffType.LifeSteal) > 0 && IsToolDamage(impact))
-                attackerPlayer.RestoreLifeSteal(damage);
+            if (damage > 0 && attackerPlayer.GetBuff(BuffType.LifeSteal) > 0 && IsToolDamage(impact))
+                attackerPlayer.RestoreLifeSteal(damage, impact.LifeStealVolley, impact.LifeStealPelletId);
             if (!target.IsDead && OnHitEffectsApply(impact))
             {
                 // Run exactly like on_kill, but on the player who was hit: the effect's own targeting and

@@ -30,6 +30,8 @@ public class ImpactData
     // Server-only provenance for damage produced by a constant effect's timer.
     // Periodic ticks retain kill/damage attribution but must not count as a new weapon hit.
     internal bool PeriodicEffect { get; set; }
+    internal LifeStealVolley? LifeStealVolley { get; set; }
+    internal ulong LifeStealPelletId { get; set; }
     // Per accepted Tony cast, shared through effect-source clones; never sent on the wire.
     internal HashSet<uint>? TonyBuildRewardRecipients { get; set; }
     internal Key? ActivationBuffMarker { get; set; }
@@ -98,6 +100,8 @@ public class ImpactData
           Crit = Crit,
           DamageCredit = DamageCredit,
           PeriodicEffect = PeriodicEffect,
+        LifeStealVolley = LifeStealVolley,
+        LifeStealPelletId = LifeStealPelletId,
           TonyBuildRewardRecipients = TonyBuildRewardRecipients,
           ActivationBuffMarker = ActivationBuffMarker,
           ActivationBuffRecipients = ActivationBuffRecipients
@@ -107,6 +111,7 @@ public class ImpactData
     {
         var periodic = Clone();
         periodic.PeriodicEffect = true;
+        periodic.LifeStealVolley = null;
         return periodic;
     }
 }

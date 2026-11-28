@@ -1,13 +1,23 @@
 // Life steal: a living player with the LifeSteal buff is healed for buff x damage whenever it damages
 // another player's unit; never for blocks/devices, itself, or while dead, and never above max health.
+using System.Collections.Concurrent;
 using System.Linq.Expressions;
+using System.Numerics;
 using System.Reflection;
 using BNLReloadedServer.BaseTypes;
 using BNLReloadedServer.Database;
 using BNLReloadedServer.ProtocolHelpers;
+using BNLReloadedServer.ServerTypes;
+using BNLReloadedServer.Servers;
+using BNLReloadedServer.Service;
+using MatchType = BNLReloadedServer.BaseTypes.MatchType;
 
 int checks = 0;
 void Check(bool pass, string name) { if (!pass) throw new Exception(name); checks++; Console.WriteLine("PASS " + name); }
+const BindingFlags Hidden = BindingFlags.Instance | BindingFlags.NonPublic;
+var clockField = typeof(Unit).GetField("LifeStealClock", BindingFlags.Static | BindingFlags.NonPublic)!;
+long clock = 1000;
+clockField.SetValue(null, (Func<long>)(() => clock));
 var constructor = typeof(UnitUpdater).GetConstructors().Single(c => c.GetParameters().Length == 20);
 var callbacks = constructor.GetParameters().Select(p =>
 {
@@ -38,6 +48,7 @@ Check(Math.Abs(attacker.LifeStealAmount(40f) - 20f) < 0.01f, "50% life steal ret
 attacker.RestoreLifeSteal(40f);
 Check(attacker.Stats!.GetValueOrDefault(ScoreType.HealPlayerByHero) == 20f, "lifesteal contributes actual restored health to match healing");
 Check(Math.Abs(attacker.HealthPercentage * 100f - 60f) < 0.01f, "the heal lands on the attacker");
+clock += Unit.LifeStealCooldownMilliseconds;
 attacker.RestoreLifeSteal(1000f);
 Check(attacker.Stats!.GetValueOrDefault(ScoreType.HealPlayerByHero) == 60f, "overheal excluded from lifesteal healing stats");
 attacker.RestoreLifeSteal(50f);
@@ -70,4 +81,110 @@ Check(!Tool(turret.Key), "turret damage is not tool damage");
 Check(!Tool(ability.Key), "ability damage is not tool damage");
 Check(!Tool(trapBlock.Key), "trap block damage is not tool damage");
 Check(!Tool(null), "damage with no source is not tool damage");
+
+if (args is [var cataloguePath])
+{
+    catalogue.Replicate(File.ReadAllText(cataloguePath).Deserialize<List<Card>>()!);
+    var rivetGun = new Key("gear_engineer_rivet_gun");
+    var perk = new Key("effect_perk_life_steal_pos");
+    var players = new ConcurrentDictionary<uint, PlayerLobbyState>();
+    players[1] = new PlayerLobbyState { PlayerId = 1, Team = TeamType.Team1, Hero = new Key("unit_hero_engineer"), Nickname = "Tony" };
+    players[2] = new PlayerLobbyState { PlayerId = 2, Team = TeamType.Team2, Hero = new Key("unit_hero_sarge_stone"), Nickname = "Sarge" };
+    players[3] = new PlayerLobbyState { PlayerId = 3, Team = TeamType.Team1, Hero = new Key("unit_hero_kira"), Nickname = "Kira" };
+    var map = new MapData
+    {
+        Match = MatchType.ShieldCapture, Properties = new MapDataProps(), Size = new Vector3s(32, 16, 32),
+        BlocksData = new byte[32 * 16 * 32 * 6].Zip(0).ToArray(),
+        SpawnPoints =
+        [
+            new MapSpawnPoint { Team = TeamType.Team1, Label = SpawnPointLabel.Base, Position = new Vector3(8, 4, 8) },
+            new MapSpawnPoint { Team = TeamType.Team2, Label = SpawnPointLabel.Base, Position = new Vector3(10, 4, 8) }
+        ]
+    };
+    static T Stub<T>() where T : class => DispatchProxy.Create<T, ZoneProxy>();
+    var service = Stub<IServiceZone>();
+    var zone = new GameZone(service, service, Stub<IBuffer>(), Stub<ISender>(), map, Stub<IGameInitiator>(), players);
+    var done = new TaskCompletionSource();
+    zone.EnqueueAction(() =>
+    {
+        try
+        {
+            var create = typeof(GameZone).GetMethod("CreatePlayerUnit", Hidden)!;
+            var tony = (Unit)create.Invoke(zone, [1u, service])!;
+            var sarge = (Unit)create.Invoke(zone, [2u, service])!;
+            var kira = (Unit)create.Invoke(zone, [3u, service])!;
+            tony.SpawnProtectionTime = sarge.SpawnProtectionTime = null;
+            tony.UpdateData(new UnitUpdate { Health = 40, CurrentGear = rivetGun });
+            tony.AddEffect(new ConstEffectInfo(perk), tony.Team, tony.GetSelfSource());
+            Check(tony.CurrentGear?.Key == rivetGun && tony.GetBuff(BuffType.LifeSteal) == 0.35f,
+                "real Tony and the 35% life steal perk equip");
+            var hitPos = sarge.Transform.Position + Vector3.UnitY;
+            ulong shotId = 0;
+            float Health(Unit unit) => unit.GetUpdateData().Health!.Value;
+            bool Close(float actual, float expected) => Math.Abs(actual - expected) < .002f;
+            List<ulong> Fire(Unit shooter, int count = 11, byte toolIndex = 0)
+            {
+                var ids = Enumerable.Range(0, count).Select(_ => ++shotId).ToList();
+                zone.ReceivedCastRequest(shooter.PlayerId!.Value, new CastData
+                {
+                    ToolIndex = toolIndex, ShotPos = shooter.Transform.Position + Vector3.UnitY,
+                    Shots = ids.Select(id => new ShotData { ShotId = id, TargetPos = hitPos }).ToList()
+                });
+                return ids;
+            }
+            void Hit(IEnumerable<ulong> ids) => zone.ReceivedHit((ulong)DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
+                ids.ToDictionary(id => id, _ => new HitData { InsidePoint = hitPos, TargetId = sarge.Id }));
+
+            var fullShot = Fire(tony);
+            Hit(fullShot);
+            Check(Close(Health(sarge), 127), "11 Rivet Gun body pellets remove 33 HP");
+            Check(Close(Health(tony), 51.55f), $"33 damage heals 11.55 HP (Tony has {Health(tony):0.00} HP)");
+            Hit(fullShot);
+            Check(Close(Health(tony), 51.55f), "consumed hit IDs cannot heal twice");
+            clock += 50;
+            var blocked = Fire(tony);
+            Hit(blocked.Take(5));
+            clock += 50;
+            Hit(blocked.Skip(5));
+            Check(Close(Health(tony), 51.55f), "a separate shot blocked by cooldown stays blocked across hit reports");
+
+            var split = Fire(tony);
+            Hit(split.Take(4));
+            Check(Close(Health(tony), 55.75f), "partial hits credit only pellets that land");
+            clock += 50;
+            Hit(split.Skip(4));
+            Check(Close(Health(tony), 63.10f), "later hit reports from the same shot finish its heal during cooldown");
+
+            kira.UpdateData(new UnitUpdate { Health = 40, CurrentGear = new Key("gear_kira_uzi") });
+            kira.AddEffect(new ConstEffectInfo(perk), kira.Team, kira.GetSelfSource());
+            Hit(Fire(kira, 2));
+            Check(Close(Health(kira), 42.8f), "both of Kira's projectile hits contribute to life steal");
+            clock += 100;
+            Hit(Fire(kira, 2, 1));
+            Check(Close(Health(kira), 44.9f), "both of Kira's hitscan hits contribute to life steal");
+
+            clock += 50;
+            sarge.UpdateData(new UnitUpdate { Health = 4 });
+            Hit(Fire(tony));
+            Check(sarge.IsDead && Close(Health(tony), 64.50f), "lethal volley heals from actual HP removed, including the killing pellet");
+            Check(Close(tony.Stats!.GetValueOrDefault(ScoreType.HealPlayerByHero), 24.50f),
+                "match stats record actual pellet healing");
+            done.SetResult();
+        }
+        catch (Exception error) { done.SetException(error); }
+    });
+    try { done.Task.WaitAsync(TimeSpan.FromSeconds(20)).GetAwaiter().GetResult(); }
+    finally { zone.Stop(); }
+}
 Console.WriteLine($"Life steal fixture passed: {checks} checks.");
+
+public class ZoneProxy : DispatchProxy
+{
+    protected override object? Invoke(MethodInfo? method, object?[]? args)
+    {
+        if (method?.Name == "GetGameMode") return new Key("game_mode_custom");
+        if (method?.Name == "get_GameInstanceId") return "life-steal-fixture";
+        var type = method?.ReturnType;
+        return type is { IsValueType: true } && type != typeof(void) ? Activator.CreateInstance(type) : null;
+    }
+}

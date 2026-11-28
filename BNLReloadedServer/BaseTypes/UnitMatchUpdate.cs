@@ -115,17 +115,27 @@ public partial class Unit
         }
     }
 
-    // Life steal heals at most once per 100 ms, so multi-hit shots (pellets, beams, splash) cannot stack it.
+    // Distinct attacks share a cooldown. The pellets of one admitted cast share the same proc.
     public const long LifeStealCooldownMilliseconds = 100;
     private long _lifeStealReadyAt = long.MinValue;
     internal static Func<long> LifeStealClock = () => Environment.TickCount64;
 
     // Count only health actually restored, including the max-health clamp.
-    public float RestoreLifeSteal(float damage)
+    public float RestoreLifeSteal(float damage) => RestoreLifeSteal(damage, null, 0);
+
+    internal float RestoreLifeSteal(float damage, LifeStealVolley? volley, ulong shotId)
     {
-        var now = LifeStealClock();
-        if (now < _lifeStealReadyAt) return 0;
-        _lifeStealReadyAt = now + LifeStealCooldownMilliseconds;
+        if (volley is not null && (volley.CasterId != Id || volley.Admitted == false || !volley.TryCreditPellet(shotId)))
+            return 0;
+
+        if (volley?.Admitted != true)
+        {
+            var now = LifeStealClock();
+            var ready = now >= _lifeStealReadyAt;
+            if (volley is not null) volley.Admitted = ready;
+            if (!ready) return 0;
+            _lifeStealReadyAt = now + LifeStealCooldownMilliseconds;
+        }
         var gained = AddHealth(this.LifeStealAmount(damage));
         if (gained > 0) Healed(gained, GetSelfSource(), this);
         return gained;
