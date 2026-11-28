@@ -48,7 +48,7 @@ public partial class GameZone
         }
 
         if (_sessionsSender.SenderCount == 0 && unit.PlayerId == null) return;
-        if (unitInit.Controlled)
+        if (unitInit.Controlled || unit.IsTestDummy)
         {
             _serviceZone.SendUnitCreate(unit.Id, unitInit);
         }
@@ -290,7 +290,8 @@ public partial class GameZone
 
             InstEffectKnockback instEffectKnockback => _unitOctree
                 .GetColliding(new BoundingSphere(impactPoint, instEffectKnockback.EffectRange))
-                .Where(u => u.PlayerId != null && !u.IsBuff(BuffType.KnockbackIgnore) && !u.IsBuff(BuffType.Root)),
+                .Where(u => (u.PlayerId != null || u.IsTestDummy) &&
+                            !u.IsBuff(BuffType.KnockbackIgnore) && !u.IsBuff(BuffType.Root)),
 
             InstEffectResourceAll => _playerUnits.Values.ToList(),
 
@@ -1057,11 +1058,10 @@ public partial class GameZone
                 return true;
 
             case InstEffectKnockback instEffectKnockback:
-                actualUnitList = actualUnitList.Where(u => u.PlayerId != null).ToList();
-
                 if (!instEffectKnockback.AffectCaster && unitSource is not null)
                 {
-                    actualUnitList.RemoveAll(u => u.PlayerId == unitSource.OwnerPlayerId);
+                    actualUnitList.RemoveAll(u => u == unitSource ||
+                        u.PlayerId.HasValue && u.PlayerId == unitSource.OwnerPlayerId);
                 }
 
                 if (hasImpact)
@@ -1094,7 +1094,15 @@ public partial class GameZone
                         MidairForce = midairForce
                     };
 
-                    _serviceZone.SendUnitManeuver(unit.Id, knockback);
+                    if (unit.IsTestDummy)
+                    {
+                        if (_testDummyMotion.TryGetValue(unit, out var motion))
+                            motion.ApplyKnockback(MapBinary, unit, knockback);
+                    }
+                    else
+                    {
+                        _serviceZone.SendUnitManeuver(unit.Id, knockback);
+                    }
                 }
                 return true;
 
@@ -1186,7 +1194,6 @@ public partial class GameZone
                 return true;
 
             case InstEffectSlip instEffectSlip:
-                actualUnitList = actualUnitList.Where(u => u.PlayerId != null).ToList();
                 var maneuver = new ManeuverSlip
                 {
                     DirectionAngle = instEffectSlip.DirectionAngleRandom,
@@ -1194,7 +1201,18 @@ public partial class GameZone
                     Time = instEffectSlip.Time,
                     RotationTime = instEffectSlip.RotationTime
                 };
-                actualUnitList.ForEach(u => _serviceZone.SendUnitManeuver(u.Id, maneuver));
+                foreach (var unit in actualUnitList)
+                {
+                    if (unit.IsTestDummy)
+                    {
+                        if (_testDummyMotion.TryGetValue(unit, out var motion))
+                            motion.ApplySlip(MapBinary, unit, maneuver);
+                    }
+                    else if (unit.PlayerId.HasValue)
+                    {
+                        _serviceZone.SendUnitManeuver(unit.Id, maneuver);
+                    }
+                }
                 return true;
 
             case InstEffectSplashDamage instEffectSplashDamage:
@@ -2052,6 +2070,13 @@ public partial class GameZone
 
     private void OnPull(Unit unit, ManeuverPull maneuverPull)
     {
+        if (unit.IsTestDummy)
+        {
+            if ((!maneuverPull.Enabled || !unit.IsBuff(BuffType.Root)) &&
+                _testDummyMotion.TryGetValue(unit, out var motion))
+                motion.Pull = maneuverPull.Enabled ? maneuverPull : null;
+            return;
+        }
         if (!unit.IsBuff(BuffType.Root) || !maneuverPull.Enabled)
             _serviceZone.SendUnitManeuver(unit.Id, maneuverPull);
     }

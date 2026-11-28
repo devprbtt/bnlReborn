@@ -28,7 +28,7 @@ public partial class GameZone
             return;
         }
 
-        if (unit.AdminFunnyHeld) return;
+        if (unit.AdminFunnyHeld || unit.IsTestDummy) return;
         unit.LastMoveTime = DateTimeOffset.Now;
         unit.WasAfkWarned = false;
         if (HoldTimeAssaultPrestart(unit, time, transform)) return;
@@ -1291,7 +1291,7 @@ public partial class GameZone
 
     public void ReceivedFall(uint playerId, uint unitId, float height, bool force)
     {
-        if (!_units.TryGetValue(unitId, out var unit) || unit.AdminFunnyMode || unit.AdminFunnyHeld)
+        if (!_units.TryGetValue(unitId, out var unit) || unit.IsTestDummy || unit.AdminFunnyMode || unit.AdminFunnyHeld)
         {
             return;
         }
@@ -1308,6 +1308,11 @@ public partial class GameZone
             _forceFallEntitlements.Clear(playerId);
         }
 
+        ApplyFallDamage(unit, height, force);
+    }
+
+    private void ApplyFallDamage(Unit unit, float height, bool force)
+    {
         var fallPos = unit.GetFallPosition();
         var blockCheckPos = (Vector3s)(fallPos with { Y = fallPos.Y - 1 });
         var fallMin = _zoneData.MapData.Properties?.MinFallHeight ?? 5f;

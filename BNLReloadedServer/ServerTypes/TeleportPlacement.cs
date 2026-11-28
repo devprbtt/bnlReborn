@@ -16,11 +16,11 @@ public static class TeleportPlacement
     // A teleported player is placed as a standing body: the client stands up after landing, and a
     // crouched check converted back with the standing offset landed the body half a block low, where
     // standing put the head inside overhead force fields.
-    private const float PlayerHalfHeight = 0.95f;
+    internal const float PlayerHalfHeight = 0.95f;
 
     // Covers the client character capsule (radius 0.32). The generic 0.25 player footprint let the
     // capsule overlap a force-field wall, and enemy fields are one-sided collider shells on the client.
-    private const float PlayerHalfWidth = 0.33f;
+    internal const float PlayerHalfWidth = 0.33f;
 
     /// <summary>True when no sized unit other than the ignored one occupies the point.</summary>
     public delegate bool PointUnitsClear(Vector3 pos, uint? ignoredUnitId);

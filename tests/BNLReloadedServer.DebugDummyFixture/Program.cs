@@ -5,8 +5,11 @@ using System.Runtime.CompilerServices;
 using System.Text.Json;
 using BNLReloadedServer.BaseTypes;
 using BNLReloadedServer.Database;
+using BNLReloadedServer.Octree_Extensions;
 using BNLReloadedServer.ProtocolHelpers;
 using BNLReloadedServer.ServerTypes;
+using BNLReloadedServer.Service;
+using Octree;
 
 int checks = 0;
 void Check(bool ok, string name) { if (!ok) throw new Exception(name); checks++; Console.WriteLine("PASS " + name); }
@@ -18,6 +21,7 @@ Check(cards.Count == 3, "registration and compatibility class are idempotent");
 cards.Add(new CardGlobalLogic{Id="global_logic", AvailableHeroes=[new Key(hero.Id!)]});
 Check(JsonSerializer.Serialize(hero, JsonHelper.DefaultSerializerSettings) == original, "real Sarge is not mutated");
 var card = cards.OfType<CardUnit>().Single(c => c.Id == DebugDummyRegistration.Id);
+cards.Add(new CardGear { Id = "gear_sarge_stone_m60", Prefab = "m60" });
 Check(card.Health!.Health!.HealthType == HealthType.Player && card.Data is UnitDataPlayer, "dummy receives player damage and player-target effects");
 Check(card.Health.Health.MaxHealth == 1 && card.Health.KillReward?.PlayerReward == 50 && card.Health.KillReward?.TeamReward == 50 && card.SpawnPoint == null && card.Capturing == null, "dummy preserves hero kill resources without spawn or capture features");
 Check(card.Loot is { SpawnOnEnemyKill: true, SpawnOnUndefinedKill: true, LootItem: LootItemCommon } &&
@@ -58,7 +62,10 @@ var flags = BindingFlags.Instance | BindingFlags.NonPublic;
 void Set(string name,object value)=>typeof(GameZone).GetField(name,flags)!.SetValue(zone,value);
 var data = (ZoneData)RuntimeHelpers.GetUninitializedObject(typeof(ZoneData));
 data.BlocksData = new MapBinary(3,new byte[12*8*12*6].Zip(0).ToArray(),new Vector3s(12,8,12),-1,new MapUpdater((_,_)=>{},(_,_)=>{},_=>{},_=>true));
+data.MapData = new MapData { Properties = new MapDataProps() };
 Set("_zoneData",data);Set("_defaultUnitUpdater",updater);Set("_livingTestDummies",new Dictionary<TeamType,Unit>());
+var motionField = typeof(GameZone).GetField("_testDummyMotion", flags)!;
+motionField.SetValue(zone, Activator.CreateInstance(motionField.FieldType));
 Set("_playerIdToUnitId",new Dictionary<uint,uint>{{1,1}});Set("_playerUnits",new Dictionary<uint,Unit>{{1,player}});
 var air = new CardBlock{Id="block_air",BlockId=0,Passable=BlockPassableType.Any};
 ((ServerCatalogue)Databases.Catalogue).Replicate(cards.Append(air).ToList());
@@ -70,6 +77,9 @@ zone.ReceivedDebugCommand(1,"spawn_test_dummy",["1000"]);
 Check(spawned.Count==2,"admin debug spawns are not limited to one living dummy");
 spawned[1].TakeDamage(1000,player.GetSelfSource());spawned.RemoveAt(1);
 Check(dummy.PlayerId==null && dummy.OwnerPlayerId==null && dummy.Team==TeamType.Team2,"dummy is an enemy without player identity");
+Check(!dummy.GetInitData().Controlled && dummy.GetInitData().Gears!.SequenceEqual([DebugDummyRegistration.CombatGear]) &&
+    dummy.GetUpdateData().CurrentGear == DebugDummyRegistration.CombatGear && dummy.CurrentGear?.Card.Prefab == "m60",
+    "spawn and observer snapshots use Sarge's equipped combat rig and remote movement");
 Check(dummy.GetUpdateData().Health==1000 && dummy.UnitMaxHealth(1)==1000,"chosen current and maximum HP agree");
 Check(Vector3.Distance(dummy.Transform.Position,player.Transform.Position)==3,"dummy spawns three metres ahead");
 var slow = new CardEffect{Id="dummy_test_slow",Effect=new ConstEffectBuff{Buffs=new(){{BuffType.RunSpeed,-.5f}}}};
@@ -146,6 +156,109 @@ resourceKill.Invoke(zone,new object?[]{damageDummy,other,false,false});
 Check(other.Resource==0,"friendly dummy kill pays no bricks");
 resourceKill.Invoke(zone,new object?[]{damageDummy,null,false,false});
 Check(player.Resource==50 && teammate.Resource==50,"unattributed dummy death pays no rewards");
+
+var terrain = new CardBlock { Id = "dummy_test_floor", BlockId = 1, Passable = BlockPassableType.None };
+var bounce = new CardBlock { Id = "dummy_test_bounce", BlockId = 2, Passable = BlockPassableType.Any,
+    Special = new BlockSpecialBounce { BounceForce = 6 } };
+var stun = new CardEffect { Id = "dummy_test_stun", Duration = 3,
+    Effect = new ConstEffectBuff { Buffs = new() { { BuffType.Root, 1 }, { BuffType.Disarm, 1 } } } };
+((ServerCatalogue)Databases.Catalogue).Replicate(cards.Concat(new Card[] { air, slow, match, terrain, bounce, stun }).ToList());
+var map = data.BlocksData;
+void SetBlock(Vector3s cell, CardBlock card)
+{
+    var block = map[cell];
+    block.Id = card.BlockId;
+}
+for (var x = 0; x < 12; x++)
+for (var z = 0; z < 12; z++)
+    SetBlock(new Vector3s(x, 0, z), terrain);
+
+var tick = typeof(GameZone).GetMethod("TickTestDummy", flags)!;
+void Tick(int count = 1)
+{
+    for (var i = 0; i < count; i++) tick.Invoke(zone, [damageDummy]);
+}
+var start = damageDummy.Transform.Position;
+Tick();
+Check(damageDummy.Transform.IsJump && damageDummy.Transform.Position.Y < start.Y,
+    "an unsupported spawn immediately begins falling with the airborne pose");
+Tick(60);
+var rest = damageDummy.Transform.Position;
+Check(!damageDummy.Transform.IsJump && Math.Abs(rest.Y - 1) < 0.01f, "dummy lands on solid floor");
+var lastMove = damageDummy.LastMoveUpdateTime;
+Tick(30);
+Check(rest == damageDummy.Transform.Position && lastMove == damageDummy.LastMoveUpdateTime,
+    "idle dummy stays in place without sending movement");
+Set("_units", new Dictionary<uint, Unit> { [damageDummy.Id] = damageDummy });
+zone.ReceivedMoveRequest(damageDummy.Id, lastMove + 1, new ZoneTransform { Position = rest + Vector3.UnitX });
+Check(damageDummy.Transform.Position == rest, "client movement cannot take over the dummy");
+
+var octree = new BoundsOctreeEx<Unit>(12, new Vector3(6), 1, 1.2f);
+octree.Add(damageDummy, new BoundingBox(damageDummy.GetMidpoint(), new Vector3(0.5f, 1.9f, 0.5f)));
+Set("_unitOctree", octree);
+var applyEffect = typeof(GameZone).GetMethod("ApplyInstEffect", flags)!;
+void Knockback() => applyEffect.Invoke(zone, [player.GetSelfSource(), Array.Empty<Unit>(),
+    new InstEffectKnockback { EffectRange = 5, Force = 8, MidairForce = 4 },
+    new ImpactData { InsidePoint = rest - Vector3.UnitX * 2 }, null, null, null, true]);
+damageDummy.AddEffects([new ConstEffectInfo(stun.Key)], player.Team, player.GetSelfSource());
+Check(damageDummy.GetUpdateData().Effects?.Any(e => e.Key == stun.Key) == true &&
+    damageDummy.IsBuff(BuffType.Root) && damageDummy.IsBuff(BuffType.Disarm), "native stun and both buffs replicate");
+Knockback();
+Tick();
+Check(rest == damageDummy.Transform.Position, "root suppresses knockback through normal effect targeting");
+damageDummy.PurgeEffects(false, true);
+for (var y = 1; y < 8; y++)
+for (var z = 0; z < 12; z++)
+    SetBlock(new Vector3s(5, y, z), terrain);
+Knockback();
+Tick(4);
+Check(damageDummy.Transform.IsJump && damageDummy.Transform.Position.X > rest.X &&
+    damageDummy.Transform.Position.Y > rest.Y, "normal area knockback launches an unstunned dummy");
+Tick(100);
+rest = damageDummy.Transform.Position;
+Check(!damageDummy.Transform.IsJump && rest.X < 5 && Math.Abs(rest.Y - 1) < 0.01f,
+    "knocked-back dummy slides down the wall and lands");
+
+var service = DispatchProxy.Create<IServiceZone, DummyZoneProxy>();
+Set("_serviceZone", service);
+var launchCell = (Vector3s)(rest + Vector3.UnitY * 0.01f);
+SetBlock(launchCell, bounce);
+Tick(4);
+var events = ((DummyZoneProxy)(object)service).Bounces;
+Check(damageDummy.Transform.IsJump && damageDummy.Transform.Position.Y > rest.Y && events.Count == 1 &&
+    events[0].UnitId == damageDummy.Id, "a bounce block launches the remote dummy and emits the native pad event once");
+SetBlock(launchCell, air);
+Tick(130);
+Check(!damageDummy.Transform.IsJump && Math.Abs(damageDummy.Transform.Position.Y - 1) < 0.01f,
+    "gravity returns the dummy to the floor after a bounce");
+rest = damageDummy.Transform.Position;
+applyEffect.Invoke(zone, [player.GetSelfSource(), new[] { damageDummy },
+    new InstEffectSlip { DirectionAngleRandom = 180, DistanceTo = 1.5f, Time = 0.5f, RotationTime = 0.25f },
+    new ImpactData(), null, null, null, true]);
+Tick(30);
+Check(!damageDummy.Transform.IsJump && damageDummy.Transform.Position.Z < rest.Z - 1 &&
+    Math.Abs(damageDummy.Transform.Rotation.y) == 1800, "a ground slip moves and turns the dummy");
+
+rest = damageDummy.Transform.Position;
+var onPull = typeof(GameZone).GetMethod("OnPull", flags)!;
+onPull.Invoke(zone, [damageDummy, new ManeuverPull { Enabled = true, Force = 4, OriginPos = rest - Vector3.UnitX * 2 }]);
+Tick(8);
+var pulled = damageDummy.Transform.Position;
+Check(pulled.X < rest.X - 0.3f, "native pull moves the dummy toward its source");
+onPull.Invoke(zone, [damageDummy, new ManeuverPull { Enabled = false }]);
+Tick(8);
+Check(damageDummy.Transform.Position == pulled, "ending a pull clears its displacement");
+
+var healthBeforeFall = damageDummy.GetUpdateData().Health;
+damageDummy.UnitMove(new ZoneTransform { Position = pulled + Vector3.UnitY * 6.5f }, damageDummy.LastMoveUpdateTime + 1);
+Tick(90);
+Check(!damageDummy.Transform.IsJump && damageDummy.GetUpdateData().Health < healthBeforeFall,
+    "a long drop applies ordinary fall damage");
+for (var x = 0; x < 12; x++)
+for (var z = 0; z < 12; z++)
+    SetBlock(new Vector3s(x, 0, z), air);
+Tick();
+Check(damageDummy.Transform.IsJump && damageDummy.Transform.Position.Y < 1, "destroying support restarts gravity");
 Console.WriteLine($"PASS debug dummy: {checks} checks");
 if (args is ["--export-client-fixture", var output])
 {
@@ -153,4 +266,15 @@ if (args is ["--export-client-fixture", var output])
     writer.Write(2);
     Card.WriteVariant(writer, dummyClass!);
     Card.WriteVariant(writer, card);
+}
+
+public class DummyZoneProxy : DispatchProxy
+{
+    public List<ZoneEventJumpPadUsed> Bounces { get; } = [];
+
+    protected override object? Invoke(MethodInfo? targetMethod, object?[]? args)
+    {
+        if (args is [ZoneEventJumpPadUsed bounce]) Bounces.Add(bounce);
+        return null;
+    }
 }

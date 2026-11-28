@@ -22,6 +22,7 @@ public partial class Unit
             throw new ArgumentOutOfRangeException(nameof(health));
         _debugDummyMaxHealth = health;
         UpdateData(new UnitUpdate { Health = health, Shield = 0, Forcefield = 0,
+            CurrentGear = Gears.Count > 0 ? Gears[0].Key : null,
             Buffs = ExtractBuffs(ActiveEffects.Select(e => e.Key)) });
     }
 }

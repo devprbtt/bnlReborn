@@ -1610,6 +1610,7 @@ public partial class GameZone : Updater
     {
         if (_units.TryGetValue(unitId, out var unit))
         {
+            if (unit.IsTestDummy) _testDummyMotion.Remove(unit);
             _removedUnitDiagnostics[unitId] = new RemovedUnitDiagnostic(
                 unit.Key,
                 unit.UnitCard?.Data?.GetType().Name ?? "unknown",
@@ -2421,6 +2422,7 @@ public partial class GameZone : Updater
                 }
 
                 unit.CleanUpExpired();
+                if (unit.IsTestDummy) TickTestDummy(unit);
                 var unitSource = unit.GetSelfSource(unit.CreateImpactData());
 
                 if (unit is { CurrentChannelData: { } channelData, TicksPerChannel: > 0 } &&

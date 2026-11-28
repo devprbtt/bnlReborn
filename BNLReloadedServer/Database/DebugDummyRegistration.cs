@@ -7,6 +7,7 @@ public static class DebugDummyRegistration
     public const string Id = "unit_reborn_debug_dummy";
     public const int MaxHealth = 10_000_000;
     public static readonly Key Key = new(Id);
+    public static readonly Key CombatGear = new("gear_sarge_stone_m60");
     public const string ClassId = "hero_class_reborn_debug_dummy";
     public static readonly Key ClassKey = new(ClassId);
 

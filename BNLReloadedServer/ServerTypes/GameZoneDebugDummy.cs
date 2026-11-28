@@ -17,6 +17,7 @@ public partial class GameZone
 
     // Custom-room limit: one living dummy per spawning team. Admin debug spawns are not limited.
     private readonly Dictionary<TeamType, Unit> _livingTestDummies = new();
+    private readonly Dictionary<Unit, DebugDummyMotion> _testDummyMotion = new();
 
     public void ReceivedCustomTestDummy(uint playerId, int health)
     {
@@ -35,21 +36,54 @@ public partial class GameZone
         forward.Y = 0;
         forward = forward.LengthSquared() > .001f ? Vector3.Normalize(forward) : Vector3.UnitZ;
         var position = player.Transform.Position + forward * 3;
-        // Keep the stationary target outside walls and within the map, at the player's foot height.
-        var midpoint = position + Vector3.UnitY * .95f;
+        // Spawn outside walls at the player's foot height. The normal tick settles it onto terrain.
+        var team = player.Team == TeamType.Team1 ? TeamType.Team2 : TeamType.Team1;
         if (!MapBinary.ContainsBlock((Vector3s)position) ||
-            !MapBinary.ContainsBlock((Vector3s)(position + Vector3.UnitY * 1.9f)) ||
-            !TeleportPlacement.PlayerFits(MapBinary, midpoint)) return null;
+            !MapBinary.ContainsBlock((Vector3s)(position + Vector3.UnitY * (TeleportPlacement.PlayerHalfHeight * 2))) ||
+            !DebugDummyMotion.Fits(MapBinary, team, position)) return null;
         var init = new UnitInit
         {
             Key = DebugDummyRegistration.Key, SkinKey = new Key("skin_sarge_stone_s1"),
             Transform = ZoneTransformHelper.ToZoneTransform(position, player.Transform.GetRotation()),
-            Team = player.Team == TeamType.Team1 ? TeamType.Team2 : TeamType.Team1,
-            Controlled = true, Gears = []
+            Team = team,
+            Controlled = false,
+            Gears = DebugDummyRegistration.CombatGear.GetCard<CardGear>() is not null
+                ? [DebugDummyRegistration.CombatGear] : []
         };
         // No PlayerId/OwnerId: this is a world target, never a connected participant or respawn candidate.
         var dummy = new Unit(NewUnitId(), init, _defaultUnitUpdater);
         dummy.SetDebugDummyHealth(health);
+        _testDummyMotion.Add(dummy, new DebugDummyMotion());
         return dummy;
+    }
+
+    private void TickTestDummy(Unit dummy)
+    {
+        if (dummy.IsDead || dummy.IsDropped || !_testDummyMotion.TryGetValue(dummy, out var motion)) return;
+        var movement = CatalogueHelper.MovementLogic;
+        var pullOrigin = motion.Pull?.OriginPos;
+        if (motion.Pull?.OriginUnitId is { } sourceId && _units.TryGetValue(sourceId, out var source))
+            pullOrigin = source.Transform.Position;
+
+        var previous = dummy.Transform;
+        var position = motion.Step(MapBinary, dummy.Team, previous.Position, SecondsPerTick,
+            movement?.JumpAirResistance ?? 0, movement?.GroundFriction ?? 10, pullOrigin,
+            out var grounded, out var pad);
+        var next = new ZoneTransform { Position = position, Rotation = previous.Rotation, IsJump = !grounded };
+        if (motion.SlipYaw is { } yaw) next.Rotation = new Vector3s(0, (int)ZoneTransformHelper.PackToShort(yaw), 0);
+        next.SetLocalVelocity(Vector3.Transform(motion.Velocity, Quaternion.Inverse(next.GetRotation())));
+        if (!ZoneTransformHelper.CompareTransforms(previous, next))
+            dummy.UnitMove(next, Math.Max(dummy.LastMoveUpdateTime + 1, (ulong)DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()));
+
+        if (pad.HasValue)
+            _serviceZone.SendBroadcastZoneEvent(new ZoneEventJumpPadUsed { UnitId = dummy.Id, Position = pad.Value });
+
+        if (!dummy.IsDead && motion.LandingHeight > 0)
+            ApplyFallDamage(dummy, motion.LandingHeight, false);
+
+        // The usual map plane handles most pits via UnitMoved. Also retire targets that
+        // leave a map with no kill plane and no terrain below them.
+        if (!dummy.IsDead && position.Y < -32)
+            dummy.Killed(dummy.CreateBlankImpactData());
     }
 }
