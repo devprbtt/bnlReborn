@@ -5,7 +5,7 @@ using BNLReloadedServer.ProtocolHelpers;
 
 namespace BNLReloadedServer.ServerTypes;
 
-public sealed record ReplayEvent(uint At, byte Kind, string Label);
+public sealed record ReplayEvent(uint At, byte Kind, string Label, uint? Attacker = null, uint? Victim = null);
 
 // Index event metadata only; packet payloads are never retained.
 public sealed class ReplayTimeline
@@ -112,7 +112,7 @@ public sealed class ReplayTimeline
             if (killer is { } attacker && (!_teams.TryGetValue(attacker, out var attackTeam) ||
                 !_teams.TryGetValue(player, out var victimTeam) || attackTeam == TeamType.Neutral || victimTeam == TeamType.Neutral || attackTeam == victimTeam)) killer = null;
             foreach (var accolade in _accolades.Register(player, killer, kill.Crit, at/1000.0).Accolades)
-                Events.Add(new(at, 0, Name(killer!.Value) + ": " + AccoladeName(accolade)));
+                Events.Add(new(at, 0, Name(killer!.Value) + ": " + AccoladeName(accolade), killer, player));
         }
     }
 

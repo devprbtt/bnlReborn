@@ -41,13 +41,14 @@ using(var file=File.Create(path))using(var zip=new BrotliStream(file,Compression
  for(uint i=0;i<130;i++)Stream(21000+i,Create(1000+i,supply));
  Record(255,30000,Encoding.UTF8.GetBytes("{}"));
 }
-ReplayInstance? replay=null,legacy=null;
+ReplayInstance? replay=null,legacy=null,identified=null;
 try{
  var timeline=new ReplayTimeline(path,k=>cards.GetValueOrDefault(k));
  Check(timeline.Events.Count==136,"exact events indexed from serialized replay");
  Check(timeline.Events.Count(e=>e.Kind==0)==3,"only first kill, headshot and double kill; friendly and expired chains excluded");
  Check(timeline.Events.Any(e=>e.At==1000&&e.Label=="Alpha: First Kill"),"recorded nickname is used without markup");
  Check(timeline.Events.Any(e=>e.At==2000&&e.Label.EndsWith("Double Kill")),"multikill timing uses replay offsets");
+ Check(timeline.Events.Where(e=>e.At==1000).All(e=>e.Attacker==1&&e.Victim==2),"accolades retain recorded attacker and victim when KillInfo omits the victim");
  Check(timeline.Events.Count(e=>e.Kind==3)==1&&timeline.Events.Single(e=>e.Kind==3).At==5000,"cube kill deduplicated; despawn excluded");
  Check(timeline.Events.Count(e=>e.Kind==1)==131,"snapshot, duplicate create, static markers and scheduled drops excluded");
  Check(timeline.Events.Single(e=>e.Kind==2).At==4000,"BB actual spawn indexed separately");
@@ -58,6 +59,26 @@ try{
  Check(chunks.Length==3,"event metadata sent in bounded chunks");
  int total=0;for(int i=0;i<chunks.Length;i++){using var r=new BinaryReader(new MemoryStream(chunks[i],1,chunks[i].Length-1));Check(r.ReadBoolean()==(i==0),"only first chunk resets index");int count=r.ReadInt32();Check(count<=64,"chunk count bounded");total+=count;for(int j=0;j<count;j++){r.ReadInt64();r.ReadByte();r.ReadString();}Check(r.BaseStream.Position==r.BaseStream.Length,"chunk fully decoded");}
  Check(total==timeline.Events.Count,"all indexed events transmitted without truncation");
+ Check(!host.Packets.Any(p=>p[0]==122),"capability 20 keeps the original marker wire format");
+ var actorHost=new Host();identified=new(actorHost,path,"actors",7,unitCard:k=>cards.GetValueOrDefault(k));
+ identified.EnableControls(7,eventTimeline:true,timelineActors:true);
+ identified.LinkGuidToPlayer(7,Guid.NewGuid(),Guid.NewGuid());identified.PlayerZoneReady(7);identified.Control(7,1,0);
+ var actorChunks=actorHost.Packets.Where(p=>p[0]==122).ToArray();
+ Check(actorChunks.Length==3&&!actorHost.Packets.Any(p=>p[0]==121),"capability 21 sends actor-aware chunks only");
+ var entries=new List<ReplayEvent>();
+ foreach(var chunk in actorChunks)
+ {
+     using var reader=new BinaryReader(new MemoryStream(chunk,1,chunk.Length-1));
+     reader.ReadBoolean(); int count=reader.ReadInt32();
+     for(int i=0;i<count;i++)
+     {
+         uint at=(uint)reader.ReadInt64(); byte kind=reader.ReadByte(); string label=reader.ReadString();
+         bool hasActors=reader.ReadBoolean();
+         entries.Add(new(at,kind,label,hasActors?reader.ReadUInt32():null,hasActors?reader.ReadUInt32():null));
+     }
+     Check(reader.BaseStream.Position==reader.BaseStream.Length,"actor-aware chunk fully decoded");
+ }
+ Check(entries.SequenceEqual(timeline.Events),"actor-aware transport preserves all marker times and optional actor IDs");
  replay.Control(7,6,20000);await Until(()=>!host.Seeking&&host.Position==20000);
  Check(host.Paused,"absolute forward seek preserves pause");
  replay.Control(7,6,1000);Check(host.Scenes==1,"absolute rewind uses fresh scene recovery");replay.PlayerEnterScene(7);replay.PlayerZoneReady(7);await Until(()=>!host.Seeking&&host.Position==1000);
@@ -66,7 +87,7 @@ try{
  var oldHost=new Host();legacy=new(oldHost,path,"legacy",7);legacy.EnableControls(7);legacy.LinkGuidToPlayer(7,Guid.NewGuid(),Guid.NewGuid());legacy.PlayerZoneReady(7);legacy.Control(7,1,0);legacy.Control(7,6,20000);
  Check(!oldHost.Packets.Any(p=>p[0]==121)&&!oldHost.Seeking,"old clients receive no timeline and cannot use absolute command");
  Console.WriteLine("REPLAY_TIMELINE_OK checks="+checks);
-}finally{replay?.PlayerLeftInstance(7,KickReason.MatchQuit);legacy?.PlayerLeftInstance(7,KickReason.MatchQuit);for(int i=0;;i++){try{File.Delete(path);break;}catch(IOException)when(i<40){await Task.Delay(50);}}}
+}finally{replay?.PlayerLeftInstance(7,KickReason.MatchQuit);legacy?.PlayerLeftInstance(7,KickReason.MatchQuit);identified?.PlayerLeftInstance(7,KickReason.MatchQuit);for(int i=0;;i++){try{File.Delete(path);break;}catch(IOException)when(i<40){await Task.Delay(50);}}}
 async Task Until(Func<bool> ready){var until=DateTime.UtcNow.AddSeconds(5);while(!ready()&&DateTime.UtcNow<until)await Task.Delay(10);Check(ready(),"absolute seek completes");}
 sealed class Host:IReplayHost{
  public readonly ConcurrentQueue<byte[]> Packets=new();public int Scenes;public volatile bool Seeking,Paused;public long Position;

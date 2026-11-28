@@ -46,6 +46,7 @@ public sealed class ReplayInstance : GameInstanceBase
     private bool _seeking;
     private bool _controls;
     private bool _eventTimeline;
+    private bool _timelineActors;
     private bool _acknowledgedSeeking;
     private int _barrierSequence;
     private readonly List<(int Id, TaskCompletionSource<bool> Completion)> _barriers = [];
@@ -132,11 +133,12 @@ public sealed class ReplayInstance : GameInstanceBase
     }
 
     public void EnableControls(uint playerId, bool acknowledgedSeeking = false, bool presentationReady = false,
-        bool rewindInPlace = false, bool eventTimeline = false)
+        bool rewindInPlace = false, bool eventTimeline = false, bool timelineActors = false)
     {
         if (playerId != _viewerId) return;
         _controls = true;
         _eventTimeline = eventTimeline;
+        _timelineActors = timelineActors;
         _acknowledgedSeeking = acknowledgedSeeking;
         _presentationReady = presentationReady;
         // Capability 12 only promises packet handling, not a reset of native
@@ -225,12 +227,24 @@ public sealed class ReplayInstance : GameInstanceBase
         for (int offset = 0; offset < Math.Max(1, _timeline.Events.Count); offset += 64)
         {
             using var writer = new BinaryWriter(new MemoryStream());
-            writer.Write((byte)6); writer.Write((byte)121);
+            writer.Write((byte)6); writer.Write(_timelineActors ? (byte)122 : (byte)121);
             writer.Write(offset == 0);
             int count = Math.Min(64, _timeline.Events.Count-offset);
             writer.Write(count);
             foreach (var item in _timeline.Events.Skip(offset).Take(count))
-            { writer.Write((long)item.At); writer.Write(item.Kind); writer.Write(item.Label); }
+            {
+                writer.Write((long)item.At); writer.Write(item.Kind); writer.Write(item.Label);
+                if (_timelineActors)
+                {
+                    bool hasActors = item.Attacker.HasValue && item.Victim.HasValue;
+                    writer.Write(hasActors);
+                    if (hasActors)
+                    {
+                        writer.Write(item.Attacker!.Value);
+                        writer.Write(item.Victim!.Value);
+                    }
+                }
+            }
             Send(RecordingSender.Frame(writer));
         }
     }

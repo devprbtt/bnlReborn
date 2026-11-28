@@ -144,6 +144,7 @@ public partial class ServiceZone(ISender sender, Func<System.Net.IPAddress?>? pe
     public bool SupportsTimeAssaultReady { get; private set; }
     private bool _supportsReplayControls;
     private bool _supportsReplayTimeline;
+    private bool _supportsReplayTimelineActors;
     private bool _supportsReplaySeekAck;
     private bool _supportsReplayPresentationReady;
     private bool _supportsReplayInPlaceRewind;
@@ -204,6 +205,7 @@ public partial class ServiceZone(ISender sender, Func<System.Net.IPAddress?>? pe
                 SupportsAssistLead = version >= 7;
                 _supportsReplayControls = version >= 8;
                 _supportsReplayTimeline = version >= 20;
+                _supportsReplayTimelineActors = version >= 21;
                 _supportsReplaySeekAck = version >= 10;
                 _supportsReplayPresentationReady = version >= 11;
                 _supportsReplayInPlaceRewind = version >= 12;
@@ -215,7 +217,7 @@ public partial class ServiceZone(ISender sender, Func<System.Net.IPAddress?>? pe
         {
             if (_supportsReplayControls && GameInstance is ReplayInstance replay)
                 replay.EnableControls(sender.AssociatedPlayerId.Value, _supportsReplaySeekAck, _supportsReplayPresentationReady,
-                    _supportsReplayInPlaceRewind, _supportsReplayTimeline);
+                    _supportsReplayInPlaceRewind, _supportsReplayTimeline, _supportsReplayTimelineActors);
             GameInstance?.PlayerZoneReady(sender.AssociatedPlayerId.Value);
         }
     }
